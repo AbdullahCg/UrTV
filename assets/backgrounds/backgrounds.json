@@ -1,38 +1,8 @@
 [
   {
-    "file": "alula.jpg",
+    "file": "riyadh-skyline.jpg",
     "credit": "B.alotaby · CC BY-SA 4.0",
     "brightness": 0.95
-  },
-  {
-    "file": "riyadh.jpg",
-    "credit": "Following Hadrian · CC BY-SA 2.0",
-    "brightness": 1.0
-  },
-  {
-    "file": "tabuk-dunes.jpg",
-    "credit": "DanyelODACI · CC BY-SA 4.0",
-    "brightness": 0.85
-  },
-  {
-    "file": "farasan.jpg",
-    "credit": "Abdalrahman Mohrat · CC BY 2.0",
-    "brightness": 0.8
-  },
-  {
-    "file": "asir.jpg",
-    "credit": "Richard Mortel · CC BY 2.0",
-    "brightness": 0.95
-  },
-  {
-    "file": "diriyah.jpg",
-    "credit": "Radosław Botev · CC BY 3.0",
-    "brightness": 0.85
-  },
-  {
-    "file": "jeddah-night.jpg",
-    "credit": "Joseph Azrak · CC BY-SA 4.0",
-    "brightness": 1.0
   },
   {
     "file": "zulfi-thuwayr.jpg",
@@ -50,18 +20,8 @@
     "brightness": 0.9
   },
   {
-    "file": "asir-sarawat.jpg",
-    "credit": "Richard Mortel · CC BY 2.0",
-    "brightness": 0.88
-  },
-  {
     "file": "farasan-beach.jpg",
     "credit": "Bandar Yuosef · CC BY 2.0",
     "brightness": 0.8
-  },
-  {
-    "file": "empty-quarter.jpg",
-    "credit": "Nepenthes · CC BY-SA 3.0",
-    "brightness": 0.82
   }
 ]
