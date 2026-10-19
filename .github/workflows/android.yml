@@ -32,17 +32,17 @@ jobs:
 
       - name: Rename
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk tvsaver.apk
-          cp android/launcher/build/outputs/apk/release/launcher-release.apk tvhome.apk
+          cp android/app/build/outputs/apk/release/app-release.apk yourtv-screensaver.apk
+          cp android/launcher/build/outputs/apk/release/launcher-release.apk yourtv-home.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: apks
           path: |
-            tvsaver.apk
-            tvhome.apk
+            yourtv-screensaver.apk
+            yourtv-home.apk
 
-      # fixed download links: .../releases/download/apk-latest/tvsaver.apk and tvhome.apk
+      # fixed download links: .../releases/download/apk-latest/yourtv-screensaver.apk and yourtv-home.apk
       - name: Publish to the apk-latest release
         uses: softprops/action-gh-release@v2
         with:
@@ -50,6 +50,6 @@ jobs:
           name: Latest APKs
           body: "Build ${{ github.run_number }} from ${{ github.sha }}"
           files: |
-            tvsaver.apk
-            tvhome.apk
+            yourtv-screensaver.apk
+            yourtv-home.apk
           make_latest: true

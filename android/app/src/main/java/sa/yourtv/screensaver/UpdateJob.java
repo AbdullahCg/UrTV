@@ -1,4 +1,4 @@
-package com.abdullah.tvsaver;
+package sa.yourtv.screensaver;
 
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;

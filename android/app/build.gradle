@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.abdullah.tvsaver'
+    namespace 'sa.yourtv.screensaver'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.abdullah.tvsaver'
+        applicationId 'sa.yourtv.screensaver'
         minSdk 21
         targetSdk 34
         // CI passes its run number so every build installs over the previous one

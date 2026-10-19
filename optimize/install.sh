@@ -4,7 +4,7 @@
 #   optimize/install.sh launcher   the home screen: install + make it the default Home
 #   optimize/install.sh all        both
 # The first install of the screensaver replaces an APK signed with another key: uninstall the old one first
-# (pm uninstall com.abdullah.tvsaver) — this script does that only if a plain install fails.
+# (pm uninstall sa.yourtv.screensaver) — this script does that only if a plain install fails.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
@@ -23,12 +23,12 @@ push_install() {   # $1 apk name, $2 package
 }
 
 if [ "$what" = saver ] || [ "$what" = all ]; then
-  push_install tvsaver.apk com.abdullah.tvsaver
+  push_install yourtv-screensaver.apk sa.yourtv.screensaver
   printf '%s\n' \
     "settings put secure screensaver_enabled 1" \
-    "settings put secure screensaver_components com.abdullah.tvsaver/.ScreenDream" \
-    "settings put secure screensaver_default_component com.abdullah.tvsaver/.ScreenDream" \
-    "am start -n com.abdullah.tvsaver/.SettingsActivity" \
+    "settings put secure screensaver_components sa.yourtv.screensaver/.ScreenDream" \
+    "settings put secure screensaver_default_component sa.yourtv.screensaver/.ScreenDream" \
+    "am start -n sa.yourtv.screensaver/.SettingsActivity" \
     | "$PY" -I optimize/tv.py --batch
   echo "Screensaver installed and selected. Its settings screen is open on the TV."
 fi
@@ -43,8 +43,8 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
   echo "Stock home: $STOCK"
 
   # 1. The new home must be installed and working BEFORE anything is disabled.
-  push_install tvhome.apk com.abdullah.tvhome
-  "$PY" -I optimize/tv.py "pm grant com.abdullah.tvhome android.permission.ACCESS_FINE_LOCATION" || true
+  push_install yourtv-home.apk sa.yourtv.home
+  "$PY" -I optimize/tv.py "pm grant sa.yourtv.home android.permission.ACCESS_FINE_LOCATION" || true
 
   # 2. Arm the safety switch on the TV: it restores the stock home in 180 s unless we confirm.
   "$PY" -I optimize/tv.py --push-b64 optimize/deadman.sh /data/local/tmp/deadman.sh
@@ -56,10 +56,10 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
 
   # 3. Switch. Setup app first, then the stock home (this order avoided the black screen).
   printf '%s\n' \
-    "cmd package set-home-activity --user 0 com.abdullah.tvhome/.MainActivity" \
+    "cmd package set-home-activity --user 0 sa.yourtv.home/.MainActivity" \
     "pm disable-user --user 0 com.google.android.tungsten.setupwraith" \
     "pm disable-user --user 0 ${STOCK%%/*}" \
-    "cmd package set-home-activity --user 0 com.abdullah.tvhome/.MainActivity" \
+    "cmd package set-home-activity --user 0 sa.yourtv.home/.MainActivity" \
     "am force-stop com.android.tv.settings" \
     "input keyevent KEYCODE_HOME" \
     | "$PY" -I optimize/tv.py --batch
@@ -67,7 +67,7 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
 
   # 4. Verify Home really opens the new launcher, then disarm the switch.
   if "$PY" -I optimize/tv.py "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" \
-       | grep -q com.abdullah.tvhome; then
+       | grep -q sa.yourtv.home; then
     "$PY" -I optimize/tv.py "touch /data/local/tmp/home_ok"
     echo "Launcher is home. Press Home from inside an app to double-check."
     echo "Undo: optimize/restore.sh optimize/lists/<your list>   (re-enables the stock home)"

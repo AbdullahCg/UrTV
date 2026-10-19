@@ -8,7 +8,7 @@
     <!-- Android 11 only reveals the Wi-Fi name to apps holding location; granted over ADB at install. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- the optional home-screen card reads the screensaver's settings (signature permission, same key) -->
-    <uses-permission android:name="com.abdullah.tvsaver.READ_CONFIG" />
+    <uses-permission android:name="sa.yourtv.screensaver.READ_CONFIG" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -20,7 +20,7 @@
         </intent>
         <package android:name="com.tcl.tv" />
         <package android:name="com.tcl.suspension" />
-        <package android:name="com.abdullah.tvsaver" />
+        <package android:name="sa.yourtv.screensaver" />
     </queries>
 
     <application

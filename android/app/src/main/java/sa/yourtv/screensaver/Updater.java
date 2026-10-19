@@ -1,4 +1,4 @@
-package com.abdullah.tvsaver;
+package sa.yourtv.screensaver;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -29,7 +29,7 @@ final class Updater {
         if (!force && now - sp.getLong("lastCheck", 0) < INTERVAL_MS) return "تم الفحص مؤخراً";
 
         File out = pageFile(c);
-        new File(out.getParentFile(), "ksa-dashboard.html").delete();   // the old, heavier page
+        new File(out.getParentFile(), "your-tv.html").delete();   // the old, heavier page
         HttpURLConnection con = null;
         try {
             con = (HttpURLConnection) new URL(URL_PAGE).openConnection();

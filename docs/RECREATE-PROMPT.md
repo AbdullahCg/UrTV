@@ -101,8 +101,8 @@ All three are built identically — small gold label, big value, small sub-line 
 
 - A native `DreamService` APK, not a browser page: the assets live inside the APK, so there is no white flash and no browser chrome, and it works offline.
 - `MainActivity` is a full-screen WebView showing the same HTML; dismiss with any remote key via `dispatchKeyEvent`.
-- `ScreenDream` is the system dream (`screensaver_components=com.abdullah.tvsaver/.ScreenDream`), so it starts on the TV's own idle timer (10 s).
-- **Settings inside the app:** a city picker (`SettingsActivity`, 23 Saudi cities) writes the choice to SharedPreferences; every dashboard load builds `file:///android_asset/ksa-dashboard.html#city=..&lat=..&lon=..&tz=..` and the page reads the **fragment** with `new URLSearchParams(location.hash.slice(1))`. A `?query` on a `file://` asset URL fails to load in WebView, the fragment works.
+- `ScreenDream` is the system dream (`screensaver_components=sa.yourtv.screensaver/.ScreenDream`), so it starts on the TV's own idle timer (10 s).
+- **Settings inside the app:** a city picker (`SettingsActivity`, 23 Saudi cities) writes the choice to SharedPreferences; every dashboard load builds `file:///android_asset/your-tv.html#city=..&lat=..&lon=..&tz=..` and the page reads the **fragment** with `new URLSearchParams(location.hash.slice(1))`. A `?query` on a `file://` asset URL fails to load in WebView, the fragment works.
 - **Team preferences:** the same settings screen has two team fields (TheSportsDB ids) and appends `&team1=136013&team2=136137` to the fragment. Each team owns one slot in the fixtures panel; a team with nothing this week (or an empty field) leaves its slot hidden, and a game between the two shows once.
 - Weather, prayer times, the clock timezone and the "بتوقيت …" label all follow the chosen city; Riyadh is the fallback.
 - Pass the config in the fragment and the page stays a plain static HTML file that still opens on a desktop browser.

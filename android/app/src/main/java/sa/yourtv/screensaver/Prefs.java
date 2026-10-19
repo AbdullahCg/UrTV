@@ -1,4 +1,4 @@
-package com.abdullah.tvsaver;
+package sa.yourtv.screensaver;
 
 import android.content.Context;
 import android.content.SharedPreferences;

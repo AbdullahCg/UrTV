@@ -1,4 +1,4 @@
-package com.abdullah.tvhome;
+package sa.yourtv.home;
 
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
@@ -1011,7 +1011,7 @@ public class MainActivity extends Activity {
     }
 
     static final int GOLD = 0xFFD6AF6B;
-    static final String SAVER_PKG = "com.abdullah.tvsaver";
+    static final String SAVER_PKG = "sa.yourtv.screensaver";
     private final Map<String, Typeface> fonts = new HashMap<>();
 
     /** Thmanyah from assets/fonts; any old family name maps to the nearest weight. */

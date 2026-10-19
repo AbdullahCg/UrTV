@@ -7,7 +7,7 @@
 
     <!-- the launcher (same signing key) reads the settings for its home-screen card -->
     <permission
-        android:name="com.abdullah.tvsaver.READ_CONFIG"
+        android:name="sa.yourtv.screensaver.READ_CONFIG"
         android:protectionLevel="signature" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -70,8 +70,8 @@
 
         <provider
             android:name=".ConfigProvider"
-            android:authorities="com.abdullah.tvsaver.config"
+            android:authorities="sa.yourtv.screensaver.config"
             android:exported="true"
-            android:readPermission="com.abdullah.tvsaver.READ_CONFIG" />
+            android:readPermission="sa.yourtv.screensaver.READ_CONFIG" />
     </application>
 </manifest>

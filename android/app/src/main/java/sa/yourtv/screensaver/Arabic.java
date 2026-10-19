@@ -1,4 +1,4 @@
-package com.abdullah.tvsaver;
+package sa.yourtv.screensaver;
 
 import android.net.Uri;
 
@@ -152,7 +152,7 @@ final class Arabic {
         try {
             con.setConnectTimeout(10000);
             con.setReadTimeout(12000);
-            con.setRequestProperty("User-Agent", "tvsaver/2 (Android TV screensaver)");
+            con.setRequestProperty("User-Agent", "your-tv/2 (Android TV screensaver)");
             InputStream in = con.getInputStream();
             ByteArrayOutputStream b = new ByteArrayOutputStream();
             byte[] buf = new byte[8192];

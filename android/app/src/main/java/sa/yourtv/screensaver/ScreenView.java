@@ -1,4 +1,4 @@
-package com.abdullah.tvsaver;
+package sa.yourtv.screensaver;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -10,8 +10,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 /** The WebView shared by the preview activity and the dream. */
-final class Dashboard {
-    private Dashboard() {}
+final class ScreenView {
+    private ScreenView() {}
 
     @SuppressLint("SetJavaScriptEnabled")
     @SuppressWarnings("deprecation")

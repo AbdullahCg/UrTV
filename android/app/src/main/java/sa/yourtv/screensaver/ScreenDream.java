@@ -1,4 +1,4 @@
-package com.abdullah.tvsaver;
+package sa.yourtv.screensaver;
 
 import android.service.dreams.DreamService;
 import android.webkit.WebView;
@@ -13,7 +13,7 @@ public class ScreenDream extends DreamService {
         setInteractive(false);
         setFullscreen(true);
         setScreenBright(true);
-        web = Dashboard.create(this);
+        web = ScreenView.create(this);
         setContentView(web);
     }
 
