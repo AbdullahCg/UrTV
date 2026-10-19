@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>شاشة الرياض</title>
+<style>
+  @font-face{font-family:'Thmanyah';font-weight:300;font-style:normal;font-display:block;src:url("__F_LIGHT__") format("woff2")}
+  @font-face{font-family:'Thmanyah';font-weight:400;font-style:normal;font-display:block;src:url("__F_REGULAR__") format("woff2")}
+  @font-face{font-family:'Thmanyah';font-weight:500;font-style:normal;font-display:block;src:url("__F_MEDIUM__") format("woff2")}
+  @font-face{font-family:'ThmanyahDisplay';font-weight:700;font-style:normal;font-display:block;src:url("__F_DISPLAY__") format("woff2")}
+
+  :root{
+    --sand:#F6EFE0;
+    --dim:#C3B8A2;
+    --gold:#DCB86F;
+    --green-lt:#57D294;
+    --red:#EE6A50;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;background:#040E09;color:var(--sand);
+    font-family:'Thmanyah',system-ui,sans-serif;
+    -webkit-user-select:none;user-select:none;cursor:none;
+  }
+
+  .photo{
+    position:fixed;inset:0;z-index:0;
+    background-image:none;
+    background-color:#040E09;
+    background-size:cover;
+    background-position:center 26%;
+    background-repeat:no-repeat;
+    filter:saturate(1.02) brightness(.98) contrast(1.02);
+  }
+  .veil{
+    position:fixed;inset:0;z-index:1;
+    background:
+      linear-gradient(180deg,rgba(3,10,7,.62) 0%,rgba(3,10,7,.30) 22%,rgba(3,10,7,.12) 46%,rgba(3,10,7,.42) 74%,rgba(2,6,4,.88) 100%),
+      radial-gradient(120% 85% at 22% 34%,rgba(3,14,9,.42) 0%,rgba(3,14,9,0) 58%);
+  }
+  #credit{
+    position:fixed;left:26px;bottom:6px;z-index:4;
+    font-size:10px;letter-spacing:.02em;
+    color:rgba(246,239,224,.30);pointer-events:none;
+  }
+  .grain{
+    position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='.55'/></svg>");
+  }
+  .top-veil{
+    position:fixed;left:0;top:0;width:56vw;height:34vh;z-index:3;pointer-events:none;
+    background:radial-gradient(120% 100% at 0% 0%,rgba(2,9,6,.82) 0%,rgba(2,9,6,.42) 45%,rgba(2,9,6,0) 76%);
+  }
+  .bottom-veil{
+    position:fixed;left:0;right:0;bottom:0;height:30vh;z-index:3;pointer-events:none;
+    background:linear-gradient(180deg,rgba(2,7,4,0) 0%,rgba(2,7,4,.55) 42%,rgba(2,6,4,.86) 100%);
+  }
+
+  .stage{
+    position:relative;z-index:5;height:100vh;
+    padding:3.1vh 3.6vw 5.4vh;
+    display:grid;grid-template-rows:auto 1fr auto;gap:1.5vh;
+  }
+
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:2.5vw}
+
+  .markets{display:flex;gap:.65vw;flex-wrap:nowrap}
+  .chip{
+    border:1px solid rgba(220,184,111,.22);
+    background:rgba(4,14,9,.60);
+    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+    border-radius:10px;
+    padding:1vh 1.05vw;
+    min-width:clamp(118px,11.6vw,215px);
+  }
+  .chip .nm{
+    display:flex;justify-content:space-between;align-items:baseline;gap:.6em;
+    font-size:clamp(11px,.92vw,17px);font-weight:400;color:var(--dim);white-space:nowrap;
+  }
+  .chip .px{
+    margin-top:.5vh;
+    font-size:clamp(17px,1.52vw,29px);font-weight:500;
+    font-variant-numeric:tabular-nums;color:#FFF9EC;
+    direction:ltr;text-align:right;white-space:nowrap;letter-spacing:-.01em;
+  }
+  .chip .delta{font-size:.56em;font-weight:500;margin-inline-start:.4em;font-variant-numeric:tabular-nums}
+  .up{color:var(--green-lt)}.down{color:var(--red)}
+
+  .week{
+    width:100%;max-width:min(760px,48vw);justify-self:end;
+    background:rgba(4,14,9,.46);
+    border:1px solid rgba(220,184,111,.16);
+    border-radius:12px;
+    padding:1.7vh 1.4vw;
+    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  }
+  .week .hd{
+    display:flex;align-items:center;gap:.7em;margin-bottom:1vh;
+    font-size:clamp(12px,1vw,18px);font-weight:500;letter-spacing:.18em;color:#D6AF6B;
+  }
+  .week .hd::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(220,184,111,.5),transparent)}
+  .week ul{list-style:none;display:flex;flex-direction:column;gap:0}
+  .week li{
+    display:flex;align-items:baseline;gap:1.05em;
+    font-size:clamp(14px,1.16vw,22px);font-weight:400;color:#F6EEDC;
+    white-space:nowrap;line-height:1.3;
+    padding:.8vh 0;border-bottom:1px solid rgba(220,184,111,.13);
+  }
+  .week li:last-child{border-bottom:none}
+  .week li span:first-child{flex:0 1 auto;max-width:68%;overflow:hidden;text-overflow:ellipsis}
+  .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
+  .week li .rt{flex:0 0 auto;color:#E0BA74;font-size:.74em;font-variant-numeric:tabular-nums}
+  .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
+  .week ul.flip li{animation:weekIn .5s ease both}
+  .week ul.flip li:nth-child(2){animation-delay:.06s}
+  .week ul.flip li:nth-child(3){animation-delay:.12s}
+  .week ul.flip li:nth-child(4){animation-delay:.18s}
+  .week ul.flip li:nth-child(5){animation-delay:.24s}
+  @keyframes weekIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
+
+  .dates{text-align:right;flex-shrink:0}
+  .hijri{font-size:clamp(19px,1.86vw,37px);font-weight:500;color:var(--sand);line-height:1.3}
+  .greg{margin-top:.55vh;font-size:clamp(12px,1.06vw,21px);font-weight:300;color:var(--dim)}
+  .rule{margin-top:1.2vh;width:clamp(100px,9vw,190px);height:1px;margin-right:auto;
+    background:linear-gradient(90deg,var(--gold),rgba(220,184,111,0))}
+
+  .mid{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4.5vw}
+  .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:start}
+  .clock{
+    display:flex;align-items:flex-start;justify-content:center;direction:ltr;
+    font-family:'ThmanyahDisplay','Thmanyah',serif;
+    font-weight:700;
+    font-size:clamp(120px,min(17vw,31vh),345px);line-height:.92;letter-spacing:.022em;
+    color:#FFFDF6;font-variant-numeric:tabular-nums;
+    text-shadow:0 4px 70px rgba(0,0,0,.65), 0 0 130px rgba(255,236,190,.12);
+  }
+  .clock .d{unicode-bidi:isolate}
+  .clock .sep{
+    font-size:.46em;transform:translateY(.12em);color:var(--gold);opacity:.9;padding:0 .1em;
+  }
+  .clock .ampm{
+    font-size:.28em;font-weight:500;color:var(--gold);
+    align-self:flex-start;transform:translateY(.34em);margin-inline-start:.3em;
+  }
+  .subline{
+    margin-top:1.4vh;display:flex;align-items:center;gap:.7em;
+    font-size:clamp(12px,1.02vw,20px);font-weight:300;letter-spacing:.3em;color:#D8CDB6;
+  }
+  .subline .dot{width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:.9}
+
+  .bottom{
+    display:grid;grid-template-columns:1fr .9fr 1.3fr;
+    gap:2.4vw;align-items:end;
+    border-top:1px solid rgba(220,184,111,.30);
+    padding-top:2.1vh;
+  }
+  .panel{min-width:0}
+  .panel .label{
+    font-size:clamp(12px,.98vw,18px);font-weight:500;letter-spacing:.2em;
+    color:#D6AF6B;margin-bottom:.8vh;white-space:nowrap;
+  }
+  .panel .big{
+    display:flex;align-items:baseline;gap:.4em;flex-wrap:nowrap;white-space:nowrap;min-width:0;line-height:1.1;
+    font-weight:700;font-family:'ThmanyahDisplay','Thmanyah',serif;font-size:clamp(22px,2vw,42px);color:var(--sand);
+  }
+  .panel .num{color:#FFFCF2;font-size:1.12em;font-variant-numeric:tabular-nums;font-weight:500}
+  .panel .unit{font-size:.56em;font-weight:500;color:var(--gold)}
+  .panel .sub{
+    margin-top:.85vh;font-size:clamp(12px,1vw,19px);font-weight:300;color:#C6BBA4;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .panel .sub b{color:#F0E6D0;font-weight:500}
+
+  .p-prayer{text-align:right}
+  .p-prayer .big{justify-content:flex-start}
+  .p-mid{text-align:center}
+  .p-mid .big{display:block;text-align:center;line-height:1.06}
+  .p-mid .num{font-size:1.3em;line-height:1}
+  .p-mid .unit{font-size:.46em;font-weight:500;color:#D6AF6B;letter-spacing:.02em;display:inline;vertical-align:.5em}
+  .p-match{text-align:left}
+  .p-match .big{justify-content:flex-end}
+  .p-match .sub{white-space:normal;line-height:1.4;max-width:100%;font-size:clamp(11px,.88vw,17px)}
+
+  .mrow{display:flex;flex-direction:column;gap:1.2vh;align-items:flex-end}
+  .mblock{text-align:left;width:100%}
+  .mblock .big{justify-content:flex-end;min-width:0}
+  .mblock .big > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .none-week{font-size:clamp(26px,2.5vw,54px);font-weight:700;font-family:'ThmanyahDisplay','Thmanyah',serif;color:#A79C85}
+
+  @keyframes drift{
+    0%{transform:scale(1.03) translate3d(0,0,0)}
+    50%{transform:scale(1.055) translate3d(-.55%,-.4%,0)}
+    100%{transform:scale(1.03) translate3d(0,0,0)}
+  }
+  @media (prefers-reduced-motion:no-preference){.photo{animation:drift 120s ease-in-out infinite}}
+  @media (prefers-reduced-motion:reduce){.photo{animation:none}}
+
+  /* ===== v3: markets direction-only, weather, night dim, pixel shift ===== */
+  .markets{gap:.72vw}
+  .chip{display:flex;align-items:center;gap:.5em;padding:.8vh .95vw;min-width:0;flex:0 0 auto}
+  .chip .px{display:none}
+  .chip .nm{display:flex;align-items:center;gap:.55em;font-size:clamp(14px,1.28vw,25px);font-weight:500;letter-spacing:.03em}
+  .chip .delta{font-size:clamp(14px,1.3vw,25px);font-weight:700;letter-spacing:0}
+  .chip .delta.up{color:#79D6A0}
+  .chip .delta.down{color:#EE8B70}
+  .chip .wxt{font-size:clamp(18px,1.62vw,32px);font-weight:700;color:#FFFCF2;direction:ltr;font-variant-numeric:tabular-nums}
+  .chip .wxd{font-size:clamp(11px,.86vw,16px);font-weight:400;color:#CBBFA6;margin-inline-start:.2em}
+  .dimmer{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30;transition:opacity 6s linear}
+  .stage{transition:transform 3s ease}
+  .sc{color:#E0BA74;letter-spacing:.02em}
+
+  @media (max-aspect-ratio:5/4){
+    .top{flex-direction:column-reverse;gap:1.4vh}
+    .markets{flex-wrap:wrap}
+    .bottom{grid-template-columns:1fr 1fr}
+    .p-match{grid-column:1/-1;text-align:right}
+    .mrow{align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+<div class="photo"></div>
+<div id="credit"></div>
+<div class="veil"></div>
+<div class="grain"></div>
+<div class="top-veil"></div>
+<div class="bottom-veil"></div>
+<div class="dimmer" id="dimmer"></div>
+
+<main class="stage">
+
+  <header class="top">
+    <div class="dates">
+      <div class="hijri" id="hijri">—</div>
+      <div class="greg" id="greg">—</div>
+      <div class="rule"></div>
+    </div>
+
+    <div class="markets">
+      <div class="chip"><span class="nm">تاسي</span><span id="tasi-chg" class="delta" hidden></span></div>
+      <div class="chip"><span class="nm">S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></div>
+      <div class="chip"><span class="nm">بيتكوين</span><span id="btc-chg" class="delta" hidden></span></div>
+      <div class="chip wx"><span class="nm" id="wx-city">الرياض</span><span class="wxt" id="wx-temp">—</span><span class="wxd" id="wx-desc"></span></div>
+    </div>
+  </header>
+
+  <section class="mid">
+    <div class="clockwrap">
+      <div class="clock">
+        <span class="d" id="ck-h">--</span><span class="sep">:</span><span class="d" id="ck-m">--</span><span class="ampm" id="ck-ap">—</span>
+      </div>
+      <div class="subline"><span class="dot"></span><span id="clock-sub">بتوقيت الرياض</span></div>
+    </div>
+
+    <div class="week">
+      <div class="hd">هذا الأسبوع</div>
+      <ul id="week-list"><li class="empty">جارٍ التحميل…</li></ul>
+    </div>
+  </section>
+
+  <footer class="bottom">
+    <div class="panel p-prayer">
+      <div class="label">الصلاة القادمة</div>
+      <div class="big"><span id="prayer-name">—</span><span class="num" id="prayer-time"></span></div>
+      <div class="sub" id="prayer-count">—</div>
+    </div>
+
+    <div class="panel p-mid">
+      <div class="label" id="ramadan-label">رمضان ١٤٤٨</div>
+      <div class="big"><span class="num" id="ramadan-days">—</span></div>
+      <div class="sub" id="ramadan-sub">—</div>
+    </div>
+
+    <div class="panel p-match">
+      <div class="label">المباريات</div>
+      <div class="mrow" id="match-row">
+        <div class="none-week">لا شيء هذا الأسبوع</div>
+      </div>
+    </div>
+  </footer>
+
+</main>
+
+<script>
+// daily background: one photo per Riyadh day, deterministic
+const BGS = [
+__BG_SET__
+];
+// the app passes the chosen city in the URL: ?city=..&lat=..&lon=..&tz=..
+const _Q = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : v; };
+const CONFIG = {
+  city: _Q.get('city') || 'الرياض',
+  latitude: _num('lat', 24.7136),
+  longitude: _num('lon', 46.6753),
+  timezone: _Q.get('tz') || 'Asia/Riyadh',
+  prayerMethod: 4,
+  hilalTeamId: 136013,
+  ksaTeamId: 136137,
+  sportsKey: '123',
+  weekWindowDays: 7,
+};
+
+const AR = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+const ar = s => String(s).replace(/[0-9]/g, d => AR[+d]);
+const pad = n => String(n).padStart(2,'0');
+
+function riyadhParts(d = new Date()){
+  const f = new Intl.DateTimeFormat('en-GB',{
+    timeZone: CONFIG.timezone, hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
+  return { y:+f.year, mo:+f.month, d:+f.day, h:(+f.hour)%24, mi:+f.minute, s:+f.second };
+}
+function riyadhNow(){
+  const p = riyadhParts();
+  return new Date(p.y, p.mo-1, p.d, p.h, p.mi, p.s);
+}
+function fmt12(h, mi){
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${ar(h12)}:${ar(pad(mi))} ${h < 12 ? 'ص' : 'م'}`;
+}
+
+function tickClock(){
+  const p = riyadhParts();
+  const h12 = p.h % 12 === 0 ? 12 : p.h % 12;
+  document.getElementById('ck-h').textContent = ar(h12);
+  document.getElementById('ck-m').textContent = ar(pad(p.mi));
+  document.getElementById('ck-ap').textContent = p.h < 12 ? 'ص' : 'م';
+}
+
+function tickDates(){
+  const now = new Date();
+  try{
+    let h = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura',{
+      timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
+    }).format(now);
+    h = h.replace(/\s*هـ\s*$/,'').replace(/،\s*$/,'');
+    document.getElementById('hijri').textContent = h + ' هـ';
+  }catch(e){}
+  try{
+    document.getElementById('greg').textContent = new Intl.DateTimeFormat('ar-SA',{
+      timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
+    }).format(now);
+  }catch(e){}
+}
+
+const PRAYER_NAMES = {Fajr:'الفجر',Dhuhr:'الظهر',Asr:'العصر',Maghrib:'المغرب',Isha:'العشاء'};
+const FALLBACK_TIMINGS = {Fajr:'04:34',Dhuhr:'11:38',Asr:'14:57',Maghrib:'17:24',Isha:'18:54'};
+let PRAYERS = [];
+
+function buildPrayers(t){
+  PRAYERS = ['Fajr','Dhuhr','Asr','Maghrib','Isha'].map(k=>{
+    const [h,mi] = t[k].split(':').map(Number);
+    return {name:PRAYER_NAMES[k], h, mi};
+  }).sort((a,b)=>(a.h*60+a.mi)-(b.h*60+b.mi));
+}
+async function loadPrayers(){
+  const p = riyadhParts();
+  const url = `https://api.aladhan.com/v1/timings/${pad(p.d)}-${pad(p.mo)}-${p.y}`
+            + `?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}`
+            + `&method=${CONFIG.prayerMethod}&timezonestring=${encodeURIComponent(CONFIG.timezone)}`;
+  try{
+    const r = await fetch(url,{cache:'no-store'});
+    const j = await r.json();
+    if(!j?.data?.timings?.Fajr) throw 0;
+    buildPrayers(j.data.timings);
+  }catch(e){ buildPrayers(FALLBACK_TIMINGS); }
+  tickPrayer();
+}
+
+const UNIT = {
+  day: {one:'يوم', two:'يومين', few:'أيام', many:'يوم'},
+  hour:{one:'ساعة', two:'ساعتين', few:'ساعات', many:'ساعة'},
+  min: {one:'دقيقة', two:'دقيقتين', few:'دقائق', many:'دقيقة'}
+};
+function qty(n,u){
+  if(n === 2) return u.two;
+  if(n >= 3 && n <= 10) return `${ar(n)} ${u.few}`;
+  return `${ar(n)} ${u.many}`;
+}
+function humanRemaining(sec){
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), out = [];
+  if(h) out.push(qty(h,UNIT.hour));
+  if(m || !h) out.push(qty(m,UNIT.min));
+  return out.join(' و ');
+}
+function shortRemaining(ms){
+  const d = Math.floor(ms/86400000), h = Math.floor((ms%86400000)/3600000);
+  const out = [];
+  if(d) out.push(qty(d,UNIT.day));
+  if(h && out.length < 2) out.push(qty(h,UNIT.hour));
+  return out.join(' و ');
+}
+
+function tickPrayer(){
+  const elN=document.getElementById('prayer-name'),
+        elT=document.getElementById('prayer-time'),
+        elC=document.getElementById('prayer-count');
+  if(!PRAYERS.length) return;
+  const p = riyadhParts();
+  const mins = p.h*60 + p.mi + p.s/60;
+  let next = PRAYERS.find(x => (x.h*60+x.mi) > mins);
+  let leftM = next ? (next.h*60 + next.mi) - mins
+                   : (PRAYERS[0].h*60 + PRAYERS[0].mi) + 1440 - mins;
+  if(!next) next = PRAYERS[0];
+  elN.textContent = next.name;
+  elT.textContent = fmt12(next.h, next.mi);
+  elC.innerHTML = 'بعد <b>' + humanRemaining(Math.max(0, Math.round(leftM*60))) + '</b>';
+}
+
+let RAM_CACHE = {day:'', val:null};
+function ramadanStart(){
+  const dayKey = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
+  if(RAM_CACHE.day === dayKey) return RAM_CACHE.val;
+  const fmt = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,month:'numeric'});
+  let found = null;
+  for(let i=0;i<400;i++){
+    const d = new Date(Date.now()+i*86400000);
+    if(fmt.format(d) === '9'){
+      const p = riyadhParts(d);
+      found = {y:p.y, mo:p.mo, d:p.d};
+      break;
+    }
+  }
+  RAM_CACHE = {day: dayKey, val: found};
+  return found;
+}
+function hijriYearNow(){
+  try{
+    return +new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,year:'numeric'})
+      .format(new Date()).replace(/[^0-9]/g,'');
+  }catch(e){ return 1448; }
+}
+function hijriMonthNow(){
+  try{
+    return +new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,month:'numeric'})
+      .format(new Date()).replace(/[^0-9]/g,'');
+  }catch(e){ return 0; }
+}
+function tickRamadan(){
+  const elL=document.getElementById('ramadan-label'),
+        elD=document.getElementById('ramadan-days'),
+        elS=document.getElementById('ramadan-sub');
+
+  // ---- Ramadan mode: iftar / suhoor instead of the countdown ----
+  if(hijriMonthNow() === 9 && PRAYERS.length){
+    const rp = riyadhParts();
+    const mins = rp.h*60 + rp.mi + rp.s/60;
+    const fajr = PRAYERS.find(p=>p.name==='الفجر');
+    const maghrib = PRAYERS.find(p=>p.name==='المغرب');
+    const fajrM = fajr.h*60 + fajr.mi, maghribM = maghrib.h*60 + maghrib.mi;
+    let label, targetM;
+    if(mins < fajrM){ label = 'الإمساك'; targetM = fajrM; }
+    else if(mins < maghribM){ label = 'الإفطار'; targetM = maghribM; }
+    else { label = 'الإمساك'; targetM = fajrM + 1440; }
+    const th = Math.floor((targetM % 1440) / 60), tm = targetM % 60;
+    elL.textContent = label;
+    elD.innerHTML = ar(th%12===0?12:th%12) + ':' + ar(String(tm).padStart(2,'0'))
+                  + ' <span class="unit">' + (th < 12 ? 'ص' : 'م') + '</span>';
+    elS.innerHTML = 'بعد <b>' + humanRemaining(Math.max(0, Math.round((targetM - mins)*60))) + '</b>';
+    return;
+  }
+
+  // ---- countdown mode ----
+  elL.textContent = 'رمضان ' + ar(hijriYearNow());
+  const st = ramadanStart();
+  if(!st){ elD.textContent='—'; elS.textContent=''; return; }
+  const rp2 = riyadhParts();
+  const days = Math.max(0, Math.round(
+    (Date.UTC(st.y, st.mo-1, st.d) - Date.UTC(rp2.y, rp2.mo-1, rp2.d)) / 86400000));
+  elD.innerHTML = ar(days) + ' <span class="unit">يوم</span>';
+  elS.textContent = days === 0 ? 'رمضان مبارك'
+    : 'يبدأ ' + new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'})
+        .format(new Date(Date.UTC(st.y, st.mo-1, st.d, 12)));
+}
+
+const TEAM_AR = {
+  'Al-Hilal':'الهلال','Al-Hazem':'الحزم','Al-Nassr':'النصر','Al-Ittihad':'الاتحاد',
+  'Al-Ahli':'الأهلي','Al-Shabab':'الشباب','Al-Taawoun':'التعاون','Al-Ettifaq':'الاتفاق',
+  'Al-Fateh':'الفتح','Al-Riyadh':'الرياض','Damac':'ضمك','Al-Khaleej':'الخليج',
+  'Al-Fayha':'الفيحاء','Al-Okhdood':'الأخدود','Al-Qadsiah':'القادسية','Al-Kholood':'الخلود',
+  'Neom':'نيوم','Al-Najma':'النجمة'
+};
+const FALLBACK_HILAL = {
+  strTimestamp:'2026-10-19T18:00:00',
+  strHomeTeam:'Al-Hilal', strAwayTeam:'Al-Hazem'
+};
+let MATCHES = {hilal:null, ksa:null};
+let RESULTS = [];
+const tr = (m,s) => m[s] || s;
+
+async function fetchNext(id){
+  const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventsnext.php?id=${id}`,{cache:'no-store'});
+  if(!r.ok) throw 0;
+  const j = await r.json();
+  return (j?.events || [])[0] || null;
+}
+function toDate(ev){
+  const s = ev.strTimestamp || `${ev.dateEvent}T${ev.strTime || '00:00:00'}`;
+  return new Date(s.endsWith('Z') ? s : s+'Z');
+}
+
+function renderMatches(){
+  const row = document.getElementById('match-row');
+  const now = new Date();
+
+  // finished in the last 24h -> keep the score on screen for a day
+  const done = RESULTS.filter(ev=>{
+    if(ev.intHomeScore == null || ev.intAwayScore == null) return false;
+    const end = toDate(ev).getTime() + 2.5*3600000;
+    return now.getTime() >= end && (now.getTime() - end) < 86400000;
+  });
+  if(done.length){
+    row.innerHTML = done.map(ev=>{
+      const day = new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'long'}).format(toDate(ev));
+      return `<div class="mblock">`
+        + `<div class="big"><span>${tr(TEAM_AR, ev.strHomeTeam||'')} <span class="sc">${ar(ev.intHomeScore)} - ${ar(ev.intAwayScore)}</span> ${tr(TEAM_AR, ev.strAwayTeam||'')}</span></div>`
+        + `<div class="sub">النتيجة النهائية · ${day}</div></div>`;
+    }).join('');
+    return;
+  }
+
+  const win = CONFIG.weekWindowDays * 86400000;
+  const items = [];
+  [['hilal', MATCHES.hilal], ['ksa', MATCHES.ksa]].forEach(([side, ev])=>{
+    if(!ev) return;
+    const d = toDate(ev), diff = d - now;
+    if(diff < 0 || diff > win) return;
+    items.push({
+      home: tr(TEAM_AR, ev.strHomeTeam || ''),
+      away: tr(TEAM_AR, ev.strAwayTeam || ''),
+      d, diff
+    });
+  });
+
+  if(!items.length){
+    row.innerHTML = '<div class="none-week">لا شيء هذا الأسبوع</div>';
+    return;
+  }
+  row.innerHTML = items.map(it=>{
+    const day = new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'long'}).format(it.d);
+    const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
+      .formatToParts(it.d).reduce((a,x)=>(a[x.type]=x.value,a),{});
+    const cd = shortRemaining(it.diff);
+    const t12 = ar(fmt12(+p.hour % 24, +p.minute));
+    const sub = cd ? `بعد ${cd} · ${t12}` : `${day} · ${t12}`;
+    return `<div class="mblock">`
+         + `<div class="big"><span>${it.home} × ${it.away}</span></div>`
+         + `<div class="sub">${sub}</div>`
+         + `</div>`;
+  }).join('');
+}
+
+async function fetchLast(id){
+  try{
+    const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventslast.php?id=${id}`,{cache:'no-store'});
+    if(!r.ok) return [];
+    const j = await r.json();
+    return j.results || [];
+  }catch(e){ return []; }
+}
+async function loadMatches(){
+  const prev = {hilal: MATCHES.hilal, ksa: MATCHES.ksa};
+  let h = null, k = null;
+  try{ h = await fetchNext(CONFIG.hilalTeamId); }catch(e){}
+  try{ k = await fetchNext(CONFIG.ksaTeamId); }catch(e){}
+  MATCHES.hilal = h || prev.hilal || FALLBACK_HILAL;   // never throw away a good fixture
+  MATCHES.ksa   = k || prev.ksa;
+  const [l1, l2] = await Promise.all([fetchLast(CONFIG.hilalTeamId), fetchLast(CONFIG.ksaTeamId)]);
+  if(l1.length || l2.length) RESULTS = l1.concat(l2);
+  renderMatches();
+}
+
+const TICKERS = [
+  {sym:'^TASI.SR', chg:'tasi-chg'},
+  {sym:'^GSPC',    chg:'spx-chg'},
+  {cg:'bitcoin',   chg:'btc-chg'},
+];
+
+// never invent a direction: unknown renders as a muted dash
+function paintDir(t, up){
+  const chEl = document.getElementById(t.chg);
+  if(up === null || up === undefined){ chEl.style.display='none'; chEl.hidden = true; chEl.textContent=''; return; }
+  chEl.hidden = false; chEl.style.display='';
+  chEl.textContent = up ? '▲' : '▼';
+  chEl.className = 'delta ' + (up ? 'up' : 'down');
+}
+
+async function fetchT(url, ms){
+  const c = new AbortController(); const id = setTimeout(()=>c.abort(), ms||12000);
+  try{ return await fetch(url,{cache:'no-store', signal:c.signal}); }
+  finally{ clearTimeout(id); }
+}
+
+// Yahoo has no CORS headers: try it directly, then through a public CORS gateway
+async function yahooChart(sym){
+  const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+  try{
+    const r = await fetchT(direct, 7000);
+    if(r.ok) return await r.json();
+  }catch(e){}
+  const r2 = await fetchT('https://api.allorigins.win/get?url=' + encodeURIComponent(direct), 20000);
+  if(!r2.ok) throw 0;
+  const w = await r2.json();
+  return JSON.parse(w.contents);
+}
+
+async function loadTicker(t){
+  try{
+    if(t.cg){                                  // crypto: CoinGecko, CORS friendly
+      const r = await fetchT(`https://api.coingecko.com/api/v3/simple/price?ids=${t.cg}&vs_currencies=usd&include_24hr_change=true`, 10000);
+      if(!r.ok) throw 0;
+      const j = await r.json();
+      const c = j && j[t.cg] ? j[t.cg] : null;
+      const d = c ? (c.usd_24h_change ?? c.usd_24hr_change ?? null) : null;
+      paintDir(t, typeof d === 'number' ? d >= 0 : null);
+      return;
+    }
+    const j = await yahooChart(t.sym);
+    const res = j.chart.result[0];
+    const price = res.meta.regularMarketPrice;
+    const closes = (res.indicators.quote[0].close || []).filter(x=>x != null);
+    const prev = closes.length >= 2 ? closes[closes.length-2]
+               : (res.meta.chartPreviousClose || res.meta.previousClose || null);
+    paintDir(t, prev == null ? null : price >= prev);
+  }catch(e){ paintDir(t, null); }
+}
+
+const SKIP_TYPES = ['News','Talk Show','Sports','Game Show'];
+async function loadWeek(){
+  const ul = document.getElementById('week-list');
+  const seen = new Set(), out = [];
+  try{
+    const days = [];
+    for(let i=0;i<7;i++){
+      const d = new Date(Date.now()+i*86400000);
+      days.push(new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(d));
+    }
+    const [web, us] = await Promise.all([
+      Promise.all(days.map(dt => fetchT(`https://api.tvmaze.com/schedule/web?date=${dt}`, 12000)
+        .then(r=>r.ok?r.json():[]).catch(()=>[]))),
+      Promise.all(days.map(dt => fetchT(`https://api.tvmaze.com/schedule?country=US&date=${dt}`, 12000)
+        .then(r=>r.ok?r.json():[]).catch(()=>[])))
+    ]);
+
+    const push = (e) => {
+      const s = e.show || (e._embedded && e._embedded.show) || {};
+      if(!s.name || seen.has(s.name)) return;
+      if(s.type && SKIP_TYPES.includes(s.type)) return;
+      if(s.genres && s.genres.includes('Soap')) return;   // no daytime soaps
+      if(!e.number || e.number < 1) return;
+      if(e.season && e.season > 15) return;               // keep it to real series
+      const rating = (s.rating && s.rating.average) || 0;
+      if(rating < 7) return;                           // rating gate
+      seen.add(s.name);
+      const prem = e.number === 1;                     // premiere vs new episode
+      out.push({
+        name: s.name,
+        ep: e.season ? (prem ? `الموسم ${ar(e.season)}`
+                             : `الموسم ${ar(e.season)} · ح ${ar(e.number)}`) : '',
+        date: e.airdate || '',
+        rating,
+        prem
+      });
+    };
+    web.flat().forEach(push);
+    us.flat().forEach(push);
+  }catch(e){}
+
+  if(out.length){                                   // keep the last good list on a failed refresh
+    WEEK_POOL = out.sort((a,b)=> (b.prem - a.prem) || a.date.localeCompare(b.date)).slice(0, 50);
+    WEEK_PAGE = 0;
+  }
+  renderWeekPage(false);
+}
+
+const WEEK_ROWS = 5;
+let WEEK_POOL = [];
+let WEEK_PAGE = 0;
+
+function renderWeekPage(animate){
+  const ul = document.getElementById('week-list');
+  if(!WEEK_POOL.length){
+    ul.classList.remove('flip');
+    ul.innerHTML = '<li class="empty">لا جديد هذا الأسبوع</li>';
+    return;
+  }
+  const start = (WEEK_PAGE * WEEK_ROWS) % WEEK_POOL.length;
+  const rows = [];
+  for(let i = 0; i < Math.min(WEEK_ROWS, WEEK_POOL.length); i++){
+    rows.push(WEEK_POOL[(start + i) % WEEK_POOL.length]);
+  }
+  ul.innerHTML = rows.map(o=>{
+    const dt = o.date ? new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date(o.date+'T12:00:00Z')) : '';
+    return `<li><span>${o.name}</span>`
+         + (o.ep?`<span class="ep">${ar(o.ep)}</span>`:'')
+         + `<span class="rt">${ar(o.rating.toFixed(1)).replace('.','٫')}</span>`
+         + (dt?`<span class="dt">${dt}</span>`:'') + '</li>';
+  }).join('');
+  ul.classList.remove('flip');
+  if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
+}
+
+const WX_CODES = {
+  0:'صافي',1:'صافي غالباً',2:'غائم جزئياً',3:'غائم',45:'ضباب',48:'ضباب متجمد',
+  51:'رذاذ',53:'رذاذ',55:'رذاذ كثيف',56:'رذاذ متجمد',57:'رذاذ متجمد',
+  61:'مطر خفيف',63:'مطر',65:'مطر غزير',66:'مطر متجمد',67:'مطر متجمد',
+  71:'ثلج خفيف',73:'ثلج',75:'ثلج كثيف',77:'حبيبات ثلج',
+  80:'زخات خفيفة',81:'زخات مطر',82:'زخات غزيرة',85:'زخات ثلج',86:'زخات ثلج',
+  95:'عواصف رعدية',96:'عواصف مصحوبة ببرد',99:'عواصف قوية'
+};
+async function loadWeather(){
+  try{
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}`
+              + `&current=temperature_2m,weather_code&timezone=${encodeURIComponent(CONFIG.timezone)}`;
+    const r = await fetch(url,{cache:'no-store'});
+    if(!r.ok) throw 0;
+    const j = await r.json();
+    const t = Math.round(j.current.temperature_2m);
+    document.getElementById('wx-temp').textContent = ar(t) + '°';
+    document.getElementById('wx-desc').textContent = WX_CODES[j.current.weather_code] || '';
+  }catch(e){
+    document.getElementById('wx-temp').textContent = '—';
+    document.getElementById('wx-desc').textContent = '';
+  }
+}
+
+// night dimming: transparent by day, dark after 21:00 and before 07:00
+function applyNight(){
+  const p = riyadhParts();
+  const h = p.h + p.mi/60;
+  const MAX = 0.46;
+  let o = 0;
+  if(h >= 23 || h < 5)      o = MAX;
+  else if(h >= 21)          o = MAX * (h - 21) / 2;
+  else if(h < 7)            o = MAX * (7 - h) / 2;
+  const el = document.getElementById('dimmer');
+  if(el) el.style.opacity = Math.max(0, Math.min(MAX, o)).toFixed(2);
+}
+
+// gentle pixel shift so static text never burns into the panel
+const SHIFT_SEQ = [[0,0],[3,2],[0,4],[-3,2],[-3,-2],[0,-4],[3,-2]];
+let shiftTick = 0;
+function pixelShift(){
+  shiftTick = (shiftTick + 1) % SHIFT_SEQ.length;
+  const [dx,dy] = SHIFT_SEQ[shiftTick];
+  const st = document.querySelector('.stage');
+  if(st) st.style.transform = `translate(${dx}px,${dy}px)`;
+}
+
+function boot(){
+  const wxCity = document.getElementById('wx-city');
+  if(wxCity) wxCity.textContent = CONFIG.city;
+  const cs = document.getElementById('clock-sub');
+  if(cs) cs.textContent = 'بتوقيت ' + CONFIG.city;
+  document.title = 'شاشة ' + CONFIG.city;
+  try {
+    const dayKey = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    let h = 7; for (let k = 0; k < dayKey.length; k++) h = (h * 31 + dayKey.charCodeAt(k)) % 100003;
+    const b = BGS[h % BGS.length];
+    const ph = document.querySelector('.photo');
+    if (ph && b) {
+      ph.style.backgroundImage = "url('" + b.u + "')";
+      ph.style.filter = 'saturate(1.02) brightness(' + (b.d || 0.98) + ') contrast(1.02)';
+      const cr = document.getElementById('credit');
+      if (cr) cr.textContent = b.c ? 'الصورة: ' + b.c : '';
+    }
+  } catch(e) {}
+  tickClock(); tickDates(); tickRamadan();
+  TICKERS.forEach(loadTicker);
+  loadPrayers(); loadMatches(); loadWeek(); loadWeather();
+  applyNight(); pixelShift();
+
+  setInterval(tickClock, 1000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickRamadan(); }, 15000);
+  setInterval(renderMatches, 60000);
+  setInterval(loadPrayers, 6*3600*1000);
+  setInterval(loadMatches, 30*60*1000);
+  setInterval(()=>TICKERS.forEach(loadTicker), 15*60*1000);
+  setInterval(loadWeek, 6*3600*1000);
+  setInterval(loadWeather, 30*60*1000);
+  setInterval(()=>{ if(WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); } }, 25*1000);
+  setInterval(applyNight, 60*1000);
+  setInterval(pixelShift, 4*60*1000);
+  let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
+  setInterval(()=>{
+    const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
+    if(d !== lastDay){ lastDay = d; loadPrayers(); loadMatches(); loadWeek(); loadWeather(); }
+  }, 60*1000);
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key === 'f' || e.key === 'F'){
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+    else document.exitFullscreen().catch(()=>{});
+  }
+});
+
+boot();
+</script>
+</body>
+</html>
