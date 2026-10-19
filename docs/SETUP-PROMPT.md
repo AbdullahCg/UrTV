@@ -8,7 +8,7 @@ everything below the line.
 
 ---
 
-Set up my Android TV / Google TV with **تلفزيونك** from https://github.com/tshi-dev/TV-ScreenSaver: a faster TV
+Set up my Android TV / Google TV with **تلفزيونك** from https://github.com/tshi-dev/UrTV: a faster TV
 (bloat off, safely), an Arabic home screen, and the screensaver «شاشة تلفزيونك». Talk to me in Arabic (or my
 language); keep commands in English.
 
@@ -64,7 +64,7 @@ Anything else, or anything twice: stop, show me the output and what you think it
 ## 1. Connect and look (5 minutes)
 
 ```
-git clone https://github.com/tshi-dev/TV-ScreenSaver; cd TV-ScreenSaver && git pull   # always the latest
+git clone https://github.com/tshi-dev/UrTV; cd UrTV && git pull   # always the latest
 optimize/setup.sh
 optimize/find-tv.sh                       # accept "Allow USB debugging?" on the TV, tick "Always allow"
 optimize/venv/bin/python -I optimize/tv.py --probe

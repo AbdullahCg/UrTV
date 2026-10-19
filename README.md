@@ -15,7 +15,7 @@
    **USB debugging** (and **Network debugging** if listed).
 2. **On a computer on the same Wi-Fi**, open any AI agent that can run commands, and paste:
 
-   > Set up my TV with https://github.com/tshi-dev/TV-ScreenSaver — clone it and follow `docs/SETUP-PROMPT.md` step by step.
+   > Set up my TV with https://github.com/tshi-dev/UrTV — clone it and follow `docs/SETUP-PROMPT.md` step by step.
 
 That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks a few questions in
 one go (your city, the clubs whose games you follow, what goes beside the clock — verse and hadith, new episodes,
@@ -36,7 +36,7 @@ the home-screen switch has a 5-minute automatic fallback, and `optimize/reset.sh
 | **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default) | `yourtv-home.apk` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), fewer apps kept in memory, Play Store kept from running in the background, faster animations | `optimize/` |
 
-**Download the apps yourself:** [releases/apk-latest](https://github.com/tshi-dev/TV-ScreenSaver/releases/tag/apk-latest)
+**Download the apps yourself:** [releases/apk-latest](https://github.com/tshi-dev/UrTV/releases/tag/apk-latest)
 (install with `adb install`; the agent route above also sets everything up).
 
 ## For agents and scripts

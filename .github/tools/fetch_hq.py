@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-UA = {"User-Agent": "tv-screensaver background picker (github.com/tshi-dev/TV-ScreenSaver)"}
+UA = {"User-Agent": "tv-screensaver background picker (github.com/tshi-dev/UrTV)"}
 
 
 def get(url):

@@ -14,7 +14,7 @@ Logs on failure: `adb logcat -d -t 300 | grep -iE "yourtv|chromium|AndroidRuntim
 |---|---|---|
 | S1 | On the TV: Settings → Device preferences → About → press Build 7× → Developer options → enable **USB/Network debugging**. Note the TV's IP. | Debugging on |
 | S2 | `adb connect <TV_IP>:5555` then `adb devices` | Device listed as `device` |
-| S3 | `curl -L -o yourtv-screensaver.apk https://github.com/tshi-dev/TV-ScreenSaver/releases/download/apk-latest/yourtv-screensaver.apk` | ~2–5 MB file |
+| S3 | `curl -L -o yourtv-screensaver.apk https://github.com/tshi-dev/UrTV/releases/download/apk-latest/yourtv-screensaver.apk` | ~2–5 MB file |
 | S4 | `adb uninstall com.abdullah.tvsaver` (ignore "not installed") | The pre-rename app is gone (it would show twice) |
 | S5 | `adb install yourtv-screensaver.apk` | `Success` |
 | S6 | `adb shell dumpsys package sa.yourtv.screensaver \| grep versionName` | `versionName=2.<number>` |
@@ -117,7 +117,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 
 | ID | Action | Expected |
 |---|---|---|
-| H1 | On a computer open `https://raw.githack.com/tshi-dev/TV-ScreenSaver/master/dist/your-tv.html` or download `dist/your-tv.html` and double-click | Same screen in the browser; `F` toggles full screen |
+| H1 | On a computer open `https://raw.githack.com/tshi-dev/UrTV/master/dist/your-tv.html` or download `dist/your-tv.html` and double-click | Same screen in the browser; `F` toggles full screen |
 | H2 | Add `#city=جدة&lat=21.5433&lon=39.1728&teams=136013` to the URL | Jeddah times; only one match slot |
 | H3 | Resize the window to 1280×720 | Layout holds, nothing overlaps |
 

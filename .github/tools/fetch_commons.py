@@ -26,7 +26,7 @@ SEARCHES = [
     "Jizan mountains Fayfa", "Al Baha", "Hail Jubbah", "Qassim desert", "NEOM coast",
 ]
 FREE = re.compile(r"^(CC0|Public domain|PD|CC BY(-SA)? [0-9.]+)", re.I)
-UA = {"User-Agent": "tv-screensaver background picker (github.com/tshi-dev/TV-ScreenSaver)"}
+UA = {"User-Agent": "tv-screensaver background picker (github.com/tshi-dev/UrTV)"}
 OUT = Path("candidates")
 API = "https://commons.wikimedia.org/w/api.php"
 

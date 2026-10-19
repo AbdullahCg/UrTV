@@ -8,7 +8,7 @@ Paste everything below the line into an agent that can read GitHub, browse the w
 
 You are extending **شاشة تلفزيونك**, an Arabic always-on TV screensaver/dashboard, so it runs on as many TV platforms as possible, choosing the best delivery method for each. Research first, then build, then document.
 
-Repository: **https://github.com/tshi-dev/TV-ScreenSaver** (public). Work on a branch and open a pull request; do not push to `master` directly.
+Repository: **https://github.com/tshi-dev/UrTV** (public). Work on a branch and open a pull request; do not push to `master` directly.
 
 ## What already exists (read these first)
 

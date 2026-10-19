@@ -8,7 +8,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
-REL=https://github.com/tshi-dev/TV-ScreenSaver/releases/download/apk-latest
+REL=https://github.com/tshi-dev/UrTV/releases/download/apk-latest
 what="${1:?usage: optimize/install.sh saver|launcher|all}"
 
 push_install() {   # $1 apk name, $2 package
