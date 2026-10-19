@@ -8,6 +8,7 @@ tv.html             for the Android app: same page, but fonts and bundled photos
 import base64
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,17 +22,30 @@ FONTS = {
 REPO = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/"
 
 
+BASMALA = "بسم الله الرحمن الرحيم"   # compared without harakat: the API orders them its own way
+
+
+def plain(s):
+    return re.sub("[\u064B-\u065F\u0670]", "", s)
+
+
 def verses_for_screen():
     """assets/shared/verses.json as fetched from the Quran API (.github/tools/fetch_verses.py), made fit for the font:
     the pause marks and ۞ are left out (Thmanyah has no glyph for them); letters and harakat stay as fetched.
-    Surah names are shown plain, without harakat."""
+    The API puts the basmala in front of the first verse of a surah; it is not part of that verse, so it goes
+    (Al-Fatiha's first verse is the basmala itself). Surah names are shown plain, without harakat."""
     path = ROOT / "assets/shared/verses.json"
     if not path.is_file():
         return []
     out = []
     for v in json.loads(path.read_text(encoding="utf-8")):
         text = " ".join(re.sub("[\u06D6-\u06DE]", "", v["text"]).split())
-        name = re.sub("[\u064B-\u065F\u0670\u06D6-\u06ED]", "", v["surah"])
+        words = text.split()
+        if v["ayah"] == 1 and not v["ref"].startswith("1:") and plain(" ".join(words[:4])) == BASMALA:
+            text = " ".join(words[4:])
+        # NFC first: the API writes آ as ا + madda, which stripping the harakat would turn into ا (ال عمران)
+        name = re.sub("[\u064B-\u065F\u0670\u06D6-\u06ED]", "", unicodedata.normalize("NFC", v["surah"]))
+        name = name.replace("\u0671", "ا")   # ٱ: no glyph in Thmanyah
         out.append({"text": text, "surah": name, "ayah": v["ayah"]})
     return out
 

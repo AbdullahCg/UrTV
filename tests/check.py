@@ -70,8 +70,14 @@ check("bundled backgrounds exist", all((ROOT / "assets/backgrounds" / b["file"])
 page = (ROOT / "dist/tv.html").read_text(encoding="utf-8")
 verses = json.loads(re.search(r"const VERSES = (\[.*?\]);", page, re.S).group(1))
 hadith = json.loads(re.search(r"const HADITH = (\[.*?\])\.map", page, re.S).group(1))
-check("verses present", len(verses) >= 20, len(verses))
-check("hadith present", len(hadith) >= 15, len(hadith))
+check("verses present", len(verses) >= 100, len(verses))
+check("hadith present", len(hadith) >= 100, len(hadith))
+check("more than 150 verses and hadith together", len(verses) + len(hadith) > 150, len(verses) + len(hadith))
+basmala = [v["surah"] for v in verses if v["surah"] != "سورة الفاتحة"
+           and re.sub("[\u064B-\u065F\u0670]", "", v["text"]).startswith("بسم الله الرحمن الرحيم")]
+check("no basmala in front of a verse (it is not part of the verse)", not basmala, basmala)
+check("surah names keep آ (آل عمران)", all("سورة ال " not in v["surah"] for v in verses), sorted({v["surah"] for v in verses if "سورة ال " in v["surah"]}))
+check("no verse or hadith twice", len({v["text"] for v in verses}) == len(verses) and len({h["text"] for h in hadith}) == len(hadith))
 raw = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))
 check("hadith on screen are only those found in the six books",
       {h["text"] for h in hadith} == {h["text"] for h in raw if h.get("found")})
