@@ -1,4 +1,4 @@
-<p align="center"><img src=".github/brand/hero.png" alt="تلفزيونك — Your TV" width="100%"></p>
+<p align="center"><img src=".github/brand/hero.png" alt="تلفزيونك · Your TV" width="100%"></p>
 
 <h1 align="center">تلفزيونك · Your TV</h1>
 
@@ -9,20 +9,39 @@
 <p align="center"><img src=".github/screens/before-after-home.jpg" alt="Before: Google TV home. After: the تلفزيونك home screen" width="100%"></p>
 <p align="center"><img src=".github/screens/before-after-screensaver.jpg" alt="Before: the Google screensaver. After: شاشة تلفزيونك" width="100%"></p>
 
+<div dir="rtl">
+
+## ركّبه بمساعد الذكاء الاصطناعي
+
+1. **على التلفزيون:** الإعدادات ← النظام ← حول ← اضغط OK على **Build** سبع مرات ← خيارات المطوّر ← شغّل
+   **USB debugging** (و**Network debugging** إن وُجد).
+2. **على كمبيوتر في نفس شبكة الواي فاي**، افتح أي مساعد ذكاء اصطناعي يقدر يشغّل أوامر، والصق:
+
+   > ركّب تلفزيوني من https://github.com/tshi-dev/UrTV: انسخ المستودع واتبع `docs/SETUP-PROMPT.md` خطوة بخطوة.
+
+وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك كل الأسئلة مرة وحدة: مدينتك،
+والأندية اللي تتابع مبارياتها، ووش يطلع جنب الساعة (آية وحديث، جديد المسلسلات، مواقيت الصلاة…)، ووش ما تستخدمه أبداً.
+بعدها يكمل الباقي في حوالي 40 دقيقة، ويقيس الذاكرة قبل وبعد.
+
+**آمن:** ما يحذف أي تطبيق، وما يلمس AirPlay ولا Chromecast ولا عرض الشاشة ولا الصوت ولا المداخل، وتبديل الواجهة
+فيه رجوع تلقائي بعد 5 دقائق، و`optimize/reset.sh` يرجّع التلفزيون مثل ما كان.
+
+</div>
+
 ## Set it up with your AI agent
 
 1. **On the TV:** Settings → System → About → press OK on **Build** 7 times → Developer options → turn on
    **USB debugging** (and **Network debugging** if listed).
 2. **On a computer on the same Wi-Fi**, open any AI agent that can run commands, and paste:
 
-   > Set up my TV with https://github.com/tshi-dev/UrTV — clone it and follow `docs/SETUP-PROMPT.md` step by step.
+   > Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step.
 
 That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks a few questions in
-one go (your city, the clubs whose games you follow, what goes beside the clock — verse and hadith, new episodes,
-prayer times… — and what you never use), then does the rest in about 40 minutes, measuring memory before and after.
+one go (your city, the clubs whose games you follow, what goes beside the clock: verse and hadith, new episodes,
+prayer times…, and what you never use), then does the rest in about 40 minutes, measuring memory before and after.
 The full prompt is in [docs/SETUP-PROMPT.md](docs/SETUP-PROMPT.md) if you want to read or adapt it.
 
-**Safe by design:** nothing is uninstalled, AirPlay, Chromecast, mirroring, voice and inputs are never touched,
+**Safe by design:** nothing is uninstalled; AirPlay, Chromecast, mirroring, voice and inputs are never touched;
 the home-screen switch has a 5-minute automatic fallback, and `optimize/reset.sh` puts the TV back as it came.
 
 **Make your own:** to build a different screen or port it to another TV, give your agent this repo and
@@ -32,7 +51,7 @@ the home-screen switch has a 5-minute automatic fallback, and `optimize/reset.sh
 
 | | | |
 |---|---|---|
-| **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, or a verse/hadith of the day — over Saudi landscapes | `yourtv-screensaver.apk` |
+| **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, or a verse/hadith of the day, over Saudi landscapes | `yourtv-screensaver.apk` |
 | **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default) | `yourtv-home.apk` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), fewer apps kept in memory, Play Store kept from running in the background, faster animations | `optimize/` |
 
@@ -58,7 +77,7 @@ What we learned on real TCL sets, and what must stay on: [docs/OPTIMIZE.md](docs
 ## For developers
 
 ```
-src/template.html     the screen (HTML/CSS/JS, no framework) — edit this, then: python3 build.py
+src/template.html     the screen (HTML/CSS/JS, no framework); edit this, then: python3 build.py
 dist/your-tv.html     stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline
 dist/tv.html          light page the Android app loads (0.1 MB); the app serves fonts and photos from disk
 android/app           the screensaver app (sa.yourtv.screensaver): DreamService, settings, auto-update
@@ -78,7 +97,7 @@ on every push too. Local Android build (needs the SDK): `python3 build.py && gra
 your-tv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137&panel=prayers
 ```
 
-`teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock — `shows`, `prayers`,
+`teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
 `forecast`, `matches`, `verse` or `none`. Also `genres`, `langs`, `shows`, `minrating` for the episodes card.
 
 **Data** (free, no keys): Aladhan (prayer times, Umm al-Qura), Open-Meteo (weather), Yahoo and CoinGecko (markets),

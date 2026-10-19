@@ -1,4 +1,4 @@
-# Set up a TV with تلفزيونك — prompt for your AI agent
+# Set up a TV with تلفزيونك: the prompt for your AI agent
 
 **On the TV first:** Settings → System → About → press OK on **Build** 7 times → back → Developer options →
 turn on **USB debugging** (and **Network debugging** if it is listed). Keep the TV on.
@@ -79,7 +79,7 @@ run `optimize/reset.sh` so we start like new.
 
 Ask me these together, in plain Arabic, and write the answers down:
 1. **My city** (for prayer times, weather and the clock line).
-2. **My favourite clubs** — and national team — whose games I want to follow (up to 10, most important first).
+2. **My favourite clubs** (and national team) whose games I want to follow (up to 10, most important first).
 3. **Beside the clock on the screensaver:** «آية أو حديث اليوم», «جديد المسلسلات», «مواقيت الصلاة اليوم»,
    «طقس الأيام القادمة», «مباريات فرقي القادمة», or nothing. If episodes: which genres and languages I like.
 4. **The same card on the home screen too?** (off unless I say so)
