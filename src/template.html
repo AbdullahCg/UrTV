@@ -142,7 +142,7 @@
   }
   .clock .ampm{
     font-size:.28em;font-weight:500;color:var(--gold);
-    margin-inline-start:.3em;
+    align-self:flex-start;margin-top:.12em;margin-inline-end:.25em;
   }
   .subline{
     margin-top:1.4vh;display:flex;align-items:center;gap:.7em;
@@ -250,7 +250,7 @@
   <section class="mid">
     <div class="clockwrap">
       <div class="clock">
-        <span class="d" id="ck-h">--</span><span class="sep">:</span><span class="d" id="ck-m">--</span><span class="ampm" id="ck-ap">—</span>
+        <span class="ampm" id="ck-ap">—</span><span class="d" id="ck-h">--</span><span class="sep">:</span><span class="d" id="ck-m">--</span>
       </div>
       <div class="subline"><span class="dot"></span><span id="clock-sub">بتوقيت الرياض</span></div>
     </div>
@@ -298,8 +298,8 @@ const CONFIG = {
   longitude: _num('lon', 46.6753),
   timezone: _Q.get('tz') || 'Asia/Riyadh',
   prayerMethod: 4,
-  hilalTeamId: 136013,
-  ksaTeamId: 136137,
+  // TheSportsDB team ids, from the app's team picker: #teams=136013,136137
+  teamIds: (_Q.get('teams') || '136013,136137').split(',').map(x=>x.trim()).filter(x=>/^\d+$/.test(x)).slice(0,4),
   sportsKey: '123',
   weekWindowDays: 7,
 };
@@ -493,13 +493,9 @@ const TEAM_AR = {
   'Al-Ahli':'الأهلي','Al-Shabab':'الشباب','Al-Taawoun':'التعاون','Al-Ettifaq':'الاتفاق',
   'Al-Fateh':'الفتح','Al-Riyadh':'الرياض','Damac':'ضمك','Al-Khaleej':'الخليج',
   'Al-Fayha':'الفيحاء','Al-Okhdood':'الأخدود','Al-Qadsiah':'القادسية','Al-Kholood':'الخلود',
-  'Neom':'نيوم','Al-Najma':'النجمة'
+  'Neom':'نيوم','Al-Najma':'النجمة','Saudi Arabia':'السعودية'
 };
-const FALLBACK_HILAL = {
-  strTimestamp:'2026-10-19T18:00:00',
-  strHomeTeam:'Al-Hilal', strAwayTeam:'Al-Hazem'
-};
-let MATCHES = {hilal:null, ksa:null};
+let MATCHES = {};   // team id -> next event
 let RESULTS = [];
 const tr = (m,s) => m[s] || s;
 
@@ -539,8 +535,10 @@ function renderMatches(){
 
   const win = CONFIG.weekWindowDays * 86400000;
   const items = [];
-  [['hilal', MATCHES.hilal], ['ksa', MATCHES.ksa]].forEach(([side, ev])=>{
-    if(!ev) return;
+  const seenNext = new Set();
+  Object.values(MATCHES).forEach(ev=>{
+    if(!ev || seenNext.has(ev.idEvent)) return;   // two picked teams playing each other
+    seenNext.add(ev.idEvent);
     const d = toDate(ev), diff = d - now;
     if(diff < -2.5*3600000 || diff > win) return;   // in progress stays on screen
     items.push({
@@ -554,7 +552,7 @@ function renderMatches(){
     row.innerHTML = '<div class="none-week">لا شيء هذا الأسبوع</div>';
     return;
   }
-  row.innerHTML = items.map(it=>{
+  row.innerHTML = items.sort((a,b)=>a.diff-b.diff).slice(0,2).map(it=>{
     const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(it.d);
     const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
       .formatToParts(it.d).reduce((a,x)=>(a[x.type]=x.value,a),{});
@@ -577,14 +575,11 @@ async function fetchLast(id){
   }catch(e){ return []; }
 }
 async function loadMatches(){
-  const prev = {hilal: MATCHES.hilal, ksa: MATCHES.ksa};
-  let h = null, k = null;
-  try{ h = await fetchNext(CONFIG.hilalTeamId); }catch(e){}
-  try{ k = await fetchNext(CONFIG.ksaTeamId); }catch(e){}
-  MATCHES.hilal = h || prev.hilal || FALLBACK_HILAL;   // never throw away a good fixture
-  MATCHES.ksa   = k || prev.ksa;
-  const [l1, l2] = await Promise.all([fetchLast(CONFIG.hilalTeamId), fetchLast(CONFIG.ksaTeamId)]);
-  if(l1.length || l2.length) RESULTS = l1.concat(l2);
+  await Promise.all(CONFIG.teamIds.map(async id=>{
+    try{ const ev = await fetchNext(id); if(ev) MATCHES[id] = ev; }catch(e){}   // never throw away a good fixture
+  }));
+  const last = await Promise.all(CONFIG.teamIds.map(fetchLast));
+  if(last.some(l=>l.length)) RESULTS = last.flat();
   renderMatches();
 }
 

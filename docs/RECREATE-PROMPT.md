@@ -21,7 +21,7 @@ One grid with three rows — `grid-template-rows: auto 1fr auto`, stage padding 
 - Right: Hijri date (large, sand `#F6EFE0`) over the Gregorian date (smaller, muted `#C6BBA4`), then a short gold hairline fading out to the left.
 
 **Middle row — clock right, shows left:**
-- Clock pushed to the right edge, `font-size: clamp(120px, min(17vw, 31vh), 345px)` (≈300px tall), `line-height .92`, `letter-spacing .022em` — slightly positive so the digits breathe. 12-hour, Arabic-Indic digits, gold colon, and a small gold `ص`/`م` at `.28em` sitting at the baseline of the digits, not floating in the corner. Under it a tiny muted line `بتوقيت الرياض`.
+- Clock pushed to the right edge, `font-size: clamp(120px, min(17vw, 31vh), 345px)` (≈300px tall), `line-height .92`, `letter-spacing .022em` — slightly positive so the digits breathe. 12-hour, Arabic-Indic digits, gold colon, and a small gold `ص`/`م` at `.28em` at the upper left of the time. Under it a tiny muted line `بتوقيت الرياض`.
 - "New this week" card on the left: translucent panel (`rgba(4,14,9,.46)`, 1px gold border, radius 12, backdrop blur), `max-width: min(760px, 48vw)`, justified to the left edge of its column.
   - Header `هذا الأسبوع` with a gold rule fading out to the left.
   - Exactly 5 rows, each a single flex line: show name (right, `flex:0 1 auto; max-width:68%`, ellipsis), then `الموسم ٣ · ح ٧`, then the rating `٨٫١`, then the weekday anchored at the far left (`flex:1 1 auto; text-align:left`). Hairline under every row.
@@ -103,6 +103,7 @@ All three are built identically — small gold label, big value, small sub-line 
 - `MainActivity` is a full-screen WebView showing the same HTML; dismiss with any remote key via `dispatchKeyEvent`.
 - `ScreenDream` is the system dream (`screensaver_components=com.abdullah.tvsaver/.ScreenDream`), so it starts on the TV's own idle timer (10 s).
 - **Settings inside the app:** a city picker (`SettingsActivity`, 23 Saudi cities) writes the choice to SharedPreferences; every dashboard load builds `file:///android_asset/ksa-dashboard.html#city=..&lat=..&lon=..&tz=..` and the page reads the **fragment** with `new URLSearchParams(location.hash.slice(1))`. A `?query` on a `file://` asset URL fails to load in WebView, the fragment works.
+- **Team preferences:** the same settings screen picks up to 4 teams (TheSportsDB ids) and appends `&teams=136013,136137` to the fragment; the fixtures panel follows them.
 - Weather, prayer times, the clock timezone and the "بتوقيت …" label all follow the chosen city; Riyadh is the fallback.
 - Pass the config in the fragment and the page stays a plain static HTML file that still opens on a desktop browser.
 - TCL quirk: after a reboot the app is frozen until it is opened once, and the first dream attempt fails (`mCurrentDream=null` while the system is `Dreaming`). A `BOOT_COMPLETED` receiver does not fire on this TV. Expect one manual open after a power cycle.
