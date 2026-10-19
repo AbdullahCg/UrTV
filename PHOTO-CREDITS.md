@@ -59,7 +59,6 @@ From [Unsplash](https://unsplash.com), under the [Unsplash License](https://unsp
 | `photos/seX13AzLqls.jpg` | NEOM | [unsplash](https://unsplash.com/photos/a-person-sitting-inside-of-a-tent-in-the-desert-seX13AzLqls) |
 | `photos/x4vxK4VGKX0.jpg` | NEOM | [unsplash](https://unsplash.com/photos/a-woman-standing-on-top-of-a-sand-dune-x4vxK4VGKX0) |
 | `photos/7vOpzRF33Zo.jpg` | Rabah Al Shammary | [unsplash](https://unsplash.com/photos/sand-dune-and-mountain-scenery-7vOpzRF33Zo) |
-| `photos/YpUFf0kOWQ0.jpg` | NEOM | [unsplash](https://unsplash.com/photos/an-ostrich-looking-at-the-camera-with-a-blurry-background-YpUFf0kOWQ0) |
 | `photos/D1RR-UEnsjw.jpg` | BASHAER 🌟 | [unsplash](https://unsplash.com/photos/low-light-photo-of-dew-drops-on-leaves-D1RR-UEnsjw) |
 | `photos/HbixalFpY1w.jpg` | RAKAN ALREQABI | [unsplash](https://unsplash.com/photos/silhouette-of-man-riding-on-camel-HbixalFpY1w) |
 | `photos/iQR2jzuw9m8.jpg` | NEOM | [unsplash](https://unsplash.com/photos/the-sun-is-setting-over-a-mountain-range-iQR2jzuw9m8) |
