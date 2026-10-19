@@ -106,7 +106,7 @@ public class SettingsActivity extends Activity {
         row("التحديث التلقائي للصفحة", prefs.autoUpdate() ? "يعمل · كل ٦ ساعات" : "متوقف", R.drawable.ic_sync, new Runnable() { public void run() {
             prefs.setAutoUpdate(!prefs.autoUpdate()); render(); } });
         row("تحقق من التحديث الآن", null, R.drawable.ic_sync, new Runnable() { public void run() { updateNow(); } });
-        row("إعدادات شاشة التوقف في التلفاز", "وقت التشغيل واختيار الشاشة", R.drawable.ic_screensaver, new Runnable() { public void run() { openDreamSettings(); } });
+        row("وقت تشغيل شاشة التوقف", "يفتح إعدادات التلفاز (قد تظهر بالإنجليزية)", R.drawable.ic_screensaver, new Runnable() { public void run() { openDreamSettings(); } });
     }
 
     // ---------- pickers ----------

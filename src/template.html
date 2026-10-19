@@ -208,6 +208,15 @@
   .chip .px{display:none}
   .chip .nm{display:flex;align-items:center;gap:.55em;font-size:clamp(14px,1.28vw,25px);font-weight:500;letter-spacing:.03em}
   .chip .delta{font-size:clamp(14px,1.3vw,25px);font-weight:700;letter-spacing:0}
+  /* Top-left chips match the launcher's pills: same height, rounding, colours and distance from the corner
+     (launcher at 1080p: 59px tall, 116px from the left, 72px from the top, ~20px apart). */
+  .markets{gap:clamp(10px,1.05vw,20px);margin:clamp(14px,3.6vh,39px) 0 0 clamp(16px,2.45vw,47px)}
+  .chip{height:clamp(38px,5.45vh,59px);padding:0 clamp(14px,1.25vw,24px);border-radius:999px;
+    background:rgba(0,0,0,.40);border:1px solid rgba(255,255,255,.20);
+    backdrop-filter:none;-webkit-backdrop-filter:none}
+  .chip .nm{font-size:clamp(13px,1.15vw,22px);font-weight:500;color:rgba(255,255,255,.9);letter-spacing:0}
+  .chip .delta{font-size:clamp(12px,1.05vw,20px)}
+  .chip .wxt{font-size:clamp(15px,1.3vw,25px)}
   /* Thmanyah sets Arabic low on the line: lift Arabic chip labels so they sit centred like "S&P 500" */
   .chip .nm.ar{position:relative;top:-.2em}
   .chip .delta.up{color:#79D6A0}
