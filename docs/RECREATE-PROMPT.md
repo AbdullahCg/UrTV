@@ -63,8 +63,8 @@ All three are built identically — small gold label, big value, small sub-line 
   Compare `regularMarketPrice` with the previous close; only the sign matters. Refresh every 15 minutes.
   Yahoo sends no CORS headers, so a browser cannot call it directly: try it once, and on failure fetch the same URL through `https://api.allorigins.win/get?url=<encoded>` and `JSON.parse(response.contents)`. If both fail, hide the arrow. Allow up to ~30 seconds on first load.
   Bitcoin uses CoinGecko instead (it does send CORS headers):
-  `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24h_change=true`
-  Mind the key: it is `usd_24h_change` (no `r`) — accept both spellings.
+  `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true`
+  Mind the spelling: the query parameter is `include_24hr_change` but the response key is `usd_24h_change` (no `r`) — accept both.
 - **Weather** — Open-Meteo:
   `https://api.open-meteo.com/v1/forecast?latitude=24.7136&longitude=46.6753&current=temperature_2m,weather_code&timezone=Asia/Riyadh`
   Map the WMO `weather_code` to a short Arabic phrase. Refresh every 30 minutes.
