@@ -5,7 +5,6 @@
 # TCL content tabs and channels (the "TCL" tab and TCL Channel app)
 com.tcl.channelplus
 com.tcl.waterfall.overseas
-com.tcl.tv.tclhome_passive             # ~80 MB, TCL home helper; only if the stock home is replaced
 com.tcl.dashboard
 com.tcl.t_solo
 

@@ -4,3 +4,5 @@ adbkey/
 backup-*.txt
 *.apk
 __pycache__/
+run/
+run-*/

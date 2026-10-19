@@ -4,4 +4,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 tests/check.py
+python3 tests/upload_test.py
 node tests/page.test.mjs

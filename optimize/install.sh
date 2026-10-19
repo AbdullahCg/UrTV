@@ -69,8 +69,11 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
   if "$PY" -I optimize/tv.py "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" \
        | grep -q sa.yourtv.home; then
     "$PY" -I optimize/tv.py "touch /data/local/tmp/home_ok"
+    # 5. Only now: the stock home's helpers are dead weight (restore.sh brings them back).
+    grep -vE '^\s*(#|$)' optimize/lists/home-replaced.txt | awk '{print "pm disable-user --user 0 " $1}' \
+      | "$PY" -I optimize/tv.py --batch > /dev/null || true
     echo "Launcher is home. Press Home from inside an app to double-check."
-    echo "Undo: optimize/restore.sh optimize/lists/<your list>   (re-enables the stock home)"
+    echo "Undo everything: optimize/reset.sh"
   else
     echo "!! Home did not open the new launcher. Leave the TV alone: the stock home returns within 3 minutes."
     echo "   Some TCL firmware pins Home to the stock launcher; on those sets keep the stock home."
