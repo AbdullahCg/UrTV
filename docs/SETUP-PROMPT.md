@@ -23,49 +23,62 @@ language); keep commands in English.
 - Never uninstall system apps. Everything is reversible: `optimize/reset.sh` puts the TV back as it came.
 - Ask me before anything not in this prompt. If something fails twice, stop, show me the output, propose a fix.
 
-## 1. Connect (5 minutes)
+## 1. Connect and look (5 minutes)
 
 ```
 git clone https://github.com/tshi-dev/TV-ScreenSaver && cd TV-ScreenSaver
 optimize/setup.sh
 optimize/find-tv.sh                       # accept "Allow USB debugging?" on the TV, tick "Always allow"
 optimize/venv/bin/python -I optimize/tv.py --probe
+optimize/shot.sh home my-apps
 ```
-Tell me the model and Android version. If this TV was set up with these tools before (also older versions, whose
-apps are `com.abdullah.*`), run `optimize/reset.sh` first so we start like new.
+Tell me the model and Android version. Look at `optimize/run/shots/my-apps.png` and write down the first **6 apps**
+of my apps / favourites row, left to right, by name: they become the favourites of the new home screen in step 4.
+Only then, if this TV was set up with these tools before (also older versions, whose apps are `com.abdullah.*`),
+run `optimize/reset.sh` so we start like new.
 
-## 2. What I don't use (2 minutes, with me)
+## 2. My choices (5 minutes, with me, all at once so the rest runs on its own)
 
-Read `optimize/lists/tcl-optional.txt` and ask me, group by group in plain words, what I never use (the TCL tab and
-channels, the game bar, T-Cast, accessory updates, Google TV / Play Movies, YouTube Music, region leftovers).
-Copy the package lines of what I give up into `optimize/lists/mine.txt`. If I keep everything, skip this.
+Ask me these together, in plain Arabic, and write the answers down:
+1. **My city** (for prayer times, weather and the clock line).
+2. **My favourite clubs** — and national team — whose games I want to follow (up to 10, most important first).
+3. **Beside the clock on the screensaver:** «آية أو حديث اليوم», «جديد المسلسلات», «مواقيت الصلاة اليوم»,
+   «طقس الأيام القادمة», «مباريات فرقي القادمة», or nothing. If episodes: which genres and languages I like.
+4. **The same card on the home screen too?** (off unless I say so)
+5. **After how many minutes** the screensaver should start.
+6. **What I never use**, from `optimize/lists/tcl-optional.txt`, group by group in plain words (the TCL tab and
+   channels, the game bar, T-Cast, accessory updates, Google TV / Play Movies, YouTube Music, region leftovers).
+   Copy the package lines of what I give up into `optimize/lists/mine.txt`; if I keep everything, skip it.
+
+Read my 6 apps from step 1 back to me and let me swap any.
 
 ## 3. Run it (20–30 minutes, the TV restarts twice)
 
 ```
 optimize/run.sh
 ```
-It saves the TV's state, measures memory (restart + 3 minutes), disables telemetry/ads/demos and my picks, applies
-the speed and memory tweaks, installs the screensaver, installs the home screen behind the safety switch, measures
-again and writes `optimize/run/report.md`. If it stops for any reason: `optimize/run.sh` again (it continues), and
-`optimize/run.sh status` shows where it is.
+It saves the TV's state, measures memory and the TV's own screensaver, disables telemetry/ads/demos and my picks,
+applies the speed and memory tweaks, installs the screensaver and the home screen (behind the safety switch),
+measures again and writes `optimize/run/report.md`. If it stops for any reason: `optimize/run.sh` again (it
+continues), and `optimize/run.sh status` shows where it is.
 
 If the home-screen step says Home did not switch, leave the TV alone for 5 minutes (the stock home comes back by
 itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1 optimize/run.sh`.
 
-## 4. My settings (10 minutes, with me; no remote needed)
+## 4. Apply my choices (5 minutes; no remote needed)
 
 ```
-optimize/saver.sh cities                          # then: optimize/saver.sh city <name>   (or: city <name> <lat> <lon>)
-optimize/saver.sh find-team <name>                # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order, up to 10)
-optimize/saver.sh card <shows|prayers|forecast|matches|verse|none>       # beside the clock
-optimize/saver.sh home-card <shows|prayers|forecast|matches|verse|none>  # on the home screen (default none)
-optimize/dock.sh apps                             # then: optimize/dock.sh set <pkg> <pkg> ...  (favourites, left to right, 5–10)
+optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (or: city <name> <lat> <lon>)
+optimize/saver.sh find-team <club>                # for each club, then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
+optimize/saver.sh card <verse|shows|prayers|forecast|matches|none>        # beside the clock
+optimize/saver.sh home-card <verse|shows|prayers|forecast|matches|none>   # home screen (none unless I said yes)
+optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in my order)
+optimize/venv/bin/python -I optimize/tv.py "settings put system screen_off_timeout <minutes × 60000>"
 optimize/saver.sh update
-optimize/saver.sh show ; optimize/dock.sh show    # confirm with me
+optimize/saver.sh show ; optimize/dock.sh show    # read it back to me
 ```
-Ask me after how many minutes the screensaver should start, then
-`optimize/venv/bin/python -I optimize/tv.py "settings put system screen_off_timeout <minutes × 60000>"`.
+If I chose episodes: `optimize/saver.sh genres <Drama,Comedy,...>` and `optimize/saver.sh langs <Arabic,English,...>`
+(only what I asked for; nothing = all). `optimize/saver.sh` without arguments lists the names.
 
 ## 5. Check (5 minutes)
 

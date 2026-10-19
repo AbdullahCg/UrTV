@@ -14,8 +14,9 @@
 
    > Set up my TV with https://github.com/tshi-dev/TV-ScreenSaver — clone it and follow `docs/SETUP-PROMPT.md` step by step.
 
-That's it. The agent connects, asks you a few questions (what you never use, your city, your teams, your favourite
-apps), and does the rest in about 40 minutes, measuring memory before and after.
+That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks a few questions in
+one go (your city, the clubs whose games you follow, what goes beside the clock — verse and hadith, new episodes,
+prayer times… — and what you never use), then does the rest in about 40 minutes, measuring memory before and after.
 The full prompt is in [docs/SETUP-PROMPT.md](docs/SETUP-PROMPT.md) if you want to read or adapt it.
 
 **Safe by design:** nothing is uninstalled, AirPlay, Chromecast, mirroring, voice and inputs are never touched,

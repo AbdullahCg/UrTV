@@ -8,6 +8,11 @@
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 10)
 #   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast matches verse none
 #   optimize/saver.sh home-card none               on the home screen (launcher): same choices, none = off
+#   optimize/saver.sh genres Drama,Comedy          episodes card: Drama Comedy Action Crime Thriller Mystery
+#                                                  Science-Fiction Fantasy Adventure Romance Family History Horror
+#                                                  Anime Documentary Sports  ("" = all)
+#   optimize/saver.sh langs Arabic,English         episodes card: English Arabic Korean Japanese Turkish Spanish
+#                                                  French Hindi German  ("" = all)
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.yourtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
@@ -36,6 +41,8 @@ case "${1:-}" in
     send SET "--es teams $(quote "$(IFS=,; echo "$*")")" ;;
   card)      send SET "--es panel $(quote "${2:?usage: optimize/saver.sh card prayers}")" ;;
   home-card) send SET "--es home_panel $(quote "${2:?usage: optimize/saver.sh home-card none}")" ;;
+  genres)    send SET "--es genres $(quote "${2-}")" ;;
+  langs)     send SET "--es langs $(quote "${2-}")" ;;
   find-team)
     q="${2:?usage: optimize/saver.sh find-team NAME}"
     url="https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=$(printf %s "$q" | python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))')"
@@ -44,5 +51,5 @@ import json, sys
 for t in json.load(sys.stdin).get("teams") or []:
     if t.get("strSport") == "Soccer":
         print("%s:%s  |  %s  |  %s" % (t["idTeam"], t["strTeam"], t.get("strLeague") or "", t.get("strCountry") or ""))' ;;
-  *) sed -n '2,13p' "$0"; exit 1 ;;
+  *) sed -n '2,16p' "$0"; exit 1 ;;
 esac
