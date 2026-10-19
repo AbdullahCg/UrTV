@@ -12,25 +12,27 @@ import java.util.List;
 final class Prefs {
     static final String TZ = "Asia/Riyadh";
 
-    // name, latitude, longitude
-    static final String[][] CITIES = {
-        {"الرياض", "24.7136", "46.6753"}, {"جدة", "21.5433", "39.1728"},
-        {"مكة المكرمة", "21.3891", "39.8579"}, {"المدينة المنورة", "24.5247", "39.5692"},
-        {"الدمام", "26.4207", "50.0888"}, {"الخبر", "26.2172", "50.1971"},
-        {"الظهران", "26.2361", "50.0393"}, {"الأحساء", "25.3833", "49.5833"},
-        {"الجبيل", "27.0046", "49.6460"}, {"الطائف", "21.2703", "40.4158"},
-        {"تبوك", "28.3835", "36.5662"}, {"بريدة", "26.3260", "43.9750"},
-        {"عنيزة", "26.0840", "43.9930"}, {"حائل", "27.5114", "41.7208"},
-        {"أبها", "18.2164", "42.5053"}, {"خميس مشيط", "18.3000", "42.7333"},
-        {"جازان", "16.8892", "42.5511"}, {"نجران", "17.5656", "44.2289"},
-        {"ينبع", "24.0890", "38.0637"}, {"الباحة", "20.0129", "41.4677"},
-        {"عرعر", "30.9753", "41.0381"}, {"سكاكا", "29.9697", "40.2064"},
-        {"العلا", "26.6085", "37.9232"},
-    };
-
     // TheSportsDB id, Arabic name; more teams come from the in-app search
     static final String[][] TEAM_PRESETS = {
         {"136013", "الهلال"}, {"136137", "المنتخب السعودي"},
+    };
+
+    // TheSportsDB league id ("" = look up by name), league name as TheSportsDB spells it, Arabic label
+    static final String[][] LEAGUES = {
+        {"4668", "Saudi Pro League", "دوري روشن السعودي"},
+        {"", "Saudi First Division League", "دوري يلو (الدرجة الأولى)"},
+        {"4328", "English Premier League", "الدوري الإنجليزي"},
+        {"4335", "Spanish La Liga", "الدوري الإسباني"},
+        {"4332", "Italian Serie A", "الدوري الإيطالي"},
+        {"4331", "German Bundesliga", "الدوري الألماني"},
+        {"4334", "French Ligue 1", "الدوري الفرنسي"},
+        {"", "Portuguese Primeira Liga", "الدوري البرتغالي"},
+        {"", "Dutch Eredivisie", "الدوري الهولندي"},
+        {"", "Turkish Super Lig", "الدوري التركي"},
+        {"", "Egyptian Premier League", "الدوري المصري"},
+        {"", "UAE Pro League", "الدوري الإماراتي"},
+        {"", "Qatar Stars League", "الدوري القطري"},
+        {"", "American Major League Soccer", "الدوري الأمريكي"},
     };
 
     // TVMaze genre (sent to the page), Arabic label
@@ -55,8 +57,13 @@ final class Prefs {
 
     Prefs(Context c) { sp = c.getSharedPreferences("settings", Context.MODE_PRIVATE); }
 
-    int city() { return Math.max(0, Math.min(CITIES.length - 1, sp.getInt("city", 0))); }
-    void setCity(int i) { sp.edit().putInt("city", i).apply(); }
+    /** {name, latitude, longitude}; Riyadh until the user picks */
+    String[] city() {
+        return new String[] {sp.getString("cityName", "الرياض"), sp.getString("cityLat", "24.6877"), sp.getString("cityLon", "46.7219")};
+    }
+    void setCity(String name, String lat, String lon) {
+        sp.edit().putString("cityName", name).putString("cityLat", lat).putString("cityLon", lon).apply();
+    }
 
     /** slot 1 or 2; returns {id, name}, id "" when the slot is off */
     String[] team(int slot) {
@@ -87,7 +94,7 @@ final class Prefs {
 
     /** The page reads its settings from the fragment; a ?query fails on file:// in WebView. */
     String dashboardUrl(Context c) {
-        String[] city = CITIES[city()];
+        String[] city = city();
         List<String> ids = new ArrayList<>();
         for (String s : shows()) ids.add(s.split("\\|", 2)[0]);
         String frag = "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]

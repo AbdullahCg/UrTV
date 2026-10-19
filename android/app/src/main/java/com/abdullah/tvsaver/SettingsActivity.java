@@ -67,7 +67,7 @@ public class SettingsActivity extends Activity {
             startActivity(new Intent(SettingsActivity.this, MainActivity.class)); } }).requestFocus();
 
         header("الموقع");
-        row("المدينة", Prefs.CITIES[prefs.city()][0], new Runnable() { public void run() { pickCity(); } });
+        row("المدينة", prefs.city()[0], new Runnable() { public void run() { pickCity(); } });
 
         header("المباريات");
         row("الفريق الأول", teamLabel(1), new Runnable() { public void run() { pickTeam(1); } });
@@ -92,11 +92,49 @@ public class SettingsActivity extends Activity {
     // ---------- pickers ----------
 
     private void pickCity() {
-        String[] names = new String[Prefs.CITIES.length];
-        for (int i = 0; i < names.length; i++) names[i] = Prefs.CITIES[i][0];
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("المدينة")
-            .setSingleChoiceItems(names, prefs.city(), (d, i) -> { prefs.setCity(i); d.dismiss(); render(); })
+        final Cities.Region[] regions = Cities.REGIONS;
+        String[] labels = new String[regions.length + 1];
+        labels[0] = "بحث عن مدينة أو قرية…";
+        for (int i = 0; i < regions.length; i++) labels[i + 1] = regions[i].name + "  (" + regions[i].cities.length + ")";
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("المنطقة")
+            .setItems(labels, (d, i) -> { if (i == 0) searchCity(); else pickCityIn(regions[i - 1]); })
             .show();
+    }
+
+    private void pickCityIn(final Cities.Region r) {
+        String[] names = new String[r.cities.length];
+        int sel = -1;
+        for (int i = 0; i < names.length; i++) {
+            names[i] = r.cities[i][0];
+            if (names[i].equals(prefs.city()[0])) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(r.name)
+            .setSingleChoiceItems(names, sel, (d, i) -> {
+                prefs.setCity(r.cities[i][0], r.cities[i][1], r.cities[i][2]);
+                d.dismiss();
+                render();
+            }).show();
+    }
+
+    // any place in Saudi Arabia, from Open-Meteo's GeoNames search
+    private void searchCity() {
+        ask("اسم المدينة أو القرية", q -> fetch("https://geocoding-api.open-meteo.com/v1/search?count=20&language=ar&countryCode=SA&name="
+            + Uri.encode(q), json -> {
+                JSONArray a = new JSONObject(json).optJSONArray("results");
+                if (a == null || a.length() == 0) { toast("لا توجد نتائج"); return; }
+                final int n = a.length();
+                final String[] names = new String[n], lats = new String[n], lons = new String[n], rows = new String[n];
+                for (int i = 0; i < n; i++) {
+                    JSONObject c = a.getJSONObject(i);
+                    names[i] = c.optString("name");
+                    lats[i] = String.valueOf(c.optDouble("latitude"));
+                    lons[i] = String.valueOf(c.optDouble("longitude"));
+                    String region = c.optString("admin1", "");
+                    rows[i] = region.isEmpty() ? names[i] : names[i] + "  ·  " + region;
+                }
+                new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر المكان")
+                    .setItems(rows, (d, i) -> { prefs.setCity(names[i], lats[i], lons[i]); render(); }).show();
+            }));
     }
 
     private void pickTeam(final int slot) {
@@ -106,25 +144,48 @@ public class SettingsActivity extends Activity {
         boolean custom = !cur[0].isEmpty();
         for (String[] t : Prefs.TEAM_PRESETS) if (t[0].equals(cur[0])) custom = false;
         if (custom) opts.add(cur);
-        String[] labels = new String[opts.size() + 2];
+        String[] labels = new String[opts.size() + 3];
         for (int i = 0; i < opts.size(); i++) labels[i] = opts.get(i)[1];
-        labels[opts.size()] = "بحث عن فريق…";
-        labels[opts.size() + 1] = "بدون";
+        labels[opts.size()] = "تصفح الدوريات…";
+        labels[opts.size() + 1] = "بحث عن أي فريق أو منتخب…";
+        labels[opts.size() + 2] = "بدون";
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle(slot == 1 ? "الفريق الأول" : "الفريق الثاني")
             .setItems(labels, (d, i) -> {
                 if (i < opts.size()) prefs.setTeam(slot, opts.get(i)[0], opts.get(i)[1]);
-                else if (i == opts.size()) { searchTeam(slot); return; }
+                else if (i == opts.size()) { pickLeague(slot); return; }
+                else if (i == opts.size() + 1) { searchTeam(slot); return; }
                 else prefs.setTeam(slot, "", "");
                 render();
             }).show();
     }
 
+    private void pickLeague(final int slot) {
+        String[] labels = new String[Prefs.LEAGUES.length];
+        for (int i = 0; i < labels.length; i++) labels[i] = Prefs.LEAGUES[i][2];
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الدوري")
+            .setItems(labels, (d, i) -> {
+                final String[] lg = Prefs.LEAGUES[i];
+                final String byName = SPORTS + "search_all_teams.php?l=" + Uri.encode(lg[1]);
+                if (lg[0].isEmpty()) fetch(byName, json -> showTeams(slot, json, lg[2]));
+                else fetch(SPORTS + "lookup_all_teams.php?id=" + lg[0], json -> {
+                    JSONArray a = new JSONObject(json).optJSONArray("teams");
+                    if (a == null || a.length() == 0) fetch(byName, j2 -> showTeams(slot, j2, lg[2]));
+                    else showTeams(slot, json, lg[2]);
+                });
+            }).show();
+    }
+
     private void searchTeam(final int slot) {
-        ask("اسم الفريق بالإنجليزية (مثل Al-Nassr)", q -> fetch(
-            "https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=" + Uri.encode(q), json -> {
+        ask("اسم الفريق بالإنجليزية (مثل Al-Nassr أو Real Madrid)",
+            q -> fetch(SPORTS + "searchteams.php?t=" + Uri.encode(q), json -> showTeams(slot, json, "اختر الفريق")));
+    }
+
+    private static final String SPORTS = "https://www.thesportsdb.com/api/v1/json/123/";
+
+    private void showTeams(final int slot, String json, String title) throws Exception {
                 JSONArray a = new JSONObject(json).optJSONArray("teams");
                 if (a == null || a.length() == 0) { toast("لا توجد نتائج"); return; }
-                final int n = Math.min(a.length(), 20);
+                final int n = Math.min(a.length(), 60);
                 final String[] ids = new String[n], names = new String[n], rows = new String[n];
                 for (int i = 0; i < n; i++) {
                     JSONObject t = a.getJSONObject(i);
@@ -132,9 +193,8 @@ public class SettingsActivity extends Activity {
                     names[i] = t.optString("strTeam");
                     rows[i] = names[i] + "  ·  " + t.optString("strLeague", "") + "  ·  " + t.optString("strCountry", "");
                 }
-                new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر الفريق")
+                new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title)
                     .setItems(rows, (d, i) -> { prefs.setTeam(slot, ids[i], names[i]); render(); }).show();
-            }));
     }
 
     private void pickMany(final String key, String title, final String[][] options) {
