@@ -37,6 +37,12 @@ final class Prefs {
         {"American Major League Soccer", "الدوري الأمريكي"},
     };
 
+    // The free key lists only the first 10 clubs of a league (alphabetical): clubs we want listed anyway.
+    // League name, team id, English name; ids from tools/find_teams.py (CI).
+    static final String[][] LEAGUE_EXTRA = {
+        {"Saudi First Division League", "150643", "Al-Zulfi"},
+    };
+
     // TVMaze genre (sent to the page), Arabic label
     static final String[][] GENRES = {
         {"Drama", "دراما"}, {"Comedy", "كوميديا"}, {"Action", "أكشن"}, {"Crime", "جريمة"},

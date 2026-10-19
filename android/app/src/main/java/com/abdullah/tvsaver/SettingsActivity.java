@@ -233,6 +233,12 @@ public class SettingsActivity extends Activity {
                         inLeague = league.equalsIgnoreCase(t.optString(k == 1 ? "strLeague" : "strLeague" + k));
                     if (inLeague) a.put(t);
                 }
+                for (String[] x : Prefs.LEAGUE_EXTRA) {   // clubs the listing misses
+                    if (league == null || !league.equalsIgnoreCase(x[0])) continue;
+                    boolean listed = false;
+                    for (int i = 0; i < a.length(); i++) listed |= x[1].equals(a.getJSONObject(i).optString("idTeam"));
+                    if (!listed) a.put(new JSONObject().put("idTeam", x[1]).put("strTeam", x[2]).put("strLeague", x[0]));
+                }
                 if (a.length() == 0) {
                     toast(league == null ? "لا توجد نتائج" : "تعذّر تحميل هذا الدوري، جرّب البحث عن الفريق");
                     return;
