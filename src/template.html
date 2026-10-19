@@ -129,7 +129,7 @@
   .mid{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4.5vw}
   .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:start}
   .clock{
-    display:flex;align-items:flex-start;justify-content:center;direction:ltr;
+    display:flex;align-items:baseline;justify-content:center;direction:ltr;
     font-family:'ThmanyahDisplay','Thmanyah',serif;
     font-weight:700;
     font-size:clamp(120px,min(17vw,31vh),345px);line-height:.92;letter-spacing:.022em;
@@ -138,11 +138,11 @@
   }
   .clock .d{unicode-bidi:isolate}
   .clock .sep{
-    font-size:.46em;transform:translateY(.12em);color:var(--gold);opacity:.9;padding:0 .1em;
+    font-size:.46em;align-self:center;transform:translateY(-.08em);color:var(--gold);opacity:.9;padding:0 .1em;
   }
   .clock .ampm{
     font-size:.28em;font-weight:500;color:var(--gold);
-    align-self:flex-start;transform:translateY(.34em);margin-inline-start:.3em;
+    margin-inline-start:.3em;
   }
   .subline{
     margin-top:1.4vh;display:flex;align-items:center;gap:.7em;
@@ -205,6 +205,7 @@
   .chip .delta{font-size:clamp(14px,1.3vw,25px);font-weight:700;letter-spacing:0}
   .chip .delta.up{color:#79D6A0}
   .chip .delta.down{color:#EE8B70}
+  .chip .wxt:empty{display:none}
   .chip .wxt{font-size:clamp(18px,1.62vw,32px);font-weight:700;color:#FFFCF2;direction:ltr;font-variant-numeric:tabular-nums}
   .chip .wxd{font-size:clamp(11px,.86vw,16px);font-weight:400;color:#CBBFA6;margin-inline-start:.2em}
   .dimmer{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30;transition:opacity 6s linear}
@@ -242,7 +243,7 @@
       <div class="chip"><span class="nm">تاسي</span><span id="tasi-chg" class="delta" hidden></span></div>
       <div class="chip"><span class="nm">S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></div>
       <div class="chip"><span class="nm">بيتكوين</span><span id="btc-chg" class="delta" hidden></span></div>
-      <div class="chip wx"><span class="nm" id="wx-city">الرياض</span><span class="wxt" id="wx-temp">—</span><span class="wxd" id="wx-desc"></span></div>
+      <div class="chip wx"><span class="nm" id="wx-city">الرياض</span><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span></div>
     </div>
   </header>
 
@@ -288,7 +289,7 @@
 const BGS = [
 __BG_SET__
 ];
-// the app passes the chosen city in the URL: ?city=..&lat=..&lon=..&tz=..
+// the app passes the chosen city in the URL fragment: #city=..&lat=..&lon=..&tz=..
 const _Q = new URLSearchParams((location.hash || '').replace(/^#/, ''));
 const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : v; };
 const CONFIG = {
@@ -303,8 +304,10 @@ const CONFIG = {
   weekWindowDays: 7,
 };
 
+const GREG = 'ar-SA-u-ca-gregory-nu-arab';
 const AR = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
 const ar = s => String(s).replace(/[0-9]/g, d => AR[+d]);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = n => String(n).padStart(2,'0');
 
 function riyadhParts(d = new Date()){
@@ -314,10 +317,6 @@ function riyadhParts(d = new Date()){
     hour:'2-digit', minute:'2-digit', second:'2-digit'
   }).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
   return { y:+f.year, mo:+f.month, d:+f.day, h:(+f.hour)%24, mi:+f.minute, s:+f.second };
-}
-function riyadhNow(){
-  const p = riyadhParts();
-  return new Date(p.y, p.mo-1, p.d, p.h, p.mi, p.s);
 }
 function fmt12(h, mi){
   const h12 = h % 12 === 0 ? 12 : h % 12;
@@ -342,7 +341,7 @@ function tickDates(){
     document.getElementById('hijri').textContent = h + ' هـ';
   }catch(e){}
   try{
-    document.getElementById('greg').textContent = new Intl.DateTimeFormat('ar-SA',{
+    document.getElementById('greg').textContent = new Intl.DateTimeFormat(GREG,{
       timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
     }).format(now);
   }catch(e){}
@@ -351,6 +350,7 @@ function tickDates(){
 const PRAYER_NAMES = {Fajr:'الفجر',Dhuhr:'الظهر',Asr:'العصر',Maghrib:'المغرب',Isha:'العشاء'};
 const FALLBACK_TIMINGS = {Fajr:'04:34',Dhuhr:'11:38',Asr:'14:57',Maghrib:'17:24',Isha:'18:54'};
 let PRAYERS = [];
+const PRAYER_KEY = 'prayers:' + CONFIG.latitude + ',' + CONFIG.longitude;
 
 function buildPrayers(t){
   PRAYERS = ['Fajr','Dhuhr','Asr','Maghrib','Isha'].map(k=>{
@@ -360,7 +360,8 @@ function buildPrayers(t){
 }
 async function loadPrayers(){
   const p = riyadhParts();
-  const url = `https://api.aladhan.com/v1/timings/${pad(p.d)}-${pad(p.mo)}-${p.y}`
+  const key = `${pad(p.d)}-${pad(p.mo)}-${p.y}`;
+  const url = `https://api.aladhan.com/v1/timings/${key}`
             + `?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}`
             + `&method=${CONFIG.prayerMethod}&timezonestring=${encodeURIComponent(CONFIG.timezone)}`;
   try{
@@ -368,7 +369,13 @@ async function loadPrayers(){
     const j = await r.json();
     if(!j?.data?.timings?.Fajr) throw 0;
     buildPrayers(j.data.timings);
-  }catch(e){ buildPrayers(FALLBACK_TIMINGS); }
+    try{ localStorage.setItem(PRAYER_KEY, JSON.stringify({day:key, t:j.data.timings})); }catch(e){}
+  }catch(e){
+    let cached = null;
+    try{ cached = JSON.parse(localStorage.getItem(PRAYER_KEY) || 'null'); }catch(_){}
+    if(cached && cached.t && cached.t.Fajr) buildPrayers(cached.t);       // yesterday's times are minutes off, not hours
+    else if(!PRAYERS.length) buildPrayers(FALLBACK_TIMINGS);            // keep the last good set
+  }
   tickPrayer();
 }
 
@@ -393,6 +400,7 @@ function shortRemaining(ms){
   const out = [];
   if(d) out.push(qty(d,UNIT.day));
   if(h && out.length < 2) out.push(qty(h,UNIT.hour));
+  if(!out.length) out.push(qty(Math.max(1, Math.ceil(ms/60000)), UNIT.min));
   return out.join(' و ');
 }
 
@@ -422,7 +430,9 @@ function ramadanStart(){
     const d = new Date(Date.now()+i*86400000);
     if(fmt.format(d) === '9'){
       const p = riyadhParts(d);
-      found = {y:p.y, mo:p.mo, d:p.d};
+      const hy = +new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,year:'numeric'})
+        .format(d).replace(/[^0-9]/g,'');
+      found = {y:p.y, mo:p.mo, d:p.d, hy};
       break;
     }
   }
@@ -466,15 +476,15 @@ function tickRamadan(){
   }
 
   // ---- countdown mode ----
-  elL.textContent = 'رمضان ' + ar(hijriYearNow());
   const st = ramadanStart();
+  elL.textContent = 'رمضان ' + ar(st ? st.hy : hijriYearNow());
   if(!st){ elD.textContent='—'; elS.textContent=''; return; }
   const rp2 = riyadhParts();
   const days = Math.max(0, Math.round(
     (Date.UTC(st.y, st.mo-1, st.d) - Date.UTC(rp2.y, rp2.mo-1, rp2.d)) / 86400000));
   elD.innerHTML = ar(days) + ' <span class="unit">يوم</span>';
   elS.textContent = days === 0 ? 'رمضان مبارك'
-    : 'يبدأ ' + new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'})
+    : 'يبدأ ' + new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'})
         .format(new Date(Date.UTC(st.y, st.mo-1, st.d, 12)));
 }
 
@@ -514,11 +524,14 @@ function renderMatches(){
     const end = toDate(ev).getTime() + 2.5*3600000;
     return now.getTime() >= end && (now.getTime() - end) < 86400000;
   });
-  if(done.length){
-    row.innerHTML = done.map(ev=>{
-      const day = new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'long'}).format(toDate(ev));
+  done.sort((a,b)=>toDate(b)-toDate(a));
+  const seenEv = new Set();
+  const latest = done.filter(ev=>{ const k = ev.idEvent || ev.strEvent; if(seenEv.has(k)) return false; seenEv.add(k); return true; }).slice(0,2);
+  if(latest.length){
+    row.innerHTML = latest.map(ev=>{
+      const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(toDate(ev));
       return `<div class="mblock">`
-        + `<div class="big"><span>${tr(TEAM_AR, ev.strHomeTeam||'')} <span class="sc">${ar(ev.intHomeScore)} - ${ar(ev.intAwayScore)}</span> ${tr(TEAM_AR, ev.strAwayTeam||'')}</span></div>`
+        + `<div class="big"><span>${esc(tr(TEAM_AR, ev.strHomeTeam||''))} <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ${esc(tr(TEAM_AR, ev.strAwayTeam||''))}</span></div>`
         + `<div class="sub">النتيجة النهائية · ${day}</div></div>`;
     }).join('');
     return;
@@ -529,7 +542,7 @@ function renderMatches(){
   [['hilal', MATCHES.hilal], ['ksa', MATCHES.ksa]].forEach(([side, ev])=>{
     if(!ev) return;
     const d = toDate(ev), diff = d - now;
-    if(diff < 0 || diff > win) return;
+    if(diff < -2.5*3600000 || diff > win) return;   // in progress stays on screen
     items.push({
       home: tr(TEAM_AR, ev.strHomeTeam || ''),
       away: tr(TEAM_AR, ev.strAwayTeam || ''),
@@ -542,14 +555,14 @@ function renderMatches(){
     return;
   }
   row.innerHTML = items.map(it=>{
-    const day = new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'long'}).format(it.d);
+    const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(it.d);
     const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
       .formatToParts(it.d).reduce((a,x)=>(a[x.type]=x.value,a),{});
     const cd = shortRemaining(it.diff);
     const t12 = ar(fmt12(+p.hour % 24, +p.minute));
-    const sub = cd ? `بعد ${cd} · ${t12}` : `${day} · ${t12}`;
+    const sub = it.diff <= 0 ? `جارية الآن · ${t12}` : `بعد ${cd} · ${t12}`;
     return `<div class="mblock">`
-         + `<div class="big"><span>${it.home} × ${it.away}</span></div>`
+         + `<div class="big"><span>${esc(it.home)} × ${esc(it.away)}</span></div>`
          + `<div class="sub">${sub}</div>`
          + `</div>`;
   }).join('');
@@ -581,7 +594,7 @@ const TICKERS = [
   {cg:'bitcoin',   chg:'btc-chg'},
 ];
 
-// never invent a direction: unknown renders as a muted dash
+// never invent a direction: unknown hides the marker
 function paintDir(t, up){
   const chEl = document.getElementById(t.chg);
   if(up === null || up === undefined){ chEl.style.display='none'; chEl.hidden = true; chEl.textContent=''; return; }
@@ -695,8 +708,8 @@ function renderWeekPage(animate){
     rows.push(WEEK_POOL[(start + i) % WEEK_POOL.length]);
   }
   ul.innerHTML = rows.map(o=>{
-    const dt = o.date ? new Intl.DateTimeFormat('ar-SA',{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date(o.date+'T12:00:00Z')) : '';
-    return `<li><span>${o.name}</span>`
+    const dt = o.date ? new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date(o.date+'T12:00:00Z')) : '';
+    return `<li><span>${esc(o.name)}</span>`
          + (o.ep?`<span class="ep">${ar(o.ep)}</span>`:'')
          + `<span class="rt">${ar(o.rating.toFixed(1)).replace('.','٫')}</span>`
          + (dt?`<span class="dt">${dt}</span>`:'') + '</li>';
@@ -723,10 +736,7 @@ async function loadWeather(){
     const t = Math.round(j.current.temperature_2m);
     document.getElementById('wx-temp').textContent = ar(t) + '°';
     document.getElementById('wx-desc').textContent = WX_CODES[j.current.weather_code] || '';
-  }catch(e){
-    document.getElementById('wx-temp').textContent = '—';
-    document.getElementById('wx-desc').textContent = '';
-  }
+  }catch(e){}   // keep the last reading; with none the chip shows only the city
 }
 
 // night dimming: transparent by day, dark after 21:00 and before 07:00
@@ -752,12 +762,7 @@ function pixelShift(){
   if(st) st.style.transform = `translate(${dx}px,${dy}px)`;
 }
 
-function boot(){
-  const wxCity = document.getElementById('wx-city');
-  if(wxCity) wxCity.textContent = CONFIG.city;
-  const cs = document.getElementById('clock-sub');
-  if(cs) cs.textContent = 'بتوقيت ' + CONFIG.city;
-  document.title = 'شاشة ' + CONFIG.city;
+function applyBackground(){
   try {
     const dayKey = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     let h = 7; for (let k = 0; k < dayKey.length; k++) h = (h * 31 + dayKey.charCodeAt(k)) % 100003;
@@ -770,6 +775,15 @@ function boot(){
       if (cr) cr.textContent = b.c ? 'الصورة: ' + b.c : '';
     }
   } catch(e) {}
+}
+
+function boot(){
+  const wxCity = document.getElementById('wx-city');
+  if(wxCity) wxCity.textContent = CONFIG.city;
+  const cs = document.getElementById('clock-sub');
+  if(cs) cs.textContent = 'بتوقيت ' + CONFIG.city;
+  document.title = 'شاشة ' + CONFIG.city;
+  applyBackground();
   tickClock(); tickDates(); tickRamadan();
   TICKERS.forEach(loadTicker);
   loadPrayers(); loadMatches(); loadWeek(); loadWeather();
@@ -789,7 +803,7 @@ function boot(){
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPrayers(); loadMatches(); loadWeek(); loadWeather(); }
+    if(d !== lastDay){ lastDay = d; applyBackground(); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); loadWeek(); loadWeather(); }
   }, 60*1000);
 }
 
