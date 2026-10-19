@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths: ['tools/fetch_leagues.py']
+    paths: ['.github/tools/fetch_leagues.py']
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/fetch_leagues.py
+      - run: python3 .github/tools/fetch_leagues.py
       - name: Push to data-leagues
         run: |
           git config user.name "github-actions[bot]"

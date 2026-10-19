@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths: ['tools/resolve_clubs.py', 'tools/saudi-clubs-ar.json']
+    paths: ['.github/tools/resolve_clubs.py', '.github/tools/saudi-clubs-ar.json']
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/resolve_clubs.py
+      - run: python3 .github/tools/resolve_clubs.py
       - name: Push to data-clubs
         run: |
           git config user.name "github-actions[bot]"

@@ -22,7 +22,7 @@ REPO = "https://raw.githubusercontent.com/tshi-dev/TV-ScreenSaver/master/"
 
 
 def verses_for_screen():
-    """assets/shared/verses.json as fetched from the Quran API (tools/fetch_verses.py), made fit for the font:
+    """assets/shared/verses.json as fetched from the Quran API (.github/tools/fetch_verses.py), made fit for the font:
     the pause marks and ۞ are left out (Thmanyah has no glyph for them); letters and harakat stay as fetched.
     Surah names are shown plain, without harakat."""
     path = ROOT / "assets/shared/verses.json"

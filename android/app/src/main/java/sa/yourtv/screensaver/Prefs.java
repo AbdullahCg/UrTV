@@ -17,7 +17,7 @@ final class Prefs {
         {"136013", "الهلال"}, {"136137", "المنتخب السعودي"},
     };
 
-    // League name exactly as TheSportsDB spells it (checked from CI, tools/fetch_leagues.py), Arabic label.
+    // League name exactly as TheSportsDB spells it (checked from CI, .github/tools/fetch_leagues.py), Arabic label.
     // Teams are fetched by name: with the free key, lookup_all_teams.php ignores the id and always
     // returns the same English League One sample.
     static final String[][] LEAGUES = {
@@ -38,7 +38,7 @@ final class Prefs {
     };
 
     // The free key lists only the first 10 clubs of a league (alphabetical): clubs we want listed anyway.
-    // League name, team id, English name; ids from tools/find_teams.py (CI).
+    // League name, team id, English name; ids from .github/tools/find_teams.py (CI).
     static final String[][] LEAGUE_EXTRA = {
         {"Saudi First Division League", "150643", "Al-Zulfi"},
     };

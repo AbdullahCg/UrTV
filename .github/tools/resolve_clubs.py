@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""English names for the 172 Saudi clubs in tools/saudi-clubs-ar.json (from Arabic Wikipedia's
+"""English names for the 172 Saudi clubs in .github/tools/saudi-clubs-ar.json (from Arabic Wikipedia's
 «قائمة أندية كرة القدم في السعودية»), via Wikidata: Arabic article -> English label, aliases and
 English Wikipedia title. Run in CI (Wikidata is unreachable from the dev container).
 Writes clubs/en-to-ar.json for review before merging into assets/shared/teams-ar.json."""
@@ -29,7 +29,7 @@ def get(params):
 
 
 def main():
-    clubs = json.load(open("tools/saudi-clubs-ar.json", encoding="utf-8"))
+    clubs = json.load(open(".github/tools/saudi-clubs-ar.json", encoding="utf-8"))
     out, missing = {}, []
     for i in range(0, len(clubs), 40):   # wbgetentities takes up to 50 titles
         batch = clubs[i:i + 40]

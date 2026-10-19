@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download the background picks in tools/hq-picks.json from Wikimedia Commons at 3840 px wide (run in CI;
+"""Download the background picks in .github/tools/hq-picks.json from Wikimedia Commons at 3840 px wide (run in CI;
 Commons is unreachable from the dev container). Writes hq/<name>.jpg for review and cropping."""
 import json
 import time
@@ -26,7 +26,7 @@ def get(url):
 
 def main():
     Path("hq").mkdir(exist_ok=True)
-    for p in json.load(open("tools/hq-picks.json", encoding="utf-8")):
+    for p in json.load(open(".github/tools/hq-picks.json", encoding="utf-8")):
         q = urllib.parse.urlencode({"action": "query", "titles": p["title"], "prop": "imageinfo",
                                     "iiprop": "url", "iiurlwidth": "3840", "format": "json"})
         page = next(iter(json.loads(get("https://commons.wikimedia.org/w/api.php?" + q))["query"]["pages"].values()))

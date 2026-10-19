@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download the chosen Unsplash photos (tools/unsplash-picks.json) already cropped to 1920x1080 by Unsplash's
+"""Download the chosen Unsplash photos (.github/tools/unsplash-picks.json) already cropped to 1920x1080 by Unsplash's
 image service (fit=crop, crop=entropy keeps the busiest part), and register each download with Unsplash as
 its API guidelines ask. Run in CI. Writes photos/<id>.jpg."""
 import json
@@ -22,7 +22,7 @@ def get(url, headers=None):
 def main():
     out = Path("photos")
     out.mkdir(exist_ok=True)
-    for p in json.load(open("tools/unsplash-picks.json", encoding="utf-8")):
+    for p in json.load(open(".github/tools/unsplash-picks.json", encoding="utf-8")):
         f = out / f"{p['id']}.jpg"
         if f.exists():
             continue

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths: ['tools/find_teams.py']
+    paths: ['.github/tools/find_teams.py']
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 tools/find_teams.py
+      - run: python3 .github/tools/find_teams.py
       - name: Push to data-teams
         run: |
           git config user.name "github-actions[bot]"

@@ -60,8 +60,8 @@ check("photos: every index entry has a file", listed <= on_disk, sorted(listed -
 check("photos: no file missing from the index", on_disk <= listed, sorted(on_disk - listed))
 bad = [f for f in sorted(on_disk) if Image.open(ROOT / "photos" / f).size != (1920, 1080)]
 check("photos: all 1920x1080", not bad, bad)
-credits = (ROOT / "PHOTO-CREDITS.md").read_text(encoding="utf-8")
-check("photos: every photo credited in PHOTO-CREDITS.md", all(f in credits for f in on_disk),
+credits = (ROOT / "docs/PHOTO-CREDITS.md").read_text(encoding="utf-8")
+check("photos: every photo credited in docs/PHOTO-CREDITS.md", all(f in credits for f in on_disk),
       [f for f in on_disk if f not in credits])
 bundled = json.loads((ROOT / "assets/backgrounds/backgrounds.json").read_text(encoding="utf-8"))
 check("bundled backgrounds exist", all((ROOT / "assets/backgrounds" / b["file"]).is_file() for b in bundled))

@@ -1037,9 +1037,9 @@ function matchRows(){
     });
 }
 
-// verse one day, hadith the next. Verse texts come from the Quran API via CI (tools/fetch_verses.py), never typed.
+// verse one day, hadith the next. Verse texts come from the Quran API via CI (.github/tools/fetch_verses.py), never typed.
 const VERSES = __VERSES__;   // assets/shared/verses.json
-// hadith: only those tools/verify_hadith.py found in the six books; the source line comes from that check
+// hadith: only those .github/tools/verify_hadith.py found in the six books; the source line comes from that check
 const HADITH = __HADITH__.map(h => [h.text, h.source]);   // assets/shared/hadith.json
 function quoteOfDay(){
   const n = riyadhDayNumber(), half = Math.floor(n / 2);
