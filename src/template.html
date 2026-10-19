@@ -574,97 +574,20 @@ const TEAM_AR = {
   'Al-Wehda':'الوحدة','Al-Raed':'الرائد','Abha':'أبها','Al-Taee':'الطائي','Al-Orobah':'العروبة',
   'Al-Wahda':'الوحدة','Al-Batin':'الباطن','Al-Faisaly':'الفيصلي','Al-Adalah':'العدالة','Al-Jabalain':'الجبلين',
   'Al-Ain':'العين','Al-Hazm':'الحزم','Al-Tai':'الطائي','Ohod':'أحد','Al-Jandal':'الجندل','Al-Arabi':'العربي',
-  'Real Madrid':'ريال مدريد','Barcelona':'برشلونة','Atletico Madrid':'أتلتيكو مدريد',
-  'Manchester City':'مانشستر سيتي','Manchester United':'مانشستر يونايتد','Liverpool':'ليفربول',
-  'Arsenal':'آرسنال','Chelsea':'تشيلسي','Tottenham Hotspur':'توتنهام','Newcastle United':'نيوكاسل',
-  'Bayern Munich':'بايرن ميونخ','Borussia Dortmund':'دورتموند','Paris SG':'باريس سان جيرمان',
-  'Juventus':'يوفنتوس','AC Milan':'ميلان','Inter Milan':'إنتر ميلان','Al Ahly':'الأهلي المصري',
-  'Zamalek':'الزمالك',
-  'Japan':'اليابان','South Korea':'كوريا الجنوبية','Australia':'أستراليا','Iran':'إيران','Iraq':'العراق',
+  'Al Ahly':'الأهلي المصري','Zamalek':'الزمالك','Iraq':'العراق',
   'Qatar':'قطر','United Arab Emirates':'الإمارات','Kuwait':'الكويت','Bahrain':'البحرين','Oman':'عُمان',
   'Jordan':'الأردن','Syria':'سوريا','Lebanon':'لبنان','Palestine':'فلسطين','Yemen':'اليمن','Egypt':'مصر',
-  'Morocco':'المغرب','Algeria':'الجزائر','Tunisia':'تونس','China':'الصين','Uzbekistan':'أوزبكستان','Indonesia':'إندونيسيا'
+  'Morocco':'المغرب','Algeria':'الجزائر','Tunisia':'تونس'
 };
 let MATCHES = {};   // team id -> next event
 let RESULTS = {};   // team id -> recent events
 
-// ---------- team names in Arabic ----------
-// 1) built-in table, 2) the Arabic label on Wikidata (cached on the device), 3) transliteration meanwhile
-const AR_NAMES = (()=>{ try{ return JSON.parse(localStorage.getItem('arNames') || '{}'); }catch(e){ return {}; } })();
-const AR_PENDING = new Set();
-const AR_KIND = {team:/football|soccer|club|team|منتخب|نادي/i, show:/television|series|sitcom|anime|miniseries|show|مسلسل/i};
-const hasArabic = s => /[؀-ۿ]/.test(s);
-
-const TL_WORDS = {the:'ذا',of:'أوف',and:'آند',a:'إيه',in:'إن',on:'أون',to:'تو',us:'أس',fc:'',cf:'',sc:'',afc:'',
-  united:'يونايتد',city:'سيتي',real:'ريال',club:'كلوب',sporting:'سبورتنغ',saint:'سانت',st:'سانت'};
-const TL_LETTERS = {a:'إيه',b:'بي',c:'سي',d:'دي',e:'إي',f:'إف',g:'جي',h:'إتش',i:'آي',j:'جيه',k:'كيه',l:'إل',m:'إم',
-  n:'إن',o:'أو',p:'بي',q:'كيو',r:'آر',s:'إس',t:'تي',u:'يو',v:'في',w:'دبليو',x:'إكس',y:'واي',z:'زد'};
-function translit(en){
-  const map = {sh:'ش',kh:'خ',th:'ث',dh:'ذ',gh:'غ',ch:'تش',ph:'ف',ck:'ك',qu:'كو',ou:'و',oo:'و',ee:'ي',
-    a:'ا',b:'ب',c:'ك',d:'د',e:'ي',f:'ف',g:'ج',h:'ه',i:'ي',j:'ج',k:'ك',l:'ل',m:'م',n:'ن',o:'و',p:'ب',
-    q:'ق',r:'ر',s:'س',t:'ت',u:'و',v:'ف',w:'و',x:'كس',y:'ي',z:'ز'};
-  const start = {a:'أ',e:'إ',i:'إ',o:'أو',u:'أ'};
-  const word = w => {
-    if(hasArabic(w) || !/[A-Za-z0-9]/.test(w)) return w;
-    if(/^[A-Z]{2,4}$/.test(w)) return w.toLowerCase().split('').map(c=>TL_LETTERS[c]).join(' ');   // FC, CP, PSG
-    const lw = w.toLowerCase();
-    if(TL_WORDS[lw] !== undefined) return TL_WORDS[lw];
-    if(/^al-/.test(lw)) return 'ال' + word(w.slice(3));
-    let out = '', x = lw.replace(/(.)\1/g,'$1');
-    for(let i = 0; i < x.length;){
-      const two = i+1 < x.length ? map[x.slice(i,i+2)] : undefined;
-      if(i === 0 && start[x[0]] && !two){ out += start[x[0]]; i++; continue; }
-      if(two){ out += two; i += 2; continue; }
-      const ch = x[i];
-      if(ch === 'e' && i > 0){ i++; continue; }                         // short or silent e
-      if(ch === 'c' && /[eiy]/.test(x[i+1] || '')){ out += 'س'; i++; continue; }
-      out += /[0-9]/.test(ch) ? ar(ch) : (map[ch] || '');
-      i++;
-    }
-    return out;
-  };
-  return String(en).replace(/&/g,' و ').replace(/\bAl (?=[A-Z])/g,'Al-')
-    .split(/(\s+)/).map(word).join('').replace(/\s{2,}/g,' ').trim();
-}
-
-async function wikidataArabic(en, kind){
-  const api = 'https://www.wikidata.org/w/api.php?format=json&origin=*';
-  const r = await fetchT(`${api}&action=wbsearchentities&type=item&limit=7&language=en&search=${encodeURIComponent(en)}`, 10000);
-  const hits = ((await r.json()).search || []).filter(h => AR_KIND[kind].test(h.description || ''));
-  if(!hits.length) return '';
-  const r2 = await fetchT(`${api}&action=wbgetentities&props=labels&languages=ar&ids=${hits.slice(0,3).map(h=>h.id).join('|')}`, 10000);
-  const ents = (await r2.json()).entities || {};
-  for(const h of hits.slice(0,3)){
-    const l = ents[h.id] && ents[h.id].labels && ents[h.id].labels.ar;
-    if(l && l.value) return l.value.replace(/\s*\([^)]*\)\s*/g,' ').replace(/^(نادي|فريق)\s+/,'').trim();
-  }
-  return '';
-}
-
-let arQueue = Promise.resolve();
-function arName(en, kind){
+// Arab clubs and national teams in Arabic from the table above; every other team keeps its English name
+function teamAr(en){
   en = String(en || '').trim();
-  if(!en || hasArabic(en)) return en;
-  if(kind === 'team'){
-    const base = en.replace(/\s+(FC|SC|CF|AFC|Club|Saudi Club)$/i,'').replace(/^(FC|AFC)\s+/i,'');
-    if(TEAM_AR[en] || TEAM_AR[base]) return TEAM_AR[en] || TEAM_AR[base];
-  }
-  const key = kind + ':' + en;
-  if(AR_NAMES[key] !== undefined) return AR_NAMES[key] || translit(en);
-  if(!AR_PENDING.has(key)){
-    AR_PENDING.add(key);
-    arQueue = arQueue.then(async ()=>{            // one lookup at a time
-      try{
-        AR_NAMES[key] = await wikidataArabic(en, kind);   // '' = Wikidata has none: keep the transliteration
-        try{ localStorage.setItem('arNames', JSON.stringify(AR_NAMES)); }catch(e){}
-        if(AR_NAMES[key]){ renderMatches(); renderWeekPage(false); }
-      }catch(e){}                                    // offline: try again next time
-      AR_PENDING.delete(key);
-    });
-  }
-  return translit(en);
+  const base = en.replace(/\s+(FC|SC|CF|AFC|Club|Saudi Club)$/i,'').replace(/^(FC|AFC)\s+/i,'');
+  return TEAM_AR[en] || TEAM_AR[base] || en;
 }
-const teamAr = s => arName(s, 'team');
 
 async function fetchNext(id){
   const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventsnext.php?id=${id}`,{cache:'no-store'});

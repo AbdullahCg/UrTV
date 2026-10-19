@@ -191,11 +191,10 @@ public class SettingsActivity extends Activity {
                     JSONObject t = a.getJSONObject(i);
                     ids[i] = t.optString("idTeam");
                     names[i] = t.optString("strTeam");
-                    rows[i] = Arabic.translit(names[i]) + "  ·  " + leagueAr(t.optString("strLeague", ""));
+                    rows[i] = names[i] + "  ·  " + leagueAr(t.optString("strLeague", ""));
                 }
                 new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title)
-                    .setItems(rows, (d, i) -> inArabic(names[i], Arabic.TEAM, ar -> { prefs.setTeam(slot, ids[i], ar); render(); }))
-                    .show();
+                    .setItems(rows, (d, i) -> { prefs.setTeam(slot, ids[i], names[i]); render(); }).show();
     }
 
     private void pickMany(final String key, String title, final String[][] options) {
@@ -287,23 +286,14 @@ public class SettingsActivity extends Activity {
 
     // ---------- labels ----------
 
-    /** Wikidata's Arabic name (or a transliteration) fetched off the UI thread. */
-    private void inArabic(final String en, final java.util.regex.Pattern kind, final Text then) {
-        toast("جارٍ جلب الاسم بالعربية…");
-        new Thread(() -> {
-            final String ar = Arabic.lookup(en, kind);
-            runOnUiThread(() -> { if (!isFinishing()) then.got(ar); });
-        }).start();
-    }
-
     private static String leagueAr(String en) {
         for (String[] l : Prefs.LEAGUES) if (l[1].equalsIgnoreCase(en)) return l[2];
-        return Arabic.translit(en);
+        return en;
     }
 
     private static String labelOf(String[][] options, String key) {
         for (String[] o : options) if (o[0].equalsIgnoreCase(key)) return o[1];
-        return Arabic.translit(key);
+        return key;
     }
 
     private String teamLabel(int slot) {
