@@ -128,6 +128,9 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | L1 | Fresh install of both apps, press Home | No card on the home screen (off by default) |
 | L2 | Screensaver settings → «بطاقة على الشاشة الرئيسية» → مواقيت الصلاة, then Home | Card under the pills on the left: today's prayers, next one gold. D-pad never lands on it |
 | L3 | Repeat L2 with each option, then «لا شيء» | Card follows the choice; «لا شيء» removes it |
+| L5 | `optimize/dock.sh apps`, then `optimize/dock.sh set <3 packages from that list>`, then `optimize/dock.sh show` | Home screen redraws at once with those three first, topped up to 5; `show` lists them |
+| L6 | `optimize/dock.sh set com.not.installed` | `error: none of these apps are on this TV's home screen`; row unchanged |
+| L7 | `optimize/dock.sh reset` | Row back to the defaults |
 | L4 | Open any app with the card on, then `adb shell top -n 1 \| grep yourtv.home` | Launcher idle while the app is in front (card paused) |
 
 ---

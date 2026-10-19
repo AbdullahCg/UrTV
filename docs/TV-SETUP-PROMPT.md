@@ -51,14 +51,14 @@ You are setting up my Android TV / Google TV with three things from this reposit
 3. Run sections B, D and E of `docs/TEST-PLAN.md`.
 
 **3. Launcher (home screen)**
-1. Ask me which apps go in the dock, in order. Look up their package names on the TV and edit
-   `android/launcher/src/main/res/values/config.xml` (`dock_apps`, `hidden_apps`, `live_tv_package`).
-   If you changed it, commit on a branch, open a pull request, and wait for the "Build APKs" check to pass.
-   Then ask me to merge, so the `apk-latest` release has the new `yourtv-home.apk`.
+1. Ask me which apps go in the favourites row, in order.
 2. `optimize/install.sh launcher`. It installs the new home first, arms a 3-minute safety switch on the TV,
    switches, and checks that Home opens the new launcher. If the check fails, do nothing: the stock home comes
    back by itself. Never disable the stock home or the setup app by hand.
-3. Test: press Home from inside an app (it must come back to our home, not the stock one), D-pad through the dock
+3. Set my favourites with `optimize/dock.sh apps` (package names and app names on this TV) and
+   `optimize/dock.sh set <pkg1> <pkg2> ...` (left to right, up to 10). `optimize/dock.sh show` to check.
+   Never use the remote's long-press menu for this; it is for people.
+4. Test: press Home from inside an app (it must come back to our home, not the stock one), D-pad through the dock
    and the full app grid, open المصادر (inputs), واي فاي, الإعدادات and شاشة التوقف.
 
 **Report** (send me this, I'll pass it to the developer)

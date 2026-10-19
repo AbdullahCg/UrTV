@@ -112,6 +112,10 @@ public class MainActivity extends Activity {
     private final BroadcastReceiver packages = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { buildApps(); }
     };
+    // favourites changed from ADB (DockReceiver) while the home screen is up
+    private final BroadcastReceiver dockChanged = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) { dockApps = loadDock(); buildApps(); }
+    };
 
     // ---------------------------------------------------------------- lifecycle
 
@@ -136,6 +140,7 @@ public class MainActivity extends Activity {
         pf.addAction(Intent.ACTION_PACKAGE_CHANGED);
         pf.addDataScheme("package");
         registerReceiver(packages, pf);
+        registerReceiver(dockChanged, new IntentFilter(DockReceiver.CHANGED));
     }
 
     @Override
@@ -172,6 +177,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         unregisterReceiver(packages);
+        unregisterReceiver(dockChanged);
         homeCard.destroy();
         super.onDestroy();
     }
@@ -569,8 +575,11 @@ public class MainActivity extends Activity {
     static final int MAX_DOCK = 10;   // tiles share the row width, so 10 still fit at 1080p
 
     /** The user's dock if they edited it, else res/values/config.xml. */
+    /** The launcher's settings file, shared with DockReceiver. */
+    private android.content.SharedPreferences prefs() { return DockReceiver.prefs(this); }
+
     private String[] loadDock() {
-        String saved = getPreferences(MODE_PRIVATE).getString("dock", null);
+        String saved = prefs().getString("dock", null);
         return saved != null ? (saved.isEmpty() ? new String[0] : saved.split(","))
                              : getResources().getStringArray(R.array.dock_apps);
     }
@@ -579,7 +588,7 @@ public class MainActivity extends Activity {
     private void saveDock(List<String> dock, String focusPkg) {
         List<String> installed = new ArrayList<>();
         for (String p : dock) if (isInstalled(p)) installed.add(p);
-        getPreferences(MODE_PRIVATE).edit().putString("dock", android.text.TextUtils.join(",", installed)).apply();
+        prefs().edit().putString("dock", android.text.TextUtils.join(",", installed)).apply();
         dockApps = installed.toArray(new String[0]);
         buildApps();
         View c = cardByPkg.get(focusPkg);
@@ -612,7 +621,7 @@ public class MainActivity extends Activity {
         }
         labels.add("إعادة المفضلة الافتراضية");
         actions.add(() -> {
-            getPreferences(MODE_PRIVATE).edit().remove("dock").apply();
+            prefs().edit().remove("dock").apply();
             dockApps = getResources().getStringArray(R.array.dock_apps);
             buildApps();
         });
@@ -805,7 +814,7 @@ public class MainActivity extends Activity {
 
     /** This 4-day period's 5 hosted photos: the same Park-Miller draw as photoSet() in the screensaver page. */
     private String[] remotePhotos() {
-        String s = getPreferences(MODE_PRIVATE).getString("photoIndex", "");
+        String s = prefs().getString("photoIndex", "");
         if (s.isEmpty()) return new String[0];
         String[] all = s.split(",");
         java.util.Calendar c = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Riyadh"));
@@ -833,7 +842,7 @@ public class MainActivity extends Activity {
 
     /** Off the main thread: refresh the hosted photo list once a day. */
     private void refreshPhotoIndex() {
-        if (System.currentTimeMillis() - getPreferences(MODE_PRIVATE).getLong("photoIndexAt", 0) < INDEX_MAX_AGE_MS) return;
+        if (System.currentTimeMillis() - prefs().getLong("photoIndexAt", 0) < INDEX_MAX_AGE_MS) return;
         try {
             org.json.JSONArray a = new org.json.JSONArray(new String(download(PHOTO_BASE + "index.json"), "UTF-8"));
             List<String> names = new ArrayList<>();
@@ -841,7 +850,7 @@ public class MainActivity extends Activity {
                 String f = a.getJSONObject(i).optString("f");
                 if (f.matches("[A-Za-z0-9_-]+\\.jpg")) names.add(f);
             }
-            if (!names.isEmpty()) getPreferences(MODE_PRIVATE).edit()
+            if (!names.isEmpty()) prefs().edit()
                     .putString("photoIndex", android.text.TextUtils.join(",", names))
                     .putLong("photoIndexAt", System.currentTimeMillis()).apply();
         } catch (Exception ignored) { }
@@ -874,9 +883,9 @@ public class MainActivity extends Activity {
         if (wallpapers.length == 0) return;
         final String[] remote = remotePhotos();
         final int total = wallpapers.length + remote.length;
-        if (wallIndex < 0) wallIndex = getPreferences(MODE_PRIVATE).getInt("wallpaper", -1);
+        if (wallIndex < 0) wallIndex = prefs().getInt("wallpaper", -1);
         wallIndex = (wallIndex + 1) % total;
-        getPreferences(MODE_PRIVATE).edit().putInt("wallpaper", wallIndex).apply();
+        prefs().edit().putInt("wallpaper", wallIndex).apply();
         wallChangedAt = SystemClock.elapsedRealtime();
         final int idx = wallIndex;
         final String fallback = "wallpapers/" + wallpapers[idx % wallpapers.length];
