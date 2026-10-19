@@ -18,7 +18,7 @@ com.tcl.UpdatePeripheral               # accessory firmware updates
 # Google apps
 com.google.android.videos              # Google TV / Play Movies
 com.google.android.youtube.tvmusic     # YouTube Music
-com.android.dreams.basic               # basic screensaver (keep if شاشة السعودية is not used)
+com.android.dreams.basic               # basic screensaver (keep if شاشة تلفزيونك is not used)
 
 # Region leftovers seen on imported sets (only present on some)
 uk.co.freeview.bbc_sounds

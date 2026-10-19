@@ -1,4 +1,4 @@
-# Prompt: make شاشة السعودية work on any TV
+# Prompt: make شاشة تلفزيونك work on any TV
 
 Paste everything below the line into an agent that can read GitHub, browse the web and write code.
 
@@ -6,7 +6,7 @@ Paste everything below the line into an agent that can read GitHub, browse the w
 
 ## Your task
 
-You are extending **شاشة السعودية**, an Arabic always-on TV screensaver/dashboard, so it runs on as many TV platforms as possible, choosing the best delivery method for each. Research first, then build, then document.
+You are extending **شاشة تلفزيونك**, an Arabic always-on TV screensaver/dashboard, so it runs on as many TV platforms as possible, choosing the best delivery method for each. Research first, then build, then document.
 
 Repository: **https://github.com/tshi-dev/TV-ScreenSaver** (public). Work on a branch and open a pull request; do not push to `master` directly.
 

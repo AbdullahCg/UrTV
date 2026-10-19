@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Download the latest APKs from GitHub and install them on the TV.
-#   optimize/install.sh saver      شاشة السعودية: install + make it the screensaver
+#   optimize/install.sh saver      شاشة تلفزيونك: install + make it the screensaver
 #   optimize/install.sh launcher   the home screen: install + make it the default Home
 #   optimize/install.sh all        both
 # The first install of the screensaver replaces an APK signed with another key: uninstall the old one first

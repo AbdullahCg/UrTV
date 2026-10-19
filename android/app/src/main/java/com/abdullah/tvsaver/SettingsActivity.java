@@ -68,13 +68,13 @@ public class SettingsActivity extends Activity {
     private void render() {
         list.removeAllViews();
         TextView title = new TextView(this);
-        title.setText(R.string.app_name);
+        title.setText("تلفزيونك");
         title.setTextColor(0xFFF6EFE0);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
         title.setTypeface(font("ThmanyahDisplay-Bold"));
         list.addView(title);
         TextView sub = new TextView(this);
-        sub.setText("الإعدادات");
+        sub.setText("إعدادات شاشة التوقف");
         sub.setTextColor(0xFFC6BBA4);
         sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         sub.setTypeface(font("Thmanyah-Regular"));

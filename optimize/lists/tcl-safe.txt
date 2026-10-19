@@ -30,5 +30,5 @@ com.google.android.partnersetup
 com.google.android.onetimeinitializer
 com.google.android.play.games
 android.autoinstalls.config.google.gtvpai   # silently installs promoted apps
-com.google.android.apps.tv.dreamx      # Google ambient screensaver (replaced by شاشة السعودية)
+com.google.android.apps.tv.dreamx      # Google ambient screensaver (replaced by شاشة تلفزيونك)
 com.google.android.backdrop            # Google backdrop screensaver (older sets)

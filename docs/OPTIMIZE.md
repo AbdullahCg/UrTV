@@ -39,7 +39,7 @@ starts the stock home). On those sets keep the stock home and open the new launc
 ## TCL quirks
 
 - After a reboot TCL keeps third-party apps frozen until they are opened once: boot broadcasts don't arrive and
-  the first screensaver start can hang. Open شاشة السعودية once after a power cut.
+  the first screensaver start can hang. Open شاشة تلفزيونك once after a power cut.
 - Disabling a package is per user and reversible: `pm enable <package>`. Don't `pm uninstall` system apps.
 - Remote access tools (VPNs etc.) that are put in the restricted bucket stop reconnecting after a reboot — only
   restrict them once remote access is no longer needed.

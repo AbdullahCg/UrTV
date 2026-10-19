@@ -22,9 +22,9 @@
     </queries>
 
     <application
-        android:label="الرئيسية"
-        android:icon="@drawable/ic_home"
-        android:banner="@drawable/ic_home"
+        android:label="تلفزيونك"
+        android:icon="@mipmap/ic_launcher"
+        android:banner="@drawable/banner"
         android:allowBackup="false"
         android:theme="@style/Home">
 

@@ -1,23 +1,18 @@
-# شاشة السعودية — Saudi TV Screensaver
+<p align="center"><img src="brand/hero.png" alt="تلفزيونك — Your TV" width="100%"></p>
 
-شاشة توقف عربية لتلفاز 16:9: الساعة، التاريخ الهجري والميلادي، الصلاة القادمة، العد التنازلي لرمضان، مباريات الهلال والمنتخب، الطقس، اتجاه الأسواق، وجديد المسلسلات هذا الأسبوع — فوق صورة من معالم المملكة تتغير يومياً.
+<h1 align="center">تلفزيونك · Your TV</h1>
 
-An always-on, Arabic-only, right-to-left screensaver for a 1920×1080 TV. One self-contained HTML file with fonts and photos inlined, so it runs offline and from `file://`.
+<p align="center" dir="rtl">واجهة رئيسية عربية وشاشة توقف سعودية لتلفزيونات Android TV و Google TV، مع أدوات لتسريع التلفزيون وتنظيفه.</p>
 
-This repository does three things for an Android TV / Google TV:
+<p align="center">An Arabic home screen and a Saudi screensaver for Android TV / Google TV, plus tools to make the TV fast and clean.</p>
 
-| | What | Where |
+| | | |
 |---|---|---|
-| 1 | **Screensaver** — our design, as a system screensaver app | `src/`, `android/app` → `tvsaver.apk` |
-| 2 | **Optimize** — back up, rate and disable bloat (reversibly), speed tweaks | `optimize/` |
-| 3 | **Launcher** — a clean Arabic home screen with a dock and the Saudi photos | `android/launcher` → `tvhome.apk` |
+| **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, new episodes — over Saudi landscapes | `tvsaver.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row you edit from the remote (5–10 apps), all apps, inputs, Wi-Fi, settings | `tvhome.apk` |
+| **Optimize** | Back up, rate and disable bloat reversibly (AirPlay, casting and voice always kept), speed tweaks, safe launcher switch | `optimize/` |
 
-**Set up a TV:** hand [`docs/TV-SETUP-PROMPT.md`](docs/TV-SETUP-PROMPT.md) to a coding agent on a computer on the TV's Wi-Fi.
-APKs: [releases/apk-latest](https://github.com/tshi-dev/TV-ScreenSaver/releases/tag/apk-latest).
-
-The launcher and the `optimize/` ADB tools are adapted from
-[mihirgupta0900/tv-home](https://github.com/mihirgupta0900/tv-home) (MIT, `third_party/tv-home-LICENSE`).
-Package safety ratings come from [UAD-ng](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation).
+**Download:** [releases/apk-latest](https://github.com/tshi-dev/TV-ScreenSaver/releases/tag/apk-latest) · **Set up a TV:** [docs/TV-SETUP-PROMPT.md](docs/TV-SETUP-PROMPT.md) · **Photo credits:** [PHOTO-CREDITS.md](PHOTO-CREDITS.md)
 
 ## Layout
 

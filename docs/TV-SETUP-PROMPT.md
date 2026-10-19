@@ -44,7 +44,7 @@ You are setting up my Android TV / Google TV with three things from this reposit
 4. `optimize/disable.sh <list>` for each list, then `optimize/tweaks.sh apply`.
 5. Measure before/after: `grep MemAvailable /proc/meminfo`, `dumpsys meminfo | head -40` and the home screen's memory. Report the numbers.
 
-**2. Screensaver (شاشة السعودية)**
+**2. Screensaver (شاشة تلفزيونك)**
 1. `optimize/install.sh saver`. Its settings open on the TV: set city, team 1 and team 2 with me.
 2. Set the TV's screensaver timeout with me (Settings → Screensaver), then start it to check
    (`am start -n com.android.systemui/.Somnambulator` or wait).

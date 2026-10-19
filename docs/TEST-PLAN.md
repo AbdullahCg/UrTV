@@ -1,4 +1,4 @@
-# Test plan — شاشة السعودية
+# Test plan — شاشة تلفزيونك
 
 For a tester (human or agent) with a Linux/macOS machine, `adb`, and an Android TV on the same network.
 Every step has an exact action and the expected result. Record **PASS / FAIL + note + screenshot** for each ID.
@@ -26,7 +26,7 @@ Navigate with the remote, or `adb shell input keyevent DPAD_DOWN|DPAD_UP|DPAD_CE
 
 | ID | Action | Expected |
 |---|---|---|
-| A1 | Open the app from the TV launcher | Banner «شاشة السعودية»; settings list opens, right-to-left, first row focused |
+| A1 | Open the app from the TV launcher | Banner «شاشة تلفزيونك»; settings list opens, right-to-left, first row focused |
 | A2 | Move through every row with D-pad | Every row focusable and highlighted; nothing unreachable |
 | A3 | المدينة → open | First item «بحث عن مدينة أو قرية…», then 13 regions with counts |
 | A4 | Region «منطقة الرياض» → pick «الخرج» | Dialog closes, row shows «المدينة: الخرج» |
@@ -85,7 +85,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 
 | ID | Action | Expected |
 |---|---|---|
-| D1 | TV Settings → screensaver → choose «شاشة السعودية», or `adb shell settings put secure screensaver_components com.abdullah.tvsaver/.ScreenDream` | Selected |
+| D1 | TV Settings → screensaver → choose «شاشة تلفزيونك», or `adb shell settings put secure screensaver_components com.abdullah.tvsaver/.ScreenDream` | Selected |
 | D2 | Start now: `adb shell am start -n "com.android.systemui/.Somnambulator"` (or wait for the idle timer) | Dashboard appears full screen |
 | D3 | Press any remote key | Screensaver exits |
 | D4 | Leave the TV idle for the timer set in TV settings | Starts by itself |
