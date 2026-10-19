@@ -71,26 +71,6 @@
 
   .top{display:flex;justify-content:space-between;align-items:flex-start;gap:2.5vw}
 
-  .markets{display:flex;gap:.65vw;flex-wrap:nowrap}
-  .chip{
-    border:1px solid rgba(220,184,111,.22);
-    background:rgba(4,14,9,.60);
-    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
-    border-radius:10px;
-    padding:1vh 1.05vw;
-    min-width:clamp(118px,11.6vw,215px);
-  }
-  .chip .nm{
-    display:flex;justify-content:space-between;align-items:baseline;gap:.6em;
-    font-size:clamp(11px,.92vw,17px);font-weight:400;color:var(--dim);white-space:nowrap;
-  }
-  .chip .px{
-    margin-top:.5vh;
-    font-size:clamp(17px,1.52vw,29px);font-weight:500;
-    font-variant-numeric:tabular-nums;color:#FFF9EC;
-    direction:ltr;text-align:right;white-space:nowrap;letter-spacing:-.01em;
-  }
-  .chip .delta{font-size:.56em;font-weight:500;margin-inline-start:.4em;font-variant-numeric:tabular-nums}
   .up{color:var(--green-lt)}.down{color:var(--red)}
 
   .week{
@@ -210,40 +190,32 @@
   @media (prefers-reduced-motion:no-preference){.photo{animation:drift 120s ease-in-out infinite}}
   @media (prefers-reduced-motion:reduce){.photo{animation:none}}
 
-  /* ===== v3: markets direction-only, weather, night dim, pixel shift ===== */
-  .markets{gap:.72vw}
-  .chip{display:flex;align-items:center;gap:.5em;padding:.8vh .95vw;min-width:0;flex:0 0 auto}
-  .chip .px{display:none}
-  .chip .nm{display:flex;align-items:center;gap:.55em;font-size:clamp(14px,1.28vw,25px);font-weight:500;letter-spacing:.03em}
-  .chip .delta{font-size:clamp(14px,1.3vw,25px);font-weight:700;letter-spacing:0}
-  /* Top-left chips match the launcher's pills: same height, rounding, colours and distance from the corner
-     (launcher at 1080p: 59px tall, 116px from the left, 72px from the top, ~20px apart). */
-  .markets{gap:clamp(10px,1.05vw,20px);margin:clamp(14px,3.6vh,39px) 0 0 clamp(16px,2.45vw,47px)}
-  .chip{height:clamp(38px,5.45vh,59px);padding:0 clamp(14px,1.25vw,24px);border-radius:999px;
-    background:rgba(0,0,0,.40);border:1px solid rgba(255,255,255,.20);
-    backdrop-filter:none;-webkit-backdrop-filter:none}
-  .chip .nm{font-size:clamp(13px,1.15vw,22px);font-weight:500;color:rgba(255,255,255,.9);letter-spacing:0}
-  .chip .delta{font-size:clamp(12px,1.05vw,20px)}
-  .chip .wxt{font-size:clamp(15px,1.3vw,25px)}
-  /* Thmanyah sets Arabic low on the line: lift Arabic chip labels so they sit centred like "S&P 500" */
-  .chip .nm.ar{position:relative;top:-.2em}
-  .chip .delta.up{color:#79D6A0}
-  .chip .delta.down{color:#EE8B70}
-  .chip .wxt:empty,.chip .wxr:empty{display:none}
-  .chip .wxr{font-size:clamp(11px,.82vw,15px);font-weight:400;color:#A99F88;direction:rtl;white-space:nowrap}
-  .chip .wxd.dust{color:#E8B86A}
+  /* ===== top left: weather and markets, set like the date block on the right (no boxes) ===== */
+  .markets{text-align:left;flex-shrink:0}
+  .wxline{display:flex;align-items:baseline;gap:.5em;justify-content:flex-end;line-height:1.3;
+    font-size:clamp(19px,1.86vw,37px);font-weight:500;color:var(--sand)}
+  .wxt{font-family:'ThmanyahDisplay','Thmanyah',serif;font-weight:700;color:#FFFCF2;direction:ltr;
+    font-variant-numeric:tabular-nums}
+  .wxd.dust{color:#E8B86A}
+  .wxsub{margin-top:.55vh;font-size:clamp(12px,1.06vw,21px);font-weight:300;color:var(--dim);white-space:nowrap}
+  .wxr:not(:empty)::before{content:'  ·  ';white-space:pre;color:rgba(214,175,107,.7)}
+  .wxt:empty,.wxd:empty,.wxr:empty{display:none}
+  .rule.l{margin-right:0;margin-left:auto;background:linear-gradient(270deg,var(--gold),rgba(220,184,111,0))}
+  .mk{margin-top:1.2vh;display:flex;justify-content:flex-end;gap:1.6em;white-space:nowrap;
+    font-size:clamp(12px,1.06vw,21px);font-weight:400;color:#D8CDB6}
+  .mk .m{display:inline-flex;align-items:baseline;gap:.45em}
+  .mk .delta{font-size:.72em}
+  .mk .delta.up{color:#79D6A0}
+  .mk .delta.down{color:#EE8B70}
   .p-prayer.now .big{color:#FFE9B8;text-shadow:0 0 40px rgba(220,184,111,.45)}
   .p-prayer.now .label{color:#F1CF8A}
   .live{color:#EE8B70;font-weight:500}
-  .chip .wxt{font-size:clamp(18px,1.62vw,32px);font-weight:700;color:#FFFCF2;direction:ltr;font-variant-numeric:tabular-nums}
-  .chip .wxd{font-size:clamp(11px,.86vw,16px);font-weight:400;color:#CBBFA6;margin-inline-start:.2em}
   .dimmer{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30;transition:opacity 6s linear}
   .stage{transition:transform 3s ease}
   .sc{color:#E0BA74;letter-spacing:.02em}
 
   @media (max-aspect-ratio:5/4){
     .top{flex-direction:column-reverse;gap:1.4vh}
-    .markets{flex-wrap:wrap}
     .bottom{grid-template-columns:1fr 1fr}
     .p-match{grid-column:1/-1;text-align:right}
     .mrow{align-items:flex-start}
@@ -269,10 +241,14 @@
     </div>
 
     <div class="markets">
-      <div class="chip"><span class="nm ar">تاسي</span><span id="tasi-chg" class="delta" hidden></span></div>
-      <div class="chip"><span class="nm">S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></div>
-      <div class="chip"><span class="nm ar">بيتكوين</span><span id="btc-chg" class="delta" hidden></span></div>
-      <div class="chip wx"><span class="nm ar" id="wx-city">الرياض</span><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span><span class="wxr" id="wx-range"></span></div>
+      <div class="wxline"><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span></div>
+      <div class="wxsub"><span id="wx-city">الرياض</span><span class="wxr" id="wx-range"></span></div>
+      <div class="rule l"></div>
+      <div class="mk">
+        <span class="m"><span>تاسي</span><span id="tasi-chg" class="delta" hidden></span></span>
+        <span class="m"><span>S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></span>
+        <span class="m"><span>بيتكوين</span><span id="btc-chg" class="delta" hidden></span></span>
+      </div>
     </div>
   </header>
 
@@ -947,7 +923,7 @@ async function loadWeather(){
     const hi = j.daily?.temperature_2m_max?.[0], lo = j.daily?.temperature_2m_min?.[0];
     document.getElementById('wx-range').textContent =
       (hi != null && lo != null) ? `${ar(Math.round(hi))}° / ${ar(Math.round(lo))}°` : '';
-  }catch(e){ return; }   // keep the last reading; with none the chip shows only the city
+  }catch(e){ return; }   // keep the last reading; with none only the city shows
 
   // dust overrides the condition word: PM10 in µg/m³
   try{
@@ -1067,7 +1043,7 @@ function applyBackground(force){
 }
 
 // Last painted panels, shown at once on the next start while fresh data loads.
-const SNAP_KEY = 'snap:' + location.hash;
+const SNAP_KEY = 'snap2:' + location.hash;   // bump when the panels' markup changes
 const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
 function saveSnap(){
   try{ localStorage.setItem(SNAP_KEY, JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''))); }catch(e){}
