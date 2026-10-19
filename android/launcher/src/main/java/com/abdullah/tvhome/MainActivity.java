@@ -550,7 +550,7 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- dock editing
 
     private final Map<String, View> cardByPkg = new HashMap<>();
-    static final int MAX_DOCK = 8;
+    static final int MAX_DOCK = 10;   // tiles share the row width, so 10 still fit at 1080p
 
     /** The user's dock if they edited it, else res/values/config.xml. */
     private String[] loadDock() {
