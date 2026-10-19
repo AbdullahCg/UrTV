@@ -103,7 +103,7 @@ All three are built identically — small gold label, big value, small sub-line 
 - `MainActivity` is a full-screen WebView showing the same HTML; dismiss with any remote key via `dispatchKeyEvent`.
 - `ScreenDream` is the system dream (`screensaver_components=com.abdullah.tvsaver/.ScreenDream`), so it starts on the TV's own idle timer (10 s).
 - **Settings inside the app:** a city picker (`SettingsActivity`, 23 Saudi cities) writes the choice to SharedPreferences; every dashboard load builds `file:///android_asset/ksa-dashboard.html#city=..&lat=..&lon=..&tz=..` and the page reads the **fragment** with `new URLSearchParams(location.hash.slice(1))`. A `?query` on a `file://` asset URL fails to load in WebView, the fragment works.
-- **Team preferences:** the same settings screen picks up to 4 teams (TheSportsDB ids) and appends `&teams=136013,136137` to the fragment; the fixtures panel follows them.
+- **Team preferences:** the same settings screen has two team fields (TheSportsDB ids) and appends `&team1=136013&team2=136137` to the fragment. Each team owns one slot in the fixtures panel; a team with nothing this week (or an empty field) leaves its slot hidden, and a game between the two shows once.
 - Weather, prayer times, the clock timezone and the "بتوقيت …" label all follow the chosen city; Riyadh is the fallback.
 - Pass the config in the fragment and the page stays a plain static HTML file that still opens on a desktop browser.
 - TCL quirk: after a reboot the app is frozen until it is opened once, and the first dream attempt fails (`mCurrentDream=null` while the system is `Dreaming`). A `BOOT_COMPLETED` receiver does not fire on this TV. Expect one manual open after a power cycle.
