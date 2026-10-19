@@ -8,6 +8,8 @@
   @font-face{font-family:'Thmanyah';font-weight:300;font-style:normal;font-display:block;src:url("__F_LIGHT__") format("woff2")}
   @font-face{font-family:'Thmanyah';font-weight:400;font-style:normal;font-display:block;src:url("__F_REGULAR__") format("woff2")}
   @font-face{font-family:'Thmanyah';font-weight:500;font-style:normal;font-display:block;src:url("__F_MEDIUM__") format("woff2")}
+  /* ﷺ and ﴿﴾ only (2 KB subset of Noto Naskh Arabic, OFL): Thmanyah has no glyph for them */
+  @font-face{font-family:'NotoMarks';font-style:normal;font-weight:400;src:url("__F_MARKS__") format("woff2")}
   @font-face{font-family:'ThmanyahDisplay';font-weight:700;font-style:normal;font-display:block;src:url("__F_DISPLAY__") format("woff2")}
 
   :root{
@@ -109,9 +111,11 @@
   .week li.next .dt{color:#E0BA74}
   .week li.quote{white-space:normal;display:block;font-size:clamp(17px,1.5vw,29px);line-height:1.75;
     border-bottom:none;padding:.4vh 0 0;color:#FFF7E6}
-  /* Thmanyah draws ﴿﴾ as small angle marks: take them from the system's Arabic font */
-  .week li.quote .orn{font-family:'Noto Naskh Arabic','Noto Sans Arabic','Amiri',serif;color:#D6AF6B;
+  /* Thmanyah draws ﴿﴾ as small angle marks: they come from the NotoMarks subset */
+  .week li.quote .orn{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:#D6AF6B;
     font-size:1.05em;padding:0 .15em}
+  /* ﷺ is not in Thmanyah either: NotoMarks, same colour as the text */
+  .week li.quote .saw{font-family:'NotoMarks','Noto Naskh Arabic',serif;font-size:1.6em;line-height:1;vertical-align:-.1em}
   .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:#D6AF6B}
   .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
 
@@ -1006,7 +1010,7 @@ function quoteOfDay(){
     return {title:'آية اليوم', rows:[`<li class="quote"><span class="orn">﴿</span>${esc(v.text)}<span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
   }
   const [t, src] = HADITH[half % HADITH.length];
-  return {title:'حديث اليوم', rows:[`<li class="quote">قال رسول الله صلى الله عليه وسلم: «${t}»</li>`, `<li class="src">${src}</li>`]};
+  return {title:'حديث اليوم', rows:[`<li class="quote">قال رسول الله <span class="saw">ﷺ</span>: «${t}»</li>`, `<li class="src">${src}</li>`]};
 }
 
 const WX_CODES = {
