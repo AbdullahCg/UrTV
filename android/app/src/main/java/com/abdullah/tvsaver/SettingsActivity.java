@@ -12,7 +12,6 @@ import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -51,13 +50,17 @@ public class SettingsActivity extends Activity {
         prefs = new Prefs(this);
         UpdateJob.schedule(this);
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF04120C);
+        scroll.setBackground(new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xFF0A2016, 0xFF04120C, 0xFF020806}));
+        scroll.setVerticalScrollBarEnabled(false);
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
         list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         list.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        int pad = dp(40);
-        list.setPadding(pad, dp(28), pad, dp(28));
-        scroll.addView(list);
+        list.setPadding(dp(8), dp(36), dp(8), dp(48));
+        int width = Math.min(getResources().getDisplayMetrics().widthPixels - dp(64), dp(860));
+        frame.addView(list, new android.widget.FrameLayout.LayoutParams(width, -2, Gravity.CENTER_HORIZONTAL));
+        scroll.addView(frame);
         setContentView(scroll);
         render();
     }
@@ -67,37 +70,43 @@ public class SettingsActivity extends Activity {
         TextView title = new TextView(this);
         title.setText(R.string.app_name);
         title.setTextColor(0xFFF6EFE0);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setPadding(0, 0, 0, dp(16));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
+        title.setTypeface(font("ThmanyahDisplay-Bold"));
         list.addView(title);
+        TextView sub = new TextView(this);
+        sub.setText("الإعدادات");
+        sub.setTextColor(0xFFC6BBA4);
+        sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        sub.setTypeface(font("Thmanyah-Regular"));
+        sub.setPadding(0, 0, 0, dp(18));
+        list.addView(sub);
 
-        row("معاينة الشاشة", null, new Runnable() { public void run() {
+        row("معاينة الشاشة", "شاهد الشاشة الآن", R.drawable.ic_play, new Runnable() { public void run() {
             startActivity(new Intent(SettingsActivity.this, MainActivity.class)); } }).requestFocus();
 
         header("الموقع");
-        row("المدينة", prefs.city()[0], new Runnable() { public void run() { pickCity(); } });
+        row("المدينة", prefs.city()[0], R.drawable.ic_place, new Runnable() { public void run() { pickCity(); } });
 
         header("المباريات");
         row("الفرق المتابعة (" + arabicNum(prefs.teams().size()) + "/" + arabicNum(Prefs.MAX_TEAMS) + ")", teamsLabel(),
-            new Runnable() { public void run() { manageTeams(); } });
+            R.drawable.ic_trophy, new Runnable() { public void run() { manageTeams(); } });
 
         header("جديد المسلسلات");
-        row("تذكير المسلسلات", prefs.showWeek() ? "يظهر" : "مخفي", new Runnable() { public void run() {
+        row("تذكير المسلسلات", prefs.showWeek() ? "يظهر على الشاشة" : "مخفي", R.drawable.ic_eye, new Runnable() { public void run() {
             prefs.setShowWeek(!prefs.showWeek()); render(); } });
         row("التصنيفات", labels(Prefs.GENRES, prefs.list("genres"), "الكل"),
-            new Runnable() { public void run() { pickMany("genres", "التصنيفات", Prefs.GENRES); } });
+            R.drawable.ic_category, new Runnable() { public void run() { pickMany("genres", "التصنيفات", Prefs.GENRES); } });
         row("اللغات", labels(Prefs.LANGS, prefs.list("langs"), "الكل"),
-            new Runnable() { public void run() { pickMany("langs", "اللغات", Prefs.LANGS); } });
-        row("مسلسلات مختارة", showsLabel(), new Runnable() { public void run() { manageShows(); } });
+            R.drawable.ic_language, new Runnable() { public void run() { pickMany("langs", "اللغات", Prefs.LANGS); } });
+        row("مسلسلات مختارة", showsLabel(), R.drawable.ic_star, new Runnable() { public void run() { manageShows(); } });
         row("أقل تقييم", "0".equals(prefs.minRating()) ? "بدون حد" : prefs.minRating(),
-            new Runnable() { public void run() { pickRating(); } });
+            R.drawable.ic_star, new Runnable() { public void run() { pickRating(); } });
 
         header("التطبيق");
-        row("التحديث التلقائي للصفحة", prefs.autoUpdate() ? "يعمل" : "متوقف", new Runnable() { public void run() {
+        row("التحديث التلقائي للصفحة", prefs.autoUpdate() ? "يعمل · كل ٦ ساعات" : "متوقف", R.drawable.ic_sync, new Runnable() { public void run() {
             prefs.setAutoUpdate(!prefs.autoUpdate()); render(); } });
-        row("تحقق من التحديث الآن", null, new Runnable() { public void run() { updateNow(); } });
-        row("إعدادات شاشة التوقف في التلفاز", null, new Runnable() { public void run() { openDreamSettings(); } });
+        row("تحقق من التحديث الآن", null, R.drawable.ic_sync, new Runnable() { public void run() { updateNow(); } });
+        row("إعدادات شاشة التوقف في التلفاز", "وقت التشغيل واختيار الشاشة", R.drawable.ic_screensaver, new Runnable() { public void run() { openDreamSettings(); } });
     }
 
     // ---------- pickers ----------
@@ -371,29 +380,93 @@ public class SettingsActivity extends Activity {
 
     // ---------- small UI helpers ----------
 
+    private final java.util.Map<String, Typeface> fonts = new java.util.HashMap<>();
+
+    /** Thmanyah, shared with the launcher's assets; falls back to the system font. */
+    private Typeface font(String name) {
+        Typeface tf = fonts.get(name);
+        if (tf == null) {
+            try { tf = Typeface.createFromAsset(getAssets(), "fonts/" + name + ".otf"); }
+            catch (RuntimeException e) { tf = Typeface.DEFAULT; }
+            fonts.put(name, tf);
+        }
+        return tf;
+    }
+
     private void header(String text) {
         TextView t = new TextView(this);
         t.setText(text);
         t.setTextColor(0xFFD6AF6B);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        t.setPadding(0, dp(18), 0, dp(6));
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        t.setTypeface(font("Thmanyah-Medium"));
+        t.setLetterSpacing(0.05f);
+        t.setPadding(dp(6), dp(22), dp(6), dp(8));
         list.addView(t);
     }
 
-    private Button row(String label, String value, final Runnable onClick) {
-        Button btn = new Button(this);
-        btn.setAllCaps(false);
-        btn.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
-        btn.setText(value == null ? label : label + ":  " + value);
-        btn.setSingleLine(true);
-        btn.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        btn.setOnClickListener(v -> onClick.run());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = dp(4);
-        list.addView(btn, lp);
-        return btn;
+    /** A card row: icon, label and its current value on a second line, chevron; gold when focused. */
+    private View row(String label, String value, int icon, final Runnable onClick) {
+        final LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        card.setPadding(dp(18), dp(12), dp(18), dp(12));
+        card.setFocusable(true);
+        card.setClickable(true);
+        final android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(dp(14));
+        bg.setColor(0x14FFFFFF);
+        bg.setStroke(dp(1), 0x1FD6AF6B);
+        card.setBackground(bg);
+
+        final android.widget.ImageView ic = new android.widget.ImageView(this);
+        final android.graphics.drawable.Drawable d = getDrawable(icon).mutate();
+        d.setTint(0xFFD6AF6B);
+        ic.setImageDrawable(d);
+        card.addView(ic, new LinearLayout.LayoutParams(dp(24), dp(24)));
+
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        final TextView name = new TextView(this);
+        name.setText(label);
+        name.setTextColor(0xFFF6EFE0);
+        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+        name.setTypeface(font("Thmanyah-Medium"));
+        name.setSingleLine(true);
+        texts.addView(name);
+        final TextView val = new TextView(this);
+        if (value != null) {
+            val.setText(value);
+            val.setTextColor(0xFFC6BBA4);
+            val.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            val.setTypeface(font("Thmanyah-Regular"));
+            val.setSingleLine(true);
+            val.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            texts.addView(val);
+        }
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, -2, 1f);
+        tp.setMarginStart(dp(16));
+        card.addView(texts, tp);
+
+        final TextView chevron = new TextView(this);
+        chevron.setText("›");   // shown mirrored (‹) in the RTL row
+        chevron.setTextColor(0x99C6BBA4);
+        chevron.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        card.addView(chevron);
+
+        card.setOnClickListener(v -> onClick.run());
+        card.setOnFocusChangeListener((v, has) -> {
+            bg.setColor(has ? 0xFFD6AF6B : 0x14FFFFFF);
+            name.setTextColor(has ? 0xFF04120C : 0xFFF6EFE0);
+            val.setTextColor(has ? 0xCC04120C : 0xFFC6BBA4);
+            chevron.setTextColor(has ? 0xFF04120C : 0x99C6BBA4);
+            d.setTint(has ? 0xFF04120C : 0xFFD6AF6B);
+            v.animate().scaleX(has ? 1.02f : 1f).scaleY(has ? 1.02f : 1f).setDuration(150).start();
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.bottomMargin = dp(8);
+        list.addView(card, lp);
+        return card;
     }
 
     interface Text { void got(String s); }
