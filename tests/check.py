@@ -70,9 +70,9 @@ check("bundled backgrounds exist", all((ROOT / "assets/backgrounds" / b["file"])
 page = (ROOT / "dist/tv.html").read_text(encoding="utf-8")
 verses = json.loads(re.search(r"const VERSES = (\[.*?\]);", page, re.S).group(1))
 hadith = json.loads(re.search(r"const HADITH = (\[.*?\]);", page, re.S).group(1))
-check("verses present", len(verses) >= 100, len(verses))
-check("hadith present", len(hadith) >= 100, len(hadith))
-check("more than 150 verses and hadith together", len(verses) + len(hadith) > 150, len(verses) + len(hadith))
+check("verses present", len(verses) >= 200, len(verses))
+check("hadith present", len(hadith) >= 200, len(hadith))
+check("at least 500 verses and hadith together (a new one every day for over a year)", len(verses) + len(hadith) >= 500, len(verses) + len(hadith))
 basmala = [v["surah"] for v in verses if v["surah"] != "سورة الفاتحة"
            and re.sub("[\u064B-\u065F\u0670]", "", v["text"]).startswith("بسم الله الرحمن الرحيم")]
 check("no basmala in front of a verse (it is not part of the verse)", not basmala, basmala)
@@ -81,23 +81,27 @@ shown = [json.dumps(h["parts"], ensure_ascii=False) for h in hadith]
 check("no verse or hadith twice", len({v["text"] for v in verses}) == len(verses) and len(set(shown)) == len(shown))
 raw = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))
 sys.path.insert(0, str(ROOT / "src"))
-from build import narration_parts, simple_parts, weak_in_tirmidhi, HADITH_MAX_WORDS   # noqa: E402
+from build import narration_parts, simple_parts, weak_in_tirmidhi, HADITH_MAX_WORDS, ISNAD_MAX_WORDS   # noqa: E402
 sys.path.insert(0, str(ROOT / ".github/tools"))
 from verify_hadith import norm as plain   # noqa: E402  (the six-book check's own matching)
 form = lambda h: json.dumps(simple_parts(narration_parts(h["full"]["text"])), ensure_ascii=False)
 found = {form(h) for h in raw if h.get("found") and h.get("full")}
 check("hadith on screen come from narrations found in the six books", set(shown) <= found, len(set(shown) - found))
 full_text = {plain(h["full"]["text"]) for h in raw if h.get("full")}
-check("his words on screen are the book's words, uncut", all(any(plain(t) in f for f in full_text) for h in hadith for k, t in h["parts"] if k == "q"))
+spelled = lambda t: plain(t.replace("ﷺ", " صلى الله عليه وسلم "))   # ﷺ on screen is the book's «صلى الله عليه وسلم»
+cut = [t[:40] for h in hadith for k, t in h["parts"] if k == "q" and not any(spelled(t) in f for f in full_text)]
+check("his words on screen are the book's words, uncut", not cut, cut)
 opener = lambda h: plain(h["parts"][0][1]).split()[1:2]
 not_a_name = [plain(h["parts"][0][1])[:30] for h in hadith if h["parts"][0][0] != "n" or not h["parts"][0][1].startswith("عن ")
-              or opener(h)[0] in ("رسول", "النبي", "لي", "لنا", "قال", "سمع", "يقول", "ابا", "ابو", "ابيه", "اذناي", "رجل")]
+              or opener(h)[0] in ("رسول", "النبي", "لي", "لنا", "قال", "سمع", "يقول", "ابا", "ابو", "ابيه", "جده", "اذناي", "رجل", "انسا", "سعدا")]
 check("each hadith starts from the companion («عن أبي هريرة …»)", not not_a_name, not_a_name)
 check("each full narration holds the words it was found by",
       all(plain(h["text"]) in plain(h["full"]["text"]) for h in raw if h.get("full")),
       [h["text"] for h in raw if h.get("full") and plain(h["text"]) not in plain(h["full"]["text"])])
 weak = {form(h) for h in raw if h.get("full") and weak_in_tirmidhi(h["full"]["text"])}
 check("no hadith al-Tirmidhi grades only غريب/ضعيف, or as a companion's words, is shown", weak and not (weak & set(shown)), len(weak & set(shown)))
+long_chain = {form(h) for h in raw if h.get("full") and (lambda w: w and w[0][0] == "n" and len(w[0][1].split()) > ISNAD_MAX_WORDS)(narration_parts(h["full"]["text"]))}
+check(f"no hadith with an isnad over {ISNAD_MAX_WORDS} words is shown", not (long_chain & set(shown)), len(long_chain & set(shown)))
 check("every hadith on screen has the Prophet's words and fits the card",
       all(any(k == "q" for k, _ in h["parts"]) and sum(len(t.split()) for _, t in h["parts"]) <= HADITH_MAX_WORDS for h in hadith))
 font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())

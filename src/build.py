@@ -39,7 +39,7 @@ def verses_for_screen():
         return []
     out = []
     for v in json.loads(path.read_text(encoding="utf-8")):
-        text = " ".join(re.sub("[\u06D6-\u06DE]", "", v["text"]).split())
+        text = " ".join(re.sub("[\u06D6-\u06DE\u06E9]", "", v["text"]).split())   # pause marks, ۞ and ۩
         words = text.split()
         if v["ayah"] == 1 and not v["ref"].startswith("1:") and plain(" ".join(words[:4])) == BASMALA:
             text = " ".join(words[4:])
@@ -51,6 +51,7 @@ def verses_for_screen():
 
 
 HADITH_MAX_WORDS = 70   # a longer hadith does not fit the card beside the clock; it stays in the data
+ISNAD_MAX_WORDS = 35    # nor is one shown whose chain of narrators runs longer (.github/tools/verify_hadith.py)
 HARAKAT = "[\u064B-\u0652\u0670]*"
 SAW = re.compile(r"\s+".join(HARAKAT.join(w) + HARAKAT for w in "صلى الله عليه وسلم".split()))
 
@@ -76,8 +77,8 @@ def narration_parts(text):
 LINK = re.compile(r"(?:^|(?<=[\s،,:]))(?:عن|سمعت|سمع|سمعا|حدثني|حدثنا|أخبرني|أخبرنا|أن|أنه|إن|يحدث|(?<=قال )قال)(?=[\s،,:])")
 TRAIL = re.compile(r"(?:[\s،,:.]|\b(?:قال|قالت|يقول|سمعت|سمع|عن|أن|أنه|إن|أخبره|حدثه|لي|لنا)\b)+$")
 SECOND_CHAIN = re.compile(r"ﷺ\s*\.\s*و?(?:عن|حدثنا|حدثني)\s")
-NOT_A_NAME = {"أبيه", "أبيها", "أذناى", "أذناي", "أذني", "رجل", "رجلا"}
-NOTE = re.compile(r"قال أبو عيسى|وفي الباب|حدثنا|حدثني|أخبرنا|وفي رواية|نحوه|قال أبو داود|قال أبو معاوية")
+NOT_A_NAME = {"أبيه", "أبيها", "جده", "أذناى", "أذناي", "أذني", "رجل", "رجلا"}
+NOTE = re.compile(r"قال أبو عيسى|وفي الباب|حدثنا|حدثني|أخبرنا|وفي رواية|وفي حديث|وبهذا الإسناد|وزاد|نحوه|قال أبو داود|قال أبو معاوية")
 PROPHET = re.compile(r"رسول الله|النبي")
 
 
@@ -105,15 +106,16 @@ def simple_parts(parts):
     links = list(LINK.finditer(pre))
     if not links:
         return None
-    pick = -1
-    if pre[links[-1].end():].strip(" ،,:").split(" ")[0].strip("،,") in NOT_A_NAME and len(links) > 1:
-        pick = -2   # «عن أبيه», «سمعت أذناي», «قال رجل»: start one narrator earlier, so it says who
+    pick = -1   # «عن أبيه», «عن جده», «سمعت أذناي», «قال رجل»: start a narrator earlier until it says who
+    while pre[links[pick].end():].strip(" ،,:").split(" ")[0].strip("،,") in NOT_A_NAME and len(links) > -pick:
+        pick -= 1
     start = links[pick].end()
     while start < len(bare) and bare[start] in " ،,:":
         start += 1
     rest = head[at[start]:].strip()
     rest = re.sub("^" + HARAKAT.join("أبا") + "|^" + HARAKAT.join("أبو"), "أبي", rest)   # after «عن»: أبي هريرة
-    rest = re.sub(r"\s" + HARAKAT.join("أخبره") + HARAKAT + r"(?=\s)", "", rest)   # «… عنهما أخبره أن …»
+    rest = re.sub(r"\s" + HARAKAT.join("أخبره") + HARAKAT + "(?:" + HARAKAT.join("ما") + "|م)?" + HARAKAT + r"(?=\s)", "", rest)   # «… أخبره أن …»
+    rest = re.sub("^([^\\s،,]{3,}?)" + "ا" + "[\u064B\u064E]*" + r"(?=[\s،,])", r"\1", rest)   # «سمعت أنسا» -> «عن أنس»
     out = [["n", "عن " + rest]]
     for k, t in parts[1:]:   # stop at the compiler's notes or a further chain between his words
         if k == "n" and NOTE.search(re.sub(HARAKAT, "", t)):
@@ -151,7 +153,10 @@ def hadith_for_screen():
         full = h.get("full")
         if not (h.get("found") and full):
             continue
-        parts = simple_parts(narration_parts(full["text"]))
+        whole = narration_parts(full["text"])
+        if whole and whole[0][0] == "n" and len(whole[0][1].split()) > ISNAD_MAX_WORDS:
+            continue
+        parts = simple_parts(whole)
         if not parts:
             continue
         words = sum(len(p[1].split()) for p in parts)
