@@ -207,6 +207,8 @@
   .chip .px{display:none}
   .chip .nm{display:flex;align-items:center;gap:.55em;font-size:clamp(14px,1.28vw,25px);font-weight:500;letter-spacing:.03em}
   .chip .delta{font-size:clamp(14px,1.3vw,25px);font-weight:700;letter-spacing:0}
+  /* Thmanyah sets Arabic low on the line: lift Arabic chip labels so they sit centred like "S&P 500" */
+  .chip .nm.ar{position:relative;top:-.2em}
   .chip .delta.up{color:#79D6A0}
   .chip .delta.down{color:#EE8B70}
   .chip .wxt:empty,.chip .wxr:empty{display:none}
@@ -249,10 +251,10 @@
     </div>
 
     <div class="markets">
-      <div class="chip"><span class="nm">تاسي</span><span id="tasi-chg" class="delta" hidden></span></div>
+      <div class="chip"><span class="nm ar">تاسي</span><span id="tasi-chg" class="delta" hidden></span></div>
       <div class="chip"><span class="nm">S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></div>
-      <div class="chip"><span class="nm">بيتكوين</span><span id="btc-chg" class="delta" hidden></span></div>
-      <div class="chip wx"><span class="nm" id="wx-city">الرياض</span><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span><span class="wxr" id="wx-range"></span></div>
+      <div class="chip"><span class="nm ar">بيتكوين</span><span id="btc-chg" class="delta" hidden></span></div>
+      <div class="chip wx"><span class="nm ar" id="wx-city">الرياض</span><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span><span class="wxr" id="wx-range"></span></div>
     </div>
   </header>
 
