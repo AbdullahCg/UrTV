@@ -14,11 +14,12 @@ RUN=optimize/run
 mkdir -p "$RUN"
 tv() { "$PY" -I optimize/tv.py "$@"; }
 
-STEPS=(probe backup before before-saver safe mine tweaks screensaver launcher after after-saver report)
+STEPS=(probe backup keep before before-saver safe mine tweaks screensaver launcher after after-saver report)
 title() {
   case "$1" in
     probe)       echo "Connect and identify the TV" ;;
     backup)      echo "Save the TV's current state" ;;
+    keep)        echo "Turn protected features back on if anything turned them off" ;;
     before)      echo "Measure before (restart + 3 min)" ;;
     before-saver) echo "Measure the TV's own screensaver (1 min)" ;;
     safe)        echo "Disable telemetry, ads and demos (lists/tcl-safe.txt)" ;;
@@ -68,6 +69,7 @@ do_step() {
   case "$1" in
     probe)       tv --probe | tee "$RUN/tv.txt" ;;
     backup)      optimize/backup.sh && cp "$(ls -t optimize/backup-*.txt | head -1)" "$RUN/backup.txt" ;;
+    keep)        optimize/keep.sh | tee "$RUN/keep.txt" ;;
     before)      optimize/measure.sh before ;;
     before-saver) optimize/measure.sh before-screensaver --screensaver ;;
     safe)        check_list optimize/lists/tcl-safe.txt

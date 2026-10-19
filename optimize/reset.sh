@@ -26,6 +26,7 @@ if [ "$stock" = no ]; then
   exit 1
 fi
 
+optimize/keep.sh || true   # a TV optimized before may have voice, mirroring or updates off
 echo "2/4 The TV's own screensaver…"
 printf '%s\n' "settings delete secure screensaver_components" "settings delete secure screensaver_default_component" \
   | tv --batch > /dev/null

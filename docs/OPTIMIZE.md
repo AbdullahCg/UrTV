@@ -28,7 +28,9 @@ reconnects by itself, uploads APKs in verified pieces that resume after a drop, 
 
 `optimize/lists/keep.txt`, enforced by `disable.sh`. In short: **AirPlay, Chromecast, screen mirroring, voice
 assistant, the remote and keyboard, HDMI inputs and the tuner, the quick panel, firmware updates, the Play Store,
-WebView and Google services.** One set had AirPlay, mirroring and voice disabled; those were mistakes.
+WebView and Google services.** One set had AirPlay, mirroring and voice disabled; those were mistakes. A set
+optimized before still had voice, mirroring and firmware updates off after a reset, so `optimize/keep.sh` turns
+everything in keep.txt back on; `run.sh` and `reset.sh` run it.
 
 ## The black screen (what not to do)
 
