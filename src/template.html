@@ -122,8 +122,9 @@
   .dates{text-align:right;flex-shrink:0}
   .hijri{font-size:clamp(19px,1.86vw,37px);font-weight:500;color:var(--sand);line-height:1.3}
   .greg{margin-top:.55vh;font-size:clamp(12px,1.06vw,21px);font-weight:300;color:var(--dim)}
-  .rule{margin-top:1.2vh;width:clamp(100px,9vw,190px);height:1px;margin-right:auto;
-    background:linear-gradient(90deg,var(--gold),rgba(220,184,111,0))}
+  /* starts at the screen edge, under the first letters, and fades toward the middle */
+  .rule{margin-top:1.2vh;width:clamp(100px,9vw,190px);height:1px;margin-left:auto;margin-right:0;
+    background:linear-gradient(270deg,var(--gold),rgba(220,184,111,0))}
 
   .mid{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4.5vw}
   .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:start}
@@ -213,7 +214,7 @@
   .wxsub{margin-top:.55vh;font-size:clamp(12px,1.06vw,21px);font-weight:300;color:var(--dim);white-space:nowrap}
   .wxr:not(:empty)::before{content:'  ·  ';white-space:pre;color:rgba(214,175,107,.7)}
   .wxt:empty,.wxd:empty,.wxr:empty{display:none}
-  .rule.l{margin-right:0;margin-left:auto;background:linear-gradient(270deg,var(--gold),rgba(220,184,111,0))}
+  .rule.l{margin-left:0;margin-right:auto;background:linear-gradient(90deg,var(--gold),rgba(220,184,111,0))}
   .mk{margin-top:1.2vh;display:flex;justify-content:flex-end;gap:1.6em;white-space:nowrap;
     font-size:clamp(12px,1.06vw,21px);font-weight:400;color:#D8CDB6}
   .mk .m{display:inline-flex;align-items:baseline;gap:.45em}
