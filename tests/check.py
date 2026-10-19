@@ -118,7 +118,7 @@ ip = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 allowed_ip = {"0.0.0.0", "127.0.0.1"}
 found = []
 for f in texts:
-    if f.name.endswith(".html") or f.parent.name == "photos":
+    if f.name.endswith(".html") or f.parent.name == "photos" or f == Path(__file__).resolve():   # not this scan
         continue
     s = f.read_text(encoding="utf-8", errors="ignore")
     found += [f"{f.relative_to(ROOT)}: {m}" for m in set(ip.findall(s)) - allowed_ip
