@@ -3,12 +3,15 @@
 Unsplash License: free to use, no permission needed; we still credit the photographer on screen.
 Writes unsplash/NN.jpg previews and unsplash/candidates.json (id, photographer, raw URL for full size)."""
 import json
+import os
 import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-UA = {"User-Agent": "Mozilla/5.0 (tv-screensaver background picker)", "Accept": "application/json"}
+# Free key from unsplash.com/developers, stored as the UNSPLASH_ACCESS_KEY repository secret.
+KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+UA = {"User-Agent": "tv-screensaver background picker", "Accept-Version": "v1", "Authorization": "Client-ID " + KEY}
 QUERIES = ["AlUla", "Saudi Arabia landscape", "Saudi Arabia desert", "Riyadh skyline", "Jeddah", "Abha",
            "Edge of the World Saudi", "Hegra", "Saudi Arabia mountains", "Red Sea Saudi", "Tabuk", "Diriyah",
            "NEOM", "Saudi Arabia night", "Empty Quarter"]
@@ -21,17 +24,19 @@ def get(url, raw=False):
 
 
 def main():
+    if not KEY:
+        raise SystemExit("UNSPLASH_ACCESS_KEY secret is not set")
     out, seen = [], set()
     for q in QUERIES:
         for page in (1, 2):
             try:
-                d = get("https://unsplash.com/napi/search/photos?" + urllib.parse.urlencode(
+                d = get("https://api.unsplash.com/search/photos?" + urllib.parse.urlencode(
                     {"query": q, "per_page": 30, "page": page, "orientation": "landscape"}))
             except Exception as e:
                 print("search failed", q, e)
                 break
             for p in d.get("results", []):
-                if p["id"] in seen or p.get("premium") or p.get("plus") or p["width"] < 3000:
+                if p["id"] in seen or p["width"] < 3000:
                     continue
                 if p["width"] < p["height"] * 1.3:
                     continue
