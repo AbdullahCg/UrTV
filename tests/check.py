@@ -89,7 +89,10 @@ found = {form(h) for h in raw if h.get("found") and h.get("full")}
 check("hadith on screen come from narrations found in the six books", set(shown) <= found, len(set(shown) - found))
 full_text = {plain(h["full"]["text"]) for h in raw if h.get("full")}
 check("his words on screen are the book's words, uncut", all(any(plain(t) in f for f in full_text) for h in hadith for k, t in h["parts"] if k == "q"))
-check("each hadith starts from the companion («عن …»)", all(h["parts"][0][0] == "n" and h["parts"][0][1].startswith("عن ") for h in hadith))
+opener = lambda h: plain(h["parts"][0][1]).split()[1:2]
+not_a_name = [plain(h["parts"][0][1])[:30] for h in hadith if h["parts"][0][0] != "n" or not h["parts"][0][1].startswith("عن ")
+              or opener(h)[0] in ("رسول", "النبي", "لي", "لنا", "قال", "سمع", "يقول", "ابا", "ابو", "ابيه", "اذناي", "رجل")]
+check("each hadith starts from the companion («عن أبي هريرة …»)", not not_a_name, not_a_name)
 check("each full narration holds the words it was found by",
       all(plain(h["text"]) in plain(h["full"]["text"]) for h in raw if h.get("full")),
       [h["text"] for h in raw if h.get("full") and plain(h["text"]) not in plain(h["full"]["text"])])

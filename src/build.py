@@ -74,8 +74,9 @@ def narration_parts(text):
 
 
 LINK = re.compile(r"(?:^|(?<=[\s،,:]))(?:عن|سمعت|سمع|سمعا|حدثني|حدثنا|أخبرني|أخبرنا|أن|أنه|إن|يحدث|(?<=قال )قال)(?=[\s،,:])")
-TRAIL = re.compile(r"(?:[\s،,:.]|\b(?:قال|قالت|يقول|سمعت|سمع|عن|أن|أنه|إن|أخبره|حدثه)\b)+$")
+TRAIL = re.compile(r"(?:[\s،,:.]|\b(?:قال|قالت|يقول|سمعت|سمع|عن|أن|أنه|إن|أخبره|حدثه|لي|لنا)\b)+$")
 SECOND_CHAIN = re.compile(r"ﷺ\s*\.\s*و?(?:عن|حدثنا|حدثني)\s")
+NOT_A_NAME = {"أبيه", "أبيها", "أذناى", "أذناي", "أذني", "رجل", "رجلا"}
 NOTE = re.compile(r"قال أبو عيسى|وفي الباب|حدثنا|حدثني|أخبرنا|وفي رواية|نحوه|قال أبو داود|قال أبو معاوية")
 PROPHET = re.compile(r"رسول الله|النبي")
 
@@ -105,8 +106,8 @@ def simple_parts(parts):
     if not links:
         return None
     pick = -1
-    if pre[links[-1].end():].strip(" ،,:").startswith("أبيه") and len(links) > 1:
-        pick = -2   # «عن أبيه» means nothing alone: start at the son
+    if pre[links[-1].end():].strip(" ،,:").split(" ")[0].strip("،,") in NOT_A_NAME and len(links) > 1:
+        pick = -2   # «عن أبيه», «سمعت أذناي», «قال رجل»: start one narrator earlier, so it says who
     start = links[pick].end()
     while start < len(bare) and bare[start] in " ،,:":
         start += 1
