@@ -1,0 +1,49 @@
+name: Build APK
+
+on:
+  push:
+    branches: [master]
+    paths: ['src/**', 'assets/**', 'build.py', 'android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the page
+        run: python3 build.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        run: gradle -p android assembleRelease --no-daemon
+
+      - name: Rename
+        run: cp android/app/build/outputs/apk/release/app-release.apk tvsaver.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tvsaver-apk
+          path: tvsaver.apk
+
+      # a fixed download link for the TV: .../releases/download/apk-latest/tvsaver.apk
+      - name: Publish to the apk-latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Latest APK
+          body: "Build ${{ github.run_number }} from ${{ github.sha }}"
+          files: tvsaver.apk
+          make_latest: true

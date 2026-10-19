@@ -37,6 +37,22 @@ Defaults to Riyadh. `team1` / `team2` are TheSportsDB team ids (defaults Al-Hila
 
 Aladhan (prayer, Umm al-Qura), Open-Meteo (weather), Yahoo chart API via allorigins (TASI, S&P 500), CoinGecko (Bitcoin), TVMaze (premieres), TheSportsDB (fixtures). Every fetch fails soft: without network the clock, dates, Ramadan countdown, prayer countdown and known fixture still render.
 
-## Android
+## Android app
 
-The shipped app is a `DreamService` APK that loads `dist/ksa-dashboard.html` from its assets — see the last section of `docs/RECREATE-PROMPT.md`.
+`android/` is the TV app (package `com.abdullah.tvsaver`). Every push to `master` builds it in GitHub Actions; the APK is always at
+**Releases → `apk-latest` → `tvsaver.apk`**.
+
+- **Screensaver**: `ScreenDream` is a system dream. Choose it in the TV's screensaver settings, or over adb:
+  `adb shell settings put secure screensaver_components com.abdullah.tvsaver/.ScreenDream`
+- **Settings** (opening the app): city, team 1 and team 2 (presets or search on TheSportsDB, or none),
+  show genres, languages, shows picked one by one (TVMaze search), minimum rating, auto-update, preview.
+- **Auto-update**: every 6 hours the app downloads `dist/ksa-dashboard.html` from this repo's `master`, checks it
+  is a complete page and uses it instead of the copy built into the APK. Screen changes reach the TV without reinstalling.
+  This needs the repo to stay public.
+- **After a power cycle** (TCL): the app registers for every boot broadcast and keeps a persisted background job,
+  which brings its process back after a reboot without opening it. If the first screensaver still fails on your TV,
+  open the app once — the TV's firmware may block the boot start for apps outside its auto-start list.
+- Builds are signed with `android/tvsaver.keystore` (password `tvsaver`) so each one installs over the last.
+  The very first install has to replace an APK signed with a different key: uninstall the old app first.
+
+Local build (needs the Android SDK): `python3 build.py && gradle -p android assembleRelease`.
