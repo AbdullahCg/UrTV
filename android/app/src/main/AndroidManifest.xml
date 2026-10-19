@@ -10,6 +10,11 @@
         android:name="sa.yourtv.screensaver.READ_CONFIG"
         android:protectionLevel="signature" />
 
+    <!-- opens the launcher's «ترتيب المفضلة» from settings -->
+    <queries>
+        <package android:name="sa.yourtv.home" />
+    </queries>
+
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 

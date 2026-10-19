@@ -47,6 +47,14 @@
             </intent-filter>
         </activity>
 
+        <!-- «ترتيب المفضلة»: the favourites as a list; also opened from the screensaver's settings -->
+        <activity
+            android:name=".DockActivity"
+            android:exported="true"
+            android:label="ترتيب المفضلة"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
         <!-- favourites row from ADB (agents, optimize/dock.sh); DUMP = only the shell can send it -->
         <receiver
             android:name=".DockReceiver"

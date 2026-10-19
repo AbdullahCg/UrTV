@@ -112,7 +112,7 @@ public class MainActivity extends Activity {
     private final BroadcastReceiver packages = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { buildApps(); }
     };
-    // favourites changed from ADB (DockReceiver) while the home screen is up
+    // favourites changed in «ترتيب المفضلة» or from ADB while the home screen is up
     private final BroadcastReceiver dockChanged = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { dockApps = loadDock(); buildApps(); }
     };
@@ -140,7 +140,7 @@ public class MainActivity extends Activity {
         pf.addAction(Intent.ACTION_PACKAGE_CHANGED);
         pf.addDataScheme("package");
         registerReceiver(packages, pf);
-        registerReceiver(dockChanged, new IntentFilter(DockReceiver.CHANGED));
+        registerReceiver(dockChanged, new IntentFilter(Dock.CHANGED));
     }
 
     @Override
@@ -571,12 +571,11 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- dock editing
 
     private final Map<String, View> cardByPkg = new HashMap<>();
-    static final int MIN_DOCK = 5;    // the dock never shows fewer apps than this
-    static final int MAX_DOCK = 10;   // tiles share the row width, so 10 still fit at 1080p
+    static final int MIN_DOCK = Dock.MIN, MAX_DOCK = Dock.MAX;
 
     /** The user's dock if they edited it, else res/values/config.xml. */
     /** The launcher's settings file, shared with DockReceiver. */
-    private android.content.SharedPreferences prefs() { return DockReceiver.prefs(this); }
+    private android.content.SharedPreferences prefs() { return Dock.prefs(this); }
 
     private String[] loadDock() {
         String saved = prefs().getString("dock", null);
@@ -602,9 +601,9 @@ public class MainActivity extends Activity {
         int i = dock.indexOf(pkg);
         List<String> labels = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
+        labels.add("ترتيب المفضلة…");
+        actions.add(() -> launch(new Intent(this, DockActivity.class)));
         if (inDock) {
-            if (i < dock.size() - 1) { labels.add("تحريك يميناً  ▶"); actions.add(() -> { Collections.swap(dock, i, i + 1); saveDock(dock, pkg); }); }
-            if (i > 0) { labels.add("◀  تحريك يساراً"); actions.add(() -> { Collections.swap(dock, i, i - 1); saveDock(dock, pkg); }); }
             if (dock.size() > MIN_DOCK) {
                 labels.add("إزالة من المفضلة");
                 actions.add(() -> { dock.remove(pkg); saveDock(dock, dock.get(Math.max(0, i - 1))); });

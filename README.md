@@ -9,7 +9,7 @@
 | | | |
 |---|---|---|
 | **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, new episodes — over Saudi landscapes | `yourtv-screensaver.apk` |
-| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) set from the remote or by an agent (`optimize/dock.sh`), all apps, inputs, Wi-Fi, settings; optional card (shows, prayers, forecast, matches, verse/hadith), off by default, picked in the screensaver's settings | `yourtv-home.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة» or by an agent (`optimize/dock.sh`), all apps, inputs, Wi-Fi, settings; optional card (shows, prayers, forecast, matches, verse/hadith), off by default, picked in the screensaver's settings | `yourtv-home.apk` |
 | **Optimize** | Back up, rate and disable bloat reversibly (AirPlay, casting and voice always kept), speed tweaks, safe launcher switch | `optimize/` |
 
 **Download:** [releases/apk-latest](https://github.com/tshi-dev/TV-ScreenSaver/releases/tag/apk-latest) · **Set up a TV:** [docs/TV-SETUP-PROMPT.md](docs/TV-SETUP-PROMPT.md) · **Photo credits:** [PHOTO-CREDITS.md](PHOTO-CREDITS.md)

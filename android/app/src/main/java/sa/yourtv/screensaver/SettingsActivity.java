@@ -97,6 +97,8 @@ public class SettingsActivity extends Activity {
         header("الشاشة الرئيسية (تلفزيونك)");
         row("بطاقة على الشاشة الرئيسية", Prefs.panelLabel(prefs.homePanel()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickPanel(true); } });
+        row("ترتيب التطبيقات المفضلة", "قائمة ترتّب فيها المفضلة بالأسهم", R.drawable.ic_star,
+            new Runnable() { public void run() { openDockSettings(); } });
 
         if ("shows".equals(prefs.panel()) || "shows".equals(prefs.homePanel())) {   // only matter for the shows card
         header("جديد المسلسلات");
@@ -315,6 +317,15 @@ public class SettingsActivity extends Activity {
                     render();
                 }).show();
         }));
+    }
+
+    /** «ترتيب المفضلة» lives in the launcher (it owns the row). */
+    private void openDockSettings() {
+        try {
+            startActivity(new Intent().setClassName("sa.yourtv.home", "sa.yourtv.home.DockActivity"));
+        } catch (RuntimeException e) {
+            toast("ثبّت الواجهة الرئيسية «تلفزيونك» أولاً");
+        }
     }
 
     /** The card beside the screensaver's clock, or (home) the one on the launcher's home screen. */
