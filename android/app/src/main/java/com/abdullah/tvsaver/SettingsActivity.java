@@ -416,7 +416,7 @@ public class SettingsActivity extends Activity {
         final android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
         bg.setCornerRadius(dp(14));
         bg.setColor(0x14FFFFFF);
-        bg.setStroke(dp(1), 0x1FD6AF6B);
+        bg.setStroke(dp(2), 0x1FD6AF6B);
         card.setBackground(bg);
 
         final android.widget.ImageView ic = new android.widget.ImageView(this);
@@ -456,12 +456,10 @@ public class SettingsActivity extends Activity {
 
         card.setOnClickListener(v -> onClick.run());
         card.setOnFocusChangeListener((v, has) -> {
-            bg.setColor(has ? 0xFFD6AF6B : 0x14FFFFFF);
-            name.setTextColor(has ? 0xFF04120C : 0xFFF6EFE0);
-            val.setTextColor(has ? 0xCC04120C : 0xFFC6BBA4);
-            chevron.setTextColor(has ? 0xFF04120C : 0x99C6BBA4);
-            d.setTint(has ? 0xFF04120C : 0xFFD6AF6B);
-            v.animate().scaleX(has ? 1.02f : 1f).scaleY(has ? 1.02f : 1f).setDuration(150).start();
+            // No scaling: a scaled rounded card overlapped its neighbours and blurred the text.
+            bg.setColor(has ? 0x33D6AF6B : 0x14FFFFFF);
+            bg.setStroke(dp(2), has ? 0xFFD6AF6B : 0x1FD6AF6B);
+            chevron.setTextColor(has ? 0xFFD6AF6B : 0x99C6BBA4);
         });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.bottomMargin = dp(8);

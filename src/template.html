@@ -1035,7 +1035,23 @@ function applyBackground(force){
   } catch(e) {}
 }
 
+// Last painted panels, shown at once on the next start while fresh data loads.
+const SNAP_KEY = 'snap:' + location.hash;
+const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
+function saveSnap(){
+  try{ localStorage.setItem(SNAP_KEY, JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''))); }catch(e){}
+}
+function restoreSnap(){
+  try{
+    const v = JSON.parse(localStorage.getItem(SNAP_KEY) || 'null');
+    if(v) SNAP_SEL.forEach((q, i) => { const el = document.querySelector(q); if(el && v[i]) el.innerHTML = v[i]; });
+  }catch(e){}
+}
+
 function boot(){
+  restoreSnap();
+  setInterval(saveSnap, 60*1000);
+  addEventListener('pagehide', saveSnap);
   const wxCity = document.getElementById('wx-city');
   if(wxCity) wxCity.textContent = CONFIG.city;
   const cs = document.getElementById('clock-sub');
