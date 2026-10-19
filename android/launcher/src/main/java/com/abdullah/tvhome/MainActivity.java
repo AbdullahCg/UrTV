@@ -305,13 +305,13 @@ public class MainActivity extends Activity {
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
         right.setClipChildren(false);
-        TextView saver = pill("شاشة التوقف", "◐");
+        TextView saver = pill("شاشة التوقف", R.drawable.ic_screensaver);
         saver.setOnClickListener(v -> openPackage(SAVER_PKG));
-        TextView inputs = pill("المصادر", "⇥");
+        TextView inputs = pill("المصادر", R.drawable.ic_input);
         inputs.setOnClickListener(v -> showInputs(v));
-        wifiPill = pill("واي فاي", "◉");
+        wifiPill = pill("واي فاي", R.drawable.ic_wifi);
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
-        TextView settings = pill("الإعدادات", "⚙");
+        TextView settings = pill("الإعدادات", R.drawable.ic_settings);
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
         for (TextView p : isInstalled(SAVER_PKG) ? new TextView[]{inputs, wifiPill, settings, saver}
                                                   : new TextView[]{inputs, wifiPill, settings}) {
@@ -322,10 +322,16 @@ public class MainActivity extends Activity {
         return header;
     }
 
-    private TextView pill(String label, String glyph) {
-        TextView p = text(11, "sans-serif-medium", 0xE6FFFFFF);
-        p.setText(glyph + "  " + label);
+    /** Pill button: label with a Material icon on its right (Arabic reading order), tinted with the text. */
+    private TextView pill(String label, int icon) {
+        TextView p = text(12, "sans-serif-medium", 0xE6FFFFFF);
+        p.setText(label);
         p.setGravity(Gravity.CENTER);
+        android.graphics.drawable.Drawable ic = getDrawable(icon).mutate();
+        ic.setBounds(0, 0, dp(16), dp(16));
+        ic.setTint(0xE6FFFFFF);
+        p.setCompoundDrawables(null, null, ic, null);
+        p.setCompoundDrawablePadding(dp(8));
         p.setPadding(dp(14), 0, dp(14), 0);
         p.setFocusable(true);
         p.setId(View.generateViewId());
@@ -337,6 +343,7 @@ public class MainActivity extends Activity {
         p.setOnFocusChangeListener((v, has) -> {
             bg.setColor(has ? 0xF2FFFFFF : 0x66000000);
             ((TextView) v).setTextColor(has ? 0xFF111111 : 0xE6FFFFFF);
+            ic.setTint(has ? 0xFF111111 : 0xE6FFFFFF);
             v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f)
                     .setInterpolator(new OvershootInterpolator(2f)).setDuration(220).start();
             if (has) { lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f); }
@@ -372,6 +379,8 @@ public class MainActivity extends Activity {
         cardByPkg.clear();
         List<App> rest = new ArrayList<>(byPkg.values());
         Collections.sort(rest, (x, y) -> x.label.compareToIgnoreCase(y.label));
+        // Fewer than MIN_DOCK of the chosen apps installed: top the dock up from the rest.
+        while (dock.size() < MIN_DOCK && !rest.isEmpty()) dock.add(rest.remove(0));
 
         dockRow.removeAllViews();
         grid.removeAllViews();
@@ -550,6 +559,7 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- dock editing
 
     private final Map<String, View> cardByPkg = new HashMap<>();
+    static final int MIN_DOCK = 5;    // the dock never shows fewer apps than this
     static final int MAX_DOCK = 10;   // tiles share the row width, so 10 still fit at 1080p
 
     /** The user's dock if they edited it, else res/values/config.xml. */
@@ -572,15 +582,21 @@ public class MainActivity extends Activity {
 
     private void showAppMenu(View anchor, String pkg, boolean inDock) {
         List<String> dock = new ArrayList<>();
-        for (String p : dockApps) if (cardByPkg.containsKey(p) && dockCards.contains(cardByPkg.get(p))) dock.add(p);
+        // The dock as shown, including apps added automatically to reach MIN_DOCK.
+        for (View c : dockCards) for (Map.Entry<String, View> e : cardByPkg.entrySet()) if (e.getValue() == c) dock.add(e.getKey());
         int i = dock.indexOf(pkg);
         List<String> labels = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
         if (inDock) {
             if (i < dock.size() - 1) { labels.add("تحريك يميناً  ▶"); actions.add(() -> { Collections.swap(dock, i, i + 1); saveDock(dock, pkg); }); }
             if (i > 0) { labels.add("◀  تحريك يساراً"); actions.add(() -> { Collections.swap(dock, i, i - 1); saveDock(dock, pkg); }); }
-            labels.add("إزالة من المفضلة");
-            actions.add(() -> { dock.remove(pkg); saveDock(dock, dock.isEmpty() ? pkg : dock.get(Math.max(0, i - 1))); });
+            if (dock.size() > MIN_DOCK) {
+                labels.add("إزالة من المفضلة");
+                actions.add(() -> { dock.remove(pkg); saveDock(dock, dock.get(Math.max(0, i - 1))); });
+            } else {
+                labels.add("المفضلة لا تقل عن " + arabicDigits(String.valueOf(MIN_DOCK)));
+                actions.add(() -> { });
+            }
         } else if (dock.size() < MAX_DOCK) {
             labels.add("إضافة إلى المفضلة");
             actions.add(() -> { dock.add(pkg); saveDock(dock, pkg); });
@@ -738,7 +754,7 @@ public class MainActivity extends Activity {
                 if (wm.getConnectionInfo().getNetworkId() == -1) name = "غير متصل";
             }
         } catch (SecurityException ignored) { }
-        wifiPill.setText("◉  " + name);
+        wifiPill.setText(name);
     }
 
     // ---------------------------------------------------------------- glow
