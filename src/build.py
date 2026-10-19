@@ -50,7 +50,7 @@ def verses_for_screen():
     return out
 
 
-HADITH_MAX_WORDS = 70   # a longer narration does not fit the card beside the clock; it stays in the printed list
+HADITH_MAX_WORDS = 70   # a longer hadith does not fit the card beside the clock; it stays in the data
 HARAKAT = "[\u064B-\u0652\u0670]*"
 SAW = re.compile(r"\s+".join(HARAKAT.join(w) + HARAKAT for w in "صلى الله عليه وسلم".split()))
 
@@ -73,6 +73,64 @@ def narration_parts(text):
     return parts
 
 
+LINK = re.compile(r"(?:^|(?<=[\s،,:]))(?:عن|سمعت|سمع|سمعا|حدثني|حدثنا|أخبرني|أخبرنا|أن|أنه|إن|يحدث|(?<=قال )قال)(?=[\s،,:])")
+TRAIL = re.compile(r"(?:[\s،,:.]|\b(?:قال|قالت|يقول|سمعت|سمع|عن|أن|أنه|إن|أخبره|حدثه)\b)+$")
+SECOND_CHAIN = re.compile(r"ﷺ\s*\.\s*و?(?:عن|حدثنا|حدثني)\s")
+NOTE = re.compile(r"قال أبو عيسى|وفي الباب|حدثنا|حدثني|أخبرنا|وفي رواية|نحوه|قال أبو داود|قال أبو معاوية")
+PROPHET = re.compile(r"رسول الله|النبي")
+
+
+def bare_map(text):
+    """text without harakat, and for each of its characters the index in text (to cut the original there)."""
+    keep = [(c, i) for i, c in enumerate(text) if not re.match(HARAKAT[:-1], c)]
+    return "".join(c for c, _ in keep), [i for _, i in keep] + [len(text)]
+
+
+def simple_parts(parts):
+    """The «Riyad as-Salihin» form: from the companion who narrated it, «عن أبي هريرة …», then the hadith as the book
+    has it. The narrators before the companion, and the compiler's notes after the Prophet's last words, go."""
+    if not parts or parts[0][0] != "n":
+        return parts
+    head = parts[0][1]
+    bare, at = bare_map(head)
+    second = list(SECOND_CHAIN.finditer(bare))   # «… عن النبي ﷺ. وحدثنا …»: the book gives a second chain, use it
+    if second:
+        head = head[at[second[-1].end()]:]
+        bare, at = bare_map(head)
+    m = PROPHET.search(bare)
+    if not m:
+        return None
+    pre = TRAIL.sub("", bare[:m.start()].rstrip())
+    links = list(LINK.finditer(pre))
+    if not links:
+        return None
+    pick = -1
+    if pre[links[-1].end():].strip(" ،,:").startswith("أبيه") and len(links) > 1:
+        pick = -2   # «عن أبيه» means nothing alone: start at the son
+    start = links[pick].end()
+    while start < len(bare) and bare[start] in " ،,:":
+        start += 1
+    rest = head[at[start]:].strip()
+    rest = re.sub("^" + HARAKAT.join("أبا") + "|^" + HARAKAT.join("أبو"), "أبي", rest)   # after «عن»: أبي هريرة
+    rest = re.sub(r"\s" + HARAKAT.join("أخبره") + HARAKAT + r"(?=\s)", "", rest)   # «… عنهما أخبره أن …»
+    out = [["n", "عن " + rest]]
+    for k, t in parts[1:]:   # stop at the compiler's notes or a further chain between his words
+        if k == "n" and NOTE.search(re.sub(HARAKAT, "", t)):
+            break
+        out.append([k, t])
+    while out and out[-1][0] == "n":
+        out.pop()
+    return out
+
+
+def tirmidhi_grade(text):
+    bare = re.sub(HARAKAT, "", text)
+    if "قال أبو عيسى" not in bare:
+        return ""
+    g = re.search("حسن صحيح|صحيح حسن|حسن غريب|صحيح غريب|حسن|صحيح", bare[bare.index("قال أبو عيسى"):])
+    return g.group(0) if g else ""
+
+
 def weak_in_tirmidhi(text):
     """al-Tirmidhi grades each hadith after it («قال أبو عيسى …»). Not shown: one he grades only غريب or ضعيف,
     or says is more correctly a companion's own words (موقوف, «ولم يرفعه»)."""
@@ -84,19 +142,24 @@ def weak_in_tirmidhi(text):
 
 
 def hadith_for_screen():
-    """assets/shared/hadith.json -> the full narrations that fit the card, each with book and number."""
+    """assets/shared/hadith.json -> each hadith from its companion on (simple_parts) if it fits the card, with the
+    book, its number and, for al-Tirmidhi, his grade."""
     digits = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
     out = []
     for h in json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8")):
         full = h.get("full")
         if not (h.get("found") and full):
             continue
-        parts = narration_parts(full["text"])
+        parts = simple_parts(narration_parts(full["text"]))
+        if not parts:
+            continue
         words = sum(len(p[1].split()) for p in parts)
         if weak_in_tirmidhi(full["text"]):
             continue
         if any(k == "q" for k, _ in parts) and words <= HADITH_MAX_WORDS:
-            out.append({"parts": parts, "source": f"{full['book']} · {str(full['number']).translate(digits)}"})
+            grade = tirmidhi_grade(full["text"])
+            source = f"{full['book']} · {str(full['number']).translate(digits)}" + (f" · {grade}" if grade else "")
+            out.append({"parts": parts, "source": source})
     return out
 
 

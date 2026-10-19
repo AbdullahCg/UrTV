@@ -81,15 +81,19 @@ shown = [json.dumps(h["parts"], ensure_ascii=False) for h in hadith]
 check("no verse or hadith twice", len({v["text"] for v in verses}) == len(verses) and len(set(shown)) == len(shown))
 raw = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))
 sys.path.insert(0, str(ROOT / "src"))
-from build import narration_parts, weak_in_tirmidhi, HADITH_MAX_WORDS   # noqa: E402
-found = {json.dumps(narration_parts(h["full"]["text"]), ensure_ascii=False) for h in raw if h.get("found") and h.get("full")}
-check("hadith on screen are only full narrations found in the six books", set(shown) <= found, len(set(shown) - found))
+from build import narration_parts, simple_parts, weak_in_tirmidhi, HADITH_MAX_WORDS   # noqa: E402
 sys.path.insert(0, str(ROOT / ".github/tools"))
 from verify_hadith import norm as plain   # noqa: E402  (the six-book check's own matching)
+form = lambda h: json.dumps(simple_parts(narration_parts(h["full"]["text"])), ensure_ascii=False)
+found = {form(h) for h in raw if h.get("found") and h.get("full")}
+check("hadith on screen come from narrations found in the six books", set(shown) <= found, len(set(shown) - found))
+full_text = {plain(h["full"]["text"]) for h in raw if h.get("full")}
+check("his words on screen are the book's words, uncut", all(any(plain(t) in f for f in full_text) for h in hadith for k, t in h["parts"] if k == "q"))
+check("each hadith starts from the companion («عن …»)", all(h["parts"][0][0] == "n" and h["parts"][0][1].startswith("عن ") for h in hadith))
 check("each full narration holds the words it was found by",
       all(plain(h["text"]) in plain(h["full"]["text"]) for h in raw if h.get("full")),
       [h["text"] for h in raw if h.get("full") and plain(h["text"]) not in plain(h["full"]["text"])])
-weak = {json.dumps(narration_parts(h["full"]["text"]), ensure_ascii=False) for h in raw if h.get("full") and weak_in_tirmidhi(h["full"]["text"])}
+weak = {form(h) for h in raw if h.get("full") and weak_in_tirmidhi(h["full"]["text"])}
 check("no hadith al-Tirmidhi grades only غريب/ضعيف, or as a companion's words, is shown", weak and not (weak & set(shown)), len(weak & set(shown)))
 check("every hadith on screen has the Prophet's words and fits the card",
       all(any(k == "q" for k, _ in h["parts"]) and sum(len(t.split()) for _, t in h["parts"]) <= HADITH_MAX_WORDS for h in hadith))
