@@ -109,7 +109,7 @@
     padding:.8vh 0;border-bottom:1px solid rgba(220,184,111,.13);
   }
   .week li:last-child{border-bottom:none}
-  .week li span:first-child{flex:0 1 auto;max-width:68%;overflow:hidden;text-overflow:ellipsis}
+  .week li span:first-child{flex:0 1 auto;max-width:68%;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em}
   .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .rt{flex:0 0 auto;color:#E0BA74;font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
@@ -170,7 +170,7 @@
   .panel .unit{font-size:.56em;font-weight:500;color:var(--gold)}
   .panel .sub{
     margin-top:.85vh;font-size:clamp(12px,1vw,19px);font-weight:300;color:#C6BBA4;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em;
   }
   .panel .sub b{color:#F0E6D0;font-weight:500}
 
@@ -191,7 +191,8 @@
   .mblock .big{justify-content:flex-end;min-width:0}
   .mrow.flip .mblock{animation:weekIn .5s ease both}
   .mrow.flip .mblock + .mblock{animation-delay:.08s}
-  .mblock .big > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .mblock .big > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
+    padding-bottom:.3em;margin-bottom:-.3em}  /* room for the dots under ي, ج… */
   .none-week{font-size:clamp(26px,2.5vw,54px);font-weight:700;font-family:'ThmanyahDisplay','Thmanyah',serif;color:#A79C85}
 
   @keyframes drift{
@@ -1050,6 +1051,7 @@ function restoreSnap(){
 
 function boot(){
   restoreSnap();
+  setTimeout(saveSnap, 15*1000);   // the dream can be killed before pagehide
   setInterval(saveSnap, 60*1000);
   addEventListener('pagehide', saveSnap);
   const wxCity = document.getElementById('wx-city');

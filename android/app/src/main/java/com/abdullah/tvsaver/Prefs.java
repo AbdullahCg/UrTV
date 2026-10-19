@@ -128,7 +128,11 @@ final class Prefs {
             + "&shows=" + join(ids, ",")
             + "&minrating=" + minRating();
         File remote = Updater.pageFile(c);
-        String base = autoUpdate() && remote.isFile()
+        // A downloaded page older than the installed app is stale: the APK carries a newer copy.
+        long installed = 0;
+        try { installed = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).lastUpdateTime; }
+        catch (Exception ignored) { }
+        String base = autoUpdate() && remote.isFile() && remote.lastModified() > installed
             ? Uri.fromFile(remote).toString()
             : "file:///android_asset/ksa-dashboard.html";
         return base + "#" + frag;
