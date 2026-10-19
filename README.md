@@ -24,7 +24,7 @@ Package safety ratings come from [UAD-ng](https://github.com/Universal-Debloater
 ```
 src/template.html          the page itself (HTML/CSS/JS) — edit this
 assets/fonts/              Thmanyah woff2 weights (Light, Regular, Medium, Display Bold)
-assets/backgrounds/        5 Saudi photos (Riyadh, AlUla ×2, Al-Zulfi, Farasan) + backgrounds.json (credit, brightness)
+assets/backgrounds/        5 bundled Unsplash photos (offline fallback); the hosted set is in photos/ + backgrounds.json (credit, brightness)
 build.py                   inlines fonts and photos -> dist/ksa-dashboard.html
 dist/ksa-dashboard.html    the built file to copy to the TV / APK assets
 docs/RECREATE-PROMPT.md    the full design + behaviour spec

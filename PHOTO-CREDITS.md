@@ -4,13 +4,8 @@ The photos are not credited on screen; they are credited here.
 
 ## Bundled with the apps (offline fallback)
 
-| File | Photographer · licence |
-|---|---|
-| `assets/backgrounds/riyadh-skyline.jpg` | B.alotaby · CC BY-SA 4.0 |
-| `assets/backgrounds/zulfi-thuwayr.jpg` | ماجد العتيق · الثوير، الزلفي |
-| `assets/backgrounds/alula-arch-night.jpg` | Saudi Press Agency · CC BY-SA 4.0 |
-| `assets/backgrounds/alula-elephant-rock.jpg` | Saudi Press Agency · CC BY-SA 4.0 |
-| `assets/backgrounds/farasan-beach.jpg` | Bandar Yuosef · CC BY 2.0 |
+Five of the hosted photos below, copied into `assets/backgrounds/`:
+`9hWJs7iblh8.jpg` `XDtzu1D2P8c.jpg` `t3dlLOhdEzs.jpg` `LAj90eAXOZA.jpg` `f5ZB0LHwi0s.jpg` 
 
 ## Hosted set (`photos/`)
 
