@@ -61,13 +61,13 @@ final class Arabic {
 
     private static String word(String w) {
         if (hasArabic(w) || !w.matches(".*[A-Za-z0-9].*")) return w;
+        String lw = w.toLowerCase(Locale.ROOT);
+        if (WORDS.containsKey(lw)) return WORDS.get(lw);
         if (w.matches("[A-Z]{2,4}")) {
             StringBuilder b = new StringBuilder();
             for (char c : w.toLowerCase(Locale.ROOT).toCharArray()) { if (b.length() > 0) b.append(' '); b.append(SPELLED.get(c)); }
             return b.toString();
         }
-        String lw = w.toLowerCase(Locale.ROOT);
-        if (WORDS.containsKey(lw)) return WORDS.get(lw);
         if (lw.startsWith("al-") && lw.length() > 3) return "ال" + word(w.substring(3));
         String x = lw.replaceAll("(.)\\1", "$1");
         StringBuilder out = new StringBuilder();
