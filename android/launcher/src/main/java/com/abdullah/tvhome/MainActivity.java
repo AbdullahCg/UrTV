@@ -279,10 +279,10 @@ public class MainActivity extends Activity {
 
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        greeting = text(13, "medium", GOLD);
+        // Top right, stacked tight: greeting, clock, date. Gravity.RIGHT, not END: for Arabic text END is the left.
+        greeting = text(15, "medium", GOLD);
         greeting.setSingleLine(true);
-        greeting.setPadding(0, 0, dp(16), 0);
-        left.addView(greeting);
+        left.addView(greeting, llp(-2, -2, 0, 0, dp(4), 0));
 
         LinearLayout clockRow = new LinearLayout(this);
         clockRow.setGravity(Gravity.BOTTOM);
@@ -292,15 +292,15 @@ public class MainActivity extends Activity {
         ampm = text(16, "medium", GOLD);
         clockRow.addView(ampm, llp(-2, -2, 0, dp(6), dp(8), 0));
         clockRow.addView(clock);
-        left.addView(clockRow, llp(-2, -2, 0, dp(2), 0, dp(2)));
+        left.addView(clockRow, llp(-2, -2, 0, dp(-2), 0, 0));
 
-        date = text(13, "regular", 0xFFC6BBA4);
+        date = text(14, "regular", 0xFFC6BBA4);
         date.setSingleLine(true);
-        left.addView(date);
+        left.addView(date, llp(-2, -2, 0, dp(-6), dp(4), 0));   // the display font leaves a deep gap under its digits
         for (TextView t : new TextView[]{greeting, clock, ampm, date}) t.setShadowLayer(dp(10), 0, dp(1), 0xB3000000);
-        left.setGravity(Gravity.END);
-        for (TextView t : new TextView[]{greeting, date}) t.setGravity(Gravity.END);
-        header.addView(left, new FrameLayout.LayoutParams(dp(520), -2, Gravity.END | Gravity.TOP));
+        left.setGravity(Gravity.RIGHT);
+        for (TextView t : new TextView[]{greeting, date}) t.setGravity(Gravity.RIGHT);
+        header.addView(left, new FrameLayout.LayoutParams(-2, -2, Gravity.RIGHT | Gravity.TOP));
 
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
@@ -318,7 +318,7 @@ public class MainActivity extends Activity {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
             pills.add(p);
         }
-        header.addView(right, new FrameLayout.LayoutParams(-2, -2, Gravity.START | Gravity.TOP));
+        header.addView(right, new FrameLayout.LayoutParams(-2, -2, Gravity.LEFT | Gravity.TOP));
         return header;
     }
 

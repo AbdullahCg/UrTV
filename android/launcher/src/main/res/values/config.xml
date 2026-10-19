@@ -9,6 +9,7 @@
     <string-array name="dock_apps">
         <item>com.google.android.youtube.tv</item>
         <item>com.netflix.ninja</item>
+        <item>com.netflix.mediaclient</item>   <!-- Netflix on some TCL / Android TV builds -->
         <item>net.mbc.shahidTV</item>
         <item>com.amazon.amazonvideo.livingroom</item>
         <item>com.disney.disneyplus</item>
