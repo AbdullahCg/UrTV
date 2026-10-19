@@ -18,6 +18,32 @@ import java.util.regex.Pattern;
 final class Arabic {
     private Arabic() {}
 
+    private static Map<String, String> known;
+
+    /** The hand-checked names in assets/shared/teams-ar.json, shared with the screen. */
+    static synchronized String known(android.content.Context c, String en) {
+        if (known == null) {
+            known = new HashMap<>();
+            try (InputStream in = c.getAssets().open("teams-ar.json")) {
+                ByteArrayOutputStream b = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
+                JSONObject o = new JSONObject(b.toString("UTF-8"));
+                for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) { String k = it.next(); known.put(k, o.getString(k)); }
+            } catch (Exception ignored) { }
+        }
+        String base = en.trim().replaceAll("\\s+(FC|SC|CF|AFC|Club|Saudi Club)$", "").replaceAll("^(FC|AFC)\\s+", "");
+        String v = known.get(en.trim());
+        return v != null ? v : known.get(base);
+    }
+
+    /** For lists: a known Arabic name, else the transliteration (instant, no network). */
+    static String team(android.content.Context c, String en) {
+        String k = known(c, en);
+        return k != null ? k : translit(en);
+    }
+
     static final Pattern TEAM = Pattern.compile("football|soccer|club|team", Pattern.CASE_INSENSITIVE);
     static final Pattern SHOW = Pattern.compile("television|series|sitcom|anime|miniseries|show", Pattern.CASE_INSENSITIVE);
 

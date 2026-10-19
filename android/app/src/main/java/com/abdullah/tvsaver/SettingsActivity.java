@@ -191,7 +191,7 @@ public class SettingsActivity extends Activity {
                     JSONObject t = a.getJSONObject(i);
                     ids[i] = t.optString("idTeam");
                     names[i] = t.optString("strTeam");
-                    rows[i] = Arabic.translit(names[i]) + "  ·  " + leagueAr(t.optString("strLeague", ""));
+                    rows[i] = Arabic.team(this, names[i]) + "  ·  " + leagueAr(t.optString("strLeague", ""));
                 }
                 new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title)
                     .setItems(rows, (d, i) -> inArabic(names[i], Arabic.TEAM, ar -> { prefs.setTeam(slot, ids[i], ar); render(); }))
@@ -291,7 +291,8 @@ public class SettingsActivity extends Activity {
     private void inArabic(final String en, final java.util.regex.Pattern kind, final Text then) {
         toast("جارٍ جلب الاسم بالعربية…");
         new Thread(() -> {
-            final String ar = Arabic.lookup(en, kind);
+            String k = kind == Arabic.TEAM ? Arabic.known(getApplicationContext(), en) : null;
+            final String ar = k != null ? k : Arabic.lookup(en, kind);
             runOnUiThread(() -> { if (!isFinishing()) then.got(ar); });
         }).start();
     }

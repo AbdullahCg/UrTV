@@ -28,6 +28,8 @@ def main():
         uri = data_uri(bg_dir / bg["file"], "image/jpeg")
         entries.append(f'  {{u:"{uri}", c:{json.dumps(bg["credit"], ensure_ascii=False)}, d:{bg["brightness"]}}}')
     html = html.replace("__BG_SET__", ",\n".join(entries))
+    teams = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
+    html = html.replace("__TEAMS_AR__", json.dumps(teams, ensure_ascii=False))
 
     out = ROOT / "dist/ksa-dashboard.html"
     out.parent.mkdir(exist_ok=True)
