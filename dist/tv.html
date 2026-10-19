@@ -143,6 +143,8 @@
     text-shadow:0 4px 70px rgba(0,0,0,.65), 0 0 130px rgba(255,236,190,.12);
   }
   .clock .d{unicode-bidi:isolate}
+  .clock .d i{font-style:normal}
+  .clock .d i + i{margin-left:var(--digit-gap,.09em)}
   .clock .sep{
     font-size:.46em;align-self:center;transform:translateY(-.08em);color:var(--gold);opacity:.9;padding:0 .1em;
   }
@@ -373,8 +375,10 @@ function fmt12(h, mi){
 function tickClock(){
   const p = riyadhParts();
   const h12 = p.h % 12 === 0 ? 12 : p.h % 12;
-  document.getElementById('ck-h').textContent = ar(h12);
-  document.getElementById('ck-m').textContent = ar(pad(p.mi));
+  // one box per digit: browsers ignore letter-spacing on Arabic digits, and ٤ reaches into the next digit
+  const digits = s => [...s].map(ch => '<i>' + ch + '</i>').join('');
+  document.getElementById('ck-h').innerHTML = digits(ar(h12));
+  document.getElementById('ck-m').innerHTML = digits(ar(pad(p.mi)));
   document.getElementById('ck-ap').textContent = p.h < 12 ? 'ص' : 'م';
 }
 
