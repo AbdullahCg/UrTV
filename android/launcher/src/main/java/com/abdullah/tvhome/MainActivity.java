@@ -791,22 +791,87 @@ public class MainActivity extends Activity {
         return v;
     }
 
+    // Hosted photos (photos/index.json in the repo) join the bundled ones. Each is downloaded once into
+    // files/photos and reused; offline or on any failure the next bundled photo is shown instead.
+    static final String PHOTO_BASE = "https://raw.githubusercontent.com/tshi-dev/TV-ScreenSaver/master/photos/";
+    static final long INDEX_MAX_AGE_MS = 24 * 3600 * 1000L;
+
+    private String[] remotePhotos() {
+        String s = getPreferences(MODE_PRIVATE).getString("photoIndex", "");
+        return s.isEmpty() ? new String[0] : s.split(",");
+    }
+
+    /** Off the main thread: refresh the hosted photo list once a day. */
+    private void refreshPhotoIndex() {
+        if (System.currentTimeMillis() - getPreferences(MODE_PRIVATE).getLong("photoIndexAt", 0) < INDEX_MAX_AGE_MS) return;
+        try {
+            org.json.JSONArray a = new org.json.JSONArray(new String(download(PHOTO_BASE + "index.json"), "UTF-8"));
+            List<String> names = new ArrayList<>();
+            for (int i = 0; i < a.length(); i++) {
+                String f = a.getJSONObject(i).optString("f");
+                if (f.matches("[A-Za-z0-9_-]+\\.jpg")) names.add(f);
+            }
+            if (!names.isEmpty()) getPreferences(MODE_PRIVATE).edit()
+                    .putString("photoIndex", android.text.TextUtils.join(",", names))
+                    .putLong("photoIndexAt", System.currentTimeMillis()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    private static byte[] download(String url) throws java.io.IOException {
+        java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+        c.setConnectTimeout(10000);
+        c.setReadTimeout(30000);
+        try (java.io.InputStream in = c.getInputStream()) {
+            java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
+            return b.toByteArray();
+        } finally {
+            c.disconnect();
+        }
+    }
+
+    private static Bitmap decode(java.io.InputStream in) {
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inPreferredConfig = Bitmap.Config.RGB_565;
+        return BitmapFactory.decodeStream(in, null, o);
+    }
+
     /** Decode the next photo off the main thread, then crossfade it in over the current one. */
     private void nextWallpaper() {
         handler.removeCallbacks(rotateWallpaper);
         if (wallpapers.length == 0) return;
+        final String[] remote = remotePhotos();
+        final int total = wallpapers.length + remote.length;
         if (wallIndex < 0) wallIndex = getPreferences(MODE_PRIVATE).getInt("wallpaper", -1);
-        wallIndex = (wallIndex + 1) % wallpapers.length;
+        wallIndex = (wallIndex + 1) % total;
         getPreferences(MODE_PRIVATE).edit().putInt("wallpaper", wallIndex).apply();
         wallChangedAt = SystemClock.elapsedRealtime();
-        String name = "wallpapers/" + wallpapers[wallIndex];
+        final int idx = wallIndex;
+        final String fallback = "wallpapers/" + wallpapers[idx % wallpapers.length];
         new Thread(() -> {
+            refreshPhotoIndex();
             Bitmap bm = null;
-            try (java.io.InputStream in = getAssets().open(name)) {
-                BitmapFactory.Options o = new BitmapFactory.Options();
-                o.inPreferredConfig = Bitmap.Config.RGB_565;
-                bm = BitmapFactory.decodeStream(in, null, o);
-            } catch (java.io.IOException ignored) { }
+            if (idx >= wallpapers.length) {
+                java.io.File f = new java.io.File(getFilesDir(), "photos/" + remote[idx - wallpapers.length]);
+                try {
+                    if (!f.isFile()) {
+                        byte[] data = download(PHOTO_BASE + f.getName());
+                        java.io.File dir = f.getParentFile();
+                        if (dir.isDirectory() || dir.mkdirs()) {
+                            java.io.File tmp = new java.io.File(dir, f.getName() + ".tmp");
+                            try (java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) { out.write(data); }
+                            if (!tmp.renameTo(f)) tmp.delete();
+                        }
+                    }
+                    try (java.io.InputStream in = new java.io.FileInputStream(f)) { bm = decode(in); }
+                } catch (java.io.IOException ignored) { }
+            }
+            if (bm == null) {
+                try (java.io.InputStream in = getAssets().open(fallback)) { bm = decode(in); }
+                catch (java.io.IOException ignored) { }
+            }
             Bitmap result = bm;
             runOnUiThread(() -> showWallpaper(result));
         }).start();

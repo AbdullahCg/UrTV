@@ -962,18 +962,47 @@ function pixelShift(){
   if(st) st.style.transform = `translate(${dx}px,${dy}px)`;
 }
 
+// Background: one photo per Riyadh day, chosen from the bundled photos plus the hosted set in photos/
+// (photos/index.json in the repo). A hosted photo is used only once it has loaded; offline, or if it fails,
+// the day falls back to a bundled one, so the screen never shows an empty background.
+const PHOTO_BASE = 'https://raw.githubusercontent.com/tshi-dev/TV-ScreenSaver/master/photos/';
+let REMOTE_BGS = (()=>{ try{ return JSON.parse(localStorage.getItem('photoIndex') || '[]'); }catch(e){ return []; } })();
+
+async function loadPhotoIndex(){
+  try{
+    const r = await fetchT(PHOTO_BASE + 'index.json', 15000);
+    if(!r.ok) return;
+    const list = (await r.json()).filter(p => p && p.f);
+    if(list.length){
+      REMOTE_BGS = list;
+      try{ localStorage.setItem('photoIndex', JSON.stringify(list)); }catch(e){}
+    }
+  }catch(e){}
+}
+
+function showBackground(url, b){
+  const ph = document.querySelector('.photo');
+  if(!ph) return;
+  ph.style.backgroundImage = "url('" + url + "')";
+  ph.style.filter = 'saturate(1.02) brightness(' + (b.d || 0.95) + ') contrast(1.02)';
+  const cr = document.getElementById('credit');
+  if(cr) cr.textContent = b.c ? 'الصورة: ' + b.c : '';
+}
+
 function applyBackground(){
   try {
     const dayKey = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     let h = 7; for (let k = 0; k < dayKey.length; k++) h = (h * 31 + dayKey.charCodeAt(k)) % 100003;
-    const b = BGS[h % BGS.length];
-    const ph = document.querySelector('.photo');
-    if (ph && b) {
-      ph.style.backgroundImage = "url('" + b.u + "')";
-      ph.style.filter = 'saturate(1.02) brightness(' + (b.d || 0.98) + ') contrast(1.02)';
-      const cr = document.getElementById('credit');
-      if (cr) cr.textContent = b.c ? 'الصورة: ' + b.c : '';
-    }
+    const local = BGS[h % BGS.length];
+    const all = BGS.length + REMOTE_BGS.length;
+    const pick = h % all;
+    if(pick < BGS.length || !REMOTE_BGS.length){ showBackground(BGS[pick % BGS.length].u, BGS[pick % BGS.length]); return; }
+    const b = REMOTE_BGS[pick - BGS.length], url = PHOTO_BASE + b.f;
+    if(!document.querySelector('.photo').style.backgroundImage) showBackground(local.u, local);   // until it loads
+    const img = new Image();
+    img.onload = () => showBackground(url, b);
+    img.onerror = () => showBackground(local.u, local);
+    img.src = url;
   } catch(e) {}
 }
 
@@ -984,6 +1013,7 @@ function boot(){
   if(cs) cs.textContent = 'بتوقيت ' + CONFIG.city;
   document.title = 'شاشة السعودية';
   applyBackground();
+  loadPhotoIndex().then(applyBackground);
   tickClock(); tickDates(); tickRamadan();
   TICKERS.forEach(loadTicker);
   if(!CONFIG.showWeek) document.querySelector('.week').style.display = 'none';
@@ -1006,7 +1036,7 @@ function boot(){
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; applyBackground(); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.showWeek) loadWeek(); loadWeather(); }
+    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(applyBackground); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.showWeek) loadWeek(); loadWeather(); }
   }, 60*1000);
 }
 
