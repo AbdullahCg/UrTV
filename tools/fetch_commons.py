@@ -7,6 +7,7 @@ recorded in candidates/candidates.json so a chosen photo can be credited on scre
 import json
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -30,10 +31,22 @@ OUT = Path("candidates")
 API = "https://commons.wikimedia.org/w/api.php"
 
 
+def get(url):
+    """GET with backoff: Commons answers 429 when asked too fast."""
+    for attempt in range(6):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or attempt == 5:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 0) or 10 * (attempt + 1))
+        finally:
+            time.sleep(1.5)
+
+
 def api(params):
-    url = API + "?" + urllib.parse.urlencode({**params, "format": "json"})
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
-        return json.load(r)
+    return json.loads(get(API + "?" + urllib.parse.urlencode({**params, "format": "json", "maxlag": "5"})))
 
 
 def strip_html(s):
@@ -82,12 +95,10 @@ def main():
     for i, c in enumerate(picked[:120]):
         name = f"{i:02d}.jpg"
         try:
-            with urllib.request.urlopen(urllib.request.Request(c["thumb"], headers=UA), timeout=60) as r:
-                (OUT / name).write_bytes(r.read())
+            (OUT / name).write_bytes(get(c["thumb"]))
             out.append({"file": name, **c})
         except Exception as e:
             print("skip", c["title"], e)
-        time.sleep(0.5)
     (OUT / "candidates.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{len(out)} candidates")
 
