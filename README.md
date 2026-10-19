@@ -28,10 +28,10 @@ No dependencies. Open `dist/ksa-dashboard.html` in any browser; press `F` for fu
 The page reads its config from the URL fragment (works on `file://` and in an Android WebView):
 
 ```
-ksa-dashboard.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh
+ksa-dashboard.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137
 ```
 
-Defaults to Riyadh. Team ids, prayer method and keys are in the `CONFIG` object at the top of the script.
+Defaults to Riyadh. `teams` is up to 4 comma-separated TheSportsDB team ids (default Al-Hilal 136013 + Saudi national team 136137); the panel shows the next two fixtures across them. Team ids, prayer method and keys are in the `CONFIG` object at the top of the script.
 
 ## Data sources (free, no keys)
 
