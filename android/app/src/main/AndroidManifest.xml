@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- the launcher (same signing key) reads the settings for its home-screen card -->
+    <permission
+        android:name="com.abdullah.tvsaver.READ_CONFIG"
+        android:protectionLevel="signature" />
+
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
@@ -62,5 +67,11 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <provider
+            android:name=".ConfigProvider"
+            android:authorities="com.abdullah.tvsaver.config"
+            android:exported="true"
+            android:readPermission="com.abdullah.tvsaver.READ_CONFIG" />
     </application>
 </manifest>

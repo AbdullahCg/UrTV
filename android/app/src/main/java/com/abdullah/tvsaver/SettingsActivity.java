@@ -92,9 +92,13 @@ public class SettingsActivity extends Activity {
             R.drawable.ic_trophy, new Runnable() { public void run() { manageTeams(); } });
 
         header("بجانب الساعة");
-        row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(); } });
+        row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(false); } });
 
-        if ("shows".equals(prefs.panel())) {   // the show filters only matter when the shows card is on
+        header("الشاشة الرئيسية (تلفزيونك)");
+        row("بطاقة على الشاشة الرئيسية", Prefs.panelLabel(prefs.homePanel()), R.drawable.ic_eye,
+            new Runnable() { public void run() { pickPanel(true); } });
+
+        if ("shows".equals(prefs.panel()) || "shows".equals(prefs.homePanel())) {   // only matter for the shows card
         header("جديد المسلسلات");
         row("التصنيفات", labels(Prefs.GENRES, prefs.list("genres"), "الكل"),
             R.drawable.ic_category, new Runnable() { public void run() { pickMany("genres", "التصنيفات", Prefs.GENRES); } });
@@ -307,15 +311,21 @@ public class SettingsActivity extends Activity {
         }));
     }
 
-    private void pickPanel() {
+    /** The card beside the screensaver's clock, or (home) the one on the launcher's home screen. */
+    private void pickPanel(final boolean home) {
         String[] labels = new String[Prefs.PANELS.length];
+        String current = home ? prefs.homePanel() : prefs.panel();
         int sel = 0;
         for (int i = 0; i < labels.length; i++) {
             labels[i] = Prefs.PANELS[i][1];
-            if (Prefs.PANELS[i][0].equals(prefs.panel())) sel = i;
+            if (Prefs.PANELS[i][0].equals(current)) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("بجانب الساعة")
-            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setPanel(Prefs.PANELS[i][0]); d.dismiss(); render(); })
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(home ? "بطاقة على الشاشة الرئيسية" : "بجانب الساعة")
+            .setSingleChoiceItems(labels, sel, (d, i) -> {
+                if (home) prefs.setHomePanel(Prefs.PANELS[i][0]); else prefs.setPanel(Prefs.PANELS[i][0]);
+                d.dismiss();
+                render();
+            })
             .show();
     }
 

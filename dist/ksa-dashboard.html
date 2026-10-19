@@ -25,6 +25,13 @@
   body{opacity:0;animation:reveal .3s 2.5s forwards}
   html.ready body{opacity:1;animation:none;transition:opacity .3s ease}
   @keyframes reveal{to{opacity:1}}
+  /* card-only mode for the launcher */
+  html.widget,html.widget body{background:transparent}
+  html.widget .photo,html.widget .veil,html.widget .grain,html.widget .top-veil,html.widget .bottom-veil,
+  html.widget .dimmer,html.widget #credit,html.widget .top,html.widget .clockwrap,html.widget .bottom{display:none}
+  html.widget .stage{height:auto;padding:0;display:block;transition:none}
+  html.widget .mid{display:block}
+  html.widget .week{width:100%}
   html,body{
     height:100%;overflow:hidden;background:#040E09;color:var(--sand);
     font-family:'Thmanyah',system-ui,sans-serif;
@@ -344,6 +351,8 @@ const CONFIG = {
     minRating: _num('minrating', 7),
   },
   weekWindowDays: 7,
+  // #widget=1: only the card, on a transparent page (the launcher's home screen shows it)
+  widget: _Q.get('widget') === '1',
 };
 
 const GREG = 'ar-SA-u-ca-gregory-nu-arab';
@@ -1178,6 +1187,7 @@ function restoreSnap(){
 }
 
 function boot(){
+  if(CONFIG.widget){ bootWidget(); return; }
   restoreSnap();
   setTimeout(saveSnap, 15*1000);   // the dream can be killed before pagehide
   setInterval(saveSnap, 60*1000);
@@ -1218,6 +1228,28 @@ function boot(){
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
     if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
   }, 60*1000);
+}
+
+// The launcher's card: the chosen panel only, refreshed like on the screensaver, nothing else loaded.
+function bootWidget(){
+  document.documentElement.classList.add('widget');
+  restoreSnap();
+  setTimeout(saveSnap, 15*1000);
+  setInterval(saveSnap, 60*1000);
+  addEventListener('pagehide', saveSnap);
+  const P = CONFIG.panel;
+  if(P === 'shows'){ loadWeek(); setInterval(loadWeek, 6*3600*1000); }
+  else renderPanel(false);
+  if(P === 'prayers'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
+  if(P === 'forecast'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
+  if(P === 'matches'){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
+  setInterval(() => {
+    if(P === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
+    if(P === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
+  }, 25*1000);
+  let lastDay = riyadhDayNumber();
+  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers') loadPrayers(); renderPanel(false); } }, 60*1000);
+  reveal();
 }
 
 document.addEventListener('keydown', e=>{

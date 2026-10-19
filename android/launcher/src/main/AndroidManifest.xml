@@ -2,11 +2,13 @@
 <!-- Home screen adapted from github.com/mihirgupta0900/tv-home (MIT). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.INTERNET" />   <!-- hosted wallpapers only -->
+    <uses-permission android:name="android.permission.INTERNET" />   <!-- hosted wallpapers, the optional card -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Android 11 only reveals the Wi-Fi name to apps holding location; granted over ADB at install. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- the optional home-screen card reads the screensaver's settings (signature permission, same key) -->
+    <uses-permission android:name="com.abdullah.tvsaver.READ_CONFIG" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />

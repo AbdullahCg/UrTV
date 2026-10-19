@@ -128,18 +128,6 @@ final class Prefs {
 
     /** The page reads its settings from the fragment; a ?query fails on file:// in WebView. */
     String dashboardUrl(Context c) {
-        String[] city = city();
-        List<String> ids = new ArrayList<>();
-        for (String s : shows()) ids.add(s.split("\\|", 2)[0]);
-        String frag = "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]
-            + "&tz=" + Uri.encode(TZ)
-            + "&teams=" + join(teamIds(), ",")
-            + "&panel=" + panel()
-            + "&week=" + ("none".equals(panel()) ? "0" : "1")   // for a page older than #panel
-            + "&genres=" + Uri.encode(join(list("genres"), ","))
-            + "&langs=" + Uri.encode(join(list("langs"), ","))
-            + "&shows=" + join(ids, ",")
-            + "&minrating=" + minRating();
         File remote = Updater.pageFile(c);
         // A downloaded page older than the installed app is stale: the APK carries a newer copy.
         long installed = 0;
@@ -148,8 +136,28 @@ final class Prefs {
         String base = autoUpdate() && remote.isFile() && remote.lastModified() > installed
             ? Uri.fromFile(remote).toString()
             : "file:///android_asset/tv.html";
-        return base + "#" + frag;
+        return base + "#" + fragment();
     }
+
+    /** Everything the page needs, as "city=..&lat=..&..."; also read by the launcher (ConfigProvider). */
+    String fragment() {
+        String[] city = city();
+        List<String> ids = new ArrayList<>();
+        for (String s : shows()) ids.add(s.split("\\|", 2)[0]);
+        return "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]
+            + "&tz=" + Uri.encode(TZ)
+            + "&teams=" + join(teamIds(), ",")
+            + "&panel=" + panel()
+            + "&week=" + ("none".equals(panel()) ? "0" : "1")   // for a page older than #panel
+            + "&genres=" + Uri.encode(join(list("genres"), ","))
+            + "&langs=" + Uri.encode(join(list("langs"), ","))
+            + "&shows=" + join(ids, ",")
+            + "&minrating=" + minRating();
+    }
+
+    /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */
+    String homePanel() { return sp.getString("homePanel", "none"); }
+    void setHomePanel(String v) { sp.edit().putString("homePanel", v).apply(); }
 
     List<String> teamIds() {
         List<String> ids = new ArrayList<>();

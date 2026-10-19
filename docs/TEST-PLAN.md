@@ -121,6 +121,15 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | H2 | Add `#city=جدة&lat=21.5433&lon=39.1728&team1=136013&team2=` to the URL | Jeddah times; only one match slot |
 | H3 | Resize the window to 1280×720 | Layout holds, nothing overlaps |
 
+## 9. Home-screen card (launcher)
+
+| ID | Action | Expected |
+|---|---|---|
+| L1 | Fresh install of both apps, press Home | No card on the home screen (off by default) |
+| L2 | Screensaver settings → «بطاقة على الشاشة الرئيسية» → مواقيت الصلاة, then Home | Card under the pills on the left: today's prayers, next one gold. D-pad never lands on it |
+| L3 | Repeat L2 with each option, then «لا شيء» | Card follows the choice; «لا شيء» removes it |
+| L4 | Open any app with the card on, then `adb shell top -n 1 \| grep tvhome` | Launcher idle while the app is in front (card paused) |
+
 ---
 
 ## Report format
