@@ -1,0 +1,28 @@
+name: Fetch background candidates
+
+# Commons is unreachable from the dev container, so CI downloads the candidates
+# and pushes them to the bg-candidates branch for review.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['tools/fetch_commons.py']
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/fetch_commons.py
+      - name: Push to bg-candidates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan bg-candidates
+          git rm -rfq --cached .
+          git add candidates
+          git commit -qm "Background candidates from Wikimedia Commons"
+          git push -f origin bg-candidates
