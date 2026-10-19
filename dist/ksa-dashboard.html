@@ -304,8 +304,9 @@ const CONFIG = {
   longitude: _num('lon', 46.6753),
   timezone: _Q.get('tz') || 'Asia/Riyadh',
   prayerMethod: 4,
-  // TheSportsDB team ids, from the app's team picker: #teams=136013,136137
-  teamIds: (_Q.get('teams') || '136013,136137').split(',').map(x=>x.trim()).filter(x=>/^\d+$/.test(x)).slice(0,4),
+  // two team fields from the app (TheSportsDB ids): #team1=136013&team2=136137 — an empty field is skipped
+  teamIds: [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137']
+    .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)),
   sportsKey: '123',
   weekWindowDays: 7,
 };
@@ -499,10 +500,14 @@ const TEAM_AR = {
   'Al-Ahli':'الأهلي','Al-Shabab':'الشباب','Al-Taawoun':'التعاون','Al-Ettifaq':'الاتفاق',
   'Al-Fateh':'الفتح','Al-Riyadh':'الرياض','Damac':'ضمك','Al-Khaleej':'الخليج',
   'Al-Fayha':'الفيحاء','Al-Okhdood':'الأخدود','Al-Qadsiah':'القادسية','Al-Kholood':'الخلود',
-  'Neom':'نيوم','Al-Najma':'النجمة','Saudi Arabia':'السعودية'
+  'Neom':'نيوم','Al-Najma':'النجمة','Saudi Arabia':'السعودية',
+  'Japan':'اليابان','South Korea':'كوريا الجنوبية','Australia':'أستراليا','Iran':'إيران','Iraq':'العراق',
+  'Qatar':'قطر','United Arab Emirates':'الإمارات','Kuwait':'الكويت','Bahrain':'البحرين','Oman':'عُمان',
+  'Jordan':'الأردن','Syria':'سوريا','Lebanon':'لبنان','Palestine':'فلسطين','Yemen':'اليمن','Egypt':'مصر',
+  'Morocco':'المغرب','Algeria':'الجزائر','Tunisia':'تونس','China':'الصين','Uzbekistan':'أوزبكستان','Indonesia':'إندونيسيا'
 };
 let MATCHES = {};   // team id -> next event
-let RESULTS = [];
+let RESULTS = {};   // team id -> recent events
 const tr = (m,s) => m[s] || s;
 
 async function fetchNext(id){
@@ -516,76 +521,54 @@ function toDate(ev){
   return new Date(s.endsWith('Z') ? s : s+'Z');
 }
 
-function renderMatches(){
-  const row = document.getElementById('match-row');
-  const now = new Date();
-
-  // finished in the last 24h -> keep the score on screen for a day
-  const done = RESULTS.filter(ev=>{
+// one slot per picked team: a result from the last 24h, else a fixture this week, else hidden
+function matchSlot(id, now, shown){
+  const done = (RESULTS[id] || []).filter(ev=>{
     if(ev.intHomeScore == null || ev.intAwayScore == null) return false;
     const end = toDate(ev).getTime() + 2.5*3600000;
-    return now.getTime() >= end && (now.getTime() - end) < 86400000;
-  });
-  done.sort((a,b)=>toDate(b)-toDate(a));
-  const seenEv = new Set();
-  const latest = done.filter(ev=>{ const k = ev.idEvent || ev.strEvent; if(seenEv.has(k)) return false; seenEv.add(k); return true; }).slice(0,2);
-  if(latest.length){
-    row.innerHTML = latest.map(ev=>{
-      const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(toDate(ev));
-      return `<div class="mblock">`
-        + `<div class="big"><span>${esc(tr(TEAM_AR, ev.strHomeTeam||''))} <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ${esc(tr(TEAM_AR, ev.strAwayTeam||''))}</span></div>`
-        + `<div class="sub">النتيجة النهائية · ${day}</div></div>`;
-    }).join('');
-    return;
-  }
-
-  const win = CONFIG.weekWindowDays * 86400000;
-  const items = [];
-  const seenNext = new Set();
-  Object.values(MATCHES).forEach(ev=>{
-    if(!ev || seenNext.has(ev.idEvent)) return;   // two picked teams playing each other
-    seenNext.add(ev.idEvent);
-    const d = toDate(ev), diff = d - now;
-    if(diff < -2.5*3600000 || diff > win) return;   // in progress stays on screen
-    items.push({
-      home: tr(TEAM_AR, ev.strHomeTeam || ''),
-      away: tr(TEAM_AR, ev.strAwayTeam || ''),
-      d, diff
-    });
-  });
-
-  if(!items.length){
-    row.innerHTML = '<div class="none-week">لا شيء هذا الأسبوع</div>';
-    return;
-  }
-  row.innerHTML = items.sort((a,b)=>a.diff-b.diff).slice(0,2).map(it=>{
-    const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(it.d);
-    const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
-      .formatToParts(it.d).reduce((a,x)=>(a[x.type]=x.value,a),{});
-    const cd = shortRemaining(it.diff);
-    const t12 = ar(fmt12(+p.hour % 24, +p.minute));
-    const sub = it.diff <= 0 ? `جارية الآن · ${t12}` : `بعد ${cd} · ${t12}`;
+    return now >= end && (now - end) < 86400000;
+  }).sort((a,b)=>toDate(b)-toDate(a))[0];
+  if(done){
+    if(shown.has(done.idEvent)) return '';          // both teams in the same game
+    shown.add(done.idEvent);
+    const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(toDate(done));
     return `<div class="mblock">`
-         + `<div class="big"><span>${esc(it.home)} × ${esc(it.away)}</span></div>`
-         + `<div class="sub">${sub}</div>`
-         + `</div>`;
-  }).join('');
+      + `<div class="big"><span>${esc(tr(TEAM_AR, done.strHomeTeam||''))} <span class="sc">${ar(+done.intHomeScore)} - ${ar(+done.intAwayScore)}</span> ${esc(tr(TEAM_AR, done.strAwayTeam||''))}</span></div>`
+      + `<div class="sub">النتيجة النهائية · ${day}</div></div>`;
+  }
+  const ev = MATCHES[id];
+  if(!ev || shown.has(ev.idEvent)) return '';
+  const d = toDate(ev), diff = d - now;
+  if(diff < -2.5*3600000 || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
+  shown.add(ev.idEvent);
+  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
+    .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  const t12 = ar(fmt12(+p.hour % 24, +p.minute));
+  const sub = diff <= 0 ? `جارية الآن · ${t12}` : `بعد ${shortRemaining(diff)} · ${t12}`;
+  return `<div class="mblock">`
+       + `<div class="big"><span>${esc(tr(TEAM_AR, ev.strHomeTeam||''))} × ${esc(tr(TEAM_AR, ev.strAwayTeam||''))}</span></div>`
+       + `<div class="sub">${sub}</div>`
+       + `</div>`;
+}
+
+function renderMatches(){
+  const now = Date.now(), shown = new Set();
+  const html = CONFIG.teamIds.map(id => matchSlot(id, now, shown)).join('');
+  document.getElementById('match-row').innerHTML = html || '<div class="none-week">لا شيء هذا الأسبوع</div>';
 }
 
 async function fetchLast(id){
-  try{
-    const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventslast.php?id=${id}`,{cache:'no-store'});
-    if(!r.ok) return [];
-    const j = await r.json();
-    return j.results || [];
-  }catch(e){ return []; }
+  const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventslast.php?id=${id}`,{cache:'no-store'});
+  if(!r.ok) throw 0;
+  const j = await r.json();
+  return j.results || [];
 }
 async function loadMatches(){
+  // never throw away a good fixture or result on a failed refresh
   await Promise.all(CONFIG.teamIds.map(async id=>{
-    try{ const ev = await fetchNext(id); if(ev) MATCHES[id] = ev; }catch(e){}   // never throw away a good fixture
+    try{ const ev = await fetchNext(id); if(ev) MATCHES[id] = ev; }catch(e){}
+    try{ const l = await fetchLast(id); if(l.length) RESULTS[id] = l; }catch(e){}
   }));
-  const last = await Promise.all(CONFIG.teamIds.map(fetchLast));
-  if(last.some(l=>l.length)) RESULTS = last.flat();
   renderMatches();
 }
 
