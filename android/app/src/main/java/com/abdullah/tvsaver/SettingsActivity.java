@@ -36,6 +36,15 @@ public class SettingsActivity extends Activity {
     private Prefs prefs;
     private LinearLayout list;
 
+    /** Arabic locale for this screen, so every dialog title, list and button is laid out right-to-left. */
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        android.content.res.Configuration c = new android.content.res.Configuration(base.getResources().getConfiguration());
+        c.setLocale(new java.util.Locale("ar"));
+        c.setLayoutDirection(new java.util.Locale("ar"));
+        super.attachBaseContext(base.createConfigurationContext(c));
+    }
+
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
