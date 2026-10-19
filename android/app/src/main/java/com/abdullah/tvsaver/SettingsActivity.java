@@ -91,9 +91,11 @@ public class SettingsActivity extends Activity {
         row("الفرق المتابعة (" + arabicNum(prefs.teams().size()) + "/" + arabicNum(Prefs.MAX_TEAMS) + ")", teamsLabel(),
             R.drawable.ic_trophy, new Runnable() { public void run() { manageTeams(); } });
 
+        header("بجانب الساعة");
+        row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(); } });
+
+        if ("shows".equals(prefs.panel())) {   // the show filters only matter when the shows card is on
         header("جديد المسلسلات");
-        row("تذكير المسلسلات", prefs.showWeek() ? "يظهر على الشاشة" : "مخفي", R.drawable.ic_eye, new Runnable() { public void run() {
-            prefs.setShowWeek(!prefs.showWeek()); render(); } });
         row("التصنيفات", labels(Prefs.GENRES, prefs.list("genres"), "الكل"),
             R.drawable.ic_category, new Runnable() { public void run() { pickMany("genres", "التصنيفات", Prefs.GENRES); } });
         row("اللغات", labels(Prefs.LANGS, prefs.list("langs"), "الكل"),
@@ -101,6 +103,7 @@ public class SettingsActivity extends Activity {
         row("مسلسلات مختارة", showsLabel(), R.drawable.ic_star, new Runnable() { public void run() { manageShows(); } });
         row("أقل تقييم", "0".equals(prefs.minRating()) ? "بدون حد" : prefs.minRating(),
             R.drawable.ic_star, new Runnable() { public void run() { pickRating(); } });
+        }
 
         header("التطبيق");
         row("التحديث التلقائي للصفحة", prefs.autoUpdate() ? "يعمل · كل ٦ ساعات" : "متوقف", R.drawable.ic_sync, new Runnable() { public void run() {
@@ -302,6 +305,18 @@ public class SettingsActivity extends Activity {
                     render();
                 }).show();
         }));
+    }
+
+    private void pickPanel() {
+        String[] labels = new String[Prefs.PANELS.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.PANELS[i][1];
+            if (Prefs.PANELS[i][0].equals(prefs.panel())) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("بجانب الساعة")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setPanel(Prefs.PANELS[i][0]); d.dismiss(); render(); })
+            .show();
     }
 
     private void pickRating() {

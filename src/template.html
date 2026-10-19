@@ -104,6 +104,15 @@
   .week ul.flip li:nth-child(4){animation-delay:.18s}
   .week ul.flip li:nth-child(5){animation-delay:.24s}
   @keyframes weekIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .week li.past{color:#8F8670}
+  .week li.next{color:#FFE9B8}
+  .week li.next .dt{color:#E0BA74}
+  .week li.quote{white-space:normal;display:block;font-size:clamp(17px,1.5vw,29px);line-height:1.75;
+    border-bottom:none;padding:.4vh 0 0;color:#FFF7E6}
+  /* Thmanyah draws ﴿﴾ as small angle marks: take them from the system's Arabic font */
+  .week li.quote .orn{font-family:'Noto Naskh Arabic','Noto Sans Arabic','Amiri',serif;color:#D6AF6B;
+    font-size:1.05em;padding:0 .15em}
+  .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:#D6AF6B}
   .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
 
   .dates{text-align:right;flex-shrink:0}
@@ -261,7 +270,7 @@
     </div>
 
     <div class="week">
-      <div class="hd">هذا الأسبوع</div>
+      <div class="hd" id="week-hd">هذا الأسبوع</div>
       <ul id="week-list"><li class="empty">جارٍ التحميل…</li></ul>
     </div>
   </section>
@@ -309,7 +318,9 @@ const CONFIG = {
             : [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137'])
     .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)).slice(0, 10),
   sportsKey: '123',
-  showWeek: _Q.get('week') !== '0',   // #week=0 hides the "new this week" shows card
+  // the card beside the clock: shows | prayers | forecast | matches | verse | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','matches','verse','none'].includes(p) ? p : 'shows')
+         (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'shows')),
   matchesPerPage: 2,
   matchPageMs: 15000,
   // minutes from adhan to iqama (Ministry of Islamic Affairs defaults); Friday Dhuhr has none
@@ -374,7 +385,9 @@ const PRAYER_KEYS = ['Fajr','Dhuhr','Asr','Maghrib','Isha'];
 const PRAYER_NAMES = {Fajr:'الفجر',Dhuhr:'الظهر',Asr:'العصر',Maghrib:'المغرب',Isha:'العشاء'};
 let PRAYERS = [];
 
+let DAY_TIMES = null;
 function buildPrayers(t){
+  DAY_TIMES = t;
   PRAYERS = PRAYER_KEYS.map(k=>{
     const [h,mi] = String(t[k]).split(':').map(Number);
     return {key:k, name:PRAYER_NAMES[k], h, mi};
@@ -411,10 +424,11 @@ function computePrayers(){
   };
   const adj = h => h + tz - lng/15;
   const fajr = adj(angleTime(18.5, 5, true)), dhuhr = adj(noon(12)), asr = adj(asrTime(13));
+  const sunrise = adj(angleTime(.833, 6, true));
   const maghrib = adj(angleTime(.833, 18, false));
   const isha = maghrib + (hijriMonthNow() === 9 ? 120 : 90)/60;
   const hm = h => { const m = Math.round(fix(h, 24)*60) % 1440; return pad(Math.floor(m/60)) + ':' + pad(m%60); };
-  return {Fajr:hm(fajr), Dhuhr:hm(dhuhr), Asr:hm(asr), Maghrib:hm(maghrib), Isha:hm(isha)};
+  return {Fajr:hm(fajr), Sunrise:hm(sunrise), Dhuhr:hm(dhuhr), Asr:hm(asr), Maghrib:hm(maghrib), Isha:hm(isha)};
 }
 
 async function loadPrayers(){
@@ -432,6 +446,7 @@ async function loadPrayers(){
   }
   tickPrayer();
   tickRamadan();   // Ramadan mode needs the prayer times
+  if(CONFIG.panel === 'prayers') renderPanel(false);
 }
 
 const UNIT = {
@@ -577,6 +592,7 @@ const TEAM_KEYS = {};
 for(const [en, arName] of Object.entries(TEAM_AR)) TEAM_KEYS[teamKey(en)] = arName;
 let MATCHES = {};   // team id -> next event
 let RESULTS = {};   // team id -> recent events
+let NEXT_LIST = {};   // team id -> upcoming events
 
 // ---------- team names in Arabic ----------
 // 1) built-in table, 2) the Arabic label on Wikidata (cached on the device), 3) transliteration meanwhile
@@ -647,7 +663,7 @@ function arName(en, kind){
       try{
         AR_NAMES[key] = await wikidataArabic(en, kind);   // '' = Wikidata has none: keep the transliteration
         try{ localStorage.setItem('arNames', JSON.stringify(AR_NAMES)); }catch(e){}
-        if(AR_NAMES[key]){ renderMatches(); renderWeekPage(false); }
+        if(AR_NAMES[key]){ renderMatches(); renderPanel(false); }
       }catch(e){}                                    // offline: try again next time
       AR_PENDING.delete(key);
     });
@@ -660,6 +676,7 @@ async function fetchNext(id){
   const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventsnext.php?id=${id}`,{cache:'no-store'});
   if(!r.ok) throw 0;
   const j = await r.json();
+  if(j?.events) NEXT_LIST[id] = j.events;
   return (j?.events || [])[0] || null;
 }
 function toDate(ev){
@@ -752,6 +769,7 @@ async function loadMatches(){
     try{ const l = await fetchLast(id); if(l.length) RESULTS[id] = l; }catch(e){}
   }));
   renderMatches();
+  if(CONFIG.panel === 'matches') renderPanel(false);
 }
 
 const TICKERS = [
@@ -897,6 +915,121 @@ function renderWeekPage(animate){
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
 }
 
+// ---- the card beside the clock: one of several contents, picked in the app
+let FORECAST = [];
+let LIST_PAGE = 0;
+const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:'مباريات فرقك'};
+
+function renderPanel(animate){
+  const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
+  const P = CONFIG.panel;
+  if(P === 'shows'){ renderWeekPage(animate); return; }
+  let rows = [];
+  if(P === 'prayers') rows = prayerRows();
+  else if(P === 'forecast') rows = forecastRows();
+  else if(P === 'matches') rows = matchRows();
+  else if(P === 'verse'){ const q = quoteOfDay(); hd.textContent = q.title; rows = q.rows; }
+  if(PANEL_TITLE[P]) hd.textContent = PANEL_TITLE[P];
+  if(!rows.length){
+    ul.classList.remove('flip');
+    ul.innerHTML = `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : 'لا تتوفر بيانات الآن'}</li>`;
+    return;
+  }
+  if(P === 'matches' && rows.length > WEEK_ROWS){        // page through, like the shows
+    const start = (LIST_PAGE * WEEK_ROWS) % rows.length;
+    rows = Array.from({length: WEEK_ROWS}, (_, i) => rows[(start + i) % rows.length]);
+  }
+  ul.innerHTML = rows.join('');
+  ul.classList.remove('flip');
+  if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
+}
+
+function prayerRows(){
+  if(!DAY_TIMES) return [];
+  const p = riyadhParts(), now = p.h * 60 + p.mi;
+  const names = {Fajr:'الفجر', Sunrise:'الشروق', Dhuhr:isFriday() ? 'الجمعة' : 'الظهر', Asr:'العصر', Maghrib:'المغرب', Isha:'العشاء'};
+  let next = null;
+  return Object.keys(names).filter(k => DAY_TIMES[k]).map(k => {
+    const [h, mi] = String(DAY_TIMES[k]).split(':').map(Number);
+    const at = h * 60 + mi;
+    let cls = at < now ? 'past' : '';
+    if(at >= now && !next){ next = k; cls = 'next'; }
+    return `<li class="${cls}"><span>${names[k]}</span><span class="dt">${fmt12(h, mi)}</span></li>`;
+  });
+}
+
+function forecastRows(){
+  return FORECAST.slice(0, 5).map((d, i) => {
+    const day = i === 0 ? 'اليوم' : i === 1 ? 'غداً'
+      : new Intl.DateTimeFormat(GREG, {timeZone:'UTC', weekday:'long'}).format(new Date(d.date + 'T12:00:00Z'));
+    return `<li><span>${day}</span><span class="ep">${WX_CODES[d.code] || ''}</span>`
+         + `<span class="dt">${ar(Math.round(d.hi))}° / ${ar(Math.round(d.lo))}°</span></li>`;
+  });
+}
+
+// every followed team's games this week, plus results from the last day, in time order
+function matchRows(){
+  const now = Date.now(), seen = new Set(), evs = [];
+  CONFIG.teamIds.forEach(id => {
+    const next = NEXT_LIST[id] || (MATCHES[id] ? [MATCHES[id]] : []);
+    next.forEach(ev => { if(ev && ev.idEvent && !seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(MATCHES[id] && MATCHES[id].idEvent === ev.idEvent ? MATCHES[id] : ev); } });
+    (RESULTS[id] || []).forEach(ev => { if(ev && ev.idEvent && !seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(ev); } });
+  });
+  const day = d => new Intl.DateTimeFormat(GREG, {timeZone:CONFIG.timezone, weekday:'long'}).format(d);
+  const today = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(new Date());
+  return evs.map(ev => ({ev, t: toDate(ev).getTime()}))
+    .filter(x => { const end = x.t + 2.5*3600000;
+      const scored = x.ev.intHomeScore != null && x.ev.intAwayScore != null;
+      return now < end ? x.t - now <= CONFIG.weekWindowDays * 86400000 : scored && now - end < 86400000; })
+    .sort((a, b) => a.t - b.t)
+    .map(({ev, t}) => {
+      const d = new Date(t), scored = ev.intHomeScore != null && ev.intAwayScore != null;
+      const mid = scored && now >= t ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
+      const p = new Intl.DateTimeFormat('en-GB', {timeZone:CONFIG.timezone, hour:'2-digit', minute:'2-digit', hour12:false})
+        .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+      const when = now >= t + 2.5*3600000 ? 'انتهت'
+        : now >= t ? '<span class="live">مباشر</span>'
+        : (new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(d) === today ? 'اليوم' : day(d))
+          + ' ' + fmt12(+p.hour % 24, +p.minute);
+      return `<li><span>${esc(teamAr(ev.strHomeTeam))}${mid}${esc(teamAr(ev.strAwayTeam))}</span><span class="dt">${when}</span></li>`;
+    });
+}
+
+// verse one day, hadith the next. Verse texts come from the Quran API via CI (tools/fetch_verses.py), never typed.
+const VERSES = __VERSES__;   // assets/shared/verses.json
+const HADITH = [
+  ['إنما الأعمال بالنيات، وإنما لكل امرئ ما نوى', 'متفق عليه'],
+  ['الكلمة الطيبة صدقة', 'متفق عليه'],
+  ['لا يؤمن أحدكم حتى يحب لأخيه ما يحب لنفسه', 'متفق عليه'],
+  ['تبسمك في وجه أخيك لك صدقة', 'رواه الترمذي'],
+  ['من كان يؤمن بالله واليوم الآخر فليقل خيرا أو ليصمت', 'متفق عليه'],
+  ['الدين النصيحة', 'رواه مسلم'],
+  ['المسلم من سلم المسلمون من لسانه ويده', 'متفق عليه'],
+  ['خيركم من تعلم القرآن وعلمه', 'رواه البخاري'],
+  ['الطهور شطر الإيمان', 'رواه مسلم'],
+  ['إن الله جميل يحب الجمال', 'رواه مسلم'],
+  ['اتق الله حيثما كنت، وأتبع السيئة الحسنة تمحها، وخالق الناس بخلق حسن', 'رواه الترمذي'],
+  ['من حسن إسلام المرء تركه ما لا يعنيه', 'رواه الترمذي'],
+  ['أحب الأعمال إلى الله أدومها وإن قل', 'متفق عليه'],
+  ['يسروا ولا تعسروا، وبشروا ولا تنفروا', 'متفق عليه'],
+  ['الراحمون يرحمهم الرحمن', 'رواه أبو داود والترمذي'],
+  ['ليس الشديد بالصرعة، إنما الشديد الذي يملك نفسه عند الغضب', 'متفق عليه'],
+  ['من لا يرحم لا يرحم', 'متفق عليه'],
+  ['كل معروف صدقة', 'رواه البخاري'],
+  ['من سلك طريقا يلتمس فيه علما سهل الله له به طريقا إلى الجنة', 'رواه مسلم'],
+  ['الدعاء هو العبادة', 'رواه أبو داود والترمذي'],
+  ['إن الله رفيق يحب الرفق في الأمر كله', 'رواه البخاري'],
+];
+function quoteOfDay(){
+  const n = riyadhDayNumber(), half = Math.floor(n / 2);
+  if(VERSES.length && n % 2 === 0){
+    const v = VERSES[half % VERSES.length];
+    return {title:'آية اليوم', rows:[`<li class="quote"><span class="orn">﴿</span>${esc(v.text)}<span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
+  }
+  const [t, src] = HADITH[half % HADITH.length];
+  return {title:'حديث اليوم', rows:[`<li class="quote">قال رسول الله صلى الله عليه وسلم: «${t}»</li>`, `<li class="src">${src}</li>`]};
+}
+
 const WX_CODES = {
   0:'صافي',1:'صافي غالباً',2:'غائم جزئياً',3:'غائم',45:'ضباب',48:'ضباب متجمد',
   51:'رذاذ',53:'رذاذ',55:'رذاذ كثيف',56:'رذاذ متجمد',57:'رذاذ متجمد',
@@ -909,7 +1042,7 @@ async function loadWeather(){
   const q = `latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}&timezone=${encodeURIComponent(CONFIG.timezone)}`;
   try{
     const r = await fetchT(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,weather_code`
-                         + `&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`, 12000);
+                         + `&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=5`, 12000);
     if(!r.ok) throw 0;
     const j = await r.json();
     document.getElementById('wx-temp').textContent = ar(Math.round(j.current.temperature_2m)) + '°';
@@ -919,6 +1052,10 @@ async function loadWeather(){
     const hi = j.daily?.temperature_2m_max?.[0], lo = j.daily?.temperature_2m_min?.[0];
     document.getElementById('wx-range').textContent =
       (hi != null && lo != null) ? `${ar(Math.round(hi))}° / ${ar(Math.round(lo))}°` : '';
+    const dl = j.daily || {};
+    FORECAST = (dl.time || []).map((t, i) => ({date:t, code:dl.weather_code?.[i],
+      hi:dl.temperature_2m_max?.[i], lo:dl.temperature_2m_min?.[i]})).filter(x => x.hi != null && x.lo != null);
+    if(CONFIG.panel === 'forecast') renderPanel(false);
   }catch(e){ return; }   // keep the last reading; with none only the city shows
 
   // dust overrides the condition word: PM10 in µg/m³
@@ -1066,27 +1203,31 @@ function boot(){
   setInterval(() => applyBackground(false), 60*1000);
   tickClock(); tickDates(); tickRamadan();
   TICKERS.forEach(loadTicker);
-  if(!CONFIG.showWeek) document.querySelector('.week').style.display = 'none';
-  loadPrayers(); loadMatches(); if(CONFIG.showWeek) loadWeek(); loadWeather();
+  if(CONFIG.panel === 'none') document.querySelector('.week').style.display = 'none';
+  else if(CONFIG.panel !== 'shows') renderPanel(false);   // its own data arrives with prayers, weather, matches
+  loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather();
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickRamadan(); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickRamadan(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
   setInterval(() => renderMatches(false), 60000);
   setInterval(() => renderMatches(true), CONFIG.matchPageMs);
   setInterval(loadLive, 2*60000);
   setInterval(loadPrayers, 6*3600*1000);
   setInterval(loadMatches, 30*60*1000);
   setInterval(()=>TICKERS.forEach(loadTicker), 15*60*1000);
-  if(CONFIG.showWeek) setInterval(loadWeek, 6*3600*1000);
+  if(CONFIG.panel === 'shows') setInterval(loadWeek, 6*3600*1000);
   setInterval(loadWeather, 30*60*1000);
-  setInterval(()=>{ if(WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); } }, 25*1000);
+  setInterval(()=>{
+    if(CONFIG.panel === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
+    if(CONFIG.panel === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
+  }, 25*1000);
   setInterval(applyNight, 60*1000);
   setInterval(pixelShift, 4*60*1000);
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.showWeek) loadWeek(); loadWeather(); }
+    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
   }, 60*1000);
 }
 

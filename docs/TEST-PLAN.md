@@ -59,6 +59,7 @@ Open: «معاينة الشاشة» row, or `adb shell am start -n com.abdullah.
 | B5 | Top left chips | تاسي / S&P 500 / بيتكوين each with ▲ green or ▼ red (or no arrow — never a dash). Weather chip: city, temperature °, condition word (or «غبار»), high/low |
 | B6 | Markets accuracy | Compare arrows with today's TASI, S&P 500 and BTC 24h direction on any finance site |
 | B7 | هذا الأسبوع | Up to 5 shows matching A11–A15 filters, with season/episode, rating, weekday. Changes page every 25 s |
+| B7b | Settings → بجانب الساعة → each option, then preview | مواقيت الصلاة: 6 rows, next prayer gold, past ones dim · طقس الأيام القادمة: اليوم, غداً, then weekdays with condition and high/low · مباريات فرقك: every followed team's games this week in time order · آية أو حديث اليوم: a verse with surah and ayah, or a hadith with its source; no empty boxes · لا شيء: no card |
 | B8 | الصلاة القادمة | Next prayer name + time + «بعد …». Compare with https://www.ummulqura.org.sa or the Aladhan site for the chosen city: within 1–2 min |
 | B9 | رمضان panel | «رمضان ١٤٤٨», day count, start date. (In Ramadan: الإفطار/الإمساك instead) |
 | B10 | المباريات | Team 1 on the right, team 2 on the left, side by side, divider between. Slot hidden if no match within 7 days. Both hidden → «لا شيء هذا الأسبوع» |

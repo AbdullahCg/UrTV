@@ -93,8 +93,20 @@ final class Prefs {
         return true;
     }
 
-    boolean showWeek() { return sp.getBoolean("showWeek", true); }
-    void setShowWeek(boolean v) { sp.edit().putBoolean("showWeek", v).apply(); }
+    // The card beside the clock: value sent to the page (#panel=), Arabic label
+    static final String[][] PANELS = {
+        {"shows", "جديد المسلسلات"}, {"prayers", "مواقيت الصلاة اليوم"}, {"forecast", "طقس الأيام القادمة"},
+        {"matches", "مباريات فرقك القادمة"}, {"verse", "آية أو حديث اليوم"}, {"none", "لا شيء"},
+    };
+
+    /** Older builds had an on/off switch for the shows card; off becomes "none". */
+    String panel() { return sp.getString("panel", sp.getBoolean("showWeek", true) ? "shows" : "none"); }
+    void setPanel(String v) { sp.edit().putString("panel", v).apply(); }
+
+    static String panelLabel(String v) {
+        for (String[] p : PANELS) if (p[0].equals(v)) return p[1];
+        return PANELS[0][1];
+    }
 
     List<String> list(String key) {
         List<String> out = new ArrayList<>();
@@ -122,7 +134,8 @@ final class Prefs {
         String frag = "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]
             + "&tz=" + Uri.encode(TZ)
             + "&teams=" + join(teamIds(), ",")
-            + "&week=" + (showWeek() ? "1" : "0")
+            + "&panel=" + panel()
+            + "&week=" + ("none".equals(panel()) ? "0" : "1")   // for a page older than #panel
             + "&genres=" + Uri.encode(join(list("genres"), ","))
             + "&langs=" + Uri.encode(join(list("langs"), ","))
             + "&shows=" + join(ids, ",")

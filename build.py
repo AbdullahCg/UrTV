@@ -7,6 +7,7 @@ tv.html             for the Android app: same page, but fonts and bundled photos
 """
 import base64
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -20,6 +21,21 @@ FONTS = {
 REPO = "https://raw.githubusercontent.com/tshi-dev/TV-ScreenSaver/master/"
 
 
+def verses_for_screen():
+    """assets/shared/verses.json as fetched from the Quran API (tools/fetch_verses.py), made fit for the font:
+    the pause marks and ۞ are left out (Thmanyah has no glyph for them); letters and harakat stay as fetched.
+    Surah names are shown plain, without harakat."""
+    path = ROOT / "assets/shared/verses.json"
+    if not path.is_file():
+        return []
+    out = []
+    for v in json.loads(path.read_text(encoding="utf-8")):
+        text = " ".join(re.sub("[\u06D6-\u06DE]", "", v["text"]).split())
+        name = re.sub("[\u064B-\u065F\u0670\u06D6-\u06ED]", "", v["surah"])
+        out.append({"text": text, "surah": name, "ayah": v["ayah"]})
+    return out
+
+
 def data_uri(path, mime):
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
@@ -28,6 +44,7 @@ def main():
     html = (ROOT / "src/template.html").read_text(encoding="utf-8")
     teams = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
     html = html.replace("__TEAMS_AR__", json.dumps(teams, ensure_ascii=False))
+    html = html.replace("__VERSES__", json.dumps(verses_for_screen(), ensure_ascii=False))
 
     bg_dir = ROOT / "assets/backgrounds"
     bgs = json.loads((bg_dir / "backgrounds.json").read_text(encoding="utf-8"))
