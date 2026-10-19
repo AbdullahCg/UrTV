@@ -1,0 +1,25 @@
+{
+ "found": [
+  {
+   "idTeam": "150643",
+   "strTeam": "Al-Zulfi",
+   "strTeamAlternate": "Al-Zulfi FC, نادي الزلفي",
+   "strLeague": "Saudi First Division League",
+   "strLeague2": "Saudi King Cup",
+   "strCountry": "Saudi Arabia",
+   "strSport": "Soccer"
+  }
+ ],
+ "first_division": [
+  "Al-Adalah",
+  "Al-Anwar",
+  "Al-Bukiryah",
+  "Al-Jabalain",
+  "Al-Jandal",
+  "Al-Jeel",
+  "Al-Najma Unaizah",
+  "Al-Okhdood",
+  "Al-Orobah",
+  "Al-Raed"
+ ]
+}
