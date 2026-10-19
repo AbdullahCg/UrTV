@@ -1,0 +1,6 @@
+venv/
+adbkey/
+.tv_host
+backup-*.txt
+*.apk
+__pycache__/

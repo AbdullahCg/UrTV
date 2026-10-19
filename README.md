@@ -4,12 +4,27 @@
 
 An always-on, Arabic-only, right-to-left screensaver for a 1920×1080 TV. One self-contained HTML file with fonts and photos inlined, so it runs offline and from `file://`.
 
+This repository does three things for an Android TV / Google TV:
+
+| | What | Where |
+|---|---|---|
+| 1 | **Screensaver** — our design, as a system screensaver app | `src/`, `android/app` → `tvsaver.apk` |
+| 2 | **Optimize** — back up, rate and disable bloat (reversibly), speed tweaks | `optimize/` |
+| 3 | **Launcher** — a clean Arabic home screen with a dock and the Saudi photos | `android/launcher` → `tvhome.apk` |
+
+**Set up a TV:** hand [`docs/TV-SETUP-PROMPT.md`](docs/TV-SETUP-PROMPT.md) to a coding agent on a computer on the TV's Wi-Fi.
+APKs: [releases/apk-latest](https://github.com/tshi-dev/TV-ScreenSaver/releases/tag/apk-latest).
+
+The launcher and the `optimize/` ADB tools are adapted from
+[mihirgupta0900/tv-home](https://github.com/mihirgupta0900/tv-home) (MIT, `third_party/tv-home-LICENSE`).
+Package safety ratings come from [UAD-ng](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation).
+
 ## Layout
 
 ```
 src/template.html          the page itself (HTML/CSS/JS) — edit this
 assets/fonts/              Thmanyah woff2 weights (Light, Regular, Medium, Display Bold)
-assets/backgrounds/        7 licensed Saudi landscapes + backgrounds.json (credit, brightness)
+assets/backgrounds/        13 Saudi landscapes + backgrounds.json (credit, brightness)
 build.py                   inlines fonts and photos -> dist/ksa-dashboard.html
 dist/ksa-dashboard.html    the built file to copy to the TV / APK assets
 docs/RECREATE-PROMPT.md    the full design + behaviour spec
