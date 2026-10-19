@@ -248,7 +248,7 @@
 
     <div class="markets">
       <div class="chip"><span class="nm">تاسي</span><span id="tasi-chg" class="delta" hidden></span></div>
-      <div class="chip"><span class="nm">إس آند بي ٥٠٠</span><span id="spx-chg" class="delta" hidden></span></div>
+      <div class="chip"><span class="nm">S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></div>
       <div class="chip"><span class="nm">بيتكوين</span><span id="btc-chg" class="delta" hidden></span></div>
       <div class="chip wx"><span class="nm" id="wx-city">الرياض</span><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span><span class="wxr" id="wx-range"></span></div>
     </div>
@@ -588,7 +588,7 @@ const TEAM_AR = {
 let MATCHES = {};   // team id -> next event
 let RESULTS = {};   // team id -> recent events
 
-// ---------- every name on screen in Arabic ----------
+// ---------- team names in Arabic ----------
 // 1) built-in table, 2) the Arabic label on Wikidata (cached on the device), 3) transliteration meanwhile
 const AR_NAMES = (()=>{ try{ return JSON.parse(localStorage.getItem('arNames') || '{}'); }catch(e){ return {}; } })();
 const AR_PENDING = new Set();
@@ -890,7 +890,7 @@ function renderWeekPage(animate){
   }
   ul.innerHTML = rows.map(o=>{
     const dt = o.date ? new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date(o.date+'T12:00:00Z')) : '';
-    return `<li><span>${esc(arName(o.name, 'show'))}</span>`
+    return `<li><span>${esc(o.name)}</span>`
          + (o.ep?`<span class="ep">${ar(o.ep)}</span>`:'')
          + (o.rating ? `<span class="rt">${ar(o.rating.toFixed(1)).replace('.','٫')}</span>` : '')
          + (dt?`<span class="dt">${dt}</span>`:'') + '</li>';

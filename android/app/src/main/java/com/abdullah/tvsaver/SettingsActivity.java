@@ -244,19 +244,17 @@ public class SettingsActivity extends Activity {
                 ids[i] = String.valueOf(s.optInt("id"));
                 names[i] = s.optString("name").replace("|", " ").replace(";", " ");
                 String year = s.optString("premiered", "");
-                rows[i] = Arabic.translit(names[i]) + (year.length() >= 4 ? "  ·  " + Arabic.translit(year.substring(0, 4)) : "")
+                rows[i] = names[i] + (year.length() >= 4 ? "  ·  " + year.substring(0, 4) : "")
                     + "  ·  " + labelOf(Prefs.LANGS, s.optString("language", ""));
             }
             new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر المسلسل")
                 .setItems(rows, (d, i) -> {
                     for (String s : prefs.shows()) if (s.startsWith(ids[i] + "|")) { toast("مضاف مسبقاً"); return; }
-                    inArabic(names[i], Arabic.SHOW, ar -> {
-                        List<String> v = prefs.shows();
-                        v.add(ids[i] + "|" + ar.replace("|", " ").replace(";", " "));
-                        prefs.setList("shows", v);
-                        toast("تمت إضافة " + ar);
-                        render();
-                    });
+                    List<String> v = prefs.shows();
+                    v.add(ids[i] + "|" + names[i]);
+                    prefs.setList("shows", v);
+                    toast("تمت إضافة " + names[i]);
+                    render();
                 }).show();
         }));
     }
