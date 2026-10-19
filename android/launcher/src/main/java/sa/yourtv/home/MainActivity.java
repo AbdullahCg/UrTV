@@ -757,14 +757,20 @@ public class MainActivity extends Activity {
         return b.toString();
     }
 
+    /** Connected or not comes from ConnectivityManager: WifiManager hides the network (id -1, "<unknown ssid>")
+     *  from apps without location access, which looked like "not connected". The name only when readable. */
     private void updateWifi() {
-        String name = "واي فاي";
+        String name = "غير متصل";
         try {
-            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-            if (wm != null && wm.getConnectionInfo() != null) {
-                String s = wm.getConnectionInfo().getSSID();
-                if (s != null && !s.contains("unknown ssid")) name = s.replace("\"", "");
-                if (wm.getConnectionInfo().getNetworkId() == -1) name = "غير متصل";
+            android.net.ConnectivityManager cm = getSystemService(android.net.ConnectivityManager.class);
+            android.net.NetworkCapabilities nc = cm == null ? null : cm.getNetworkCapabilities(cm.getActiveNetwork());
+            if (nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                name = "شبكة سلكية";
+            } else if (nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
+                name = "واي فاي";
+                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                String s = wm == null || wm.getConnectionInfo() == null ? null : wm.getConnectionInfo().getSSID();
+                if (s != null && !s.contains("unknown ssid") && !s.replace("\"", "").isEmpty()) name = s.replace("\"", "");
             }
         } catch (SecurityException ignored) { }
         wifiPill.setText(name);

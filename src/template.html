@@ -45,8 +45,10 @@
     background-size:cover;
     background-position:center 26%;
     background-repeat:no-repeat;
-    filter:saturate(1.02) brightness(.98) contrast(1.02);
+    transform:scale(1.03);   /* edges stay covered while it settles */
   }
+  /* each photo's darkness as a plain black layer: same look as filter:brightness, nothing to recompute */
+  .photo::after{content:'';position:absolute;inset:0;background:#000;opacity:var(--dim,.05)}
   .veil{
     position:fixed;inset:0;z-index:1;
     background:
@@ -84,11 +86,10 @@
 
   .week{
     width:min(760px,48vw);justify-self:end;
-    background:rgba(4,14,9,.46);
+    background:rgba(4,14,9,.60);   /* no backdrop blur: over a moving photo it is redone every frame */
     border:1px solid rgba(220,184,111,.16);
     border-radius:12px;
     padding:1.7vh 1.4vw;
-    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
   }
   .week .hd{
     display:flex;align-items:center;gap:.7em;margin-bottom:1vh;
@@ -204,13 +205,13 @@
     padding-bottom:.3em;margin-bottom:-.3em}  /* room for the dots under ي, ج… */
   .none-week{font-size:clamp(26px,2.5vw,54px);font-weight:700;font-family:'ThmanyahDisplay','Thmanyah',serif;color:#A79C85}
 
-  @keyframes drift{
-    0%{transform:scale(1.03) translate3d(0,0,0)}
-    50%{transform:scale(1.055) translate3d(-.55%,-.4%,0)}
-    100%{transform:scale(1.03) translate3d(0,0,0)}
+  /* A new photo settles in over a minute, then holds still: an endless drift kept the TV redrawing
+     the whole screen 60 times a second, for hours. */
+  @keyframes settle{
+    from{transform:scale(1.055) translate3d(-.55%,-.4%,0)}
+    to{transform:scale(1.03) translate3d(0,0,0)}
   }
-  @media (prefers-reduced-motion:no-preference){.photo{animation:drift 120s ease-in-out infinite}}
-  @media (prefers-reduced-motion:reduce){.photo{animation:none}}
+  @media (prefers-reduced-motion:no-preference){.photo.settle{animation:settle 60s ease-out both}}
 
   /* ===== top left: weather and markets, set like the date block on the right (no boxes) ===== */
   .markets{text-align:left;flex-shrink:0}
@@ -375,6 +376,9 @@ function tickClock(){
   const h12 = p.h % 12 === 0 ? 12 : p.h % 12;
   // one box per digit: browsers ignore letter-spacing on Arabic digits, and ٤ reaches into the next digit
   const digits = s => [...s].map(ch => '<i>' + ch + '</i>').join('');
+  const key = h12 + ':' + p.mi;
+  if(key === tickClock.last) return;   // ticks every second, redraws once a minute
+  tickClock.last = key;
   document.getElementById('ck-h').innerHTML = digits(ar(h12));
   document.getElementById('ck-m').innerHTML = digits(ar(pad(p.mi)));
   document.getElementById('ck-ap').textContent = p.h < 12 ? 'ص' : 'م';
@@ -1147,8 +1151,11 @@ function showBackground(url, b){
   const ph = document.querySelector('.photo');
   reveal();
   if(!ph) return;
-  ph.style.backgroundImage = "url('" + url + "')";
-  ph.style.filter = 'saturate(1.02) brightness(' + (b.d || 0.95) + ') contrast(1.02)';
+  const next = "url('" + url + "')";
+  if(ph.style.backgroundImage === next) return;   // same photo: no reload, no new movement
+  ph.style.backgroundImage = next;
+  ph.style.setProperty('--dim', (1 - (b.d || 0.95)).toFixed(2));
+  ph.classList.remove('settle'); void ph.offsetWidth; ph.classList.add('settle');
   const cr = document.getElementById('credit');
   if(cr) cr.textContent = b.c ? 'الصورة: ' + b.c : '';
 }
