@@ -117,7 +117,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        dockApps = getResources().getStringArray(R.array.dock_apps);
+        dockApps = loadDock();
         hidden.addAll(Arrays.asList(getResources().getStringArray(R.array.hidden_apps)));
         hidden.add(getPackageName());
         liveTvPkg = getString(R.string.live_tv_package);
@@ -369,6 +369,7 @@ public class MainActivity extends Activity {
 
         List<App> dock = new ArrayList<>();
         for (String p : dockApps) if (byPkg.containsKey(p)) dock.add(byPkg.remove(p));
+        cardByPkg.clear();
         List<App> rest = new ArrayList<>(byPkg.values());
         Collections.sort(rest, (x, y) -> x.label.compareToIgnoreCase(y.label));
 
@@ -491,6 +492,10 @@ public class MainActivity extends Activity {
             }
         });
 
+        // Long-press OK: add to / remove from / reorder the dock, right from the remote.
+        card.setOnLongClickListener(v -> { showAppMenu(v, app.pkg, inDock); return true; });
+        cardByPkg.put(app.pkg, card);
+
         (inDock ? dockCards : gridCards).add(card);
         return box;
     }
@@ -541,6 +546,87 @@ public class MainActivity extends Activity {
     }
 
     // ---------------------------------------------------------------- inputs
+
+    // ---------------------------------------------------------------- dock editing
+
+    private final Map<String, View> cardByPkg = new HashMap<>();
+    static final int MAX_DOCK = 8;
+
+    /** The user's dock if they edited it, else res/values/config.xml. */
+    private String[] loadDock() {
+        String saved = getPreferences(MODE_PRIVATE).getString("dock", null);
+        return saved != null ? (saved.isEmpty() ? new String[0] : saved.split(","))
+                             : getResources().getStringArray(R.array.dock_apps);
+    }
+
+    /** Only installed apps are kept, so the dock never holds a removed app's slot. */
+    private void saveDock(List<String> dock, String focusPkg) {
+        List<String> installed = new ArrayList<>();
+        for (String p : dock) if (isInstalled(p)) installed.add(p);
+        getPreferences(MODE_PRIVATE).edit().putString("dock", android.text.TextUtils.join(",", installed)).apply();
+        dockApps = installed.toArray(new String[0]);
+        buildApps();
+        View c = cardByPkg.get(focusPkg);
+        if (c != null) c.post(c::requestFocus);
+    }
+
+    private void showAppMenu(View anchor, String pkg, boolean inDock) {
+        List<String> dock = new ArrayList<>();
+        for (String p : dockApps) if (cardByPkg.containsKey(p) && dockCards.contains(cardByPkg.get(p))) dock.add(p);
+        int i = dock.indexOf(pkg);
+        List<String> labels = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+        if (inDock) {
+            if (i < dock.size() - 1) { labels.add("تحريك يميناً  ▶"); actions.add(() -> { Collections.swap(dock, i, i + 1); saveDock(dock, pkg); }); }
+            if (i > 0) { labels.add("◀  تحريك يساراً"); actions.add(() -> { Collections.swap(dock, i, i - 1); saveDock(dock, pkg); }); }
+            labels.add("إزالة من المفضلة");
+            actions.add(() -> { dock.remove(pkg); saveDock(dock, dock.isEmpty() ? pkg : dock.get(Math.max(0, i - 1))); });
+        } else if (dock.size() < MAX_DOCK) {
+            labels.add("إضافة إلى المفضلة");
+            actions.add(() -> { dock.add(pkg); saveDock(dock, pkg); });
+        } else {
+            labels.add("المفضلة ممتلئة (" + MAX_DOCK + ")");
+            actions.add(() -> { });
+        }
+        labels.add("إعادة المفضلة الافتراضية");
+        actions.add(() -> {
+            getPreferences(MODE_PRIVATE).edit().remove("dock").apply();
+            dockApps = getResources().getStringArray(R.array.dock_apps);
+            buildApps();
+        });
+        showMenu(anchor, labels, actions);
+    }
+
+    /** Small focusable popup in the same style as the Inputs menu. */
+    private void showMenu(View anchor, List<String> labels, List<Runnable> actions) {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(8), dp(8), dp(8), dp(8));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(16));
+        bg.setColor(0xF02A2A2E);
+        bg.setStroke(dp(1), 0x26FFFFFF);
+        list.setBackground(bg);
+        PopupWindow pw = new PopupWindow(list, dp(230), -2, true);
+        List<TextView> rows = new ArrayList<>();
+        for (int k = 0; k < labels.size(); k++) rows.add(inputRow(labels.get(k), actions.get(k)));
+        for (TextView r : rows) {
+            r.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+            r.setOnClickListener(v -> { pw.dismiss(); ((Runnable) v.getTag()).run(); });
+            list.addView(r, new LinearLayout.LayoutParams(-1, dp(36)));
+        }
+        for (int k = 0; k < rows.size(); k++) {
+            TextView r = rows.get(k);
+            r.setNextFocusUpId(rows.get(Math.max(0, k - 1)).getId());
+            r.setNextFocusDownId(rows.get(Math.min(rows.size() - 1, k + 1)).getId());
+            r.setNextFocusLeftId(r.getId());
+            r.setNextFocusRightId(r.getId());
+        }
+        pw.setOutsideTouchable(true);
+        pw.setElevation(dp(16));
+        pw.showAsDropDown(anchor, 0, -anchor.getHeight() - dp(8) * (rows.size() + 2) - dp(36) * rows.size(), Gravity.START);
+        rows.get(0).requestFocus();
+    }
 
     private void showInputs(View anchor) {
         LinearLayout list = new LinearLayout(this);

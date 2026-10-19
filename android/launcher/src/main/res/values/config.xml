@@ -4,7 +4,8 @@
   Package names on your TV: optimize/venv/bin/python -I optimize/tv.py 'pm list packages'
 -->
 <resources>
-    <!-- Dock apps, left to right. Apps that aren't installed are skipped. -->
+    <!-- Default dock apps, left to right (apps not installed are skipped). On the TV, long-press OK on any
+         app to add it, remove it or move it; that choice is saved on the TV and replaces this list. -->
     <string-array name="dock_apps">
         <item>com.google.android.youtube.tv</item>
         <item>com.netflix.ninja</item>
