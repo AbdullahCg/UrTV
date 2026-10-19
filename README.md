@@ -6,6 +6,9 @@
 
 <p align="center">An Arabic home screen and a Saudi screensaver for Android TV / Google TV, and a safe speed-up.<br>Your AI agent sets it all up.</p>
 
+<p align="center"><img src=".github/screens/before-after-home.jpg" alt="Before: Google TV home. After: the تلفزيونك home screen" width="100%"></p>
+<p align="center"><img src=".github/screens/before-after-screensaver.jpg" alt="Before: the Google screensaver. After: شاشة تلفزيونك" width="100%"></p>
+
 ## Set it up with your AI agent
 
 1. **On the TV:** Settings → System → About → press OK on **Build** 7 times → Developer options → turn on
