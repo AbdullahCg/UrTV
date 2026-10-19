@@ -16,6 +16,14 @@ CATEGORIES = [
     "Category:Quality images of Saudi Arabia",
     "Category:Valued images of Saudi Arabia",
 ]
+SEARCHES = [
+    "AlUla landscape", "Hegra Madain Saleh", "Elephant Rock AlUla", "Edge of the World Riyadh",
+    "Tuwaiq escarpment", "Asir mountains", "Abha mountains", "Al Soudah", "Rijal Almaa",
+    "Farasan islands", "Red Sea coast Saudi Arabia", "Umluj", "Tabuk desert", "Wadi Disah",
+    "Hisma desert", "Empty Quarter Rub al Khali dunes", "Nafud desert", "Taif mountains",
+    "Diriyah At-Turaif", "Jeddah corniche", "Al-Ahsa oasis", "Jabal Al-Qarah", "Najran",
+    "Jizan mountains Fayfa", "Al Baha", "Hail Jubbah", "Qassim desert", "NEOM coast",
+]
 FREE = re.compile(r"^(CC0|Public domain|PD|CC BY(-SA)? [0-9.]+)", re.I)
 UA = {"User-Agent": "tv-screensaver background picker (github.com/tshi-dev/TV-ScreenSaver)"}
 OUT = Path("candidates")
@@ -44,16 +52,24 @@ def files_in(cat):
         params.update(d["continue"])
 
 
+def searched(q):
+    d = api({"action": "query", "generator": "search", "gsrnamespace": "6", "gsrlimit": "20",
+             "gsrsearch": q + " filetype:bitmap", "prop": "imageinfo", "iiprop": "url|size|extmetadata",
+             "iiurlwidth": "1600", "iiextmetadatafilter": "LicenseShortName|Artist|ImageDescription"})
+    yield from (d.get("query") or {}).get("pages", {}).values()
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     seen, picked = set(), []
-    for cat in CATEGORIES:
-        for p in files_in(cat):
+    sources = [files_in(c) for c in CATEGORIES] + [searched(q) for q in SEARCHES]
+    for src in sources:
+        for p in src:
             info = (p.get("imageinfo") or [{}])[0]
             meta = info.get("extmetadata", {})
             lic = strip_html(meta.get("LicenseShortName", {}).get("value"))
             w, h = info.get("width", 0), info.get("height", 0)
-            if p["title"] in seen or not FREE.match(lic) or w < 1920 or w < h * 1.35 or not info.get("thumburl"):
+            if p["title"] in seen or not FREE.match(lic) or w < 2400 or w < h * 1.4 or not info.get("thumburl"):
                 continue
             if not p["title"].lower().endswith((".jpg", ".jpeg")):
                 continue
@@ -63,7 +79,7 @@ def main():
                            "artist": strip_html(meta.get("Artist", {}).get("value"))[:80],
                            "description": strip_html(meta.get("ImageDescription", {}).get("value"))[:160]})
     out = []
-    for i, c in enumerate(picked[:80]):
+    for i, c in enumerate(picked[:120]):
         name = f"{i:02d}.jpg"
         try:
             with urllib.request.urlopen(urllib.request.Request(c["thumb"], headers=UA), timeout=60) as r:
