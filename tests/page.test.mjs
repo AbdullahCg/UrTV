@@ -135,6 +135,39 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   await ctx.close();
 }
 
+// ---- a finished game's score stays up for a day, even when the API has already moved on
+{
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await ctx.route(/^https?:/, r => r.abort());
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#teams=136013&panel=matches');
+  await p.waitForTimeout(800);
+  const slot = () => p.evaluate(() => document.getElementById('match-row').innerText.replace(/\s+/g, ' ').trim());
+  const game = (id, hoursAgo, score, status) => `({idEvent:'${id}', strHomeTeam:'Al-Hilal', strAwayTeam:'Al-Nassr',
+    strTimestamp:new Date(Date.now() - ${hoursAgo} * 36e5).toISOString(), intHomeScore:${score ? score[0] : null},
+    intAwayScore:${score ? score[1] : null}, strStatus:'${status}'})`;
+
+  await p.evaluate(`MATCHES['136013'] = ${game('g1', 1.8, [2, 1], 'FT')}; renderMatches();`);
+  let t = await slot();
+  check('whistle blown: final score at once, not «مباشر»', t.includes('النتيجة النهائية') && t.includes('٢ - ١') && !t.includes('مباشر'), t);
+
+  await p.evaluate(`keepResult('136013', MATCHES['136013']); MATCHES['136013'] = ${game('g2', -72, null, 'NS')};
+                    RESULTS = {}; renderMatches();`);
+  t = await slot();
+  check('API moved to the next fixture: score still shown', t.includes('النتيجة النهائية') && t.includes('٢ - ١'), t);
+
+  await p.reload();
+  await p.waitForTimeout(800);
+  await p.evaluate(`MATCHES['136013'] = ${game('g2', -72, null, 'NS')}; renderMatches();`);
+  t = await slot();
+  check('after a restart the same day: score still shown', t.includes('٢ - ١'), t);
+
+  await p.evaluate(`KEPT['136013'] = [${game('g1', 27, [2, 1], 'FT')}]; renderMatches();`);
+  t = await slot();
+  check('a day later: score gone, next fixture shown', !t.includes('٢ - ١') && t.includes('×'), t);
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

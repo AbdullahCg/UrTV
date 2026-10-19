@@ -700,12 +700,30 @@ function toDate(ev){
 }
 
 // one slot per picked team: a result from the last 24h, else a fixture this week, else hidden
+// A game is over once its status says so, or 2.5 h after kick-off; its score stays up for a day after that.
+const FINAL = ['FT','AET','PEN','MATCH FINISHED'];
+function finishedRecently(ev, now){
+  if(!ev || ev.intHomeScore == null || ev.intAwayScore == null) return false;
+  const k = toDate(ev).getTime(), end = k + 2.5*3600000;
+  const over = FINAL.includes((ev.strStatus || '').toUpperCase()) ? now >= k : now >= end;
+  return over && now - end < 86400000;
+}
+// Keep a score seen at the final whistle: the free API's "last games" list can lag, and "next game"
+// moves on to the following fixture right away. Saved, so a restart within the day still shows it.
+const KEPT = (()=>{ try{ return JSON.parse(localStorage.getItem('keptResults') || '{}'); }catch(e){ return {}; } })();
+function keepResult(id, ev){
+  if(!finishedRecently(ev, Date.now())) return;
+  KEPT[id] = [ev, ...(KEPT[id] || []).filter(x => x.idEvent !== ev.idEvent && finishedRecently(x, Date.now()))];
+  try{ localStorage.setItem('keptResults', JSON.stringify(KEPT)); }catch(e){}
+}
+function resultsFor(id){
+  const seen = new Set();
+  return [...(RESULTS[id] || []), ...(KEPT[id] || []), MATCHES[id]]
+    .filter(ev => ev && ev.idEvent && !seen.has(ev.idEvent) && seen.add(ev.idEvent));
+}
+
 function matchSlot(id, now, shown){
-  const done = (RESULTS[id] || []).filter(ev=>{
-    if(ev.intHomeScore == null || ev.intAwayScore == null) return false;
-    const end = toDate(ev).getTime() + 2.5*3600000;
-    return now >= end && (now - end) < 86400000;
-  }).sort((a,b)=>toDate(b)-toDate(a))[0];
+  const done = resultsFor(id).filter(ev => finishedRecently(ev, now)).sort((a,b)=>toDate(b)-toDate(a))[0];
   if(done){
     if(shown.has(done.idEvent)) return '';          // both teams in the same game
     shown.add(done.idEvent);
@@ -751,7 +769,7 @@ async function loadLive(){
       const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/lookupevent.php?id=${ev.idEvent}`, 10000);
       const j = await r.json();
       const fresh = (j.events || [])[0];
-      if(fresh && fresh.idEvent === ev.idEvent) MATCHES[id] = Object.assign({}, ev, fresh);
+      if(fresh && fresh.idEvent === ev.idEvent){ MATCHES[id] = Object.assign({}, ev, fresh); keepResult(id, MATCHES[id]); }
     }catch(e){}
   }));
   renderMatches();
@@ -781,7 +799,10 @@ async function loadMatches(){
   // never throw away a good fixture or result on a failed refresh
   let answered = 0;
   await Promise.all(CONFIG.teamIds.map(async id=>{
-    try{ const ev = await fetchNext(id); answered++; if(ev) MATCHES[id] = ev; }catch(e){}
+    try{
+      const ev = await fetchNext(id); answered++;
+      if(ev){ if(MATCHES[id] && MATCHES[id].idEvent !== ev.idEvent) keepResult(id, MATCHES[id]); MATCHES[id] = ev; }
+    }catch(e){}
     try{ const l = await fetchLast(id); answered++; if(l.length) RESULTS[id] = l; }catch(e){}
   }));
   if(!answered && CONFIG.teamIds.length) return;    // offline: keep what is shown (the saved panels)
@@ -994,21 +1015,21 @@ function matchRows(){
   CONFIG.teamIds.forEach(id => {
     const next = NEXT_LIST[id] || (MATCHES[id] ? [MATCHES[id]] : []);
     next.forEach(ev => { if(ev && ev.idEvent && !seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(MATCHES[id] && MATCHES[id].idEvent === ev.idEvent ? MATCHES[id] : ev); } });
-    (RESULTS[id] || []).forEach(ev => { if(ev && ev.idEvent && !seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(ev); } });
+    resultsFor(id).forEach(ev => { if(!seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(ev); } });
   });
   const day = d => new Intl.DateTimeFormat(GREG, {timeZone:CONFIG.timezone, weekday:'long'}).format(d);
   const today = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(new Date());
   return evs.map(ev => ({ev, t: toDate(ev).getTime()}))
-    .filter(x => { const end = x.t + 2.5*3600000;
-      const scored = x.ev.intHomeScore != null && x.ev.intAwayScore != null;
-      return now < end ? x.t - now <= CONFIG.weekWindowDays * 86400000 : scored && now - end < 86400000; })
+    .filter(x => finishedRecently(x.ev, now)
+      || (now < x.t + 2.5*3600000 && !FINAL.includes((x.ev.strStatus || '').toUpperCase())
+          && x.t - now <= CONFIG.weekWindowDays * 86400000))
     .sort((a, b) => a.t - b.t)
     .map(({ev, t}) => {
       const d = new Date(t), scored = ev.intHomeScore != null && ev.intAwayScore != null;
       const mid = scored && now >= t ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
       const p = new Intl.DateTimeFormat('en-GB', {timeZone:CONFIG.timezone, hour:'2-digit', minute:'2-digit', hour12:false})
         .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
-      const when = now >= t + 2.5*3600000 ? 'انتهت'
+      const when = finishedRecently(ev, now) ? 'انتهت'
         : now >= t ? '<span class="live">مباشر</span>'
         : (new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(d) === today ? 'اليوم' : day(d))
           + ' ' + fmt12(+p.hour % 24, +p.minute);
