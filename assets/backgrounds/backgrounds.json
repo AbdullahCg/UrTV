@@ -38,5 +38,30 @@
     "file": "zulfi-thuwayr.jpg",
     "credit": "ماجد العتيق · الثوير، الزلفي",
     "brightness": 0.85
+  },
+  {
+    "file": "alula-arch-night.jpg",
+    "credit": "Saudi Press Agency · CC BY-SA 4.0",
+    "brightness": 1.0
+  },
+  {
+    "file": "alula-elephant-rock.jpg",
+    "credit": "Saudi Press Agency · CC BY-SA 4.0",
+    "brightness": 0.9
+  },
+  {
+    "file": "asir-sarawat.jpg",
+    "credit": "Richard Mortel · CC BY 2.0",
+    "brightness": 0.88
+  },
+  {
+    "file": "farasan-beach.jpg",
+    "credit": "Bandar Yuosef · CC BY 2.0",
+    "brightness": 0.8
+  },
+  {
+    "file": "empty-quarter.jpg",
+    "credit": "Nepenthes · CC BY-SA 3.0",
+    "brightness": 0.82
   }
 ]
