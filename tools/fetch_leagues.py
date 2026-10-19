@@ -3,6 +3,7 @@
 unreachable from the dev container). Writes leagues/leagues.json for review."""
 import json
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -13,9 +14,18 @@ COUNTRIES = ["Saudi Arabia", "England", "Spain", "Italy", "Germany", "France", "
 
 
 def get(path):
-    time.sleep(2.2)   # free key: ~30 requests a minute
-    with urllib.request.urlopen(urllib.request.Request(API + path, headers={"User-Agent": "tvsaver"}), timeout=60) as r:
-        return json.load(r)
+    """Free key allows only a few requests a minute: pace them and back off on 429."""
+    for attempt in range(8):
+        time.sleep(4)
+        try:
+            with urllib.request.urlopen(urllib.request.Request(API + path, headers={"User-Agent": "tvsaver"}),
+                                        timeout=60) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code != 429:
+                raise
+            time.sleep(30 * (attempt + 1))
+    raise RuntimeError("rate limited: " + path)
 
 
 def main():
@@ -28,7 +38,7 @@ def main():
             if leagues:
                 break
         rows = []
-        for lg in leagues[:6]:
+        for lg in leagues[:4]:
             teams = (get(f"lookup_all_teams.php?id={lg['idLeague']}").get("teams") or [])
             rows.append({"id": lg["idLeague"], "name": lg.get("strLeague"), "alt": lg.get("strLeagueAlternate"),
                          "country_param": name, "team_count": len(teams),
