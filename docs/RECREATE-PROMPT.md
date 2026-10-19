@@ -1,6 +1,6 @@
-# Saudi TV Screensaver — Recreate Prompt
+# شاشة تلفزيونك (Your TV screensaver) — recreate prompt
 
-Paste everything below the line into any capable AI (Claude, GPT, Gemini) that can write a single HTML file. It will rebuild the screen from scratch.
+Paste everything below the line into any AI that can write a single HTML file. It will rebuild the screen from scratch.
 
 ---
 

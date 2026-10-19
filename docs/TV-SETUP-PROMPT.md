@@ -1,6 +1,6 @@
 # Prompt: set up the TV (screensaver + optimize + launcher)
 
-Run this with a coding agent (Claude Code or similar) **on a computer on the same Wi-Fi as the TV**.
+Run this with any AI coding agent **on a computer on the same Wi-Fi as the TV**.
 
 **First, on the TV:** Settings → System → About → press OK on **Build** 7 times → back → Developer options → turn on
 **USB debugging** (and **Network debugging** if listed). Keep the TV on.

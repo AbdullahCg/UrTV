@@ -779,10 +779,12 @@ async function fetchLast(id){
 }
 async function loadMatches(){
   // never throw away a good fixture or result on a failed refresh
+  let answered = 0;
   await Promise.all(CONFIG.teamIds.map(async id=>{
-    try{ const ev = await fetchNext(id); if(ev) MATCHES[id] = ev; }catch(e){}
-    try{ const l = await fetchLast(id); if(l.length) RESULTS[id] = l; }catch(e){}
+    try{ const ev = await fetchNext(id); answered++; if(ev) MATCHES[id] = ev; }catch(e){}
+    try{ const l = await fetchLast(id); answered++; if(l.length) RESULTS[id] = l; }catch(e){}
   }));
+  if(!answered && CONFIG.teamIds.length) return;    // offline: keep what is shown (the saved panels)
   renderMatches();
   if(CONFIG.panel === 'matches') renderPanel(false);
 }
@@ -849,11 +851,13 @@ async function loadTicker(t){
 }
 
 const SKIP_TYPES = ['News','Talk Show','Sports','Game Show'];
+let NET_OK = 0;   // answers received; a refresh that got none must not replace what is on screen
 async function getJSON(url, fallback){
-  try{ const r = await fetchT(url, 12000); return r.ok ? await r.json() : fallback; }catch(e){ return fallback; }
+  try{ const r = await fetchT(url, 12000); if(!r.ok) return fallback; const j = await r.json(); NET_OK++; return j; }
+  catch(e){ return fallback; }
 }
 async function loadWeek(){
-  const F = CONFIG.shows, seen = new Set(), out = [];
+  const F = CONFIG.shows, seen = new Set(), out = [], answered = NET_OK;
   const days = [];
   for(let i=0;i<7;i++) days.push(new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(Date.now()+i*86400000)));
   const inWeek = d => d && d >= days[0] && d <= days[6];
@@ -896,6 +900,8 @@ async function loadWeek(){
     });
   }
 
+  // nothing answered (offline): keep the saved list if one is shown
+  if(NET_OK === answered && document.querySelector('#week-list li:not(.empty)')) return;
   if(out.length){                                   // keep the last good list on a failed refresh
     WEEK_POOL = out.sort((a,b)=> (b.picked - a.picked) || (b.prem - a.prem) || a.date.localeCompare(b.date)).slice(0, 50);
     WEEK_PAGE = 0;

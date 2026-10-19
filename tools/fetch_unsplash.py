@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Free key from unsplash.com/developers, stored as the UNSPLASH_ACCESS_KEY repository secret.
 KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
-UA = {"User-Agent": "tv-screensaver background picker", "Accept-Version": "v1", "Authorization": "Client-ID " + KEY}
+UA = {"User-Agent": "your-tv background picker", "Accept-Version": "v1", "Authorization": "Client-ID " + KEY}
 QUERIES = ["AlUla", "Saudi Arabia landscape", "Saudi Arabia desert", "Riyadh skyline", "Jeddah", "Abha",
            "Edge of the World Saudi", "Hegra", "Saudi Arabia mountains", "Red Sea Saudi", "Tabuk", "Diriyah",
            "NEOM", "Saudi Arabia night", "Empty Quarter"]

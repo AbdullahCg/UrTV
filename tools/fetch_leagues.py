@@ -18,7 +18,7 @@ def get(path):
     for attempt in range(8):
         time.sleep(4)
         try:
-            with urllib.request.urlopen(urllib.request.Request(API + path, headers={"User-Agent": "tvsaver"}),
+            with urllib.request.urlopen(urllib.request.Request(API + path, headers={"User-Agent": "your-tv"}),
                                         timeout=60) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
