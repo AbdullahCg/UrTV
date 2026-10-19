@@ -72,7 +72,7 @@ optimize/shot.sh home my-apps
 ```
 Tell me the model and Android version. Look at `optimize/run/shots/my-apps.png` and write down the first **6 apps**
 of my apps / favourites row, left to right, by name: they become the favourites of the new home screen in step 4.
-Only then, if this TV was set up with these tools before (also older versions, whose apps are `com.abdullah.*`),
+Only then, if this TV was set up with these tools before (also older versions, whose apps are `sa.yourtv.*` or `com.abdullah.*`),
 run `optimize/reset.sh` so we start like new.
 
 ## 2. My choices (5 minutes, with me, all at once so the rest runs on its own)
@@ -135,8 +135,8 @@ optimize/keep.sh                                  # must end with «Protected fe
 optimize/run.sh status                            # every step ✓
 grep '!!' optimize/run/report.md || echo none     # must print «none»
 ```
-- `report.md` shows Home as `sa.yourtv.home` (or the stock home if we used `SKIP_LAUNCHER=1`) and the screensaver
-  as `sa.yourtv.screensaver`.
+- `report.md` shows Home as `sa.urtv.home` (or the stock home if we used `SKIP_LAUNCHER=1`) and the screensaver
+  as `sa.urtv.screensaver`.
 - You looked at the step 5 screenshots yourself and they show my city, my card and my favourites.
 - I tried voice from the remote and casting from a phone, and both work.
 

@@ -1,6 +1,6 @@
-<p align="center"><img src=".github/brand/hero.png" alt="تلفزيونك · Your TV" width="100%"></p>
+<p align="center"><img src=".github/brand/hero.png" alt="تلفزيونك · UrTV" width="100%"></p>
 
-<h1 align="center">تلفزيونك · Your TV</h1>
+<h1 align="center">تلفزيونك · UrTV</h1>
 
 <p align="center" dir="rtl">واجهة رئيسية عربية وشاشة توقف سعودية لتلفزيونات Android TV و Google TV، وتسريع آمن للتلفزيون.<br>يركّبها لك مساعد ذكاء اصطناعي بأمر واحد.</p>
 
@@ -51,8 +51,8 @@ the home-screen switch has a 5-minute automatic fallback, and `optimize/reset.sh
 
 | | | |
 |---|---|---|
-| **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, or a verse/hadith of the day, over Saudi landscapes | `yourtv-screensaver.apk` |
-| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default) | `yourtv-home.apk` |
+| **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, or a verse/hadith of the day, over Saudi landscapes | `urtv-screensaver.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default) | `urtv-home.apk` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), fewer apps kept in memory, Play Store kept from running in the background, faster animations | `optimize/` |
 
 **Download the apps yourself:** [releases/apk-latest](https://github.com/tshi-dev/UrTV/releases/tag/apk-latest)
@@ -77,24 +77,27 @@ What we learned on real TCL sets, and what must stay on: [docs/OPTIMIZE.md](docs
 ## For developers
 
 ```
-src/template.html     the screen (HTML/CSS/JS, no framework); edit this, then: python3 build.py
-dist/your-tv.html     stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline
+src/template.html     the screen (HTML/CSS/JS, no framework); edit this, then run src/build.py
+src/build.py          builds the two pages in dist/
+dist/urtv.html        stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline
 dist/tv.html          light page the Android app loads (0.1 MB); the app serves fonts and photos from disk
-android/app           the screensaver app (sa.yourtv.screensaver): DreamService, settings, auto-update
-android/launcher      the home screen (sa.yourtv.home)
+android/app           the screensaver app (sa.urtv.screensaver): DreamService, settings, auto-update
+android/launcher      the home screen (sa.urtv.home)
 assets/               fonts, bundled photos, Arabic team names, verse and hadith texts
 photos/               the hosted photo set (5 shown per 4 days, rotating every 30 min)
-optimize/             TV tools (Python ADB client, no adb binary needed)
+optimize/             TV tools (Python ADB client, no adb binary needed); lists/ says what may be turned off
+docs/                 the agent prompts (setup, recreate), what we learned on real TVs, test plan, photo credits
+.github/              CI: APK builds, checks, data tools (verses, hadith, clubs, photos), README images
 tests/run.sh          every check: build, data, fonts, scripts, private data, flaky-ADB upload, the screen in a browser
 ```
 
 Every push builds both APKs in GitHub Actions and publishes them to the `apk-latest` release; `tests/run.sh` runs
-on every push too. Local Android build (needs the SDK): `python3 build.py && gradle -p android assembleRelease`.
+on every push too. Local Android build (needs the SDK): `python3 src/build.py && gradle -p android assembleRelease`.
 
 **Screen settings** come from the URL fragment (works on `file://` and in WebView):
 
 ```
-your-tv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137&panel=prayers
+urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137&panel=prayers
 ```
 
 `teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
@@ -116,4 +119,4 @@ Arabic text of the six Sunni books, and only those found are shown, with the boo
 Photos: Unsplash photographers, listed in [docs/PHOTO-CREDITS.md](docs/PHOTO-CREDITS.md). Fonts: Thmanyah, and
 Noto Naskh Arabic for ﷺ ﴿﴾ (OFL, `assets/fonts/`).
 Home screen adapted from [mihirgupta0900/tv-home](https://github.com/mihirgupta0900/tv-home) (MIT,
-`third_party/`). Package ratings from [UAD-ng](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation).
+`android/launcher/LICENSE-tv-home`). Package ratings from [UAD-ng](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation).

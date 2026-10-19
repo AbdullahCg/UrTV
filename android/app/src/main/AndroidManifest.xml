@@ -7,12 +7,12 @@
 
     <!-- the launcher (same signing key) reads the settings for its home-screen card -->
     <permission
-        android:name="sa.yourtv.screensaver.READ_CONFIG"
+        android:name="sa.urtv.screensaver.READ_CONFIG"
         android:protectionLevel="signature" />
 
     <!-- opens the launcher's «ترتيب المفضلة» from settings -->
     <queries>
-        <package android:name="sa.yourtv.home" />
+        <package android:name="sa.urtv.home" />
     </queries>
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -79,17 +79,17 @@
             android:exported="true"
             android:permission="android.permission.DUMP">
             <intent-filter>
-                <action android:name="sa.yourtv.screensaver.GET" />
-                <action android:name="sa.yourtv.screensaver.SET" />
-                <action android:name="sa.yourtv.screensaver.CITIES" />
-                <action android:name="sa.yourtv.screensaver.UPDATE" />
+                <action android:name="sa.urtv.screensaver.GET" />
+                <action android:name="sa.urtv.screensaver.SET" />
+                <action android:name="sa.urtv.screensaver.CITIES" />
+                <action android:name="sa.urtv.screensaver.UPDATE" />
             </intent-filter>
         </receiver>
 
         <provider
             android:name=".ConfigProvider"
-            android:authorities="sa.yourtv.screensaver.config"
+            android:authorities="sa.urtv.screensaver.config"
             android:exported="true"
-            android:readPermission="sa.yourtv.screensaver.READ_CONFIG" />
+            android:readPermission="sa.urtv.screensaver.READ_CONFIG" />
     </application>
 </manifest>

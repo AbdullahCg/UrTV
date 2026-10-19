@@ -3,7 +3,7 @@ name: Build APKs
 on:
   push:
     branches: [master]
-    paths: ['src/**', 'assets/**', 'build.py', 'android/**', '.github/workflows/android.yml']
+    paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build the page
-        run: python3 build.py
+        run: python3 src/build.py
 
       - uses: actions/setup-java@v4
         with:
@@ -32,17 +32,17 @@ jobs:
 
       - name: Rename
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk yourtv-screensaver.apk
-          cp android/launcher/build/outputs/apk/release/launcher-release.apk yourtv-home.apk
+          cp android/app/build/outputs/apk/release/app-release.apk urtv-screensaver.apk
+          cp android/launcher/build/outputs/apk/release/launcher-release.apk urtv-home.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: apks
           path: |
-            yourtv-screensaver.apk
-            yourtv-home.apk
+            urtv-screensaver.apk
+            urtv-home.apk
 
-      # fixed download links: .../releases/download/apk-latest/yourtv-screensaver.apk and yourtv-home.apk
+      # fixed download links: .../releases/download/apk-latest/urtv-screensaver.apk and urtv-home.apk
       - name: Publish to the apk-latest release
         uses: softprops/action-gh-release@v2
         with:
@@ -50,6 +50,6 @@ jobs:
           name: Latest APKs
           body: "Build ${{ github.run_number }} from ${{ github.sha }}"
           files: |
-            yourtv-screensaver.apk
-            yourtv-home.apk
+            urtv-screensaver.apk
+            urtv-home.apk
           make_latest: true

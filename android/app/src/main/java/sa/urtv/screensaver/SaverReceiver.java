@@ -1,4 +1,4 @@
-package sa.yourtv.screensaver;
+package sa.urtv.screensaver;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -12,12 +12,12 @@ import java.util.List;
  * The screensaver's settings from ADB, for agents (people use SettingsActivity). Only the shell can send
  * these: the manifest requires android.permission.DUMP. optimize/saver.sh wraps them.
  *
- *   am broadcast -n sa.yourtv.screensaver/.SaverReceiver -a sa.yourtv.screensaver.GET
- *   am broadcast -n sa.yourtv.screensaver/.SaverReceiver -a sa.yourtv.screensaver.CITIES
- *   am broadcast -n sa.yourtv.screensaver/.SaverReceiver -a sa.yourtv.screensaver.SET
+ *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.GET
+ *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.CITIES
+ *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.SET
  *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
- *   am broadcast -n sa.yourtv.screensaver/.SaverReceiver -a sa.yourtv.screensaver.UPDATE
+ *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *
  * The answer is in the "data" of am's output. Unknown values are refused with a message, nothing half-saved.
  */
@@ -27,10 +27,10 @@ public class SaverReceiver extends BroadcastReceiver {
         Prefs p = new Prefs(c);
         String action = String.valueOf(i.getAction());
         switch (action) {
-            case "sa.yourtv.screensaver.GET":
+            case "sa.urtv.screensaver.GET":
                 setResultData(describe(p));
                 return;
-            case "sa.yourtv.screensaver.CITIES": {
+            case "sa.urtv.screensaver.CITIES": {
                 StringBuilder b = new StringBuilder();
                 for (Cities.Region r : Cities.REGIONS) {
                     b.append(r.name).append(": ");
@@ -41,7 +41,7 @@ public class SaverReceiver extends BroadcastReceiver {
                 setResultData(b.toString().trim());
                 return;
             }
-            case "sa.yourtv.screensaver.UPDATE": {
+            case "sa.urtv.screensaver.UPDATE": {
                 final PendingResult pending = goAsync();   // a download: off the main thread
                 final Context app = c.getApplicationContext();
                 new Thread(() -> {
@@ -50,7 +50,7 @@ public class SaverReceiver extends BroadcastReceiver {
                 }).start();
                 return;
             }
-            case "sa.yourtv.screensaver.SET":
+            case "sa.urtv.screensaver.SET":
                 setResultData(set(c, p, i));
                 return;
             default:

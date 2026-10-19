@@ -1,4 +1,4 @@
-package sa.yourtv.home;
+package sa.urtv.home;
 
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
@@ -59,7 +59,7 @@ import java.util.Set;
  * ambient glow, a dock of pinned apps, and every other app in a grid that scrolls up on Down.
  * Plain framework views only (no AndroidX). Network only for hosted wallpapers and the optional card (HomeCard).
  *
- * Adapted from github.com/mihirgupta0900/tv-home (MIT, see third_party/tv-home-LICENSE):
+ * Adapted from github.com/mihirgupta0900/tv-home (MIT, see android/launcher/LICENSE-tv-home):
  * Arabic text and digits, Hijri date, Thmanyah fonts, the screensaver's gold palette and Saudi photos,
  * clock on the right, and a pill that opens the screensaver's settings.
  */
@@ -1025,7 +1025,7 @@ public class MainActivity extends Activity {
     }
 
     static final int GOLD = 0xFFD6AF6B;
-    static final String SAVER_PKG = "sa.yourtv.screensaver";
+    static final String SAVER_PKG = "sa.urtv.screensaver";
     private final Map<String, Typeface> fonts = new HashMap<>();
 
     /** Thmanyah from assets/fonts; any old family name maps to the nearest weight. */

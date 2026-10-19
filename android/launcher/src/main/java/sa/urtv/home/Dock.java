@@ -1,4 +1,4 @@
-package sa.yourtv.home;
+package sa.urtv.home;
 
 import android.content.Context;
 import android.content.Intent;
@@ -17,7 +17,7 @@ import java.util.Map;
 final class Dock {
     static final int MIN = 5;    // the row never shows fewer apps than this
     static final int MAX = 10;   // tiles share the row width, so 10 still fit at 1080p
-    static final String CHANGED = "sa.yourtv.home.DOCK_CHANGED";   // tells a running home screen to redraw
+    static final String CHANGED = "sa.urtv.home.DOCK_CHANGED";   // tells a running home screen to redraw
 
     private Dock() {}
 

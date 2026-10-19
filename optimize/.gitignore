@@ -1,9 +1,0 @@
-venv/
-adbkey/
-.tv_host
-backup-*.txt
-*.apk
-__pycache__/
-run/
-run-*/
-lists/mine.txt

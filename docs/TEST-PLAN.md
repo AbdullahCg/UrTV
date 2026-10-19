@@ -4,7 +4,7 @@ For a tester (human or agent) with a Linux/macOS machine, `adb`, and an Android 
 Every step has an exact action and the expected result. Record **PASS / FAIL + note + screenshot** for each ID.
 
 Screenshots: `adb exec-out screencap -p > ID.png`
-Logs on failure: `adb logcat -d -t 300 | grep -iE "yourtv|chromium|AndroidRuntime" > ID.log`
+Logs on failure: `adb logcat -d -t 300 | grep -iE "urtv|chromium|AndroidRuntime" > ID.log`
 
 ---
 
@@ -14,14 +14,14 @@ Logs on failure: `adb logcat -d -t 300 | grep -iE "yourtv|chromium|AndroidRuntim
 |---|---|---|
 | S1 | On the TV: Settings → Device preferences → About → press Build 7× → Developer options → enable **USB/Network debugging**. Note the TV's IP. | Debugging on |
 | S2 | `adb connect <TV_IP>:5555` then `adb devices` | Device listed as `device` |
-| S3 | `curl -L -o yourtv-screensaver.apk https://github.com/tshi-dev/UrTV/releases/download/apk-latest/yourtv-screensaver.apk` | ~2–5 MB file |
-| S4 | `adb uninstall com.abdullah.tvsaver` (ignore "not installed") | The pre-rename app is gone (it would show twice) |
-| S5 | `adb install yourtv-screensaver.apk` | `Success` |
-| S6 | `adb shell dumpsys package sa.yourtv.screensaver \| grep versionName` | `versionName=2.<number>` |
+| S3 | `curl -L -o urtv-screensaver.apk https://github.com/tshi-dev/UrTV/releases/download/apk-latest/urtv-screensaver.apk` | ~2–5 MB file |
+| S4 | `adb uninstall sa.yourtv.screensaver` and `adb uninstall com.abdullah.tvsaver` (ignore "not installed") | The pre-rename app is gone (it would show twice) |
+| S5 | `adb install urtv-screensaver.apk` | `Success` |
+| S6 | `adb shell dumpsys package sa.urtv.screensaver \| grep versionName` | `versionName=2.<number>` |
 
 ## 1. Settings screen
 
-Open: `adb shell am start -n sa.yourtv.screensaver/.SettingsActivity`
+Open: `adb shell am start -n sa.urtv.screensaver/.SettingsActivity`
 Navigate with the remote, or `adb shell input keyevent DPAD_DOWN|DPAD_UP|DPAD_CENTER|BACK`.
 
 | ID | Action | Expected |
@@ -44,11 +44,11 @@ Navigate with the remote, or `adb shell input keyevent DPAD_DOWN|DPAD_UP|DPAD_CE
 | A16 | التحديث التلقائي → press | Toggles يعمل/متوقف; set back to يعمل |
 | A17 | تحقق من التحديث الآن | Toast «تم التحديث» or «الصفحة محدثة» (not «لا يوجد اتصال») |
 | A18 | إعدادات شاشة التوقف في التلفاز | TV screensaver settings open |
-| A19 | Force-close and reopen: `adb shell am force-stop sa.yourtv.screensaver` then A1 | All choices from A4–A15 kept |
+| A19 | Force-close and reopen: `adb shell am force-stop sa.urtv.screensaver` then A1 | All choices from A4–A15 kept |
 
 ## 2. Preview / screen content
 
-Open: «معاينة الشاشة» row, or `adb shell am start -n sa.yourtv.screensaver/.MainActivity`. Wait 60 s for data.
+Open: «معاينة الشاشة» row, or `adb shell am start -n sa.urtv.screensaver/.MainActivity`. Wait 60 s for data.
 
 | ID | Check | Expected |
 |---|---|---|
@@ -86,7 +86,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 
 | ID | Action | Expected |
 |---|---|---|
-| D1 | TV Settings → screensaver → choose «شاشة تلفزيونك», or `adb shell settings put secure screensaver_components sa.yourtv.screensaver/.ScreenDream` | Selected |
+| D1 | TV Settings → screensaver → choose «شاشة تلفزيونك», or `adb shell settings put secure screensaver_components sa.urtv.screensaver/.ScreenDream` | Selected |
 | D2 | Start now: `adb shell am start -n "com.android.systemui/.Somnambulator"` (or wait for the idle timer) | The screen appears full screen |
 | D3 | Press any remote key | Screensaver exits |
 | D4 | Leave the TV idle for the timer set in TV settings | Starts by itself |
@@ -104,20 +104,20 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 |---|---|---|
 | F1 | Press A17 twice in a row | First «تم التحديث», second «الصفحة محدثة» (the page is cached and unchanged) |
 | F2 | Ask the developer to push a visible change (or note the latest commit), then A17 | Toast «تم التحديث»; preview shows the change |
-| F3 | `adb shell dumpsys jobscheduler \| grep -A3 yourtv` | A periodic, persisted job listed |
+| F3 | `adb shell dumpsys jobscheduler \| grep -A3 urtv` | A periodic, persisted job listed |
 
 ## 7. Power cycle (TCL)
 
 | ID | Action | Expected |
 |---|---|---|
 | G1 | Unplug the TV for 30 s, power on, **do not open the app**, wait for the idle timer | Screensaver starts. If not: note it, open the app once, retest D4 |
-| G2 | `adb logcat -d \| grep -iE "dream\|yourtv" > G1.log` after G1 | Attach the log |
+| G2 | `adb logcat -d \| grep -iE "dream\|urtv" > G1.log` after G1 | Attach the log |
 
 ## 8. Browser (no app)
 
 | ID | Action | Expected |
 |---|---|---|
-| H1 | On a computer open `https://raw.githack.com/tshi-dev/UrTV/master/dist/your-tv.html` or download `dist/your-tv.html` and double-click | Same screen in the browser; `F` toggles full screen |
+| H1 | On a computer open `https://raw.githack.com/tshi-dev/UrTV/master/dist/urtv.html` or download `dist/urtv.html` and double-click | Same screen in the browser; `F` toggles full screen |
 | H2 | Add `#city=جدة&lat=21.5433&lon=39.1728&teams=136013` to the URL | Jeddah times; only one match slot |
 | H3 | Resize the window to 1280×720 | Layout holds, nothing overlaps |
 
@@ -134,7 +134,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | L5 | `optimize/dock.sh apps`, then `optimize/dock.sh set <3 packages from that list>`, then `optimize/dock.sh show` | Home screen redraws at once with those three first, topped up to 5; `show` lists them |
 | L6 | `optimize/dock.sh set com.not.installed` | `error: none of these apps are on this TV's home screen`; row unchanged |
 | L7 | `optimize/dock.sh reset` | Row back to the defaults |
-| L4 | Open any app with the card on, then `adb shell top -n 1 \| grep yourtv.home` | Launcher idle while the app is in front (card paused) |
+| L4 | Open any app with the card on, then `adb shell top -n 1 \| grep urtv.home` | Launcher idle while the app is in front (card paused) |
 
 ---
 

@@ -32,16 +32,16 @@ def tracked(*globs):
 
 
 # ---- build
-before = {n: (ROOT / "dist" / n).read_bytes() for n in ("your-tv.html", "tv.html") if (ROOT / "dist" / n).is_file()}
-r = subprocess.run([sys.executable, "build.py"], cwd=ROOT, capture_output=True, text=True)
-check("build.py runs", r.returncode == 0, r.stderr[-400:])
-for page, limit in (("your-tv.html", 4_000_000), ("tv.html", 300_000)):
+before = {n: (ROOT / "dist" / n).read_bytes() for n in ("urtv.html", "tv.html") if (ROOT / "dist" / n).is_file()}
+r = subprocess.run([sys.executable, "src/build.py"], cwd=ROOT, capture_output=True, text=True)
+check("src/build.py runs", r.returncode == 0, r.stderr[-400:])
+for page, limit in (("urtv.html", 4_000_000), ("tv.html", 300_000)):
     html = (ROOT / "dist" / page).read_text(encoding="utf-8")
     left = sorted(set(re.findall(r"__[A-Z][A-Z_]+__", html)))
     check(f"{page}: every build token replaced", not left, left)
     check(f"{page}: size under {limit // 1000} KB", len(html.encode()) < limit, len(html.encode()))
 stale = [n for n, b in before.items() if (ROOT / "dist" / n).read_bytes() != b]
-check("dist/ matched a fresh build (run build.py after editing src/)", len(before) == 2 and not stale, stale)
+check("dist/ matched a fresh build (run src/build.py after editing src/)", len(before) == 2 and not stale, stale)
 
 # ---- data files
 for f in tracked("*.json"):
@@ -90,7 +90,7 @@ check("Arabic team names: every character in Thmanyah", not missing, missing)
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()
 arr = {a.get("name"): [i.text for i in a] for a in cfg.findall("string-array")}
 check("launcher: no dock app is also hidden", not set(arr["dock_apps"]) & set(arr["hidden_apps"]))
-check("launcher: screensaver app not hidden", "sa.yourtv.screensaver" not in arr["hidden_apps"])
+check("launcher: screensaver app not hidden", "sa.urtv.screensaver" not in arr["hidden_apps"])
 
 # ---- optimize: never disable a kept package
 def pkgs(path):

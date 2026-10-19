@@ -9,12 +9,12 @@ import urllib.request
 from pathlib import Path
 
 KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
-UA = {"User-Agent": "your-tv", "Accept-Version": "v1", "Authorization": "Client-ID " + KEY}
+UA = {"User-Agent": "urtv", "Accept-Version": "v1", "Authorization": "Client-ID " + KEY}
 
 
 def get(url, headers=None):
     time.sleep(1)
-    with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {"User-Agent": "your-tv"}),
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {"User-Agent": "urtv"}),
                                 timeout=120) as r:
         return r.read()
 

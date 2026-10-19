@@ -1,4 +1,4 @@
-package sa.yourtv.screensaver;
+package sa.urtv.screensaver;
 
 import android.service.dreams.DreamService;
 import android.webkit.WebView;

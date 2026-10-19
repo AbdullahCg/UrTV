@@ -41,7 +41,7 @@ async function open(file, hash, { width = 1920, height = 1080, seed = true } = {
 }
 
 // ---- both pages, three screen sizes: no errors, shown, clock right, nothing off screen, Arabic digits
-for (const file of ['your-tv.html', 'tv.html']) {
+for (const file of ['urtv.html', 'tv.html']) {
   for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const { p, ctx, errors } = await open(file, 'city=جدة&lat=21.5433&lon=39.1728', { width: w, height: h });
     const tag = `${file} ${w}x${h}`;

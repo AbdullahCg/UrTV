@@ -1,4 +1,4 @@
-package sa.yourtv.home;
+package sa.urtv.home;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -22,7 +22,7 @@ import java.util.Collections;
  * off no WebView is created. Settings come from the screensaver app's ConfigProvider (same signing key).
  */
 final class HomeCard {
-    private static final Uri CONFIG = Uri.parse("content://sa.yourtv.screensaver.config");
+    private static final Uri CONFIG = Uri.parse("content://sa.urtv.screensaver.config");
     private static final String FONTS = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/assets/fonts/";
 
     private final Activity activity;

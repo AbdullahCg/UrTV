@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """src/template.html -> two pages in dist/:
 
-your-tv.html  stand-alone: fonts and the bundled photos inlined, works offline from a double-click.
+urtv.html           stand-alone: fonts and the bundled photos inlined, works offline from a double-click.
 tv.html             for the Android app: same page, but fonts and bundled photos are URLs the app serves from
                     its own assets (PhotoCache.java). 2.2 MB less to parse, so the screensaver starts faster.
 """
@@ -10,7 +10,7 @@ import json
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 FONTS = {
     "__F_LIGHT__": "Thmanyah-Light.woff2",
     "__F_REGULAR__": "Thmanyah-Regular.woff2",
@@ -53,7 +53,7 @@ def main():
 
     bg_dir = ROOT / "assets/backgrounds"
     bgs = json.loads((bg_dir / "backgrounds.json").read_text(encoding="utf-8"))
-    for name, inline in (("your-tv.html", True), ("tv.html", False)):
+    for name, inline in (("urtv.html", True), ("tv.html", False)):
         page = html
         for token, font in FONTS.items():
             page = page.replace(token, data_uri(ROOT / "assets/fonts" / font, "font/woff2") if inline

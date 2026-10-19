@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'sa.yourtv.screensaver'
+    namespace 'sa.urtv.screensaver'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'sa.yourtv.screensaver'
+        applicationId 'sa.urtv.screensaver'
         minSdk 21
         targetSdk 34
         // CI passes its run number so every build installs over the previous one
@@ -32,7 +32,7 @@ android {
         }
     }
 
-    // the page is built by ../../build.py into dist/
+    // the page is built by ../../src/build.py into dist/
     sourceSets {
         main { assets.srcDirs = ['../../dist', '../../assets/shared', '../launcher/src/main/assets', '../../assets'] }   // page, teams-ar.json, Thmanyah fonts, backgrounds/
     }

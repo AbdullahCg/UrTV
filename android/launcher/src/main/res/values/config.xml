@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Launcher settings. Edit, push, and GitHub Actions rebuilds yourtv-home.apk; then run optimize/install.sh.
+  Launcher settings. Edit, push, and GitHub Actions rebuilds urtv-home.apk; then run optimize/install.sh.
   Package names on your TV: optimize/venv/bin/python -I optimize/tv.py 'pm list packages'
 -->
 <resources>

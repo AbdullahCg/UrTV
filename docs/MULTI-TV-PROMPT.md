@@ -13,13 +13,13 @@ Repository: **https://github.com/tshi-dev/UrTV** (public). Work on a branch and 
 ## What already exists (read these first)
 
 - `README.md` — overview, build, URL fragment parameters.
-- `src/template.html` — the whole screen: one HTML/CSS/JS page, no framework, no build step. `build.py` makes `dist/your-tv.html` (fonts and photos inlined, ~2.7 MB, works from `file://` and offline) and `dist/tv.html` (0.1 MB, for the Android app).
+- `src/template.html` — the whole screen: one HTML/CSS/JS page, no framework, no build step. `src/build.py` makes `dist/urtv.html` (fonts and photos inlined, ~2.7 MB, works from `file://` and offline) and `dist/tv.html` (0.1 MB, for the Android app).
 - `docs/RECREATE-PROMPT.md` — the full design and behaviour spec. Treat it as the source of truth for what the screen must show.
 - `android/` — the current native Android app: a `DreamService` (system screensaver), a settings screen (city, up to 10 teams, the card beside the clock, show filters), and auto-update that downloads `dist/tv.html` from `master` every 6 hours. Built by `.github/workflows/android.yml` and published to the `apk-latest` release.
 - `docs/TEST-PLAN.md` — how the Android build is tested; reuse its style.
 
 Settings reach the page through the URL fragment, not a query string:
-`your-tv.html#city=..&lat=..&lon=..&tz=Asia/Riyadh&teams=<id>,<id>&panel=..&genres=..&langs=..&shows=..&minrating=..`
+`urtv.html#city=..&lat=..&lon=..&tz=Asia/Riyadh&teams=<id>,<id>&panel=..&genres=..&langs=..&shows=..&minrating=..`
 
 ## Step 1 — research (report before building)
 
@@ -48,7 +48,7 @@ Follow the recommended strategy. Expected shape (adjust if research shows better
 
 - **One shared page**: keep `src/template.html` as the single source. Any platform fix goes there behind feature detection, never a fork of the page.
 - **Hosted version**: publish `dist/` with GitHub Pages so browser-only TVs and Cast receivers can load a URL. Add a lightweight variant that loads photos as separate files instead of inlined base64, for slow TVs.
-- **Settings without the Android app**: a simple settings page, usable with a TV remote and also from a phone, that builds the fragment URL. City from the existing region list in `android/app/src/main/java/sa/yourtv/screensaver/Cities.java` and the Open-Meteo search, plus two team fields and the show filters. Optionally show a QR code linking to it.
+- **Settings without the Android app**: a simple settings page, usable with a TV remote and also from a phone, that builds the fragment URL. City from the existing region list in `android/app/src/main/java/sa/urtv/screensaver/Cities.java` and the Open-Meteo search, plus two team fields and the show filters. Optionally show a QR code linking to it.
 - **Per-platform wrappers** where they add real value (system screensaver, auto-start, offline). Examples: a Tizen `.wgt` and a webOS `.ipk` that bundle the page; a Fire TV build of the existing APK if its screensaver path differs; a Cast receiver; a tvOS or Roku native port **only if** research shows no web path. For those, document the cost instead of building it unless it is small.
 - **CI**: extend GitHub Actions to build every package and attach it to a release, like `apk-latest`.
 
