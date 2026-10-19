@@ -11,6 +11,9 @@ STOCK_LAUNCHER="${STOCK_LAUNCHER:-com.google.android.apps.tv.launcherx/.home.Hom
 {
   grep -vE '^\s*(#|$)' "$LIST" | awk '{print "pm enable " $1}'
   echo "pm enable com.google.android.tungsten.setupwraith"
+  echo "touch /data/local/tmp/home_ok"      # stop a running safety switch, we restore by hand
+  echo "pm enable com.google.android.apps.tv.launcherx"
+  echo "pm enable com.google.android.tvlauncher"
   echo "pm enable ${STOCK_LAUNCHER%%/*}"
   echo "cmd package set-home-activity --user 0 $STOCK_LAUNCHER"
   echo "input keyevent KEYCODE_HOME"

@@ -35,12 +35,14 @@ You are setting up my Android TV / Google TV with three things from this reposit
 3. `optimize/backup.sh`.
 
 **1. Optimize**
-1. List the installed packages, then build a debloat list for this TV in `optimize/lists/<brand-model>.txt`.
-   Start from `optimize/lists/tcl-google-tv.txt` if it is a TCL; otherwise search GitHub for a debloat list for this
-   brand/model and cite the source in the file's header. Ask me about each group as described above.
-2. `optimize/venv/bin/python -I optimize/check-packages.py optimize/lists/<file>` and show me anything not "Recommended".
-3. `optimize/disable.sh optimize/lists/<file>`, then `optimize/tweaks.sh apply`.
-4. Measure before/after: `dumpsys meminfo | head -40` and the home screen's memory. Report the numbers.
+1. Read `docs/OPTIMIZE.md` (lessons from real TCL sets). `optimize/lists/keep.txt` is never touched:
+   AirPlay, Chromecast, mirroring, voice, inputs, tuner, updates stay on. `disable.sh` refuses those anyway.
+2. TCL: apply `optimize/lists/tcl-safe.txt` as is. Go through `optimize/lists/tcl-optional.txt` group by group
+   with me and comment out what I keep. Other brands: build `optimize/lists/<brand>.txt` the same way, from GitHub
+   debloat lists for that brand (cite them in the header).
+3. `optimize/venv/bin/python -I optimize/check-packages.py <list>` and show me anything not "Recommended".
+4. `optimize/disable.sh <list>` for each list, then `optimize/tweaks.sh apply`.
+5. Measure before/after: `grep MemAvailable /proc/meminfo`, `dumpsys meminfo | head -40` and the home screen's memory. Report the numbers.
 
 **2. Screensaver (شاشة السعودية)**
 1. `optimize/install.sh saver`. Its settings open on the TV: set city, team 1 and team 2 with me.
@@ -53,7 +55,9 @@ You are setting up my Android TV / Google TV with three things from this reposit
    `android/launcher/src/main/res/values/config.xml` (`dock_apps`, `hidden_apps`, `live_tv_package`).
    If you changed it, commit on a branch, open a pull request, and wait for the "Build APKs" check to pass.
    Then ask me to merge, so the `apk-latest` release has the new `tvhome.apk`.
-2. `optimize/install.sh launcher`.
+2. `optimize/install.sh launcher`. It installs the new home first, arms a 3-minute safety switch on the TV,
+   switches, and checks that Home opens the new launcher. If the check fails, do nothing: the stock home comes
+   back by itself. Never disable the stock home or the setup app by hand.
 3. Test: press Home from inside an app (it must come back to our home, not the stock one), D-pad through the dock
    and the full app grid, open المصادر (inputs), واي فاي, الإعدادات and شاشة التوقف.
 

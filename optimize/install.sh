@@ -9,8 +9,6 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
 REL=https://github.com/tshi-dev/TV-ScreenSaver/releases/download/apk-latest
-# Google TV's stock launcher; older Android TV sets use com.google.android.tvlauncher.
-STOCK_LAUNCHER="${STOCK_LAUNCHER:-com.google.android.apps.tv.launcherx}"
 what="${1:?usage: optimize/install.sh saver|launcher|all}"
 
 push_install() {   # $1 apk name, $2 package
@@ -36,15 +34,46 @@ if [ "$what" = saver ] || [ "$what" = all ]; then
 fi
 
 if [ "$what" = launcher ] || [ "$what" = all ]; then
+  # Which stock home does this TV have? Google TV sets: launcherx. Older Android TV: tvlauncher.
+  if "$PY" -I optimize/tv.py "pm list packages com.google.android.apps.tv.launcherx" | grep -q launcherx; then
+    STOCK=com.google.android.apps.tv.launcherx/com.google.android.apps.tv.launcherx.home.HomeActivity
+  else
+    STOCK=com.google.android.tvlauncher/.MainActivity
+  fi
+  echo "Stock home: $STOCK"
+
+  # 1. The new home must be installed and working BEFORE anything is disabled.
   push_install tvhome.apk com.abdullah.tvhome
+  "$PY" -I optimize/tv.py "pm grant com.abdullah.tvhome android.permission.ACCESS_FINE_LOCATION" || true
+
+  # 2. Arm the safety switch on the TV: it restores the stock home in 180 s unless we confirm.
+  "$PY" -I optimize/tv.py --push-b64 optimize/deadman.sh /data/local/tmp/deadman.sh
   printf '%s\n' \
-    "pm grant com.abdullah.tvhome android.permission.ACCESS_FINE_LOCATION" \
+    "rm -f /data/local/tmp/home_ok" \
+    "nohup sh /data/local/tmp/deadman.sh $STOCK 180 > /dev/null 2>&1 &" \
+    | "$PY" -I optimize/tv.py --batch
+  echo "Safety switch armed: the stock home comes back by itself in 3 minutes unless the new home works."
+
+  # 3. Switch. Setup app first, then the stock home (this order avoided the black screen).
+  printf '%s\n' \
     "cmd package set-home-activity --user 0 com.abdullah.tvhome/.MainActivity" \
-    "pm disable-user --user 0 $STOCK_LAUNCHER" \
     "pm disable-user --user 0 com.google.android.tungsten.setupwraith" \
+    "pm disable-user --user 0 ${STOCK%%/*}" \
     "cmd package set-home-activity --user 0 com.abdullah.tvhome/.MainActivity" \
     "am force-stop com.android.tv.settings" \
     "input keyevent KEYCODE_HOME" \
     | "$PY" -I optimize/tv.py --batch
-  echo "Launcher installed. Press Home on the remote. Undo: optimize/restore.sh <debloat list>"
+  sleep 6
+
+  # 4. Verify Home really opens the new launcher, then disarm the switch.
+  if "$PY" -I optimize/tv.py "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" \
+       | grep -q com.abdullah.tvhome; then
+    "$PY" -I optimize/tv.py "touch /data/local/tmp/home_ok"
+    echo "Launcher is home. Press Home from inside an app to double-check."
+    echo "Undo: optimize/restore.sh optimize/lists/<your list>   (re-enables the stock home)"
+  else
+    echo "!! Home did not open the new launcher. Leave the TV alone: the stock home returns within 3 minutes."
+    echo "   Some TCL firmware pins Home to the stock launcher; on those sets keep the stock home."
+    exit 1
+  fi
 fi
