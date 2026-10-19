@@ -183,8 +183,10 @@
   .p-match .big{justify-content:flex-end}
   .p-match .sub{white-space:normal;line-height:1.4;max-width:100%;font-size:clamp(11px,.88vw,17px)}
 
-  .mrow{display:flex;flex-direction:column;gap:1.2vh;align-items:flex-end}
-  .mblock{text-align:left;width:100%}
+  .mrow{display:flex;flex-direction:row;gap:1.6vw;align-items:flex-end;justify-content:flex-end;min-width:0}
+  .mblock{text-align:left;flex:0 1 auto;min-width:0;max-width:100%}
+  .mblock:not(:last-child){padding-inline-end:1.6vw;border-inline-end:1px solid rgba(220,184,111,.25)}
+  .mrow:has(.mblock + .mblock) .big{font-size:clamp(18px,1.6vw,34px)}
   .mblock .big{justify-content:flex-end;min-width:0}
   .mblock .big > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
   .none-week{font-size:clamp(26px,2.5vw,54px);font-weight:700;font-family:'ThmanyahDisplay','Thmanyah',serif;color:#A79C85}
