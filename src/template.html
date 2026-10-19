@@ -962,9 +962,8 @@ function pixelShift(){
   if(st) st.style.transform = `translate(${dx}px,${dy}px)`;
 }
 
-// Background: one photo per Riyadh day, chosen from the bundled photos plus the hosted set in photos/
-// (photos/index.json in the repo). A hosted photo is used only once it has loaded; offline, or if it fails,
-// the day falls back to a bundled one, so the screen never shows an empty background.
+// Background photos: the hosted set in photos/ (photos/index.json in the repo). A hosted photo is used only
+// once it has loaded; offline, or if it fails, a bundled one is shown, so the screen is never empty.
 const PHOTO_BASE = 'https://raw.githubusercontent.com/tshi-dev/TV-ScreenSaver/master/photos/';
 let REMOTE_BGS = (()=>{ try{ return JSON.parse(localStorage.getItem('photoIndex') || '[]'); }catch(e){ return []; } })();
 
@@ -989,15 +988,35 @@ function showBackground(url, b){
   if(cr) cr.textContent = b.c ? 'الصورة: ' + b.c : '';
 }
 
-function applyBackground(){
+// Every 4 days a new random set of 5 hosted photos (same draw as the launcher: Park-Miller generator seeded
+// by the 4-day period), rotating every 30 minutes. Only the photo on screen is downloaded.
+const PHOTO_SET = 5, PHOTO_PERIOD_DAYS = 4, PHOTO_SLOT_MIN = 30;
+function riyadhDayNumber(){
+  const p = riyadhParts();
+  return Math.floor(Date.UTC(p.y, p.mo - 1, p.d) / 86400000);
+}
+function photoSet(n){
+  const period = Math.floor(riyadhDayNumber() / PHOTO_PERIOD_DAYS);
+  let seed = (period % 2147483646) + 1;
+  const pick = [];
+  for(let guard = 0; pick.length < Math.min(PHOTO_SET, n) && guard < 1000; guard++){
+    seed = (seed * 48271) % 2147483647;
+    const k = seed % n;
+    if(!pick.includes(k)) pick.push(k);
+  }
+  return pick;
+}
+let BG_SLOT = -1;
+function applyBackground(force){
   try {
-    const dayKey = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    let h = 7; for (let k = 0; k < dayKey.length; k++) h = (h * 31 + dayKey.charCodeAt(k)) % 100003;
-    const local = BGS[h % BGS.length];
-    const all = BGS.length + REMOTE_BGS.length;
-    const pick = h % all;
-    if(pick < BGS.length || !REMOTE_BGS.length){ showBackground(BGS[pick % BGS.length].u, BGS[pick % BGS.length]); return; }
-    const b = REMOTE_BGS[pick - BGS.length], url = PHOTO_BASE + b.f;
+    const p = riyadhParts();
+    const slot = riyadhDayNumber() * 48 + Math.floor((p.h * 60 + p.mi) / PHOTO_SLOT_MIN);
+    if(slot === BG_SLOT && !force) return;
+    BG_SLOT = slot;
+    const set = REMOTE_BGS.length ? photoSet(REMOTE_BGS.length).map(k => REMOTE_BGS[k]) : [];
+    const local = BGS[slot % BGS.length];
+    if(!set.length){ showBackground(local.u, local); return; }
+    const b = set[slot % set.length], url = PHOTO_BASE + b.f;
     if(!document.querySelector('.photo').style.backgroundImage) showBackground(local.u, local);   // until it loads
     const img = new Image();
     img.onload = () => showBackground(url, b);
@@ -1012,8 +1031,9 @@ function boot(){
   const cs = document.getElementById('clock-sub');
   if(cs) cs.textContent = 'بتوقيت ' + CONFIG.city;
   document.title = 'شاشة السعودية';
-  applyBackground();
-  loadPhotoIndex().then(applyBackground);
+  applyBackground(true);
+  loadPhotoIndex().then(() => applyBackground(true));
+  setInterval(() => applyBackground(false), 60*1000);
   tickClock(); tickDates(); tickRamadan();
   TICKERS.forEach(loadTicker);
   if(!CONFIG.showWeek) document.querySelector('.week').style.display = 'none';
@@ -1036,7 +1056,7 @@ function boot(){
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(applyBackground); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.showWeek) loadWeek(); loadWeather(); }
+    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.showWeek) loadWeek(); loadWeather(); }
   }, 60*1000);
 }
 

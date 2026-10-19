@@ -796,9 +796,34 @@ public class MainActivity extends Activity {
     static final String PHOTO_BASE = "https://raw.githubusercontent.com/tshi-dev/TV-ScreenSaver/master/photos/";
     static final long INDEX_MAX_AGE_MS = 24 * 3600 * 1000L;
 
+    static final int PHOTO_SET = 5, PHOTO_PERIOD_DAYS = 4;
+
+    /** This 4-day period's 5 hosted photos: the same Park-Miller draw as photoSet() in the screensaver page. */
     private String[] remotePhotos() {
         String s = getPreferences(MODE_PRIVATE).getString("photoIndex", "");
-        return s.isEmpty() ? new String[0] : s.split(",");
+        if (s.isEmpty()) return new String[0];
+        String[] all = s.split(",");
+        java.util.Calendar c = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Riyadh"));
+        java.util.Calendar utc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+        utc.clear();
+        utc.set(c.get(java.util.Calendar.YEAR), c.get(java.util.Calendar.MONTH), c.get(java.util.Calendar.DAY_OF_MONTH));
+        long day = Math.floorDiv(utc.getTimeInMillis(), 86400000L);
+        long seed = (Math.floorDiv(day, PHOTO_PERIOD_DAYS) % 2147483646L) + 1;
+        List<String> pick = new ArrayList<>();
+        for (int guard = 0; pick.size() < Math.min(PHOTO_SET, all.length) && guard < 1000; guard++) {
+            seed = (seed * 48271L) % 2147483647L;
+            String f = all[(int) (seed % all.length)];
+            if (!pick.contains(f)) pick.add(f);
+        }
+        return pick.toArray(new String[0]);
+    }
+
+    /** Keep only the current set on disk. */
+    private void pruneCachedPhotos(String[] keep) {
+        java.io.File[] files = new java.io.File(getFilesDir(), "photos").listFiles();
+        if (files == null) return;
+        java.util.Set<String> k = new java.util.HashSet<>(Arrays.asList(keep));
+        for (java.io.File f : files) if (!k.contains(f.getName())) f.delete();
     }
 
     /** Off the main thread: refresh the hosted photo list once a day. */
@@ -852,6 +877,7 @@ public class MainActivity extends Activity {
         final String fallback = "wallpapers/" + wallpapers[idx % wallpapers.length];
         new Thread(() -> {
             refreshPhotoIndex();
+            pruneCachedPhotos(remotePhotos());
             Bitmap bm = null;
             if (idx >= wallpapers.length) {
                 java.io.File f = new java.io.File(getFilesDir(), "photos/" + remote[idx - wallpapers.length]);
