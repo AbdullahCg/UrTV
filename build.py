@@ -45,6 +45,9 @@ def main():
     teams = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
     html = html.replace("__TEAMS_AR__", json.dumps(teams, ensure_ascii=False))
     html = html.replace("__VERSES__", json.dumps(verses_for_screen(), ensure_ascii=False))
+    hadith = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))   # checked by CI
+    html = html.replace("__HADITH__", json.dumps([{"text": h["text"], "source": h["source"]} for h in hadith
+                                                  if h.get("found")], ensure_ascii=False))
 
     bg_dir = ROOT / "assets/backgrounds"
     bgs = json.loads((bg_dir / "backgrounds.json").read_text(encoding="utf-8"))
