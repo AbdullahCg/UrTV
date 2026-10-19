@@ -18,6 +18,11 @@
     --red:#EE6A50;
   }
   *{margin:0;padding:0;box-sizing:border-box}
+  /* Hidden until the clock, the saved panels and the photo are in place, then one fade in: no half-built
+     frames. The delayed animation shows it anyway if the script ever fails. */
+  body{opacity:0;animation:reveal .3s 2.5s forwards}
+  html.ready body{opacity:1;animation:none;transition:opacity .3s ease}
+  @keyframes reveal{to{opacity:1}}
   html,body{
     height:100%;overflow:hidden;background:#040E09;color:var(--sand);
     font-family:'Thmanyah',system-ui,sans-serif;
@@ -990,8 +995,19 @@ async function loadPhotoIndex(){
   }catch(e){}
 }
 
+let REVEALED = false;
+function reveal(){
+  if(REVEALED) return;
+  REVEALED = true;
+  // fonts may still be arriving (tv.html loads them as files): wait for them, briefly
+  const fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  Promise.race([fonts, new Promise(r => setTimeout(r, 800))])
+    .then(() => document.documentElement.classList.add('ready'));
+}
+
 function showBackground(url, b){
   const ph = document.querySelector('.photo');
+  reveal();
   if(!ph) return;
   ph.style.backgroundImage = "url('" + url + "')";
   ph.style.filter = 'saturate(1.02) brightness(' + (b.d || 0.95) + ') contrast(1.02)';
@@ -1017,7 +1033,7 @@ function photoSet(n){
   }
   return pick;
 }
-let BG_SLOT = -1;
+let BG_SLOT = -1, PREFETCHED = false;
 function applyBackground(force){
   try {
     const p = riyadhParts();
@@ -1028,11 +1044,17 @@ function applyBackground(force){
     const local = BGS[slot % BGS.length];
     if(!set.length){ showBackground(local.u, local); return; }
     const b = set[slot % set.length], url = PHOTO_BASE + b.f;
-    if(!document.querySelector('.photo').style.backgroundImage) showBackground(local.u, local);   // until it loads
+    // First photo: wait briefly for the hosted one (the app serves it from disk at once) so the screen
+    // doesn't flash a bundled photo first; slow network → bundled one, swapped when the hosted one arrives.
+    let done = false;
+    const fallback = () => { if(!done && !document.querySelector('.photo').style.backgroundImage) showBackground(local.u, local); };
+    const t = setTimeout(fallback, 1200);
     const img = new Image();
-    img.onload = () => showBackground(url, b);
-    img.onerror = () => showBackground(local.u, local);
+    img.onload = () => { done = true; clearTimeout(t); showBackground(url, b); };
+    img.onerror = () => { clearTimeout(t); fallback(); done = true; };
     img.src = url;
+    // fetch the rest of the set once, quietly, so the app has each one on disk before its turn
+    if(!PREFETCHED){ PREFETCHED = true; setTimeout(() => set.forEach(x => { new Image().src = PHOTO_BASE + x.f; }), 20000); }
   } catch(e) {}
 }
 

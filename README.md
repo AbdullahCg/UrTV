@@ -20,8 +20,9 @@
 src/template.html          the page itself (HTML/CSS/JS) — edit this
 assets/fonts/              Thmanyah woff2 weights (Light, Regular, Medium, Display Bold)
 assets/backgrounds/        5 bundled Unsplash photos (offline fallback); the hosted set is in photos/ + backgrounds.json (credit, brightness)
-build.py                   inlines fonts and photos -> dist/ksa-dashboard.html
-dist/ksa-dashboard.html    the built file to copy to the TV / APK assets
+build.py                   builds the two pages below
+dist/ksa-dashboard.html    stand-alone page, fonts and photos inlined: open in any browser, works offline
+dist/tv.html               light page for the Android app (0.1 MB): the app serves fonts and photos from disk
 docs/RECREATE-PROMPT.md    the full design + behaviour spec
 ```
 
@@ -59,7 +60,10 @@ Aladhan (prayer, Umm al-Qura), Open-Meteo (weather), Yahoo chart API via allorig
   in the Kingdom — team 1 and team 2 (presets, browse the Saudi and major foreign leagues, search any club or
   national team worldwide on TheSportsDB, or none),
   show genres, languages, shows picked one by one (TVMaze search), minimum rating, auto-update, preview.
-- **Auto-update**: every 6 hours the app downloads `dist/ksa-dashboard.html` from this repo's `master`, checks it
+- **Fast start**: the app loads `dist/tv.html` and answers its font and photo requests from the APK and a
+  photo cache on disk, so nothing waits on the network. The page stays hidden until the clock, the last
+  saved panels and the photo are ready, then fades in once.
+- **Auto-update**: every 6 hours the app downloads `dist/tv.html` from this repo's `master`, checks it
   is a complete page and uses it instead of the copy built into the APK. Screen changes reach the TV without reinstalling.
   This needs the repo to stay public.
 - **After a power cycle** (TCL): the app registers for every boot broadcast and keeps a persisted background job,

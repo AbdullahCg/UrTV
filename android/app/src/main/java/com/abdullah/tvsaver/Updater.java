@@ -13,12 +13,12 @@ import java.net.URL;
 /** Pulls the latest page from GitHub so screen changes reach the TV without a new APK. */
 final class Updater {
     static final String URL_PAGE =
-        "https://raw.githubusercontent.com/tshi-dev/TV-ScreenSaver/master/dist/ksa-dashboard.html";
+        PhotoCache.REPO + "dist/tv.html";
     static final long INTERVAL_MS = 6L * 3600 * 1000;
 
     private Updater() {}
 
-    static File pageFile(Context c) { return new File(c.getFilesDir(), "web/ksa-dashboard.html"); }
+    static File pageFile(Context c) { return new File(c.getFilesDir(), "web/tv.html"); }
 
     /** Blocking; call off the main thread. Returns an Arabic status line for the settings screen. */
     static synchronized String check(Context c, boolean force) {
@@ -29,6 +29,7 @@ final class Updater {
         if (!force && now - sp.getLong("lastCheck", 0) < INTERVAL_MS) return "تم الفحص مؤخراً";
 
         File out = pageFile(c);
+        new File(out.getParentFile(), "ksa-dashboard.html").delete();   // the old, heavier page
         HttpURLConnection con = null;
         try {
             con = (HttpURLConnection) new URL(URL_PAGE).openConnection();
@@ -45,7 +46,7 @@ final class Updater {
             String head = new String(body, 0, Math.min(body.length, 4096), "UTF-8");
             String tail = new String(body, Math.max(0, body.length - 4096), Math.min(body.length, 4096), "UTF-8");
             // never swap in a truncated or wrong file
-            if (body.length < 200_000 || !head.contains("<html") || !tail.contains("</html>")) return "ملف التحديث غير صالح";
+            if (body.length < 30_000 || !head.contains("<html") || !tail.contains("</html>")) return "ملف التحديث غير صالح";
 
             File dir = out.getParentFile();
             if (!dir.isDirectory() && !dir.mkdirs()) return "تعذر الحفظ";

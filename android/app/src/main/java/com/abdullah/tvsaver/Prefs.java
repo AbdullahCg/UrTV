@@ -134,7 +134,7 @@ final class Prefs {
         catch (Exception ignored) { }
         String base = autoUpdate() && remote.isFile() && remote.lastModified() > installed
             ? Uri.fromFile(remote).toString()
-            : "file:///android_asset/ksa-dashboard.html";
+            : "file:///android_asset/tv.html";
         return base + "#" + frag;
     }
 
