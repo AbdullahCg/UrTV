@@ -43,10 +43,10 @@ No dependencies. Open `dist/ksa-dashboard.html` in any browser; press `F` for fu
 The page reads its config from the URL fragment (works on `file://` and in an Android WebView):
 
 ```
-ksa-dashboard.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&team1=136013&team2=136137
+ksa-dashboard.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137&week=1
 ```
 
-Defaults to Riyadh. `team1` / `team2` are TheSportsDB team ids (defaults Al-Hilal 136013 and the Saudi national team 136137; pass an empty value to turn a slot off). Each team gets its own slot: last result within 24h, else its fixture this week, else hidden. Team ids, prayer method and keys are in the `CONFIG` object at the top of the script.
+Defaults to Riyadh. `teams` is up to 10 TheSportsDB team ids in priority order (default Al-Hilal 136013 and the Saudi national team 136137). Every team with a result in the last 24h or a fixture this week gets a slot; the panel shows two at a time and turns the page every 15 s. `week=0` hides the new-shows card. Team ids, prayer method and keys are in the `CONFIG` object at the top of the script.
 
 ## Data sources (free, no keys)
 

@@ -67,14 +67,34 @@ final class Prefs {
         sp.edit().putString("cityName", name).putString("cityLat", lat).putString("cityLon", lon).apply();
     }
 
-    /** slot 1 or 2; returns {id, name}, id "" when the slot is off */
-    String[] team(int slot) {
-        String[] def = TEAM_PRESETS[slot - 1];
-        return new String[] {sp.getString("team" + slot + "Id", def[0]), sp.getString("team" + slot + "Name", def[1])};
+    static final int MAX_TEAMS = 10;
+
+    /** Followed teams in priority order, "id|name". Migrates the old two team fields once. */
+    List<String> teams() {
+        if (!sp.contains("teams")) {
+            List<String> v = new ArrayList<>();
+            for (int slot = 1; slot <= 2; slot++) {
+                String[] def = TEAM_PRESETS[slot - 1];
+                String id = sp.getString("team" + slot + "Id", def[0]);
+                if (!id.isEmpty()) v.add(id + "|" + sp.getString("team" + slot + "Name", def[1]));
+            }
+            return v;
+        }
+        return list("teams");
     }
-    void setTeam(int slot, String id, String name) {
-        sp.edit().putString("team" + slot + "Id", id).putString("team" + slot + "Name", name).apply();
+
+    /** false when already followed or the list is full */
+    boolean addTeam(String id, String name) {
+        List<String> v = teams();
+        for (String t : v) if (t.startsWith(id + "|")) return false;
+        if (v.size() >= MAX_TEAMS) return false;
+        v.add(id + "|" + name.replace("|", " ").replace(";", " "));
+        setList("teams", v);
+        return true;
     }
+
+    boolean showWeek() { return sp.getBoolean("showWeek", true); }
+    void setShowWeek(boolean v) { sp.edit().putBoolean("showWeek", v).apply(); }
 
     List<String> list(String key) {
         List<String> out = new ArrayList<>();
@@ -101,7 +121,8 @@ final class Prefs {
         for (String s : shows()) ids.add(s.split("\\|", 2)[0]);
         String frag = "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]
             + "&tz=" + Uri.encode(TZ)
-            + "&team1=" + team(1)[0] + "&team2=" + team(2)[0]
+            + "&teams=" + join(teamIds(), ",")
+            + "&week=" + (showWeek() ? "1" : "0")
             + "&genres=" + Uri.encode(join(list("genres"), ","))
             + "&langs=" + Uri.encode(join(list("langs"), ","))
             + "&shows=" + join(ids, ",")
@@ -111,6 +132,12 @@ final class Prefs {
             ? Uri.fromFile(remote).toString()
             : "file:///android_asset/ksa-dashboard.html";
         return base + "#" + frag;
+    }
+
+    List<String> teamIds() {
+        List<String> ids = new ArrayList<>();
+        for (String t : teams()) ids.add(t.split("\\|", 2)[0]);
+        return ids;
     }
 
     static String join(List<String> v, String sep) {

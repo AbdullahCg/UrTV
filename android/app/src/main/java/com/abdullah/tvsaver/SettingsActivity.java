@@ -79,10 +79,12 @@ public class SettingsActivity extends Activity {
         row("المدينة", prefs.city()[0], new Runnable() { public void run() { pickCity(); } });
 
         header("المباريات");
-        row("الفريق الأول", teamLabel(1), new Runnable() { public void run() { pickTeam(1); } });
-        row("الفريق الثاني", teamLabel(2), new Runnable() { public void run() { pickTeam(2); } });
+        row("الفرق المتابعة (" + arabicNum(prefs.teams().size()) + "/" + arabicNum(Prefs.MAX_TEAMS) + ")", teamsLabel(),
+            new Runnable() { public void run() { manageTeams(); } });
 
         header("جديد المسلسلات");
+        row("تذكير المسلسلات", prefs.showWeek() ? "يظهر" : "مخفي", new Runnable() { public void run() {
+            prefs.setShowWeek(!prefs.showWeek()); render(); } });
         row("التصنيفات", labels(Prefs.GENRES, prefs.list("genres"), "الكل"),
             new Runnable() { public void run() { pickMany("genres", "التصنيفات", Prefs.GENRES); } });
         row("اللغات", labels(Prefs.LANGS, prefs.list("langs"), "الكل"),
@@ -146,25 +148,44 @@ public class SettingsActivity extends Activity {
             }));
     }
 
+    /** Followed teams: untick to remove, or add one (presets, league browsing, search). Up to 10. */
+    private void manageTeams() {
+        final List<String> cur = prefs.teams();
+        String[] labels = new String[cur.size()];
+        final boolean[] keep = new boolean[cur.size()];
+        for (int i = 0; i < cur.size(); i++) { labels[i] = cur.get(i).split("\\|", 2)[1]; keep[i] = true; }
+        AlertDialog.Builder b = new AlertDialog.Builder(this, DIALOG_THEME)
+            .setTitle(cur.isEmpty() ? "لا توجد فرق متابعة" : "الفرق المتابعة (ألغِ التحديد للحذف)")
+            .setPositiveButton("حفظ", (d, w) -> {
+                List<String> v = new ArrayList<>();
+                for (int i = 0; i < cur.size(); i++) if (keep[i]) v.add(cur.get(i));
+                prefs.setList("teams", v);
+                render();
+            })
+            .setNegativeButton("إلغاء", null);
+        if (cur.size() < Prefs.MAX_TEAMS) b.setNeutralButton("إضافة فريق", (d, w) -> pickTeam(0));
+        if (!cur.isEmpty()) b.setMultiChoiceItems(labels, keep, (d, i, checked) -> keep[i] = checked);
+        b.show();
+    }
+
+    private void addTeam(String id, String name) {
+        if (prefs.addTeam(id, name)) toast("تمت متابعة " + name);
+        else toast(prefs.teams().size() >= Prefs.MAX_TEAMS ? "الحد الأعلى ١٠ فرق" : "متابَع مسبقاً");
+        render();
+    }
+
     private void pickTeam(final int slot) {
         final List<String[]> opts = new ArrayList<>();
         for (String[] t : Prefs.TEAM_PRESETS) opts.add(t);
-        String[] cur = prefs.team(slot);
-        boolean custom = !cur[0].isEmpty();
-        for (String[] t : Prefs.TEAM_PRESETS) if (t[0].equals(cur[0])) custom = false;
-        if (custom) opts.add(cur);
-        String[] labels = new String[opts.size() + 3];
+        String[] labels = new String[opts.size() + 2];
         for (int i = 0; i < opts.size(); i++) labels[i] = opts.get(i)[1];
         labels[opts.size()] = "تصفح الدوريات…";
         labels[opts.size() + 1] = "بحث عن أي فريق أو منتخب…";
-        labels[opts.size() + 2] = "بدون";
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(slot == 1 ? "الفريق الأول" : "الفريق الثاني")
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("إضافة فريق")
             .setItems(labels, (d, i) -> {
-                if (i < opts.size()) prefs.setTeam(slot, opts.get(i)[0], opts.get(i)[1]);
-                else if (i == opts.size()) { pickLeague(slot); return; }
-                else if (i == opts.size() + 1) { searchTeam(slot); return; }
-                else prefs.setTeam(slot, "", "");
-                render();
+                if (i < opts.size()) addTeam(opts.get(i)[0], opts.get(i)[1]);
+                else if (i == opts.size()) pickLeague(slot);
+                else searchTeam(slot);
             }).show();
     }
 
@@ -209,7 +230,7 @@ public class SettingsActivity extends Activity {
                     rows[i] = Arabic.team(this, names[i]) + "  ·  " + leagueAr(t.optString("strLeague", ""));
                 }
                 new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title)
-                    .setItems(rows, (d, i) -> inArabic(names[i], Arabic.TEAM, ar -> { prefs.setTeam(slot, ids[i], ar); render(); }))
+                    .setItems(rows, (d, i) -> inArabic(names[i], Arabic.TEAM, ar -> addTeam(ids[i], ar)))
                     .show();
     }
 
@@ -322,9 +343,16 @@ public class SettingsActivity extends Activity {
         return Arabic.translit(key);
     }
 
-    private String teamLabel(int slot) {
-        String[] t = prefs.team(slot);
-        return t[0].isEmpty() ? "بدون" : t[1];
+    private String teamsLabel() {
+        List<String> names = new ArrayList<>();
+        for (String t : prefs.teams()) names.add(t.split("\\|", 2)[1]);
+        return names.isEmpty() ? "لا شيء" : Prefs.join(names, "، ");
+    }
+
+    private static String arabicNum(int n) {
+        StringBuilder b = new StringBuilder();
+        for (char c : String.valueOf(n).toCharArray()) b.append((char) ('٠' + (c - '0')));
+        return b.toString();
     }
 
     private String showsLabel() {
