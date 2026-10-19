@@ -73,6 +73,16 @@ def narration_parts(text):
     return parts
 
 
+def weak_in_tirmidhi(text):
+    """al-Tirmidhi grades each hadith after it («قال أبو عيسى …»). Not shown: one he grades only غريب or ضعيف,
+    or says is more correctly a companion's own words (موقوف, «ولم يرفعه»)."""
+    bare = re.sub(HARAKAT, "", text)
+    if "قال أبو عيسى" not in bare:
+        return False
+    note = bare[bare.index("قال أبو عيسى"):]
+    return not re.search("حديث حسن|حديث صحيح|حسن صحيح", note) or "ولم يرفعه" in bare or "موقوفا" in bare
+
+
 def hadith_for_screen():
     """assets/shared/hadith.json -> the full narrations that fit the card, each with book and number."""
     digits = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
@@ -83,9 +93,9 @@ def hadith_for_screen():
             continue
         parts = narration_parts(full["text"])
         words = sum(len(p[1].split()) for p in parts)
-        bare = re.sub(HARAKAT, "", full["text"])
-        weak = "قال أبو عيسى" in bare and not re.search("حسن|صحيح", bare)   # al-Tirmidhi grades it غريب or ضعيف only
-        if any(k == "q" for k, _ in parts) and words <= HADITH_MAX_WORDS and not weak:
+        if weak_in_tirmidhi(full["text"]):
+            continue
+        if any(k == "q" for k, _ in parts) and words <= HADITH_MAX_WORDS:
             out.append({"parts": parts, "source": f"{full['book']} · {str(full['number']).translate(digits)}"})
     return out
 

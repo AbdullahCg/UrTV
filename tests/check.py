@@ -81,7 +81,7 @@ shown = [json.dumps(h["parts"], ensure_ascii=False) for h in hadith]
 check("no verse or hadith twice", len({v["text"] for v in verses}) == len(verses) and len(set(shown)) == len(shown))
 raw = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))
 sys.path.insert(0, str(ROOT / "src"))
-from build import narration_parts, HADITH_MAX_WORDS   # noqa: E402
+from build import narration_parts, weak_in_tirmidhi, HADITH_MAX_WORDS   # noqa: E402
 found = {json.dumps(narration_parts(h["full"]["text"]), ensure_ascii=False) for h in raw if h.get("found") and h.get("full")}
 check("hadith on screen are only full narrations found in the six books", set(shown) <= found, len(set(shown) - found))
 sys.path.insert(0, str(ROOT / ".github/tools"))
@@ -89,6 +89,8 @@ from verify_hadith import norm as plain   # noqa: E402  (the six-book check's ow
 check("each full narration holds the words it was found by",
       all(plain(h["text"]) in plain(h["full"]["text"]) for h in raw if h.get("full")),
       [h["text"] for h in raw if h.get("full") and plain(h["text"]) not in plain(h["full"]["text"])])
+weak = {json.dumps(narration_parts(h["full"]["text"]), ensure_ascii=False) for h in raw if h.get("full") and weak_in_tirmidhi(h["full"]["text"])}
+check("no hadith al-Tirmidhi grades only غريب/ضعيف, or as a companion's words, is shown", weak and not (weak & set(shown)), len(weak & set(shown)))
 check("every hadith on screen has the Prophet's words and fits the card",
       all(any(k == "q" for k, _ in h["parts"]) and sum(len(t.split()) for _, t in h["parts"]) <= HADITH_MAX_WORDS for h in hadith))
 font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
