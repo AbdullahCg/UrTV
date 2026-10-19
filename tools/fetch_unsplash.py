@@ -28,7 +28,7 @@ def main():
         raise SystemExit("UNSPLASH_ACCESS_KEY secret is not set")
     out, seen = [], set()
     for q in QUERIES:
-        for page in (1, 2):
+        for page in (1, 2, 3):
             try:
                 d = get("https://api.unsplash.com/search/photos?" + urllib.parse.urlencode(
                     {"query": q, "per_page": 30, "page": page, "orientation": "landscape"}))
