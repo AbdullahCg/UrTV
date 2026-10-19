@@ -161,30 +161,36 @@ public class SettingsActivity extends Activity {
 
     private void pickLeague(final int slot) {
         String[] labels = new String[Prefs.LEAGUES.length];
-        for (int i = 0; i < labels.length; i++) labels[i] = Prefs.LEAGUES[i][2];
+        for (int i = 0; i < labels.length; i++) labels[i] = Prefs.LEAGUES[i][1];
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الدوري")
             .setItems(labels, (d, i) -> {
                 final String[] lg = Prefs.LEAGUES[i];
-                final String byName = SPORTS + "search_all_teams.php?l=" + Uri.encode(lg[1]);
-                if (lg[0].isEmpty()) fetch(byName, json -> showTeams(slot, json, lg[2]));
-                else fetch(SPORTS + "lookup_all_teams.php?id=" + lg[0], json -> {
-                    JSONArray a = new JSONObject(json).optJSONArray("teams");
-                    if (a == null || a.length() == 0) fetch(byName, j2 -> showTeams(slot, j2, lg[2]));
-                    else showTeams(slot, json, lg[2]);
-                });
+                fetch(SPORTS + "search_all_teams.php?l=" + Uri.encode(lg[0]), json -> showTeams(slot, json, lg[1], lg[0]));
             }).show();
     }
 
     private void searchTeam(final int slot) {
         ask("اسم الفريق بالإنجليزية (مثل Al-Nassr أو Real Madrid)",
-            q -> fetch(SPORTS + "searchteams.php?t=" + Uri.encode(q), json -> showTeams(slot, json, "اختر الفريق")));
+            q -> fetch(SPORTS + "searchteams.php?t=" + Uri.encode(q), json -> showTeams(slot, json, "اختر الفريق", null)));
     }
 
     private static final String SPORTS = "https://www.thesportsdb.com/api/v1/json/123/";
 
-    private void showTeams(final int slot, String json, String title) throws Exception {
-                JSONArray a = new JSONObject(json).optJSONArray("teams");
-                if (a == null || a.length() == 0) { toast("لا توجد نتائج"); return; }
+    /** league != null: keep only clubs that really play in it, so a wrong API answer never shows. */
+    private void showTeams(final int slot, String json, String title, String league) throws Exception {
+                JSONArray all = new JSONObject(json).optJSONArray("teams");
+                JSONArray a = new JSONArray();
+                for (int i = 0; all != null && i < all.length(); i++) {
+                    JSONObject t = all.getJSONObject(i);
+                    boolean inLeague = league == null;
+                    for (int k = 1; !inLeague && k <= 7; k++)
+                        inLeague = league.equalsIgnoreCase(t.optString(k == 1 ? "strLeague" : "strLeague" + k));
+                    if (inLeague) a.put(t);
+                }
+                if (a.length() == 0) {
+                    toast(league == null ? "لا توجد نتائج" : "تعذّر تحميل هذا الدوري، جرّب البحث عن الفريق");
+                    return;
+                }
                 final int n = Math.min(a.length(), 60);
                 final String[] ids = new String[n], names = new String[n], rows = new String[n];
                 for (int i = 0; i < n; i++) {
@@ -298,7 +304,7 @@ public class SettingsActivity extends Activity {
     }
 
     private static String leagueAr(String en) {
-        for (String[] l : Prefs.LEAGUES) if (l[1].equalsIgnoreCase(en)) return l[2];
+        for (String[] l : Prefs.LEAGUES) if (l[0].equalsIgnoreCase(en)) return l[1];
         return Arabic.translit(en);
     }
 

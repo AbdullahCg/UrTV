@@ -566,6 +566,11 @@ function tickRamadan(){
 }
 
 const TEAM_AR = __TEAMS_AR__;   // assets/shared/teams-ar.json
+// match "Al-Adalah", "Al Adalah", "Al-Adalah FC" and "AL ADALAH" to the same entry
+const teamKey = s => String(s).toLowerCase().replace(/\b(fc|sc|cf|afc|club|saudi club)\b/g,'')
+  .replace(/[^a-z0-9]+/g,' ').trim().replace(/^al /,'al');
+const TEAM_KEYS = {};
+for(const [en, arName] of Object.entries(TEAM_AR)) TEAM_KEYS[teamKey(en)] = arName;
 let MATCHES = {};   // team id -> next event
 let RESULTS = {};   // team id -> recent events
 
@@ -627,8 +632,8 @@ function arName(en, kind){
   en = String(en || '').trim();
   if(!en || hasArabic(en)) return en;
   if(kind === 'team'){
-    const base = en.replace(/\s+(FC|SC|CF|AFC|Club|Saudi Club)$/i,'').replace(/^(FC|AFC)\s+/i,'');
-    if(TEAM_AR[en] || TEAM_AR[base]) return TEAM_AR[en] || TEAM_AR[base];
+    const k = TEAM_KEYS[teamKey(en)];
+    if(k) return k;
   }
   const key = kind + ':' + en;
   if(AR_NAMES[key] !== undefined) return AR_NAMES[key] || translit(en);

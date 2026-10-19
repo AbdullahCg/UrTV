@@ -30,12 +30,16 @@ final class Arabic {
                 int n;
                 while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
                 JSONObject o = new JSONObject(b.toString("UTF-8"));
-                for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) { String k = it.next(); known.put(k, o.getString(k)); }
+                for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) { String k = it.next(); known.put(key(k), o.getString(k)); }
             } catch (Exception ignored) { }
         }
-        String base = en.trim().replaceAll("\\s+(FC|SC|CF|AFC|Club|Saudi Club)$", "").replaceAll("^(FC|AFC)\\s+", "");
-        String v = known.get(en.trim());
-        return v != null ? v : known.get(base);
+        return known.get(key(en));
+    }
+
+    /** Same normalisation as teamKey() in the page: "Al-Adalah FC" == "al adalah" == "AL ADALAH". */
+    static String key(String s) {
+        return s.toLowerCase(Locale.ROOT).replaceAll("\\b(fc|sc|cf|afc|club|saudi club)\\b", "")
+            .replaceAll("[^a-z0-9]+", " ").trim().replaceFirst("^al ", "al");
     }
 
     /** For lists: a known Arabic name, else the transliteration (instant, no network). */

@@ -17,22 +17,24 @@ final class Prefs {
         {"136013", "الهلال"}, {"136137", "المنتخب السعودي"},
     };
 
-    // TheSportsDB league id ("" = look up by name), league name as TheSportsDB spells it, Arabic label
+    // League name exactly as TheSportsDB spells it (checked from CI, tools/fetch_leagues.py), Arabic label.
+    // Teams are fetched by name: with the free key, lookup_all_teams.php ignores the id and always
+    // returns the same English League One sample.
     static final String[][] LEAGUES = {
-        {"4668", "Saudi Pro League", "دوري روشن السعودي"},
-        {"", "Saudi First Division League", "دوري يلو (الدرجة الأولى)"},
-        {"4328", "English Premier League", "الدوري الإنجليزي"},
-        {"4335", "Spanish La Liga", "الدوري الإسباني"},
-        {"4332", "Italian Serie A", "الدوري الإيطالي"},
-        {"4331", "German Bundesliga", "الدوري الألماني"},
-        {"4334", "French Ligue 1", "الدوري الفرنسي"},
-        {"", "Portuguese Primeira Liga", "الدوري البرتغالي"},
-        {"", "Dutch Eredivisie", "الدوري الهولندي"},
-        {"", "Turkish Super Lig", "الدوري التركي"},
-        {"", "Egyptian Premier League", "الدوري المصري"},
-        {"", "UAE Pro League", "الدوري الإماراتي"},
-        {"", "Qatar Stars League", "الدوري القطري"},
-        {"", "American Major League Soccer", "الدوري الأمريكي"},
+        {"Saudi-Arabian Pro League", "دوري روشن السعودي"},
+        {"Saudi First Division League", "دوري يلو (الدرجة الأولى)"},
+        {"English Premier League", "الدوري الإنجليزي"},
+        {"Spanish La Liga", "الدوري الإسباني"},
+        {"Italian Serie A", "الدوري الإيطالي"},
+        {"German Bundesliga", "الدوري الألماني"},
+        {"French Ligue 1", "الدوري الفرنسي"},
+        {"Portuguese Primeira Liga", "الدوري البرتغالي"},
+        {"Dutch Eredivisie", "الدوري الهولندي"},
+        {"Turkish Super Lig", "الدوري التركي"},
+        {"Egyptian Premier League", "الدوري المصري"},
+        {"UAE Pro League", "الدوري الإماراتي"},
+        {"Qatar Stars League", "الدوري القطري"},
+        {"American Major League Soccer", "الدوري الأمريكي"},
     };
 
     // TVMaze genre (sent to the page), Arabic label
