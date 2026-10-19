@@ -207,7 +207,12 @@
   .chip .delta{font-size:clamp(14px,1.3vw,25px);font-weight:700;letter-spacing:0}
   .chip .delta.up{color:#79D6A0}
   .chip .delta.down{color:#EE8B70}
-  .chip .wxt:empty{display:none}
+  .chip .wxt:empty,.chip .wxr:empty{display:none}
+  .chip .wxr{font-size:clamp(11px,.82vw,15px);font-weight:400;color:#A99F88;direction:rtl;white-space:nowrap}
+  .chip .wxd.dust{color:#E8B86A}
+  .p-prayer.now .big{color:#FFE9B8;text-shadow:0 0 40px rgba(220,184,111,.45)}
+  .p-prayer.now .label{color:#F1CF8A}
+  .live{color:#EE8B70;font-weight:500}
   .chip .wxt{font-size:clamp(18px,1.62vw,32px);font-weight:700;color:#FFFCF2;direction:ltr;font-variant-numeric:tabular-nums}
   .chip .wxd{font-size:clamp(11px,.86vw,16px);font-weight:400;color:#CBBFA6;margin-inline-start:.2em}
   .dimmer{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30;transition:opacity 6s linear}
@@ -245,7 +250,7 @@
       <div class="chip"><span class="nm">تاسي</span><span id="tasi-chg" class="delta" hidden></span></div>
       <div class="chip"><span class="nm">S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></div>
       <div class="chip"><span class="nm">بيتكوين</span><span id="btc-chg" class="delta" hidden></span></div>
-      <div class="chip wx"><span class="nm" id="wx-city">الرياض</span><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span></div>
+      <div class="chip wx"><span class="nm" id="wx-city">الرياض</span><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span><span class="wxr" id="wx-range"></span></div>
     </div>
   </header>
 
@@ -265,7 +270,7 @@
 
   <footer class="bottom">
     <div class="panel p-prayer">
-      <div class="label">الصلاة القادمة</div>
+      <div class="label" id="prayer-label">الصلاة القادمة</div>
       <div class="big"><span id="prayer-name">—</span><span class="num" id="prayer-time"></span></div>
       <div class="sub" id="prayer-count">—</div>
     </div>
@@ -293,6 +298,7 @@ __BG_SET__
 ];
 // the app passes the chosen city in the URL fragment: #city=..&lat=..&lon=..&tz=..
 const _Q = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+const _list = k => (_Q.get(k) || '').split(',').map(x=>x.trim()).filter(Boolean);
 const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : v; };
 const CONFIG = {
   city: _Q.get('city') || 'الرياض',
@@ -304,6 +310,16 @@ const CONFIG = {
   teamIds: [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137']
     .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)),
   sportsKey: '123',
+  // minutes from adhan to iqama (Ministry of Islamic Affairs defaults); Friday Dhuhr has none
+  iqama: {Fajr:25, Dhuhr:20, Asr:20, Maghrib:10, Isha:20},
+  // "new this week" filters from the app: TVMaze genres, languages, countries, picked show ids
+  shows: {
+    genres: _list('genres'),
+    langs: _list('langs'),
+    ids: _list('shows').filter(x=>/^\d+$/.test(x)).slice(0, 30),
+    countries: _list('countries').length ? _list('countries') : ['US'],
+    minRating: _num('minrating', 7),
+  },
   weekWindowDays: 7,
 };
 
@@ -350,36 +366,68 @@ function tickDates(){
   }catch(e){}
 }
 
+const PRAYER_KEYS = ['Fajr','Dhuhr','Asr','Maghrib','Isha'];
 const PRAYER_NAMES = {Fajr:'الفجر',Dhuhr:'الظهر',Asr:'العصر',Maghrib:'المغرب',Isha:'العشاء'};
-const FALLBACK_TIMINGS = {Fajr:'04:34',Dhuhr:'11:38',Asr:'14:57',Maghrib:'17:24',Isha:'18:54'};
 let PRAYERS = [];
-const PRAYER_KEY = 'prayers:' + CONFIG.latitude + ',' + CONFIG.longitude;
 
 function buildPrayers(t){
-  PRAYERS = ['Fajr','Dhuhr','Asr','Maghrib','Isha'].map(k=>{
-    const [h,mi] = t[k].split(':').map(Number);
-    return {name:PRAYER_NAMES[k], h, mi};
-  }).sort((a,b)=>(a.h*60+a.mi)-(b.h*60+b.mi));
+  PRAYERS = PRAYER_KEYS.map(k=>{
+    const [h,mi] = String(t[k]).split(':').map(Number);
+    return {key:k, name:PRAYER_NAMES[k], h, mi};
+  });
 }
+
+// Umm al-Qura: Fajr at 18.5°, Maghrib at sunset, Isha 90 min after Maghrib (120 in Ramadan),
+// Asr at shadow factor 1. Same method as Aladhan's method 4, so the offline times match to a minute or two.
+function computePrayers(){
+  const p = riyadhParts(), lat = CONFIG.latitude, lng = CONFIG.longitude;
+  const tz = Math.round((Date.UTC(p.y,p.mo-1,p.d,p.h,p.mi,p.s) - Date.now()) / 60000) / 60;
+  const rad = d => d*Math.PI/180, deg = r => r*180/Math.PI;
+  const fix = (a,b) => { a = a - b*Math.floor(a/b); return a < 0 ? a + b : a; };
+  const jd0 = Date.UTC(p.y,p.mo-1,p.d)/86400000 + 2440587.5 - lng/(15*24);
+  const sun = t => {
+    const D = jd0 + t - 2451545;
+    const g = fix(357.529 + .98560028*D, 360), q = fix(280.459 + .98564736*D, 360);
+    const L = fix(q + 1.915*Math.sin(rad(g)) + .020*Math.sin(rad(2*g)), 360);
+    const e = 23.439 - .00000036*D;
+    const RA = fix(deg(Math.atan2(Math.cos(rad(e))*Math.sin(rad(L)), Math.cos(rad(L))))/15, 24);
+    return {decl: deg(Math.asin(Math.sin(rad(e))*Math.sin(rad(L)))), eqt: q/15 - RA};
+  };
+  const noon = t => fix(12 - sun(t/24).eqt, 24);
+  const angleTime = (angle, t, ccw) => {
+    const d = sun(t/24).decl, n = noon(t);
+    const T = deg(Math.acos((-Math.sin(rad(angle)) - Math.sin(rad(d))*Math.sin(rad(lat))) /
+                            (Math.cos(rad(d))*Math.cos(rad(lat)))))/15;
+    return n + (ccw ? -T : T);
+  };
+  const asrTime = t => {
+    const d = sun(t/24).decl;
+    const a = -deg(Math.atan(1/(1 + Math.tan(rad(Math.abs(lat - d))))));
+    return angleTime(a, t, false);
+  };
+  const adj = h => h + tz - lng/15;
+  const fajr = adj(angleTime(18.5, 5, true)), dhuhr = adj(noon(12)), asr = adj(asrTime(13));
+  const maghrib = adj(angleTime(.833, 18, false));
+  const isha = maghrib + (hijriMonthNow() === 9 ? 120 : 90)/60;
+  const hm = h => { const m = Math.round(fix(h, 24)*60) % 1440; return pad(Math.floor(m/60)) + ':' + pad(m%60); };
+  return {Fajr:hm(fajr), Dhuhr:hm(dhuhr), Asr:hm(asr), Maghrib:hm(maghrib), Isha:hm(isha)};
+}
+
 async function loadPrayers(){
   const p = riyadhParts();
-  const key = `${pad(p.d)}-${pad(p.mo)}-${p.y}`;
-  const url = `https://api.aladhan.com/v1/timings/${key}`
+  const url = `https://api.aladhan.com/v1/timings/${pad(p.d)}-${pad(p.mo)}-${p.y}`
             + `?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}`
             + `&method=${CONFIG.prayerMethod}&timezonestring=${encodeURIComponent(CONFIG.timezone)}`;
   try{
-    const r = await fetch(url,{cache:'no-store'});
+    const r = await fetchT(url, 12000);
     const j = await r.json();
     if(!j?.data?.timings?.Fajr) throw 0;
     buildPrayers(j.data.timings);
-    try{ localStorage.setItem(PRAYER_KEY, JSON.stringify({day:key, t:j.data.timings})); }catch(e){}
   }catch(e){
-    let cached = null;
-    try{ cached = JSON.parse(localStorage.getItem(PRAYER_KEY) || 'null'); }catch(_){}
-    if(cached && cached.t && cached.t.Fajr) buildPrayers(cached.t);       // yesterday's times are minutes off, not hours
-    else if(!PRAYERS.length) buildPrayers(FALLBACK_TIMINGS);            // keep the last good set
+    try{ buildPrayers(computePrayers()); }catch(_){}
   }
   tickPrayer();
+  tickRamadan();   // Ramadan mode needs the prayer times
 }
 
 const UNIT = {
@@ -407,18 +455,44 @@ function shortRemaining(ms){
   return out.join(' و ');
 }
 
+function isFriday(){
+  return new Intl.DateTimeFormat('en-US',{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date()) === 'Fri';
+}
+function prayerName(x){ return x.key === 'Dhuhr' && isFriday() ? 'الجمعة' : x.name; }
+
 function tickPrayer(){
-  const elN=document.getElementById('prayer-name'),
+  const elL=document.getElementById('prayer-label'),
+        elN=document.getElementById('prayer-name'),
         elT=document.getElementById('prayer-time'),
-        elC=document.getElementById('prayer-count');
+        elC=document.getElementById('prayer-count'),
+        panel=document.querySelector('.p-prayer');
   if(!PRAYERS.length) return;
   const p = riyadhParts();
   const mins = p.h*60 + p.mi + p.s/60;
+
+  // between adhan and iqama: show the iqama countdown
+  const cur = PRAYERS.find(x=>{
+    const at = x.h*60 + x.mi;
+    const gap = (x.key === 'Dhuhr' && isFriday()) ? 0 : (CONFIG.iqama[x.key] || 0);
+    return mins >= at && mins < at + gap;
+  });
+  if(cur){
+    const left = (cur.h*60 + cur.mi + CONFIG.iqama[cur.key]) - mins;
+    panel.classList.add('now');
+    elL.textContent = 'حان الآن';
+    elN.textContent = prayerName(cur);
+    elT.textContent = fmt12(cur.h, cur.mi);
+    elC.innerHTML = 'الإقامة بعد <b>' + humanRemaining(Math.max(60, Math.ceil(left)*60)) + '</b>';
+    return;
+  }
+
+  panel.classList.remove('now');
+  elL.textContent = 'الصلاة القادمة';
   let next = PRAYERS.find(x => (x.h*60+x.mi) > mins);
-  let leftM = next ? (next.h*60 + next.mi) - mins
-                   : (PRAYERS[0].h*60 + PRAYERS[0].mi) + 1440 - mins;
+  const leftM = next ? (next.h*60 + next.mi) - mins
+                     : (PRAYERS[0].h*60 + PRAYERS[0].mi) + 1440 - mins;
   if(!next) next = PRAYERS[0];
-  elN.textContent = next.name;
+  elN.textContent = prayerName(next);
   elT.textContent = fmt12(next.h, next.mi);
   elC.innerHTML = 'بعد <b>' + humanRemaining(Math.max(0, Math.round(leftM*60))) + '</b>';
 }
@@ -463,8 +537,8 @@ function tickRamadan(){
   if(hijriMonthNow() === 9 && PRAYERS.length){
     const rp = riyadhParts();
     const mins = rp.h*60 + rp.mi + rp.s/60;
-    const fajr = PRAYERS.find(p=>p.name==='الفجر');
-    const maghrib = PRAYERS.find(p=>p.name==='المغرب');
+    const fajr = PRAYERS.find(p=>p.key==='Fajr');
+    const maghrib = PRAYERS.find(p=>p.key==='Maghrib');
     const fajrM = fajr.h*60 + fajr.mi, maghribM = maghrib.h*60 + maghrib.mi;
     let label, targetM;
     if(mins < fajrM){ label = 'الإمساك'; targetM = fajrM; }
@@ -534,17 +608,45 @@ function matchSlot(id, now, shown){
   }
   const ev = MATCHES[id];
   if(!ev || shown.has(ev.idEvent)) return '';
+  const home = esc(tr(TEAM_AR, ev.strHomeTeam||'')), away = esc(tr(TEAM_AR, ev.strAwayTeam||''));
   const d = toDate(ev), diff = d - now;
   if(diff < -2.5*3600000 || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
   shown.add(ev.idEvent);
   const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
     .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
   const t12 = ar(fmt12(+p.hour % 24, +p.minute));
-  const sub = diff <= 0 ? `جارية الآن · ${t12}` : `بعد ${shortRemaining(diff)} · ${t12}`;
+  const live = diff <= 0 && ev.intHomeScore != null && ev.intAwayScore != null;
+  const sub = diff > 0 ? `بعد ${shortRemaining(diff)} · ${t12}` : `<span class="live">مباشر</span> · ${liveStatus(ev, t12)}`;
+  const mid = live ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
   return `<div class="mblock">`
-       + `<div class="big"><span>${esc(tr(TEAM_AR, ev.strHomeTeam||''))} × ${esc(tr(TEAM_AR, ev.strAwayTeam||''))}</span></div>`
+       + `<div class="big"><span>${home}${mid}${away}</span></div>`
        + `<div class="sub">${sub}</div>`
        + `</div>`;
+}
+
+function liveStatus(ev, t12){
+  const st = (ev.strStatus || '').toUpperCase();
+  if(st === 'HT') return 'استراحة';
+  if(['FT','AET','PEN'].includes(st)) return 'انتهت';
+  const m = parseInt(ev.strProgress, 10);
+  return isNaN(m) ? `بدأت ${t12}` : `الدقيقة ${ar(m)}`;
+}
+
+// while a picked team is playing, refresh that event every 2 minutes
+async function loadLive(){
+  const now = Date.now();
+  await Promise.all(Object.entries(MATCHES).map(async ([id, ev])=>{
+    if(!ev || !ev.idEvent) return;
+    const k = toDate(ev).getTime();
+    if(now < k - 5*60000 || now > k + 2.5*3600000) return;
+    try{
+      const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/lookupevent.php?id=${ev.idEvent}`, 10000);
+      const j = await r.json();
+      const fresh = (j.events || [])[0];
+      if(fresh && fresh.idEvent === ev.idEvent) MATCHES[id] = Object.assign({}, ev, fresh);
+    }catch(e){}
+  }));
+  renderMatches();
 }
 
 function renderMatches(){
@@ -589,17 +691,23 @@ async function fetchT(url, ms){
   finally{ clearTimeout(id); }
 }
 
-// Yahoo has no CORS headers: try it directly, then through a public CORS gateway
+// Yahoo has no CORS headers: try it directly (works inside the app), then through public CORS gateways
 async function yahooChart(sym){
   const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
-  try{
-    const r = await fetchT(direct, 7000);
-    if(r.ok) return await r.json();
-  }catch(e){}
-  const r2 = await fetchT('https://api.allorigins.win/get?url=' + encodeURIComponent(direct), 20000);
-  if(!r2.ok) throw 0;
-  const w = await r2.json();
-  return JSON.parse(w.contents);
+  const routes = [
+    [direct, 7000, j => j],
+    ['https://api.allorigins.win/get?url=' + encodeURIComponent(direct), 15000, w => JSON.parse(w.contents)],
+    ['https://corsproxy.io/?url=' + encodeURIComponent(direct), 12000, j => j],
+  ];
+  for(const [url, ms, unwrap] of routes){
+    try{
+      const r = await fetchT(url, ms);
+      if(!r.ok) continue;
+      const j = unwrap(await r.json());
+      if(j && j.chart && j.chart.result) return j;
+    }catch(e){}
+  }
+  throw 0;
 }
 
 async function loadTicker(t){
@@ -624,48 +732,55 @@ async function loadTicker(t){
 }
 
 const SKIP_TYPES = ['News','Talk Show','Sports','Game Show'];
+async function getJSON(url, fallback){
+  try{ const r = await fetchT(url, 12000); return r.ok ? await r.json() : fallback; }catch(e){ return fallback; }
+}
 async function loadWeek(){
-  const ul = document.getElementById('week-list');
-  const seen = new Set(), out = [];
-  try{
-    const days = [];
-    for(let i=0;i<7;i++){
-      const d = new Date(Date.now()+i*86400000);
-      days.push(new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(d));
-    }
-    const [web, us] = await Promise.all([
-      Promise.all(days.map(dt => fetchT(`https://api.tvmaze.com/schedule/web?date=${dt}`, 12000)
-        .then(r=>r.ok?r.json():[]).catch(()=>[]))),
-      Promise.all(days.map(dt => fetchT(`https://api.tvmaze.com/schedule?country=US&date=${dt}`, 12000)
-        .then(r=>r.ok?r.json():[]).catch(()=>[])))
-    ]);
+  const F = CONFIG.shows, seen = new Set(), out = [];
+  const days = [];
+  for(let i=0;i<7;i++) days.push(new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(Date.now()+i*86400000)));
+  const inWeek = d => d && d >= days[0] && d <= days[6];
+  const add = (s, e, picked) => {
+    if(!s || !s.name || seen.has(s.name)) return;
+    seen.add(s.name);
+    const prem = e.number === 1;
+    out.push({
+      name: s.name,
+      ep: e.season ? (prem ? `الموسم ${ar(e.season)}` : `الموسم ${ar(e.season)} · ح ${ar(e.number)}`) : '',
+      date: e.airdate || '',
+      rating: (s.rating && s.rating.average) || 0,
+      prem, picked
+    });
+  };
 
-    const push = (e) => {
+  // shows picked one by one: their next episode, if it airs this week
+  const picked = await Promise.all(F.ids.map(id => getJSON(`https://api.tvmaze.com/shows/${id}?embed=nextepisode`, null)));
+  picked.forEach(s => {
+    const e = s && s._embedded && s._embedded.nextepisode;
+    if(e && inWeek(e.airdate)) add(s, e, true);
+  });
+
+  // the schedule, narrowed by genre and language; skipped when only picked shows were chosen
+  if(!F.ids.length || F.genres.length || F.langs.length){
+    const lists = await Promise.all(days.flatMap(dt => [
+      getJSON(`https://api.tvmaze.com/schedule/web?date=${dt}`, []),
+      ...F.countries.map(c => getJSON(`https://api.tvmaze.com/schedule?country=${encodeURIComponent(c)}&date=${dt}`, []))
+    ]));
+    lists.flat().forEach(e => {
       const s = e.show || (e._embedded && e._embedded.show) || {};
-      if(!s.name || seen.has(s.name)) return;
       if(s.type && SKIP_TYPES.includes(s.type)) return;
       if(s.genres && s.genres.includes('Soap')) return;   // no daytime soaps
       if(!e.number || e.number < 1) return;
       if(e.season && e.season > 15) return;               // keep it to real series
-      const rating = (s.rating && s.rating.average) || 0;
-      if(rating < 7) return;                           // rating gate
-      seen.add(s.name);
-      const prem = e.number === 1;                     // premiere vs new episode
-      out.push({
-        name: s.name,
-        ep: e.season ? (prem ? `الموسم ${ar(e.season)}`
-                             : `الموسم ${ar(e.season)} · ح ${ar(e.number)}`) : '',
-        date: e.airdate || '',
-        rating,
-        prem
-      });
-    };
-    web.flat().forEach(push);
-    us.flat().forEach(push);
-  }catch(e){}
+      if(((s.rating && s.rating.average) || 0) < F.minRating) return;
+      if(F.genres.length && !(s.genres || []).some(g => F.genres.includes(g))) return;
+      if(F.langs.length && !F.langs.includes(s.language)) return;
+      add(s, e, false);
+    });
+  }
 
   if(out.length){                                   // keep the last good list on a failed refresh
-    WEEK_POOL = out.sort((a,b)=> (b.prem - a.prem) || a.date.localeCompare(b.date)).slice(0, 50);
+    WEEK_POOL = out.sort((a,b)=> (b.picked - a.picked) || (b.prem - a.prem) || a.date.localeCompare(b.date)).slice(0, 50);
     WEEK_PAGE = 0;
   }
   renderWeekPage(false);
@@ -691,7 +806,7 @@ function renderWeekPage(animate){
     const dt = o.date ? new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date(o.date+'T12:00:00Z')) : '';
     return `<li><span>${esc(o.name)}</span>`
          + (o.ep?`<span class="ep">${ar(o.ep)}</span>`:'')
-         + `<span class="rt">${ar(o.rating.toFixed(1)).replace('.','٫')}</span>`
+         + (o.rating ? `<span class="rt">${ar(o.rating.toFixed(1)).replace('.','٫')}</span>` : '')
          + (dt?`<span class="dt">${dt}</span>`:'') + '</li>';
   }).join('');
   ul.classList.remove('flip');
@@ -707,16 +822,33 @@ const WX_CODES = {
   95:'عواصف رعدية',96:'عواصف مصحوبة ببرد',99:'عواصف قوية'
 };
 async function loadWeather(){
+  const q = `latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}&timezone=${encodeURIComponent(CONFIG.timezone)}`;
   try{
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}`
-              + `&current=temperature_2m,weather_code&timezone=${encodeURIComponent(CONFIG.timezone)}`;
-    const r = await fetch(url,{cache:'no-store'});
+    const r = await fetchT(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,weather_code`
+                         + `&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`, 12000);
     if(!r.ok) throw 0;
     const j = await r.json();
-    const t = Math.round(j.current.temperature_2m);
-    document.getElementById('wx-temp').textContent = ar(t) + '°';
-    document.getElementById('wx-desc').textContent = WX_CODES[j.current.weather_code] || '';
-  }catch(e){}   // keep the last reading; with none the chip shows only the city
+    document.getElementById('wx-temp').textContent = ar(Math.round(j.current.temperature_2m)) + '°';
+    const d = document.getElementById('wx-desc');
+    d.textContent = WX_CODES[j.current.weather_code] || '';
+    d.classList.remove('dust');
+    const hi = j.daily?.temperature_2m_max?.[0], lo = j.daily?.temperature_2m_min?.[0];
+    document.getElementById('wx-range').textContent =
+      (hi != null && lo != null) ? `${ar(Math.round(hi))}° / ${ar(Math.round(lo))}°` : '';
+  }catch(e){ return; }   // keep the last reading; with none the chip shows only the city
+
+  // dust overrides the condition word: PM10 in µg/m³
+  try{
+    const r = await fetchT(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&current=pm10,dust`, 12000);
+    if(!r.ok) throw 0;
+    const c = (await r.json()).current || {};
+    const pm = Math.max(c.pm10 || 0, c.dust || 0);
+    if(pm >= 150){
+      const d = document.getElementById('wx-desc');
+      d.textContent = pm >= 400 ? 'غبار كثيف' : 'غبار';
+      d.classList.add('dust');
+    }
+  }catch(e){}
 }
 
 // night dimming: transparent by day, dark after 21:00 and before 07:00
@@ -772,6 +904,7 @@ function boot(){
   setInterval(tickClock, 1000);
   setInterval(()=>{ tickDates(); tickPrayer(); tickRamadan(); }, 15000);
   setInterval(renderMatches, 60000);
+  setInterval(loadLive, 2*60000);
   setInterval(loadPrayers, 6*3600*1000);
   setInterval(loadMatches, 30*60*1000);
   setInterval(()=>TICKERS.forEach(loadTicker), 15*60*1000);
