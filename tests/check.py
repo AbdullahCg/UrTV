@@ -69,7 +69,7 @@ check("bundled backgrounds exist", all((ROOT / "assets/backgrounds" / b["file"])
 # ---- verse and hadith: only checked text, and every character has a glyph
 page = (ROOT / "dist/tv.html").read_text(encoding="utf-8")
 verses = json.loads(re.search(r"const VERSES = (\[.*?\]);", page, re.S).group(1))
-hadith = json.loads(re.search(r"const HADITH = (\[.*?\])\.map", page, re.S).group(1))
+hadith = json.loads(re.search(r"const HADITH = (\[.*?\]);", page, re.S).group(1))
 check("verses present", len(verses) >= 100, len(verses))
 check("hadith present", len(hadith) >= 100, len(hadith))
 check("more than 150 verses and hadith together", len(verses) + len(hadith) > 150, len(verses) + len(hadith))
@@ -77,14 +77,25 @@ basmala = [v["surah"] for v in verses if v["surah"] != "سورة الفاتحة"
            and re.sub("[\u064B-\u065F\u0670]", "", v["text"]).startswith("بسم الله الرحمن الرحيم")]
 check("no basmala in front of a verse (it is not part of the verse)", not basmala, basmala)
 check("surah names keep آ (آل عمران)", all("سورة ال " not in v["surah"] for v in verses), sorted({v["surah"] for v in verses if "سورة ال " in v["surah"]}))
-check("no verse or hadith twice", len({v["text"] for v in verses}) == len(verses) and len({h["text"] for h in hadith}) == len(hadith))
+shown = [json.dumps(h["parts"], ensure_ascii=False) for h in hadith]
+check("no verse or hadith twice", len({v["text"] for v in verses}) == len(verses) and len(set(shown)) == len(shown))
 raw = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))
-check("hadith on screen are only those found in the six books",
-      {h["text"] for h in hadith} == {h["text"] for h in raw if h.get("found")})
+sys.path.insert(0, str(ROOT / "src"))
+from build import narration_parts, HADITH_MAX_WORDS   # noqa: E402
+found = {json.dumps(narration_parts(h["full"]["text"]), ensure_ascii=False) for h in raw if h.get("found") and h.get("full")}
+check("hadith on screen are only full narrations found in the six books", set(shown) <= found, len(set(shown) - found))
+sys.path.insert(0, str(ROOT / ".github/tools"))
+from verify_hadith import norm as plain   # noqa: E402  (the six-book check's own matching)
+check("each full narration holds the words it was found by",
+      all(plain(h["text"]) in plain(h["full"]["text"]) for h in raw if h.get("full")),
+      [h["text"] for h in raw if h.get("full") and plain(h["text"]) not in plain(h["full"]["text"])])
+check("every hadith on screen has the Prophet's words and fits the card",
+      all(any(k == "q" for k, _ in h["parts"]) and sum(len(t.split()) for _, t in h["parts"]) <= HADITH_MAX_WORDS for h in hadith))
 font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
 marks = set(TTFont(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2").getBestCmap())
-text = "".join(v["text"] + v["surah"] for v in verses) + "".join(h["text"] + h["source"] for h in hadith)
-missing = sorted({c for c in text if not c.isspace() and ord(c) not in font})
+text = "".join(v["text"] + v["surah"] for v in verses) + "".join(t for h in hadith for _, t in h["parts"]) \
+    + "".join(h["source"] for h in hadith)
+missing = sorted({c for c in text if not c.isspace() and ord(c) not in font and c not in "ﷺ﴿﴾"})   # those: NotoMarks
 check("verse/hadith text: every character in Thmanyah", not missing, missing)
 check("NotoMarks has ﷺ ﴿ ﴾", {0xFDFA, 0xFD3E, 0xFD3F} <= marks)
 team_ar = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))

@@ -7,8 +7,8 @@ the six books from github.com/fawazahmed0/hadith-api, and every book and hadith 
 recorded. A hadith found in none of them must not be shown.
 
 For each found hadith the full narration is kept too, exactly as the book has it (chain of narrators and all):
-the first book in the order below, and in it the shortest narration that holds the words, so the screen can
-show the whole hadith with its isnad instead of an excerpt.
+the first book in the order below, and in it the shortest narration that holds the words (in al-Tirmidhi, one
+he grades صحيح or حسن comes first), so the screen can show the whole hadith with its isnad, not an excerpt.
 """
 import json
 import re
@@ -58,7 +58,9 @@ def main():
         full = None
         if found:
             ed = found[0]["edition"]   # BOOKS order: Bukhari first
-            n = min((f["number"] for f in found if f["edition"] == ed), key=lambda n: len(raw[ed][n]["text"]))
+            graded = lambda t: "صحيح" in norm(t) or "حسن" in norm(t)   # al-Tirmidhi's own grading
+            n = min((f["number"] for f in found if f["edition"] == ed),
+                    key=lambda n: (not graded(raw[ed][n]["text"]), len(raw[ed][n]["text"])))
             src = raw[ed][n]
             full = {"book": BOOKS[ed], "number": n, "arabicnumber": src.get("arabicnumber"),
                     "reference": src.get("reference"), "grades": src.get("grades"), "text": src["text"]}

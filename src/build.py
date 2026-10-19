@@ -50,6 +50,46 @@ def verses_for_screen():
     return out
 
 
+HADITH_MAX_WORDS = 70   # a longer narration does not fit the card beside the clock; it stays in the printed list
+HARAKAT = "[\u064B-\u0652\u0670]*"
+SAW = re.compile(r"\s+".join(HARAKAT.join(w) + HARAKAT for w in "صلى الله عليه وسلم".split()))
+
+
+def narration_parts(text):
+    """A full narration as the book has it -> [["n", narration], ["q", the Prophet's words], ...].
+
+    The books put his words between straight quotes; everything else (the isnad, who asked what, the compiler's
+    note) is narration. Only typography changes: direction marks and the tatweel used as a dash go, «صلى الله
+    عليه وسلم» becomes ﷺ, {verse} becomes ﴿verse﴾, and no space before a comma or full stop."""
+    t = re.sub("[\u200e\u200f]", "", text)
+    t = re.sub(r"\s+ـ\s+", " ", t)
+    t = SAW.sub("ﷺ", t).replace("{", "﴿").replace("}", "﴾")
+    t = re.sub(r"\s+([،,.:؛])", r"\1", t)
+    parts = []
+    for i, piece in enumerate(t.split('"')):
+        piece = " ".join(piece.split()).strip(" .")
+        if piece and piece not in ".،:":
+            parts.append(["q" if i % 2 else "n", piece])
+    return parts
+
+
+def hadith_for_screen():
+    """assets/shared/hadith.json -> the full narrations that fit the card, each with book and number."""
+    digits = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
+    out = []
+    for h in json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8")):
+        full = h.get("full")
+        if not (h.get("found") and full):
+            continue
+        parts = narration_parts(full["text"])
+        words = sum(len(p[1].split()) for p in parts)
+        bare = re.sub(HARAKAT, "", full["text"])
+        weak = "قال أبو عيسى" in bare and not re.search("حسن|صحيح", bare)   # al-Tirmidhi grades it غريب or ضعيف only
+        if any(k == "q" for k, _ in parts) and words <= HADITH_MAX_WORDS and not weak:
+            out.append({"parts": parts, "source": f"{full['book']} · {str(full['number']).translate(digits)}"})
+    return out
+
+
 def data_uri(path, mime):
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
@@ -61,9 +101,7 @@ def main():
     teams = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
     html = html.replace("__TEAMS_AR__", json.dumps(teams, ensure_ascii=False))
     html = html.replace("__VERSES__", json.dumps(verses_for_screen(), ensure_ascii=False))
-    hadith = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))   # checked by CI
-    html = html.replace("__HADITH__", json.dumps([{"text": h["text"], "source": h["source"]} for h in hadith
-                                                  if h.get("found")], ensure_ascii=False))
+    html = html.replace("__HADITH__", json.dumps(hadith_for_screen(), ensure_ascii=False))   # checked by CI
 
     bg_dir = ROOT / "assets/backgrounds"
     bgs = json.loads((bg_dir / "backgrounds.json").read_text(encoding="utf-8"))

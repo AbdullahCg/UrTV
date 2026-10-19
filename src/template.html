@@ -124,6 +124,10 @@
     font-size:1.05em;padding:0 .15em}
   /* ﷺ is not in Thmanyah either: NotoMarks, in gold like the verse brackets so it reads as ornament */
   .week li.quote .saw{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:#D6AF6B;font-size:1.6em;line-height:1;vertical-align:-.1em}
+  /* a full hadith: the isnad and the narration small and muted, the Prophet's words ﷺ at full size */
+  .week li.quote.hadith{font-size:clamp(15px,1.3vw,25px);line-height:1.7}
+  .week li.quote .nar{font-size:.66em;color:#B9AE96}
+  .week li.quote .nar .saw{font-size:1.45em}
   .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:#D6AF6B}
   .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
 
@@ -1043,16 +1047,19 @@ function matchRows(){
 
 // verse one day, hadith the next. Verse texts come from the Quran API via CI (.github/tools/fetch_verses.py), never typed.
 const VERSES = __VERSES__;   // assets/shared/verses.json
-// hadith: only those .github/tools/verify_hadith.py found in the six books; the source line comes from that check
-const HADITH = __HADITH__.map(h => [h.text, h.source]);   // assets/shared/hadith.json
+// hadith: only those .github/tools/verify_hadith.py found in the six books, each shown in full as the book has it,
+// isnad and all: parts are ["n", narration] and ["q", the Prophet's words]; source is the book and its number
+const HADITH = __HADITH__;   // assets/shared/hadith.json, through src/build.py
 function quoteOfDay(){
   const n = riyadhDayNumber(), half = Math.floor(n / 2);
   if(VERSES.length && n % 2 === 0){
     const v = VERSES[half % VERSES.length];
     return {title:'آية اليوم', rows:[`<li class="quote"><span class="orn">﴿</span>${esc(v.text)}<span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
   }
-  const [t, src] = HADITH[half % HADITH.length];
-  return {title:'حديث اليوم', rows:[`<li class="quote">قال رسول الله <span class="saw">ﷺ</span>: «${t}»</li>`, `<li class="src">${src}</li>`]};
+  const h = HADITH[half % HADITH.length];
+  const saw = s => s.replace(/ﷺ/g, '<span class="saw">ﷺ</span>').replace(/[﴿﴾]/g, m => `<span class="orn">${m}</span>`);
+  const body = h.parts.map(([k, t]) => k === 'q' ? `«${saw(esc(t))}»` : `<span class="nar">${saw(esc(t))}</span>`).join(' ');
+  return {title:'حديث اليوم', rows:[`<li class="quote hadith">${body}</li>`, `<li class="src">${esc(h.source)}</li>`]};
 }
 
 const WX_CODES = {
