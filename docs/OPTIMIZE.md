@@ -9,10 +9,20 @@ From hands-on work on three TCL sets (Android 11, 12 and 14, 1.7–2.3 GB RAM, 3
 | Disable TCL/Google telemetry, promos and demos | +85 to +215 MB free RAM, nothing lost | `optimize/lists/tcl-safe.txt` |
 | Restrict the Play Store in the background (never disable it) | its idle CPU fell from ~31% to ~6% on one set; the app still opens and updates | `optimize/tweaks.sh apply` |
 | Animations at 0.5× | menus feel faster | `optimize/tweaks.sh apply` |
+| At most 16 closed apps kept in memory (only lowered, never raised); cached apps frozen | more free RAM on 2 GB sets; an app not used for a while starts a little slower (not yet measured on every set) | `optimize/tweaks.sh apply` (`restore` undoes it) |
+| The stock home's helpers off once our home screen works (`tclhome_passive` ~80 MB) | dead weight with another home screen | done by `optimize/install.sh launcher` after the check; `optimize/restore.sh` re-enables |
 | Free storage | a set at 96–100% full was slow everywhere; app download folders (e.g. a video app's offline downloads) were the cause | check `df /sdcard` and `du -sh /sdcard/Android/data/*`; ask before deleting anything |
 
 Judge results by `MemAvailable`, the Play Store's CPU and how the remote feels — not by load average,
 which sits high on these sets from I/O wait even when idle.
+
+## Running it
+
+`optimize/run.sh` does the whole setup in order and remembers each finished step: over slow or dropping ADB just
+run it again. Results go to `optimize/run/` (before/after table in `summary.md`, `report.md`). `optimize/reset.sh`
+puts a TV back as it came, including older versions of these apps. The ADB client (`optimize/tv.py`) retries and
+reconnects by itself, uploads APKs in verified pieces that resume after a drop, and restarts the TV only through
+`tv.py --reboot` (sent once, so a retry can never restart it twice).
 
 ## What must stay on
 
@@ -28,7 +38,7 @@ so ADB was gone too. Recovery needed someone at the TV to rejoin Wi-Fi from the 
 
 The safe way, built into `optimize/install.sh launcher`:
 1. Install the new home first.
-2. Start `optimize/deadman.sh` on the TV: unless `/data/local/tmp/home_ok` appears within 180 s it re-enables
+2. Start `optimize/deadman.sh` on the TV: unless `/data/local/tmp/home_ok` appears within 300 s it re-enables
    the stock home and the setup app and presses Home.
 3. Disable the setup app, then the stock home.
 4. Press Home and check the new launcher is in front; only then create `home_ok`.

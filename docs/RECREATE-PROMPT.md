@@ -13,21 +13,22 @@ Build ONE self-contained HTML file (no build step, no external JS libraries) tha
 One grid with three rows — `grid-template-rows: auto 1fr auto`, stage padding `3.1vh 3.6vw 5.4vh`, row gap `1.5vh`.
 
 **Top row — two ends, nothing in between:**
-- Left: four compact chips in a row. Each: 1px border `rgba(220,184,111,.22)`, background `rgba(4,14,9,.60)`, 7px backdrop blur, 10px radius, padding `.8vh .95vw`.
-  - TASI, S&P 500, Bitcoin: the name plus ONE direction marker only — `▲` in `#79D6A0` if up, `▼` in `#EE8B70` if down. No price, no percentage.
-  - If a quote cannot be loaded, hide that marker completely (`display:none`). Never show a dash, never show a hard-coded direction.
-  - Weather chip: `الرياض`, the temperature as `٣٤°`, and a short Arabic condition word (`صافي`, `غائم جزئياً`, `مطر`…).
-  - Chips size to their content — no `min-width`, no empty air inside.
-- Right: Hijri date (large, sand `#F6EFE0`) over the Gregorian date (smaller, muted `#C6BBA4`), then a short gold hairline fading out to the left.
+- Left: weather and markets set as type, mirroring the date block on the right — no boxes, no pills.
+  - Big line (same size as the Hijri date): the temperature `٣٤°` in the display font, then a short Arabic condition word (`صافي`, `غائم جزئياً`…; `غبار` in gold when PM10 is high).
+  - Small line (same size as the Gregorian date): the city `·` high / low `٣٧° / ٢٤°`.
+  - A short gold hairline starting at the left screen edge and fading toward the middle.
+  - Under it, one quiet line: `تاسي ▼ · S&P 500 ▲ · بيتكوين ▲` — the name plus ONE direction marker only, `▲` `#79D6A0`, `▼` `#EE8B70`. No price, no percentage. If a quote cannot be loaded, hide its marker (never a dash, never a hard-coded direction).
+- Right: Hijri date (large, sand `#F6EFE0`) over the Gregorian date (smaller, muted `#C6BBA4`), then a short gold hairline starting at the right screen edge and fading toward the middle.
 
-**Middle row — clock right, shows left:**
-- Clock pushed to the right edge, `font-size: clamp(120px, min(17vw, 31vh), 345px)` (≈300px tall), `line-height .92`, `letter-spacing .022em` — slightly positive so the digits breathe. 12-hour, Arabic-Indic digits, gold colon, and a small gold `ص`/`م` at `.28em` at the upper left of the time. Under it a tiny muted line `بتوقيت الرياض`.
-- "New this week" card on the left: translucent panel (`rgba(4,14,9,.46)`, 1px gold border, radius 12, backdrop blur), `max-width: min(760px, 48vw)`, justified to the left edge of its column.
+**Middle row — card left, clock centred in the space between the card and the right edge:**
+- Clock `font-size: clamp(120px, min(17vw, 31vh), 345px)` (≈300px tall), `line-height .92`. 12-hour always, Arabic-Indic digits, gold colon, and a small gold `ص`/`م` at `.28em` at the upper left of the time. Under it a tiny muted line `بتوقيت الرياض`.
+  - Browsers ignore `letter-spacing` on Arabic script, digits included, and the display font's `٤` reaches into the next digit: put every digit in its own inline box with a `.09em` margin between boxes.
+- The card on the left: translucent panel (`rgba(4,14,9,.46)`, 1px gold border, radius 12, backdrop blur), width `min(760px, 48vw)`. Its content is a setting (`#panel=`): new episodes (below, the default), today's prayer times (next one gold, past ones dim), a 5-day forecast, every followed team's games this week, a verse one day and a hadith the next, or no card.
   - Header `هذا الأسبوع` with a gold rule fading out to the left.
   - Exactly 5 rows, each a single flex line: show name (right, `flex:0 1 auto; max-width:68%`, ellipsis), then `الموسم ٣ · ح ٧`, then the rating `٨٫١`, then the weekday anchored at the far left (`flex:1 1 auto; text-align:left`). Hairline under every row.
   - Pool of up to 50 titles, 5 per page, a new page every 25 seconds with a staggered fade-up (`opacity` + `translateY(8px)`, 60ms per row) and wraparound at the end.
 
-**Bottom row — three panels under one gold hairline, `grid-template-columns: 1fr .9fr 1.3fr`, `align-items:end`:**
+**Bottom row — three panels under one gold hairline, `grid-template-columns: 1fr .9fr 1.3fr`, `align-items:start` (the three labels on one line):**
 All three are built identically — small gold label, big value, small sub-line — and must read as one set: same sizes, same baseline.
 - Right: `الصلاة القادمة` → `الفجر ٥:٣٥ ص` as one big value, sub-line `بعد ٣ ساعات و ٣٧ دقيقة`.
 - Centre: `رمضان ١٤٤٨` → the day count at `1.3em` with `يوم` at `.4em` in gold beside it, sub-line the estimated start date.
@@ -77,11 +78,14 @@ All three are built identically — small gold label, big value, small sub-line 
 
 ## Behaviour
 
-- **Match result window:** once a fixture ends (kickoff + 2.5h), replace the upcoming fixture with the final score (`الهلال ٣ - ٢ الاتحاد`, sub-line `النتيجة النهائية · الأحد`) and keep it for 24 hours, then fall back to the next fixture.
+- **Match result window:** once a game ends (status `FT`/`AET`/`PEN`, or kickoff + 2.5h), show the final score (`الهلال ٣ - ٢ الاتحاد`, sub-line `النتيجة النهائية · الأحد`) for 24 hours, then the next fixture. Keep (and save) the score seen at the whistle: the free API's "last games" list lags and "next game" moves on at once.
+- **Verse and hadith:** never typed by hand. Verse texts come from an authoritative Quran API; each hadith must be found word for word in the six Sunni books, with those books as its source line. Leave out pause marks your font has no glyph for; take ﷺ and ﴿﴾ from a font that has them.
 - **Ramadan mode:** when the Hijri month is 9 the centre panel stops counting down and becomes `الإفطار` with the Maghrib time and the time left; between Maghrib and Fajr it becomes `الإمساك` with the Fajr time.
 - **Night dimming:** a full-screen black overlay, transparent from 07:00 to 21:00, ramping over two hours either side, sitting at 46% between 23:00 and 05:00. Recompute every minute.
 - **Burn-in protection:** shift the content layer a few pixels through a fixed 7-step sequence every 4 minutes, with a 3-second transition.
-- **Daily background:** seven licensed Saudi landscapes (AlUla, Riyadh, Tabuk dunes, Farasan coast, Asir mountains, Diriyah, Jeddah at night) stored as base64 in a `BGS` array; pick one per **Riyadh calendar day** with a deterministic hash of the `YYYY-MM-DD` key, so the photo is stable all day and advances at midnight. Give each entry its own brightness factor (0.80–1.0) so bright sand or water never hurts the white text, and print `الصورة: <photographer> · <licence>` in 10 px at 30% opacity in the bottom corner.
+- **Background:** a hosted set of licensed Saudi landscapes (1920×1080); every 4 days a seeded draw picks 5, rotating every 30 minutes, with a few bundled photos as the offline fallback. Give each its own brightness factor (0.70–1.0) so bright sand or water never hurts the white text. No photo credit on screen; credit the photographers in the repo instead.
+- **Start:** keep the page hidden until the clock, the last saved panels and the photo are ready, then fade in once — never a half-built frame.
+- **Arabic descenders:** any line clipped with `overflow:hidden` + ellipsis needs room under the baseline (`padding-bottom:.3em; margin-bottom:-.3em`), or the dots under ي and ج are cut off.
 - **Midnight rollover:** at Riyadh 00:00 reload the day-dependent data (prayers, week list, matches, weather). A 6-hour interval alone leaves yesterday's premieres on screen.
 - Clock ticks every second (one Intl call); dates, prayer, Ramadan and countdowns refresh every 15 seconds. Zero layout shift. Hide the cursor, block scrolling and selection. `F` toggles fullscreen.
 
@@ -99,12 +103,10 @@ All three are built identically — small gold label, big value, small sub-line 
 
 ## The Android app (what we actually shipped)
 
-- A native `DreamService` APK, not a browser page: the assets live inside the APK, so there is no white flash and no browser chrome, and it works offline.
-- `MainActivity` is a full-screen WebView showing the same HTML; dismiss with any remote key via `dispatchKeyEvent`.
-- `ScreenDream` is the system dream (`screensaver_components=sa.yourtv.screensaver/.ScreenDream`), so it starts on the TV's own idle timer (10 s).
-- **Settings inside the app:** a city picker (`SettingsActivity`, 23 Saudi cities) writes the choice to SharedPreferences; every dashboard load builds `file:///android_asset/your-tv.html#city=..&lat=..&lon=..&tz=..` and the page reads the **fragment** with `new URLSearchParams(location.hash.slice(1))`. A `?query` on a `file://` asset URL fails to load in WebView, the fragment works.
-- **Team preferences:** the same settings screen has two team fields (TheSportsDB ids) and appends `&team1=136013&team2=136137` to the fragment. Each team owns one slot in the fixtures panel; a team with nothing this week (or an empty field) leaves its slot hidden, and a game between the two shows once.
-- Weather, prayer times, the clock timezone and the "بتوقيت …" label all follow the chosen city; Riyadh is the fallback.
-- Pass the config in the fragment and the page stays a plain static HTML file that still opens on a desktop browser.
-- TCL quirk: after a reboot the app is frozen until it is opened once, and the first dream attempt fails (`mCurrentDream=null` while the system is `Dreaming`). A `BOOT_COMPLETED` receiver does not fire on this TV. Expect one manual open after a power cycle.
-- Build without Gradle: `aapt2 compile` -> `aapt2 link` -> `javac --release 8` -> `d8` -> `zipalign` -> `apksigner`. Recompile resources whenever a string changes.
+- A `DreamService` screensaver (`sa.yourtv.screensaver/.ScreenDream`) started by the TV's own idle timer, plus a full-screen preview activity; any remote key closes it.
+- The WebView loads a light build of the page (`dist/tv.html`, 0.1 MB); the app answers its font and photo requests from the APK and a photo cache on disk (`shouldInterceptRequest`), so nothing waits on the network.
+- Settings: 194 Saudi cities and towns in the 13 regions plus an online place search; up to 10 teams (browse leagues or search TheSportsDB; Arabic names from a table, then Wikidata, then transliteration); the card beside the clock; episode filters. They reach the page as a URL fragment (`#city=..&lat=..&lon=..&teams=id,id&panel=..`) — a `?query` on `file://` fails in WebView.
+- Agents set everything over ADB through shell-only broadcast receivers (`optimize/saver.sh`, `optimize/dock.sh`).
+- Auto-update: every 6 hours the app downloads the page from the repo and uses it if it is newer than the APK.
+- TCL quirk: after a power cut the app may stay frozen until opened once; a boot receiver plus a persisted job bring it back on most sets.
+- Built by Gradle in GitHub Actions on every push and published to the `apk-latest` release.

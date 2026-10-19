@@ -12,8 +12,15 @@ echo "1/4 Stock home first (never leave the TV without one)…"
 lists=(optimize/lists/tcl-safe.txt optimize/lists/tcl-optional.txt)
 [ -f optimize/lists/mine.txt ] && lists+=(optimize/lists/mine.txt)
 optimize/restore.sh "${lists[@]}" > /dev/null
-sleep 5
-if ! tv "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" | grep -qE 'launcherx|tvlauncher'; then
+stock=no
+for try in 1 2 3 4; do   # a cold stock home can take a while to come up
+  sleep 6
+  if tv "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" | grep -qE 'launcherx|tvlauncher'; then
+    stock=yes; break
+  fi
+  tv "input keyevent KEYCODE_HOME" > /dev/null
+done
+if [ "$stock" = no ]; then
   echo "!! The stock home is not on screen. Stopping before removing anything: press Home on the remote,"
   echo "   then run optimize/reset.sh again."
   exit 1

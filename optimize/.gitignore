@@ -6,3 +6,4 @@ backup-*.txt
 __pycache__/
 run/
 run-*/
+lists/mine.txt

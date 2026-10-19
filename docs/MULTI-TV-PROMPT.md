@@ -13,13 +13,13 @@ Repository: **https://github.com/tshi-dev/TV-ScreenSaver** (public). Work on a b
 ## What already exists (read these first)
 
 - `README.md` — overview, build, URL fragment parameters.
-- `src/template.html` — the whole screen: one HTML/CSS/JS page, no framework, no build step. Fonts and photos are inlined by `build.py` into `dist/your-tv.html` (~4.6 MB, works from `file://` and offline).
+- `src/template.html` — the whole screen: one HTML/CSS/JS page, no framework, no build step. `build.py` makes `dist/your-tv.html` (fonts and photos inlined, ~2.7 MB, works from `file://` and offline) and `dist/tv.html` (0.1 MB, for the Android app).
 - `docs/RECREATE-PROMPT.md` — the full design and behaviour spec. Treat it as the source of truth for what the screen must show.
-- `android/` — the current native Android app: a `DreamService` (system screensaver), a settings screen (city, two teams, show filters), and auto-update that downloads `dist/your-tv.html` from `master` every 6 hours. Built by `.github/workflows/android.yml` and published to the `apk-latest` release.
+- `android/` — the current native Android app: a `DreamService` (system screensaver), a settings screen (city, up to 10 teams, the card beside the clock, show filters), and auto-update that downloads `dist/tv.html` from `master` every 6 hours. Built by `.github/workflows/android.yml` and published to the `apk-latest` release.
 - `docs/TEST-PLAN.md` — how the Android build is tested; reuse its style.
 
 Settings reach the page through the URL fragment, not a query string:
-`your-tv.html#city=..&lat=..&lon=..&tz=Asia/Riyadh&team1=<id>&team2=<id>&genres=..&langs=..&shows=..&minrating=..`
+`your-tv.html#city=..&lat=..&lon=..&tz=Asia/Riyadh&teams=<id>,<id>&panel=..&genres=..&langs=..&shows=..&minrating=..`
 
 ## Step 1 — research (report before building)
 

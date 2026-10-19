@@ -15,7 +15,7 @@ Logs on failure: `adb logcat -d -t 300 | grep -iE "yourtv|chromium|AndroidRuntim
 | S1 | On the TV: Settings → Device preferences → About → press Build 7× → Developer options → enable **USB/Network debugging**. Note the TV's IP. | Debugging on |
 | S2 | `adb connect <TV_IP>:5555` then `adb devices` | Device listed as `device` |
 | S3 | `curl -L -o yourtv-screensaver.apk https://github.com/tshi-dev/TV-ScreenSaver/releases/download/apk-latest/yourtv-screensaver.apk` | ~2–5 MB file |
-| S4 | `adb uninstall sa.yourtv.screensaver` (ignore "not installed") | Old app removed — required, the signing key changed |
+| S4 | `adb uninstall com.abdullah.tvsaver` (ignore "not installed") | The pre-rename app is gone (it would show twice) |
 | S5 | `adb install yourtv-screensaver.apk` | `Success` |
 | S6 | `adb shell dumpsys package sa.yourtv.screensaver \| grep versionName` | `versionName=2.<number>` |
 
@@ -32,10 +32,10 @@ Navigate with the remote, or `adb shell input keyevent DPAD_DOWN|DPAD_UP|DPAD_CE
 | A4 | Region «منطقة الرياض» → pick «الخرج» | Dialog closes, row shows «المدينة: الخرج» |
 | A5 | المدينة → search → type `ابها` or `Abha` | Results list from the internet; pick one → row updates |
 | A6 | المدينة → search → type `zzzzqq` | Toast «لا توجد نتائج» |
-| A7 | الفريق الأول → «تصفح الدوريات…» → each league one by one | Each opens a list of clubs. **Record any league that shows «لا توجد نتائج»** |
-| A8 | الفريق الأول → «تصفح الدوريات…» → دوري روشن → pick Al-Nassr | Toast «جارٍ جلب الاسم بالعربية…», row shows «النصر» (Arabic) |
-| A9 | الفريق الثاني → «بحث عن أي فريق أو منتخب…» → `Real Madrid` | Results; pick → row shows an Arabic name (e.g. «ريال مدريد») |
-| A10 | الفريق الثاني → «بدون» | Row shows «بدون» |
+| A7 | الفرق المتابعة → «تصفح الدوريات…» → each league one by one | Each opens a list of clubs. **Record any league that shows «لا توجد نتائج»** |
+| A8 | الفرق المتابعة → «تصفح الدوريات…» → دوري روشن → pick Al-Nassr | Toast «جارٍ جلب الاسم بالعربية…», row shows «النصر» (Arabic) |
+| A9 | الفرق المتابعة → «بحث عن أي فريق أو منتخب…» → `Real Madrid` | Results; pick → row shows an Arabic name (e.g. «ريال مدريد») |
+| A10 | الفرق المتابعة → دوري يلو | Al-Zulfi is in the list (the free API lists only 10 clubs; it is added) |
 | A11 | التصنيفات → tick دراما + كوميديا → حفظ | Row lists both |
 | A12 | اللغات → tick الإنجليزية → حفظ | Row shows it |
 | A13 | مسلسلات مختارة → «إضافة مسلسل» → `The Last of Us` → pick | Toast «تمت إضافة …», row lists the show (English title) |
@@ -53,10 +53,10 @@ Open: «معاينة الشاشة» row, or `adb shell am start -n sa.yourtv.scr
 | ID | Check | Expected |
 |---|---|---|
 | B1 | Overall | Full screen, photo background, no white flash, no scrollbars, no cursor, all text Arabic except show titles and «S&P 500» |
-| B2 | Clock | 12-hour Arabic digits, gold colon, small gold ص/م at the **upper left** of the time; matches the TV's real Riyadh time |
+| B2 | Clock | 12-hour Arabic digits, no two digits touching (e.g. ٤٨), gold colon, small gold ص/م at the **upper left**; centred between the card and the right edge; matches the real Riyadh time |
 | B3 | Under clock | «بتوقيت <chosen city>» |
 | B4 | Top right | Hijri date (with هـ) over Gregorian date (Gregorian month name, e.g. أكتوبر) |
-| B5 | Top left chips | تاسي / S&P 500 / بيتكوين each with ▲ green or ▼ red (or no arrow — never a dash). Weather chip: city, temperature °, condition word (or «غبار»), high/low |
+| B5 | Top left (no boxes) | Temperature ° + condition word (or «غبار» in gold); city · high/low; gold line from the left edge; تاسي / S&P 500 / بيتكوين each with ▲ green or ▼ red (or no arrow — never a dash) |
 | B6 | Markets accuracy | Compare arrows with today's TASI, S&P 500 and BTC 24h direction on any finance site |
 | B7 | هذا الأسبوع | Up to 5 shows matching A11–A15 filters, with season/episode, rating, weekday. Changes page every 25 s |
 | B7b | Settings → بجانب الساعة → each option, then preview | مواقيت الصلاة: 6 rows, next prayer gold, past ones dim · طقس الأيام القادمة: اليوم, غداً, then weekdays with condition and high/low · مباريات فرقك: every followed team's games this week in time order · آية أو حديث اليوم: a verse with surah and ayah, or a hadith with its source; no empty boxes · لا شيء: no card |
@@ -64,7 +64,7 @@ Open: «معاينة الشاشة» row, or `adb shell am start -n sa.yourtv.scr
 | B9 | رمضان panel | «رمضان ١٤٤٨», day count, start date. (In Ramadan: الإفطار/الإمساك instead) |
 | B10 | المباريات | Team 1 on the right, team 2 on the left, side by side, divider between. Slot hidden if no match within 7 days. Both hidden → «لا شيء هذا الأسبوع» |
 | B11 | Team names | Arabic for all clubs. A non-preset club may show a rough spelling for a few seconds, then the official Arabic name |
-| B12 | Background credit | Tiny «الصورة: …» bottom-left corner |
+| B12 | No credit on screen | Photo credits are only in docs/PHOTO-CREDITS.md |
 | B13 | Any remote key | Preview closes |
 | B14 | Change city to جدة (A4/A5), reopen preview | Prayer times, weather and «بتوقيت جدة» change |
 
@@ -95,7 +95,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 
 | ID | Action | Expected |
 |---|---|---|
-| E1 | Disconnect the TV from Wi-Fi/Ethernet, open preview | Clock, both dates, prayer countdown (computed on device), Ramadan panel all shown. Markets arrows hidden, no dash; weather chip shows only the city; no error text |
+| E1 | Disconnect the TV from Wi-Fi/Ethernet, open preview | Clock, both dates, prayer countdown (computed on device), Ramadan panel all shown. Markets arrows hidden, no dash; weather shows only the city; no error text |
 | E2 | Reconnect, wait 2 min, reopen | Live data returns |
 
 ## 6. Auto-update
@@ -118,7 +118,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | ID | Action | Expected |
 |---|---|---|
 | H1 | On a computer open `https://raw.githack.com/tshi-dev/TV-ScreenSaver/master/dist/your-tv.html` or download `dist/your-tv.html` and double-click | Same screen in the browser; `F` toggles full screen |
-| H2 | Add `#city=جدة&lat=21.5433&lon=39.1728&team1=136013&team2=` to the URL | Jeddah times; only one match slot |
+| H2 | Add `#city=جدة&lat=21.5433&lon=39.1728&teams=136013` to the URL | Jeddah times; only one match slot |
 | H3 | Resize the window to 1280×720 | Layout holds, nothing overlaps |
 
 ## 9. Home-screen card (launcher)

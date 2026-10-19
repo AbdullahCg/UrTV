@@ -14,10 +14,17 @@ what="${1:?usage: optimize/install.sh saver|launcher|all}"
 push_install() {   # $1 apk name, $2 package
   curl -fsSL -o "optimize/$1" "$REL/$1"
   "$PY" -I optimize/tv.py --push-b64 "optimize/$1" "/data/local/tmp/$1"
-  if ! "$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1" | grep -q Success; then
-    echo "Plain install failed (different signing key?). Uninstalling the old $2 and retrying."
-    "$PY" -I optimize/tv.py "pm uninstall $2" || true
-    "$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1" | grep Success
+  local out
+  out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1")
+  if ! grep -q Success <<< "$out"; then
+    # only a signing-key clash justifies removing the installed app (and its settings); anything else stops here
+    if grep -qE 'UPDATE_INCOMPATIBLE|signatures do not match' <<< "$out"; then
+      echo "An older $2 signed with another key is installed: removing it, then installing again."
+      "$PY" -I optimize/tv.py "pm uninstall $2" || true
+      "$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1" | grep Success
+    else
+      echo "!! Install of $1 failed: $out"; exit 1
+    fi
   fi
   "$PY" -I optimize/tv.py "rm -f /data/local/tmp/$1"
 }
@@ -46,13 +53,13 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
   push_install yourtv-home.apk sa.yourtv.home
   "$PY" -I optimize/tv.py "pm grant sa.yourtv.home android.permission.ACCESS_FINE_LOCATION" || true
 
-  # 2. Arm the safety switch on the TV: it restores the stock home in 180 s unless we confirm.
+  # 2. Arm the safety switch on the TV: it restores the stock home in 300 s unless we confirm (slow ADB needs time).
   "$PY" -I optimize/tv.py --push-b64 optimize/deadman.sh /data/local/tmp/deadman.sh
   printf '%s\n' \
     "rm -f /data/local/tmp/home_ok" \
-    "nohup sh /data/local/tmp/deadman.sh $STOCK 180 > /dev/null 2>&1 &" \
+    "nohup sh /data/local/tmp/deadman.sh $STOCK 300 > /dev/null 2>&1 &" \
     | "$PY" -I optimize/tv.py --batch
-  echo "Safety switch armed: the stock home comes back by itself in 3 minutes unless the new home works."
+  echo "Safety switch armed: the stock home comes back by itself in 5 minutes unless the new home works."
 
   # 3. Switch. Setup app first, then the stock home (this order avoided the black screen).
   printf '%s\n' \
@@ -63,19 +70,29 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
     "am force-stop com.android.tv.settings" \
     "input keyevent KEYCODE_HOME" \
     | "$PY" -I optimize/tv.py --batch
-  sleep 6
-
-  # 4. Verify Home really opens the new launcher, then disarm the switch.
-  if "$PY" -I optimize/tv.py "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" \
-       | grep -q sa.yourtv.home; then
+  # 4. Verify Home really opens the new launcher (a few tries: a slow TV), then disarm the switch.
+  ours=no
+  for try in 1 2 3; do
+    sleep 6
+    if "$PY" -I optimize/tv.py "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" \
+         | grep -q sa.yourtv.home; then ours=yes; break; fi
+    "$PY" -I optimize/tv.py "input keyevent KEYCODE_HOME" > /dev/null
+  done
+  if [ "$ours" = yes ]; then
     "$PY" -I optimize/tv.py "touch /data/local/tmp/home_ok"
+    # the switch may have fired already if ADB was very slow: then the stock home is back, say so and stop
+    if ! "$PY" -I optimize/tv.py "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN" \
+         | grep -q sa.yourtv.home; then
+      echo "!! The safety switch put the stock home back (ADB was too slow). Nothing is broken: run the same command again."
+      exit 1
+    fi
     # 5. Only now: the stock home's helpers are dead weight (restore.sh brings them back).
     grep -vE '^\s*(#|$)' optimize/lists/home-replaced.txt | awk '{print "pm disable-user --user 0 " $1}' \
       | "$PY" -I optimize/tv.py --batch > /dev/null || true
     echo "Launcher is home. Press Home from inside an app to double-check."
     echo "Undo everything: optimize/reset.sh"
   else
-    echo "!! Home did not open the new launcher. Leave the TV alone: the stock home returns within 3 minutes."
+    echo "!! Home did not open the new launcher. Leave the TV alone: the stock home returns within 5 minutes."
     echo "   Some TCL firmware pins Home to the stock launcher; on those sets keep the stock home."
     exit 1
   fi

@@ -3,6 +3,7 @@
 # any failure just run it again and it carries on where it stopped.
 #   optimize/run.sh            do the next steps
 #   optimize/run.sh status     what is done
+#   SKIP_LAUNCHER=1 optimize/run.sh   keep the TV's own home screen (firmware that won't let another app be Home)
 # Before: optimize/setup.sh and optimize/find-tv.sh. Optional packages the household gave up go in
 # optimize/lists/mine.txt (one per line, picked from lists/tcl-optional.txt) before running.
 # Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md.
@@ -76,7 +77,8 @@ do_step() {
                  fi ;;
     tweaks)      optimize/tweaks.sh apply ;;
     screensaver) optimize/install.sh saver ;;
-    launcher)    optimize/install.sh launcher ;;
+    launcher)    if [ "${SKIP_LAUNCHER:-}" = 1 ]; then echo "   skipped (SKIP_LAUNCHER=1): the TV keeps its own home screen"
+                 else optimize/install.sh launcher; fi ;;
     after)       optimize/measure.sh after ;;
     report)      report > "$RUN/report.md"; cat "$RUN/report.md" ;;
   esac

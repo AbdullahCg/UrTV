@@ -2,74 +2,94 @@
 
 <h1 align="center">تلفزيونك · Your TV</h1>
 
-<p align="center" dir="rtl">واجهة رئيسية عربية وشاشة توقف سعودية لتلفزيونات Android TV و Google TV، مع أدوات لتسريع التلفزيون وتنظيفه.</p>
+<p align="center" dir="rtl">واجهة رئيسية عربية وشاشة توقف سعودية لتلفزيونات Android TV و Google TV، وتسريع آمن للتلفزيون.<br>يركّبها لك مساعد ذكاء اصطناعي بأمر واحد.</p>
 
-<p align="center">An Arabic home screen and a Saudi screensaver for Android TV / Google TV, plus tools to make the TV fast and clean.</p>
+<p align="center">An Arabic home screen and a Saudi screensaver for Android TV / Google TV, and a safe speed-up.<br>Your AI agent sets it all up.</p>
+
+## Set it up with your AI agent
+
+1. **On the TV:** Settings → System → About → press OK on **Build** 7 times → Developer options → turn on
+   **USB debugging** (and **Network debugging** if listed).
+2. **On a computer on the same Wi-Fi**, open any AI agent that can run commands, and paste:
+
+   > Set up my TV with https://github.com/tshi-dev/TV-ScreenSaver — clone it and follow `docs/SETUP-PROMPT.md` step by step.
+
+That's it. The agent connects, asks you a few questions (what you never use, your city, your teams, your favourite
+apps), and does the rest in about 40 minutes, measuring memory before and after.
+The full prompt is in [docs/SETUP-PROMPT.md](docs/SETUP-PROMPT.md) if you want to read or adapt it.
+
+**Safe by design:** nothing is uninstalled, AirPlay, Chromecast, mirroring, voice and inputs are never touched,
+the home-screen switch has a 5-minute automatic fallback, and `optimize/reset.sh` puts the TV back as it came.
+
+**Make your own:** to build a different screen or port it to another TV, give your agent this repo and
+[docs/RECREATE-PROMPT.md](docs/RECREATE-PROMPT.md) (the full design and behaviour spec).
+
+## What you get
 
 | | | |
 |---|---|---|
-| **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, new episodes — over Saudi landscapes | `yourtv-screensaver.apk` |
-| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة» or by an agent (`optimize/dock.sh`), all apps, inputs, Wi-Fi, settings; optional card (shows, prayers, forecast, matches, verse/hadith), off by default, picked in the screensaver's settings | `yourtv-home.apk` |
-| **Optimize** | Back up, rate and disable bloat reversibly (AirPlay, casting and voice always kept), speed tweaks, safe launcher switch | `optimize/` |
+| **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, or a verse/hadith of the day — over Saudi landscapes | `yourtv-screensaver.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default) | `yourtv-home.apk` |
+| **Speed-up** | Telemetry, ads and demos off (reversibly), fewer apps kept in memory, Play Store kept from running in the background, faster animations | `optimize/` |
 
-**Download:** [releases/apk-latest](https://github.com/tshi-dev/TV-ScreenSaver/releases/tag/apk-latest) · **Set up a TV:** [docs/TV-SETUP-PROMPT.md](docs/TV-SETUP-PROMPT.md) · **Photo credits:** [docs/PHOTO-CREDITS.md](docs/PHOTO-CREDITS.md)
+**Download the apps yourself:** [releases/apk-latest](https://github.com/tshi-dev/TV-ScreenSaver/releases/tag/apk-latest)
+(install with `adb install`; the agent route above also sets everything up).
 
-## Layout
+## For agents and scripts
+
+Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploads, every step remembered):
+
+| | |
+|---|---|
+| `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` |
+| `optimize/saver.sh` | screensaver settings: `city`, `teams`, `find-team`, `card`, `home-card`, `update`, `show` |
+| `optimize/dock.sh` | favourites row: `apps`, `set`, `show`, `reset` |
+| `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
+| `optimize/reset.sh` | back to stock: lists re-enabled, stock home and screensaver back, our apps removed |
+
+What we learned on real TCL sets, and what must stay on: [docs/OPTIMIZE.md](docs/OPTIMIZE.md). Manual test plan:
+[docs/TEST-PLAN.md](docs/TEST-PLAN.md).
+
+## For developers
 
 ```
-src/template.html          the page itself (HTML/CSS/JS) — edit this
-assets/fonts/              Thmanyah woff2 weights (Light, Regular, Medium, Display Bold)
-assets/backgrounds/        5 bundled Unsplash photos (offline fallback); the hosted set is in photos/ + backgrounds.json (credit, brightness)
-build.py                   builds the two pages below
-dist/your-tv.html    stand-alone page, fonts and photos inlined: open in any browser, works offline
-dist/tv.html               light page for the Android app (0.1 MB): the app serves fonts and photos from disk
-docs/RECREATE-PROMPT.md    the full design + behaviour spec
+src/template.html     the screen (HTML/CSS/JS, no framework) — edit this, then: python3 build.py
+dist/your-tv.html     stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline
+dist/tv.html          light page the Android app loads (0.1 MB); the app serves fonts and photos from disk
+android/app           the screensaver app (sa.yourtv.screensaver): DreamService, settings, auto-update
+android/launcher      the home screen (sa.yourtv.home)
+assets/               fonts, bundled photos, Arabic team names, verse and hadith texts
+photos/               the hosted photo set (5 shown per 4 days, rotating every 30 min)
+optimize/             TV tools (Python ADB client, no adb binary needed)
+tests/run.sh          every check: build, data, fonts, scripts, private data, flaky-ADB upload, the screen in a browser
 ```
 
-## Build
+Every push builds both APKs in GitHub Actions and publishes them to the `apk-latest` release; `tests/run.sh` runs
+on every push too. Local Android build (needs the SDK): `python3 build.py && gradle -p android assembleRelease`.
 
-```sh
-python3 build.py
-```
-
-No dependencies. Open `dist/your-tv.html` in any browser; press `F` for fullscreen.
-
-## City
-
-The page reads its config from the URL fragment (works on `file://` and in an Android WebView):
+**Screen settings** come from the URL fragment (works on `file://` and in WebView):
 
 ```
 your-tv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137&panel=prayers
 ```
 
-Defaults to Riyadh. `teams` is up to 10 TheSportsDB team ids in priority order (default Al-Hilal 136013 and the Saudi national team 136137). Every team with a result in the last 24h or a fixture this week gets a slot; the panel shows two at a time and turns the page every 15 s. `panel` picks the card beside the clock: `shows` (new episodes this week, the default), `prayers` (today's times, next one in gold), `forecast` (5 days), `matches` (every followed team's games this week), `verse` (a verse one day, a hadith the next) or `none`. Verse texts are fetched from the Quran API by CI (`.github/tools/fetch_verses.py` → `assets/shared/verses.json`), never typed by hand. Each hadith in `assets/shared/hadith.json` is checked by CI (`.github/tools/verify_hadith.py`) against the Arabic text of the six Sunni books (al-Bukhari, Muslim, Abu Dawud, al-Tirmidhi, al-Nasa'i, Ibn Majah); only those found are shown, with the books they were found in as the source line. Team ids, prayer method and keys are in the `CONFIG` object at the top of the script.
+`teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock — `shows`, `prayers`,
+`forecast`, `matches`, `verse` or `none`. Also `genres`, `langs`, `shows`, `minrating` for the episodes card.
 
-## Data sources (free, no keys)
+**Data** (free, no keys): Aladhan (prayer times, Umm al-Qura), Open-Meteo (weather), Yahoo and CoinGecko (markets),
+TVMaze (episodes), TheSportsDB (matches). Everything fails soft: offline, the clock, dates, prayer and Ramadan
+countdowns still work and the last good data stays on screen. A finished game's score stays up for a day.
 
-Aladhan (prayer, Umm al-Qura), Open-Meteo (weather), Yahoo chart API via allorigins (TASI, S&P 500), CoinGecko (Bitcoin), TVMaze (premieres), TheSportsDB (fixtures). Every fetch fails soft: without network the clock, dates, Ramadan countdown, prayer countdown and known fixture still render.
+**Verse and hadith texts are never typed by hand:** verses come from the Quran API via CI
+(`.github/tools/fetch_verses.py`); each hadith is checked by CI (`.github/tools/verify_hadith.py`) against the
+Arabic text of the six Sunni books, and only those found are shown, with the books as the source line.
 
-## Android app
+**The Android apps** update the screen page from this repo every 6 hours (so it must stay public), start fast
+(the page shows once the clock, saved panels and photo are ready), and come back after a power cut.
 
-`android/` is the TV app (package `sa.yourtv.screensaver`). Every push to `master` builds it in GitHub Actions; the APK is always at
-**Releases → `apk-latest` → `yourtv-screensaver.apk`**.
+## Credits
 
-- **Screensaver**: `ScreenDream` is a system dream. Choose it in the TV's screensaver settings, or over adb:
-  `adb shell settings put secure screensaver_components sa.yourtv.screensaver/.ScreenDream`
-- **Settings** (opening the app): city — 194 Saudi cities and towns grouped by the 13 regions
-  (`android/.../Cities.java`, generated by `.github/tools/gen_cities.py` from GeoNames) plus an online search for any place
-  in the Kingdom — team 1 and team 2 (presets, browse the Saudi and major foreign leagues, search any club or
-  national team worldwide on TheSportsDB, or none),
-  show genres, languages, shows picked one by one (TVMaze search), minimum rating, auto-update, preview.
-- **Fast start**: the app loads `dist/tv.html` and answers its font and photo requests from the APK and a
-  photo cache on disk, so nothing waits on the network. The page stays hidden until the clock, the last
-  saved panels and the photo are ready, then fades in once.
-- **Auto-update**: every 6 hours the app downloads `dist/tv.html` from this repo's `master`, checks it
-  is a complete page and uses it instead of the copy built into the APK. Screen changes reach the TV without reinstalling.
-  This needs the repo to stay public.
-- **After a power cycle** (TCL): the app registers for every boot broadcast and keeps a persisted background job,
-  which brings its process back after a reboot without opening it. If the first screensaver still fails on your TV,
-  open the app once — the TV's firmware may block the boot start for apps outside its auto-start list.
-- Builds are signed with `android/tvsaver.keystore` (password `tvsaver`) so each one installs over the last.
-  The very first install has to replace an APK signed with a different key: uninstall the old app first.
-
-Local build (needs the Android SDK): `python3 build.py && gradle -p android assembleRelease`.
+Photos: Unsplash photographers, listed in [docs/PHOTO-CREDITS.md](docs/PHOTO-CREDITS.md). Fonts: Thmanyah, and
+Noto Naskh Arabic for ﷺ ﴿﴾ (OFL, `assets/fonts/`).
+Home screen adapted from [mihirgupta0900/tv-home](https://github.com/mihirgupta0900/tv-home) (MIT,
+`third_party/`). Package ratings from [UAD-ng](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation).
