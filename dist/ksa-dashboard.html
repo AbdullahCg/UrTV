@@ -76,7 +76,7 @@
   .up{color:var(--green-lt)}.down{color:var(--red)}
 
   .week{
-    width:100%;max-width:min(760px,48vw);justify-self:end;
+    width:min(760px,48vw);justify-self:end;
     background:rgba(4,14,9,.46);
     border:1px solid rgba(220,184,111,.16);
     border-radius:12px;
@@ -126,8 +126,9 @@
   .rule{margin-top:1.2vh;width:clamp(100px,9vw,190px);height:1px;margin-left:auto;margin-right:0;
     background:linear-gradient(270deg,var(--gold),rgba(220,184,111,0))}
 
-  .mid{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4.5vw}
-  .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:start}
+  /* the card keeps its width on the left; the clock is centred in the space between it and the right edge */
+  .mid{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4.5vw}
+  .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:center}
   .clock{
     display:flex;align-items:baseline;justify-content:center;direction:ltr;
     font-family:'ThmanyahDisplay','Thmanyah',serif;
