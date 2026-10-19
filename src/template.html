@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>شاشة الرياض</title>
+<title>شاشة السعودية</title>
 <style>
   @font-face{font-family:'Thmanyah';font-weight:300;font-style:normal;font-display:block;src:url("__F_LIGHT__") format("woff2")}
   @font-face{font-family:'Thmanyah';font-weight:400;font-style:normal;font-display:block;src:url("__F_REGULAR__") format("woff2")}
@@ -999,7 +999,7 @@ function boot(){
   if(wxCity) wxCity.textContent = CONFIG.city;
   const cs = document.getElementById('clock-sub');
   if(cs) cs.textContent = 'بتوقيت ' + CONFIG.city;
-  document.title = 'شاشة ' + CONFIG.city;
+  document.title = 'شاشة السعودية';
   applyBackground();
   tickClock(); tickDates(); tickRamadan();
   TICKERS.forEach(loadTicker);
