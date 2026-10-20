@@ -99,6 +99,31 @@ for (const [panel, [rows, title]] of Object.entries(EXPECT)) {
   await ctx.close();
 }
 
+// ---- every verse and hadith fits the card: each day's text drawn, clear of the clock and the bottom bar
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', 'panel=verse', { width, height });
+  const r = await p.evaluate(() => {
+    const day = riyadhDayNumber(), card = document.querySelector('.week'), bad = [];
+    const days = 2 * Math.max(VERSES.length, HADITH.length);   // a verse on even days, a hadith on odd: all of both
+    let tallest = 0;
+    for (let k = 0; k < days; k++) {
+      window.riyadhDayNumber = () => day + k;
+      renderPanel(false);
+      const c = card.getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
+      const bar = document.querySelector('.bottom').getBoundingClientRect();
+      tallest = Math.max(tallest, c.height);
+      const top = document.querySelector('.top').getBoundingClientRect();
+      // a card beside the clock, not a page: clear of the top line, the clock and the bottom bar, at most 42% high
+      if (c.top < top.bottom || c.bottom > bar.top - 4 || c.right > clock.left - 4 || c.height > 0.42 * innerHeight)
+        bad.push(`${Math.round(c.top)}-${Math.round(c.bottom)}/${Math.round(bar.top)} ` + card.querySelector('.quote').textContent.slice(0, 40));
+    }
+    return { days, bad, tallest: Math.round(tallest) };
+  });
+  check(`every verse and hadith fits the card at ${width}x${height} (${r.days} days, tallest ${r.tallest}px)`,
+    !errors.length && !r.bad.length, `${r.bad.length} spill: ` + r.bad.slice(0, 3).join(' | ') + errors.join('; '));
+  await ctx.close();
+}
+
 // ---- old settings links and «لا شيء»
 for (const [hash, panel, shown] of [['', 'shows', true], ['week=0', 'none', false], ['week=1', 'shows', true],
                                      ['panel=none', 'none', false], ['panel=bogus', 'shows', true]]) {
