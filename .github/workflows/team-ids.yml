@@ -1,12 +1,15 @@
-name: Club ids from the leagues' matches
+name: Clubs and their ids
 
-# TheSportsDB is unreachable from the dev container; CI finds the Saudi clubs'
-# ids in their leagues' matches and pushes them to the data-team-ids branch for review.
+# TheSportsDB is unreachable from the dev container; CI lists every club of the app's
+# leagues and the national teams, with their ids, in the data-team-ids branch for review.
+# Monthly too, for promoted and renamed clubs.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 3 1 * *'
   push:
     branches: [master, next]
-    paths: ['.github/tools/team_ids.py']
+    paths: ['.github/tools/team_ids.py', 'android/app/src/main/java/sa/urtv/screensaver/Prefs.java']
 
 permissions:
   contents: write
@@ -24,5 +27,5 @@ jobs:
           git checkout --orphan data-team-ids
           git rm -rfq --cached .
           git add teams
-          git commit -qm "Saudi clubs' TheSportsDB ids from their matches"
+          git commit -qm "Clubs and national teams with their TheSportsDB ids"
           git push -f origin data-team-ids
