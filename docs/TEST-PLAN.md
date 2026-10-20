@@ -135,6 +135,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | L6 | `optimize/dock.sh set com.not.installed` | `error: none of these apps are on this TV's home screen`; row unchanged |
 | L7 | `optimize/dock.sh reset` | Row back to the defaults |
 | L4 | Open any app with the card on, then `adb shell top -n 1 \| grep urtv.home` | Launcher idle while the app is in front (card paused) |
+| L10 | An app with only a phone launcher activity (an OEM store or settings app, Aptoide): `adb shell cmd package query-activities -a android.intent.action.MAIN -c android.intent.category.LAUNCHER` lists it, the LEANBACK_LAUNCHER query doesn't | It is in the grid once, opens with OK, and can be added to the favourites; TV apps are not listed twice; the stock home and its setup app are not in the grid |
 
 ---
 

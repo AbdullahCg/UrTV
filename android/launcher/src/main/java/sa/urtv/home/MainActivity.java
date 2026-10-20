@@ -48,11 +48,9 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Apple TV style home screen: clock top-left, pills top-right, the focused dock app's name over an
@@ -67,12 +65,11 @@ public class MainActivity extends Activity {
 
     // Dock, hidden apps, Live TV and grid width come from res/values/config.xml.
     private String[] dockApps;
-    private final Set<String> hidden = new HashSet<>();
     private String liveTvPkg, inputPickerPkg;
     private int cols;
 
     static final class App {
-        String pkg, label;
+        String pkg, label, category;   // category: the one it was found with, LEANBACK_LAUNCHER or LAUNCHER
         ComponentName component;
         Drawable art;
         boolean isBanner;
@@ -123,8 +120,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         dockApps = loadDock();
-        hidden.addAll(Arrays.asList(getResources().getStringArray(R.array.hidden_apps)));
-        hidden.add(getPackageName());
         liveTvPkg = getString(R.string.live_tv_package);
         inputPickerPkg = getString(R.string.input_picker_package);
         cols = getResources().getInteger(R.integer.columns);
@@ -369,15 +364,14 @@ public class MainActivity extends Activity {
         PackageManager pm = getPackageManager();
         android.content.pm.ChangedPackages changed = pm.getChangedPackages(packageSeq);
         if (changed != null) packageSeq = changed.getSequenceNumber();
-        Intent q = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         Map<String, App> byPkg = new HashMap<>();
-        for (ResolveInfo ri : pm.queryIntentActivities(q, 0)) {
+        for (ResolveInfo ri : Dock.catalogue(this)) {
             ActivityInfo ai = ri.activityInfo;
-            if (hidden.contains(ai.packageName) || byPkg.containsKey(ai.packageName)) continue;
             App a = new App();
             a.pkg = ai.packageName;
             a.label = String.valueOf(ri.loadLabel(pm));
             a.component = new ComponentName(ai.packageName, ai.name);
+            a.category = Dock.isTv(ri) ? Intent.CATEGORY_LEANBACK_LAUNCHER : Intent.CATEGORY_LAUNCHER;
             Drawable banner = ai.loadBanner(pm);
             if (banner == null) banner = ai.applicationInfo.loadBanner(pm);
             a.isBanner = banner != null;
@@ -488,7 +482,7 @@ public class MainActivity extends Activity {
         if (!inDock) box.addView(label, llp(-1, -2, 0, dp(10), 0, 0));
 
         card.setOnClickListener(v -> launch(new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
+                .addCategory(app.category)
                 .setComponent(app.component)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)));
         card.setOnFocusChangeListener((v, has) -> {

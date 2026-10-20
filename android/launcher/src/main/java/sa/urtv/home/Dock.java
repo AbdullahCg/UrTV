@@ -9,9 +9,11 @@ import android.content.pm.ResolveInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** The favourites row: one set of rules for the home screen, its «ترتيب المفضلة» screen and ADB (DockReceiver). */
 final class Dock {
@@ -33,17 +35,42 @@ final class Dock {
                          : Arrays.asList(c.getResources().getStringArray(R.array.dock_apps));
     }
 
-    /** Apps the home screen can show, package -> name: TV apps minus the hidden ones and the launcher. */
+    /**
+     * Every app the home screen can open, one activity per package: its TV activity (LEANBACK_LAUNCHER) if it has one,
+     * else its ordinary launcher activity, which is all that OEM stores, settings and phone apps have on many
+     * Chinese sets (CVTE, MediaTek). Left out: the hidden apps (config.xml), this launcher, and other home screens
+     * (the stock one and its setup app answer HOME). The same list for the grid, «ترتيب المفضلة» and ADB.
+     * Queried with GET_RESOLVED_FILTER: {@link #isTv} tells which kind each one is.
+     */
+    static List<ResolveInfo> catalogue(Context c) {
+        PackageManager pm = c.getPackageManager();
+        Set<String> skip = new HashSet<>(Arrays.asList(c.getResources().getStringArray(R.array.hidden_apps)));
+        skip.add(c.getPackageName());
+        for (ResolveInfo ri : pm.queryIntentActivities(
+                new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)) {
+            skip.add(ri.activityInfo.packageName);
+        }
+        Map<String, ResolveInfo> out = new LinkedHashMap<>();
+        for (String category : new String[] {Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
+            Intent q = new Intent(Intent.ACTION_MAIN).addCategory(category);
+            for (ResolveInfo ri : pm.queryIntentActivities(q, PackageManager.GET_RESOLVED_FILTER)) {
+                String p = ri.activityInfo.packageName;
+                if (!skip.contains(p) && !out.containsKey(p)) out.put(p, ri);
+            }
+        }
+        return new ArrayList<>(out.values());
+    }
+
+    /** Found as a TV activity (else as an ordinary launcher one): it is started with that same category. */
+    static boolean isTv(ResolveInfo ri) {
+        return ri.filter != null && ri.filter.hasCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+    }
+
+    /** Apps the home screen can show, package -> name, from {@link #catalogue}. */
     static Map<String, String> launchable(Context c) {
         PackageManager pm = c.getPackageManager();
-        List<String> hidden = new ArrayList<>(Arrays.asList(c.getResources().getStringArray(R.array.hidden_apps)));
-        hidden.add(c.getPackageName());
         Map<String, String> out = new LinkedHashMap<>();
-        Intent q = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        for (ResolveInfo ri : pm.queryIntentActivities(q, 0)) {
-            String p = ri.activityInfo.packageName;
-            if (!hidden.contains(p) && !out.containsKey(p)) out.put(p, String.valueOf(ri.loadLabel(pm)));
-        }
+        for (ResolveInfo ri : catalogue(c)) out.put(ri.activityInfo.packageName, String.valueOf(ri.loadLabel(pm)));
         return out;
     }
 
