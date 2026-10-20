@@ -9,7 +9,9 @@
 # Not by default until it is measured again: CACHED_LIMIT=16 optimize/tweaks.sh apply also keeps at most 16 closed
 # apps in memory (only lowered, never raised). It shows more free RAM, but Android 14 raised this limit on purpose
 # (up to 30% fewer cold app starts, source.android.com/docs/core/perf/cached-apps-freezer), and frozen cached apps
-# use no CPU anyway.
+# use no CPU anyway. Seen on a TCL Google TV (Android 14): 1024 at boot; the device_config value only takes effect
+# after a restart and did not survive one there (null again), so `dumpsys activity settings` shows the boot value
+# and `device_config get activity_manager max_cached_processes` the setting.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
