@@ -16,10 +16,13 @@ android {
 
     signingConfigs {
         release {
-            storeFile file('../tvsaver.keystore')
-            storePassword 'tvsaver'
-            keyAlias 'tvsaver'
-            keyPassword 'tvsaver'
+            // CI signs with the key in the repository's secrets (ANDROID_KEYSTORE_B64, see .github/tools/make_signing_key.py);
+            // until those are set, with the old key that is public in this repo, so builds keep working
+            def secret = System.getenv('ANDROID_KEYSTORE')
+            storeFile file(secret ?: '../tvsaver.keystore')
+            storePassword secret ? System.getenv('ANDROID_KEYSTORE_PASSWORD') : 'tvsaver'
+            keyAlias secret ? 'urtv' : 'tvsaver'
+            keyPassword secret ? System.getenv('ANDROID_KEYSTORE_PASSWORD') : 'tvsaver'
         }
     }
 

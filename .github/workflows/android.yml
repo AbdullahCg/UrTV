@@ -27,7 +27,21 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      # the signing key lives only in the repository's secrets (made once with .github/tools/make_signing_key.py)
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_B64 secret yet: signed with the old key that is public in this repo"
+          fi
+
       - name: Build APKs
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: gradle -p android assembleRelease --no-daemon
 
       - name: Rename

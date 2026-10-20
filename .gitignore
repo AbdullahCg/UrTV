@@ -12,3 +12,5 @@ optimize/backup-*.txt
 optimize/run/
 optimize/run-*/
 optimize/lists/mine.txt
+*.p12
+*.jks
