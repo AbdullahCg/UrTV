@@ -31,11 +31,18 @@ often you retry, so find out before anything else.
 allow it (Codex on Windows does). The signs are errors like `getaddrinfo() thread failed to start`,
 `Bash/E_ACCESSDENIED` or `Operation not permitted`. They mean "not allowed yet", not "can't reach the TV", so
 before the first command ask me once to allow network access and running git, bash and python in this folder for
-the whole task, then go on. On Windows, run the scripts in Git Bash; if `bash` isn't found, use its full path:
+the whole task, then go on. On Windows, run every script in Git Bash (they find a working Python themselves,
+past the Microsoft Store shortcut); if `bash` isn't found, use its full path:
 `"C:\Program Files\Git\bin\bash.exe" -lc "cd <this folder> && optimize/find-tv.sh --check"`.
+
+**Missing Git or Python is yours to fix, not mine.** If Git Bash isn't there, or a script says
+`!! No working Python 3 here`, ask me once, then install it yourself and carry on:
+`winget install -e --id Git.Git --accept-source-agreements --accept-package-agreements` or
+`winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements`. Then run the
+same command again: the scripts find the new Python without a new terminal. Don't stop and hand me the install.
 ```
 git clone https://github.com/tshi-dev/UrTV; cd UrTV && git pull     # always the latest
-optimize/find-tv.sh --check            # Windows without Git Bash: python optimize\find-tv.py --check
+optimize/find-tv.sh --check            # Windows: always through Git Bash (below), never plain `python`
 ```
 - `OK: this terminal can reach the home network` → go on with step 1.
 - `!! This terminal cannot reach the home network` → **stop**. Tell me, in plain words, that you can't reach the TV
@@ -77,7 +84,7 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | You see | It means | Do |
 |---|---|---|
 | `getaddrinfo() thread failed to start`, `Bash/E_ACCESSDENIED`, `Operation not permitted` | your sandbox hasn't been allowed network or programs yet | ask me to allow them for this folder (see step 0), then the same command |
-| `!! No working Python 3 here`, or `python` opens the Microsoft Store | Python not installed, or only Windows' Store shortcut | ask me to run `winget install -e --id Python.Python.3.12` in PowerShell, then a new terminal |
+| `!! No working Python 3 here`, or `python` opens the Microsoft Store | Python not installed, or only Windows' Store shortcut | ask me once, install it yourself (`winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements`), then the same command again in Git Bash |
 | `(connection problem: …; retrying in 5s)` | Wi-Fi ADB dropped for a moment | nothing, it retries by itself |
 | `resuming upload at 40%` | an earlier upload was cut off | nothing, it continues and checks the file |
 | no output for several minutes | a restart, or the 3-minute settle before measuring | wait; don't interrupt |
