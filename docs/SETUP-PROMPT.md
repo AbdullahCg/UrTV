@@ -22,9 +22,17 @@ language); keep commands in English.
 
 ## Start here: my two questions, then the approvals (the first 5 minutes; then I can leave)
 
-Everything that needs me comes first, while you get going; after that you work alone. Your very first message,
-before any command, is my first question. Never skip a question or assume my answers, and never skip, work around
-or approve for me anything that asks me (an approval on this computer, «Allow USB debugging?» on the TV).
+Everything that needs me comes first, while you get going; after that you work alone. Never skip a question or
+assume my answers, and never skip or work around anything that asks me (an approval on this computer, «Allow USB
+debugging?» on the TV).
+
+Your very first message, before any command, sets up the approvals so I don't have to approve every command for
+40 minutes. If you are Codex, word for word:
+
+> قبل نبدأ: من القائمة اللي تحت خانة الكتابة، اختر «Approve for me» للموافقات، عشان ما أوقف أسألك عن كل أمر.
+
+Any other agent: ask me in one line to allow running commands and network access in this folder for the whole task.
+Then, in the next message, my first question.
 
 Two short messages, each on its own and in this order, word for word. Never mix them with anything else (not
 with «Allow USB debugging?», not with progress news): one focused question at a time.
@@ -55,9 +63,8 @@ Those defaults, unless I change them:
 
 Then tell me, on its own:
 
-> الحين بتطلع لك طلبات موافقة هنا على الكمبيوتر (تشغيل الأوامر والوصول للشبكة)، وعلى التلفزيون رسالة
-> «Allow USB debugging?»: وافق عليها كلها، وفي التلفزيون علّم «Always allow». بعدها تقدر تتركني، أكمّل لحالي
-> حوالي ٤٠ دقيقة.
+> الحين بتطلع لك على التلفزيون رسالة «Allow USB debugging?»: اضغط Allow وعلّم «Always allow» (ولو طلع لك هنا
+> طلب موافقة، وافق). بعدها تقدر تتركني، أكمّل لحالي حوالي ٤٠ دقيقة.
 
 and go straight on with steps 0 and 1, so every approval comes up while I am still here. My city is checked
 later against `android/app/src/main/java/sa/urtv/screensaver/Cities.java`; if it isn't there, step 4 sets it
@@ -84,12 +91,12 @@ past the Microsoft Store shortcut); if `bash` isn't found, use its full path:
 
 **Codex on Windows:** its sandbox can never start Git Bash (`0xC0000022`, `NtCreateDirectoryObject`: a known Codex
 bug, openai/codex#54449). So run every Git Bash command **outside the sandbox**: request escalated permissions for
-it, so that I am asked to approve, with this justification: "Git Bash cannot start inside the Codex Windows sandbox
-(openai/codex#54449); this runs the UrTV setup script you asked for, in this folder, to reach your TV on your Wi-Fi."
-When the approval offers to allow `bash.exe` from now on, that is what I want; I don't need Full access for it. If the
-request is turned down without reaching me (an automatic reviewer: «Approve for me»), tell me in one line to set
-approvals to ask me in the menu under the chat box, wait, then ask again. Don't port the scripts to PowerShell or
-look for another way: they need Git Bash.
+it, with this justification: "Git Bash cannot start inside the Codex Windows sandbox (openai/codex#54449); this runs
+the UrTV setup script the user asked for, in this folder, to reach their TV on their Wi-Fi." With «Approve for me»
+the reviewer decides; when it offers to allow `bash.exe` from now on, take it. I don't need Full access for this. If
+it is turned down, ask once more with the same justification and the exact command; if it is turned down again,
+stop and tell me exactly what was refused. Don't port the scripts to PowerShell or look for another way: they need
+Git Bash.
 
 **Missing Git or Python is yours to fix, not mine.** If Git Bash isn't there, or a script says
 `!! No working Python 3 here`, ask me once, then install it yourself and carry on:

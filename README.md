@@ -22,8 +22,7 @@
 
    على ويندوز: في PowerShell الصق الأسطر الثلاثة تحت (في القسم الإنجليزي)، ثم افتح PowerShell جديد واكتب `claude`،
    أو استخدم تبويب Code في تطبيق Claude على سطح المكتب مع مجلد على جهازك (مو بيئة سحابية).
-   وإذا تستخدم Codex على ويندوز: بيطلب منك تسمح له يشغّل Git Bash خارج العزل؛ وافق (ولو صلاحياتك «Approve for me»
-   خلّها تسألك).
+   وإذا تستخدم Codex: اختر «Approve for me» للموافقات من القائمة تحت خانة الكتابة (المساعد يذكّرك أول شي).
    وأول ما يسويه المساعد أنه يتأكد أنه يقدر يوصل لشبكة بيتك؛ وإذا ما قدر يقولك بوضوح.
 
 وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك سؤالين: مدينتك، والأندية اللي
@@ -51,8 +50,7 @@
    winget install -e --id Python.Python.3.12
    irm https://claude.ai/install.ps1 | iex
    ```
-   Codex on Windows asks you to let Git Bash run outside its sandbox (which can't start it): approve it. If approvals
-   are set to «Approve for me», set them to ask you.
+   Codex: choose «Approve for me» for approvals in the menu under the chat box (the agent reminds you first).
    The agent's first step checks that it can reach your home network, and says so plainly if it can't.
 
 That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks two questions (your
