@@ -22,6 +22,10 @@ language); keep commands in English.
 
 ## 0. Can you reach my TV? (check this first, 1 minute)
 
+I am on a computer on the same Wi-Fi as the TV, and your commands most likely run on it. A clone or download that
+fails at first, or a network error before the check below, is your own sandbox not allowed yet (see «Permissions
+first»): ask, then try again. Never decide you can't reach the TV from that; only the check below decides.
+
 ADB needs a direct connection, from the terminal where your commands run, to the TV on my Wi-Fi. Many agents run
 their commands somewhere else: a cloud container, a sandbox, or a Linux virtual machine on this computer (a
 "connected folder" or `device_bash`-style tool works that way). From there the TV can never be reached, however
@@ -51,7 +55,7 @@ optimize/find-tv.sh --check            # Windows: always through Git Bash (below
   `winget install -e --id Git.Git`, `winget install -e --id Python.Python.3.12`, `irm https://claude.ai/install.ps1 | iex`,
   then a new PowerShell window and `claude`). A chat that only links to my computer's folders or screen does not
   run commands on it, so it does not count. Give me the one line to paste there:
-  «Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step.»
+  «Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step. You are on a computer on the same Wi-Fi as the TV.»
   Don't look for workarounds.
 
 Signs you are in such a place, if you want to know why: your address is not 192.168.x, 10.x or 172.16–31.x; the
@@ -126,13 +130,21 @@ of my apps / favourites row, left to right, by name: they become the favourites 
 Only then, if this TV was set up with these tools before (also older versions, whose apps are `sa.yourtv.*` or `com.abdullah.*`),
 run `optimize/reset.sh` so we start like new.
 
-## 2. My choices (1 minute: keep it short)
+## 2. My choices (1 minute: two short questions)
 
-Ask me only this, in one short message, in plain Arabic, word for word like this:
+Two short messages, each on its own and in this order, word for word. Never mix them with anything else (not
+with «Allow USB debugging?», not with progress news): one focused question at a time.
 
-> سؤالين بس:
-> ١. مدينتك؟
-> ٢. الأندية اللي تتابع مبارياتها؟ (أو «لا شي»)
+First, the city alone, and wait for my answer:
+
+> وش مدينتك؟
+> (لمواقيت الصلاة والطقس. مثال: الرياض، جدة، الرس)
+
+If the city isn't in `optimize/saver.sh cities`, ask me once for the nearest big city.
+
+Then, after I answer:
+
+> وتتابع مباريات أي أندية؟ اكتب أسماءها، أو «لا شي».
 >
 > والباقي بخليه على الافتراضي، وتقدر تطلب تغيير أي شي منه الحين أو بعدين:
 > • جنب الساعة: «آية وحديث اليوم» (أو: مواقيت الصلاة، المسلسلات، الطقس، المباريات، لا شي)

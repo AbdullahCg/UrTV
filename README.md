@@ -18,7 +18,7 @@
 2. **على كمبيوتر في نفس شبكة الواي فاي**، افتح مساعد ذكاء اصطناعي يشغّل الأوامر على هذا الكمبيوتر نفسه (مثل Claude Code
    مثبّتاً عليه؛ المحادثة في المتصفح أو الجلسة السحابية ما توصل لتلفزيونك)، والصق:
 
-   > ركّب تلفزيوني من https://github.com/tshi-dev/UrTV: انسخ المستودع واتبع `docs/SETUP-PROMPT.md` خطوة بخطوة.
+   > ركّب تلفزيوني من https://github.com/tshi-dev/UrTV: انسخ المستودع واتبع `docs/SETUP-PROMPT.md` خطوة بخطوة. أنت على كمبيوتر متصل بنفس شبكة الواي فاي حقت التلفزيون.
 
    على ويندوز: في PowerShell الصق الأسطر الثلاثة تحت (في القسم الإنجليزي)، ثم افتح PowerShell جديد واكتب `claude`،
    أو استخدم تبويب Code في تطبيق Claude على سطح المكتب مع مجلد على جهازك (مو بيئة سحابية).
@@ -41,7 +41,7 @@
 2. **On a computer on the same Wi-Fi**, open an AI agent that runs commands on that computer itself (for example
    Claude Code installed on it; a browser chat or a cloud session can't reach your TV), and paste:
 
-   > Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step.
+   > Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step. You are on a computer on the same Wi-Fi as the TV.
 
    Windows, in PowerShell, then a new PowerShell window and `claude` (or the desktop app's Code tab on a local folder):
    ```
