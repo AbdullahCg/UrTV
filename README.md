@@ -22,6 +22,8 @@
 
    على ويندوز: في PowerShell الصق الأسطر الثلاثة تحت (في القسم الإنجليزي)، ثم افتح PowerShell جديد واكتب `claude`،
    أو استخدم تبويب Code في تطبيق Claude على سطح المكتب مع مجلد على جهازك (مو بيئة سحابية).
+   وإذا تستخدم Codex على ويندوز: اختر **Full access** من قائمة الصلاحيات تحت خانة الكتابة لهذي المحادثة
+   (عزل Codex ما يقدر يشغّل Git Bash).
    وأول ما يسويه المساعد أنه يتأكد أنه يقدر يوصل لشبكة بيتك؛ وإذا ما قدر يقولك بوضوح.
 
 وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك سؤالين: مدينتك، والأندية اللي
@@ -49,6 +51,8 @@
    winget install -e --id Python.Python.3.12
    irm https://claude.ai/install.ps1 | iex
    ```
+   Codex on Windows: choose **Full access** in the permissions menu under the chat box for this chat (its sandbox
+   can't start Git Bash).
    The agent's first step checks that it can reach your home network, and says so plainly if it can't.
 
 That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks two questions (your

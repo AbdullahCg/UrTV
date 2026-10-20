@@ -39,6 +39,12 @@ the whole task, then go on. On Windows, run every script in Git Bash (they find 
 past the Microsoft Store shortcut); if `bash` isn't found, use its full path:
 `"C:\Program Files\Git\bin\bash.exe" -lc "cd <this folder> && optimize/find-tv.sh --check"`.
 
+**Codex on Windows:** its sandbox can never start Git Bash (`0xC0000022`, `NtCreateDirectoryObject`: a known Codex
+bug, openai/codex#54449), and no approval fixes that inside it. So at the first such error, tell me in one line to
+choose **Full access** in the permissions menu under the chat box, for this chat only (I can set it back to Default
+permissions when the setup is done), wait for me, then run the same command again. Don't port the scripts to
+PowerShell or look for another way: they need Git Bash.
+
 **Missing Git or Python is yours to fix, not mine.** If Git Bash isn't there, or a script says
 `!! No working Python 3 here`, ask me once, then install it yourself and carry on:
 `winget install -e --id Git.Git --accept-source-agreements --accept-package-agreements` or
