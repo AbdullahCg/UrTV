@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Find a club's TheSportsDB id, by its Arabic or English name: optimize/saver.sh find-team الهلال
 
-Arabic names go through assets/shared/teams-ar.json (the names the screen shows) to their English spellings, and
-the usual spellings are tried too (Al-Hilal, Al Hilal, Hilal, … FC), so one call is enough. Saudi clubs first.
+Saudi clubs and the national team come straight from assets/shared/team-ids.json (built in CI from their
+leagues' matches): TheSportsDB's free search misses some of them, the Saudi Al-Hilal among them. Other clubs are
+searched: Arabic names go through assets/shared/teams-ar.json to their English spellings, and the usual spellings
+are tried too (Al-Hilal, Al Hilal, Hilal, … FC), so one call is enough. Saudi clubs first.
 Prints `id:Name  |  league  |  country`, ready for `optimize/saver.sh teams`.
 """
 import json
@@ -16,13 +18,28 @@ for stream in (sys.stdout, sys.stderr):   # Windows writes pipes in its own code
     if hasattr(stream, "reconfigure"):
         stream.reconfigure(encoding="utf-8", errors="replace", newline="\n")
 
-ARABIC = json.loads((Path(__file__).resolve().parents[1] / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
+SHARED = Path(__file__).resolve().parents[1] / "assets/shared"
+ARABIC = json.loads((SHARED / "teams-ar.json").read_text(encoding="utf-8"))      # English name -> Arabic
+IDS = json.loads((SHARED / "team-ids.json").read_text(encoding="utf-8"))         # Arabic -> [id, English]
 API = "https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t="
 
 
 def plain(ar):   # Arabic compared without harakat, tatweel or hamza forms
     ar = re.sub(r"[\u064B-\u0652\u0640]", "", ar.strip())
     return ar.translate(str.maketrans("أإآة", "اااه"))
+
+
+def key(name):   # Al-Hilal, Al Hilal, al hilal FC -> alhilal
+    return re.sub(r"[^a-z]", "", re.sub(r"\s+(S?FC|F\.C\.|Club)$", "", name.strip(), flags=re.I).lower())
+
+
+def known(q):   # a Saudi club or the national team, from our own list: [id, English name] or None
+    arabic = [q] if re.search(r"[\u0600-\u06FF]", q) else [ar for en, ar in ARABIC.items() if key(en) == key(q)]
+    for a in arabic:
+        for name, found in IDS.items():
+            if plain(name) == plain(a):
+                return found
+    return None
 
 
 def spellings(name):
@@ -46,6 +63,10 @@ def main():
     q = " ".join(sys.argv[1:]).strip()
     if not q:
         sys.exit("usage: optimize/saver.sh find-team NAME   (Arabic or English)")
+    hit = known(q)
+    if hit:
+        print(f"{hit[0]}:{hit[1]}  |  Saudi club or national team (our list)  |  Saudi Arabia")
+        return
     if re.search(r"[\u0600-\u06FF]", q):
         names = [en for en, ar in ARABIC.items() if plain(ar) == plain(q)]
         if not names:
