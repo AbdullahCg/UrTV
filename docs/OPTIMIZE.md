@@ -9,7 +9,7 @@ From hands-on work on three TCL sets (Android 11, 12 and 14, 1.7–2.3 GB RAM, 3
 | Disable TCL/Google telemetry, promos and demos | +85 to +215 MB free RAM, nothing lost | `optimize/lists/tcl-safe.txt` |
 | Restrict the Play Store in the background (never disable it) | its idle CPU fell from ~31% to ~6% on one set; the app still opens and updates | `optimize/tweaks.sh apply` |
 | Animations at 0.5× | menus feel faster | `optimize/tweaks.sh apply` |
-| At most 16 closed apps kept in memory (only lowered, never raised); cached apps frozen | more free RAM on 2 GB sets; an app not used for a while starts a little slower (not yet measured on every set) | `optimize/tweaks.sh apply` (`restore` undoes it) |
+| Cached apps frozen (no CPU in the background); Android's own limit on how many closed apps stay in memory | apps reopen fast. Lowering the limit to 16 (`CACHED_LIMIT=16`) is off until measured again: Android 14 raised it on purpose (up to 30% fewer cold starts) | `optimize/tweaks.sh apply` (`restore` undoes it) |
 | The stock home's helpers off once our home screen works (`tclhome_passive` ~80 MB) | dead weight with another home screen | done by `optimize/install.sh launcher` after the check; `optimize/restore.sh` re-enables |
 | Free storage | a set at 96–100% full was slow everywhere; app download folders (e.g. a video app's offline downloads) were the cause | check `df /sdcard` and `du -sh /sdcard/Android/data/*`; ask before deleting anything |
 

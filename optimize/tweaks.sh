@@ -3,15 +3,17 @@
 #   optimize/tweaks.sh apply     - animations at half length
 #                                - Play Store kept from running in the background (it stays installed and opens
 #                                  normally; on one set its idle CPU fell 31% -> 6%)
-#                                - at most 16 closed apps kept in memory (only if the TV allows more): more free
-#                                  RAM, an app not used for a while starts a little slower
 #                                - closed apps frozen while cached (no CPU in the background)
 #                                - app caches trimmed
 #   optimize/tweaks.sh restore   back to Android's defaults
+# Not by default until it is measured again: CACHED_LIMIT=16 optimize/tweaks.sh apply also keeps at most 16 closed
+# apps in memory (only lowered, never raised). It shows more free RAM, but Android 14 raised this limit on purpose
+# (up to 30% fewer cold app starts, source.android.com/docs/core/perf/cached-apps-freezer), and frozen cached apps
+# use no CPU anyway.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
-CACHED=16
+CACHED="${CACHED_LIMIT:-}"
 case "${1:?usage: optimize/tweaks.sh apply|restore}" in
   apply)   v=0.5; bucket=restricted; bg=deny ;;
   restore) v=1.0; bucket=active;     bg=allow ;;
@@ -26,13 +28,16 @@ cmds=(
   "cmd appops set com.android.vending RUN_ANY_IN_BACKGROUND $bg"
 )
 if [ "$1" = apply ]; then
-  # never raise the limit: low-RAM sets may already sit below 16
-  now=$("$PY" -I optimize/tv.py "dumpsys activity settings | grep -m1 max_cached_processes" | tr -dc '0-9')
-  if [ -n "$now" ] && [ "$now" -gt "$CACHED" ]; then
-    cmds+=("device_config put activity_manager max_cached_processes $CACHED")
-    echo "Closed apps kept in memory: $now -> $CACHED"
+  if [ -n "$CACHED" ]; then   # opt-in only (see above); never raise the limit: low-RAM sets may sit below it
+    now=$("$PY" -I optimize/tv.py "dumpsys activity settings | grep -m1 max_cached_processes" | tr -dc '0-9')
+    if [ -n "$now" ] && [ "$now" -gt "$CACHED" ]; then
+      cmds+=("device_config put activity_manager max_cached_processes $CACHED")
+      echo "Closed apps kept in memory: $now -> $CACHED"
+    else
+      echo "Closed apps kept in memory: ${now:-unknown} (left as is)"
+    fi
   else
-    echo "Closed apps kept in memory: ${now:-unknown} (left as is)"
+    cmds+=("device_config delete activity_manager max_cached_processes")   # Android's own limit (undoes an older run)
   fi
   cmds+=("settings put global cached_apps_freezer enabled" "pm trim-caches 999G")
 else
