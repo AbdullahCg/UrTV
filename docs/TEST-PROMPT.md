@@ -19,8 +19,8 @@ nothing disabled, no settings, no reset. Talk to me in Arabic; keep commands in 
 - One command at a time, exactly as written: no extra quotes, `;` or `|` (on Windows PowerShell would run those
   itself). If one fails, note its output and go on to the next. Don't fix anything or write your own scripts.
 
-In the UrTV folder, on the `next` branch (`git clone -b next https://github.com/tshi-dev/UrTV`, or in an existing
-folder `git fetch origin`, `git checkout next`, `git pull`):
+In the UrTV folder, on the `next` branch (`git clone -b next https://github.com/tshi-dev/UrTV`, on Windows into a
+short folder such as `C:/UrTV`; or in an existing folder `git fetch origin`, `git checkout next`, `git pull`):
 
 1. `optimize/setup.sh`: must end with «✓ Python ADB client».
 2. `optimize/find-tv.sh --check`, then `optimize/find-tv.sh`.

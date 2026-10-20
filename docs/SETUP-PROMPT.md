@@ -104,7 +104,8 @@ me exactly what was refused. Don't port the scripts to PowerShell or look for an
 `winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements`. Then run the
 same command again: the scripts find the new Python without a new terminal. Don't stop and hand me the install.
 ```
-git clone https://github.com/tshi-dev/UrTV; cd UrTV && git pull     # always the latest
+git clone https://github.com/tshi-dev/UrTV; cd UrTV && git pull     # always the latest; on Windows into a short
+                                                                    # folder such as C:/UrTV (a deep one breaks Python)
 optimize/find-tv.sh --check            # Windows: always through Git Bash (below), never plain `python`
 ```
 - `OK: this terminal can reach the home network` → go on with step 1.
@@ -152,6 +153,7 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `0xC0000022` or `NtCreateDirectoryObject` starting Git Bash (Codex) | Codex's sandbox can't start Git Bash | run it outside the sandbox (step 0, «Codex on Windows») |
 | `you cannot ask for escalated permissions`, `rejected by policy` (Codex) | Codex's approvals are not on «Approve for me» | message 1 again, wait for «تم», then the same command |
 | `ModuleNotFoundError: No module named 'adb_shell'`, or `!! The Python packages aren't in optimize/venv` | `optimize/setup.sh` didn't finish (often pip had no network) | `optimize/setup.sh` again until it ends with «✓ Python ADB client»; its `!!` line says what is wrong. Then the same command; don't stop for this |
+| `!! This folder's path is too long for Windows`, `Filename too long`, or `DLL load failed … too long` | the UrTV folder sits too deep for Windows | clone it again into a short folder: `git clone -c core.longpaths=true https://github.com/tshi-dev/UrTV C:/UrTV`, and carry on there |
 | `!! No working Python 3 here`, or `python` opens the Microsoft Store | Python not installed, or only Windows' Store shortcut | ask me once, install it yourself (`winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements`), then the same command again in Git Bash |
 | `(connection problem: …; retrying in 5s)` | Wi-Fi ADB dropped for a moment | nothing, it retries by itself |
 | `resuming upload at 40%` | an earlier upload was cut off | nothing, it continues and checks the file |

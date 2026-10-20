@@ -23,6 +23,11 @@
         <item>com.tcl.suspension</item>
         <item>com.tcl.t_solo</item>
         <item>com.tcl.dashboard</item>
+        <!-- TCL helpers that have an ordinary launcher activity (listed since 3.68): not apps anyone opens -->
+        <item>com.tcl.messagebox</item>
+        <item>com.tcl.smartalexa</item>
+        <item>com.tcl.usercenter</item>
+        <item>com.tcl.tv.tclhome_passive</item>
     </string-array>
 
     <!-- The TV's Live TV / tuner app, listed last in the Inputs menu. Empty to leave it out.
