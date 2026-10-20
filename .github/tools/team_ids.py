@@ -24,7 +24,8 @@ PREFS = Path("android/app/src/main/java/sa/urtv/screensaver/Prefs.java")
 COUNTRIES = ["Saudi Arabia", "England", "Spain", "Italy", "Germany", "France", "Portugal", "Netherlands", "Turkey",
              "Egypt", "United Arab Emirates", "Qatar", "United States"]   # where Prefs.LEAGUES play
 GUESSES = {"Portuguese Primeira Liga": "4344", "Turkish Super Lig": "4339"}   # used only if the name matches
-SEASONS = ["2025-2026", "2024-2025"]
+SEASONS = ["2025-2026", "2024-2025", "2026", "2025"]   # calendar-year leagues (MLS) use "2026"
+ALIASES = {"United States": ["USA", "United States of America"], "Jordan": ["Jordan national football team"]}
 NATIONAL = {   # national teams: TheSportsDB's English name -> Arabic
     "Saudi Arabia": "السعودية", "United Arab Emirates": "الإمارات", "Qatar": "قطر", "Kuwait": "الكويت",
     "Bahrain": "البحرين", "Oman": "عمان", "Iraq": "العراق", "Jordan": "الأردن", "Syria": "سوريا", "Lebanon": "لبنان",
@@ -94,14 +95,21 @@ def main():
                         found.add(i)
         report["teams per league"][name] = len(found)
         print(f"{name}: {len(found)} teams")
-    for en, ar in NATIONAL.items():   # the men's team whose name is exactly the country's
-        hits = [t for t in get("searchteams.php?" + urllib.parse.urlencode({"t": en})).get("teams") or []
-                if t.get("strSport") == "Soccer" and (t.get("strTeam") or "").lower() == en.lower()
-                and (t.get("strGender") or "Male") == "Male"]
+    for en, ar in NATIONAL.items():   # the men's team whose name is exactly the country's (or a known alias)
+        names, seen, hits = [en] + ALIASES.get(en, []), [], []
+        for q in names:
+            for t in get("searchteams.php?" + urllib.parse.urlencode({"t": q})).get("teams") or []:
+                if t.get("strSport") == "Soccer":
+                    seen.append(t.get("strTeam"))
+                    if (t.get("strTeam") or "").lower() in {n.lower() for n in names} \
+                            and (t.get("strGender") or "Male") == "Male":
+                        hits.append(t)
+            if hits:
+                break
         if hits:
             teams[hits[0]["idTeam"]] = {"en": hits[0]["strTeam"], "ar": ar, "leagues": ["National teams"]}
         else:
-            report["national teams not found"].append(en)
+            report["national teams not found"].append(f"{en} (search gave: {', '.join(seen[:8]) or 'nothing'})")
     print(len(NATIONAL) - len(report["national teams not found"]), "national teams")
     wrong = {i: n for i, n in KNOWN.items() if team_key(teams.get(i, {}).get("en", "")) != team_key(n)}
     if wrong:
