@@ -3,14 +3,36 @@
 **On the TV first:** Settings → System → About → press OK on **Build** 7 times → back → Developer options →
 turn on **USB debugging** (and **Network debugging** if it is listed). Keep the TV on.
 
-**Then** open any AI agent that can run commands, on a computer on the **same Wi-Fi** as the TV, and paste
-everything below the line.
+**Then** open an AI agent that runs commands **on a computer on the same Wi-Fi** as the TV (for example Claude Code
+installed on it; a chat in the browser or a cloud session can't reach your TV), and paste everything below the line.
+Windows: install [Git for Windows](https://git-scm.com/download/win) (it brings Git Bash) and
+[Python 3](https://www.python.org/downloads/) (tick «Add python.exe to PATH») first.
 
 ---
 
 Set up my Android TV / Google TV with **تلفزيونك** from https://github.com/tshi-dev/UrTV: a faster TV
 (bloat off, safely), an Arabic home screen, and the screensaver «شاشة تلفزيونك». Talk to me in Arabic (or my
 language); keep commands in English.
+
+## 0. Can you reach my TV? (check this first, 1 minute)
+
+ADB needs a direct connection, from the terminal where your commands run, to the TV on my Wi-Fi. Many agents run
+their commands somewhere else: a cloud container, a sandbox, or a Linux virtual machine on this computer (a
+"connected folder" or `device_bash`-style tool works that way). From there the TV can never be reached, however
+often you retry, so find out before anything else:
+```
+git clone https://github.com/tshi-dev/UrTV; cd UrTV && git pull     # always the latest
+optimize/find-tv.sh --check            # Windows without Git Bash: python optimize\find-tv.py --check
+```
+- `OK: this terminal can reach the home network` → go on with step 1.
+- `!! This terminal cannot reach the home network` → **stop**. Tell me, in plain words, that you can't reach the TV
+  from where your commands run, and that I need an agent running on this computer itself (for example Claude Code
+  installed on it: Windows in Git Bash, Mac in Terminal). Don't look for workarounds.
+
+Signs you are in such a place, if you want to know why: your address is not 192.168.x, 10.x or 172.16–31.x; the
+network interfaces are only `lo` and `tap0`; `echo > /dev/tcp/<router>/80` says `Network is unreachable`; or every
+address "answers" (a proxy). If `git clone` stops halfway (on Windows it can leave an empty folder, «No commits
+yet»), delete the folder and clone again.
 
 ## Rules (protective layer: these win over everything else here)
 
@@ -40,7 +62,8 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `resuming upload at 40%` | an earlier upload was cut off | nothing, it continues and checks the file |
 | no output for several minutes | a restart, or the 3-minute settle before measuring | wait; don't interrupt |
 | the first connection hangs for up to 2 minutes | the TV is showing «Allow USB debugging?» | ask me to press Allow and tick «Always allow» |
-| `Don't know your TV's IP` | `find-tv.sh` was not run or found nothing | `optimize/find-tv.sh`, or ask me for the IP (TV: Settings → Network) and use `TV_HOST=<ip>` |
+| `!! This terminal cannot reach the home network` | your commands run in a cloud, sandbox or virtual machine | stop, tell me (step 0) |
+| `Don't know your TV's IP` | `find-tv.sh` was not run or found nothing | `optimize/find-tv.sh`, or ask me for the IP (TV: Settings → Network → the Wi-Fi) and save it: `echo <ip> > optimize/.tv_host` |
 | `No TV with ADB open` | debugging off, TV asleep, or the computer is on another (guest) Wi-Fi | ask me to check all three, then `optimize/find-tv.sh` again |
 | `!! TV not answering after 4 tries` | TV went to standby, lost Wi-Fi, or got a new IP | ask me to wake the TV; run `optimize/find-tv.sh` if the IP may have changed; then the same command |
 | `!! TV did not come back within 5 minutes` | slow restart, or it stayed in standby | ask me to turn it on, then `optimize/venv/bin/python -I optimize/tv.py --wait`, then the same command |
@@ -64,7 +87,6 @@ Anything else, or anything twice: stop, show me the output and what you think it
 ## 1. Connect and look (5 minutes)
 
 ```
-git clone https://github.com/tshi-dev/UrTV; cd UrTV && git pull   # always the latest
 optimize/setup.sh
 optimize/find-tv.sh                       # accept "Allow USB debugging?" on the TV, tick "Always allow"
 optimize/venv/bin/python -I optimize/tv.py --probe

@@ -15,9 +15,13 @@
 
 1. **على التلفزيون:** الإعدادات ← النظام ← حول ← اضغط OK على **Build** سبع مرات ← خيارات المطوّر ← شغّل
    **USB debugging** (و**Network debugging** إن وُجد).
-2. **على كمبيوتر في نفس شبكة الواي فاي**، افتح أي مساعد ذكاء اصطناعي يقدر يشغّل أوامر، والصق:
+2. **على كمبيوتر في نفس شبكة الواي فاي**، افتح مساعد ذكاء اصطناعي يشغّل الأوامر على هذا الكمبيوتر نفسه (مثل Claude Code
+   مثبّتاً عليه؛ المحادثة في المتصفح أو الجلسة السحابية ما توصل لتلفزيونك)، والصق:
 
    > ركّب تلفزيوني من https://github.com/tshi-dev/UrTV: انسخ المستودع واتبع `docs/SETUP-PROMPT.md` خطوة بخطوة.
+
+   على ويندوز ثبّت قبلها [Git for Windows](https://git-scm.com/download/win) و[Python 3](https://www.python.org/downloads/).
+   وأول ما يسويه المساعد أنه يتأكد أنه يقدر يوصل لشبكة بيتك؛ وإذا ما قدر يقولك بوضوح.
 
 وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك كل الأسئلة مرة وحدة: مدينتك،
 والأندية اللي تتابع مبارياتها، ووش يطلع جنب الساعة (آية وحديث، جديد المسلسلات، مواقيت الصلاة…)، ووش ما تستخدمه أبداً.
@@ -32,9 +36,13 @@
 
 1. **On the TV:** Settings → System → About → press OK on **Build** 7 times → Developer options → turn on
    **USB debugging** (and **Network debugging** if listed).
-2. **On a computer on the same Wi-Fi**, open any AI agent that can run commands, and paste:
+2. **On a computer on the same Wi-Fi**, open an AI agent that runs commands on that computer itself (for example
+   Claude Code installed on it; a browser chat or a cloud session can't reach your TV), and paste:
 
    > Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step.
+
+   Windows: install [Git for Windows](https://git-scm.com/download/win) and [Python 3](https://www.python.org/downloads/)
+   first. The agent's first step checks that it can reach your home network, and says so plainly if it can't.
 
 That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks a few questions in
 one go (your city, the clubs whose games you follow, what goes beside the clock: verse and hadith, new episodes,
@@ -64,6 +72,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 
 | | |
 |---|---|
+| `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` |
 | `optimize/saver.sh` | screensaver settings: `city`, `teams`, `find-team`, `card`, `home-card`, `update`, `show` |
 | `optimize/dock.sh` | favourites row: `apps`, `set`, `show`, `reset` |
