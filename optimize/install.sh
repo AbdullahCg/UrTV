@@ -23,6 +23,8 @@ push_install() {   # $1 apk name, $2 package
     # only a signing-key clash justifies removing the installed app (and its settings); anything else stops here
     if grep -qE 'UPDATE_INCOMPATIBLE|signatures do not match' <<< "$out"; then
       echo "An older $2 signed with another key is installed: removing it, then installing again."
+      # removing the home app while the stock one is off would leave the TV with no home at all
+      [ "$2" = sa.urtv.home ] && "$PY" -I optimize/tv.py "pm enable ${STOCK%%/*}" > /dev/null || true
       "$PY" -I optimize/tv.py "pm uninstall $2" || true
       "$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1" | grep Success
     else
