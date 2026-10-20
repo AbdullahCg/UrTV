@@ -4,9 +4,14 @@
 # Adapted from github.com/mihirgupta0900/tv-home (MIT).
 set -euo pipefail
 cd "$(dirname "$0")"
-# Windows often has only `python` (and a `python3` that just opens the Store)
-PY=$(command -v python3 >/dev/null && python3 -V >/dev/null 2>&1 && echo python3 || echo python)
-"$PY" -m venv venv
+# A Python 3 that really runs: on Windows `python`/`python3` can be a Microsoft Store shortcut that does nothing,
+# and the launcher `py -3` is often the one that works
+PY=""
+for c in python3 python "py -3"; do
+  if $c -c "import sys; sys.exit(sys.version_info < (3, 8))" >/dev/null 2>&1; then PY="$c"; break; fi
+done
+[ -n "$PY" ] || { echo "!! No working Python 3 here. Windows: winget install -e --id Python.Python.3.12, then a new terminal."; exit 1; }
+$PY -m venv venv
 if [ ! -e venv/bin/python ] && [ -e venv/Scripts/python.exe ]; then
   # Windows puts it in venv\Scripts: every script calls optimize/venv/bin/python, so point that there
   mkdir -p venv/bin

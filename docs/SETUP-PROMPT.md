@@ -25,7 +25,14 @@ language); keep commands in English.
 ADB needs a direct connection, from the terminal where your commands run, to the TV on my Wi-Fi. Many agents run
 their commands somewhere else: a cloud container, a sandbox, or a Linux virtual machine on this computer (a
 "connected folder" or `device_bash`-style tool works that way). From there the TV can never be reached, however
-often you retry, so find out before anything else:
+often you retry, so find out before anything else.
+
+**Permissions first.** Some agents run commands in a sandbox that blocks the network or starting programs until I
+allow it (Codex on Windows does). The signs are errors like `getaddrinfo() thread failed to start`,
+`Bash/E_ACCESSDENIED` or `Operation not permitted`. They mean "not allowed yet", not "can't reach the TV", so
+before the first command ask me once to allow network access and running git, bash and python in this folder for
+the whole task, then go on. On Windows, run the scripts in Git Bash; if `bash` isn't found, use its full path:
+`"C:\Program Files\Git\bin\bash.exe" -lc "cd <this folder> && optimize/find-tv.sh --check"`.
 ```
 git clone https://github.com/tshi-dev/UrTV; cd UrTV && git pull     # always the latest
 optimize/find-tv.sh --check            # Windows without Git Bash: python optimize\find-tv.py --check
@@ -69,6 +76,8 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 
 | You see | It means | Do |
 |---|---|---|
+| `getaddrinfo() thread failed to start`, `Bash/E_ACCESSDENIED`, `Operation not permitted` | your sandbox hasn't been allowed network or programs yet | ask me to allow them for this folder (see step 0), then the same command |
+| `!! No working Python 3 here`, or `python` opens the Microsoft Store | Python not installed, or only Windows' Store shortcut | ask me to run `winget install -e --id Python.Python.3.12` in PowerShell, then a new terminal |
 | `(connection problem: …; retrying in 5s)` | Wi-Fi ADB dropped for a moment | nothing, it retries by itself |
 | `resuming upload at 40%` | an earlier upload was cut off | nothing, it continues and checks the file |
 | no output for several minutes | a restart, or the 3-minute settle before measuring | wait; don't interrupt |
@@ -100,9 +109,11 @@ Anything else, or anything twice: stop, show me the output and what you think it
 ```
 optimize/setup.sh
 optimize/find-tv.sh                       # accept "Allow USB debugging?" on the TV, tick "Always allow"
-optimize/venv/bin/python -I optimize/tv.py --probe
+optimize/venv/bin/python -I optimize/tv.py --probe     # first tell me to watch the TV (below)
 optimize/shot.sh home my-apps
 ```
+Before `--probe`, tell me to look at the TV now: «Allow USB debugging?» appears there; I press Allow and tick
+«Always allow». Until I do, the command stays silent (up to 2 minutes): that is the wait, not a fault.
 Tell me the model and Android version. Look at `optimize/run/shots/my-apps.png` and write down the first **6 apps**
 of my apps / favourites row, left to right, by name: they become the favourites of the new home screen in step 4.
 Only then, if this TV was set up with these tools before (also older versions, whose apps are `sa.yourtv.*` or `com.abdullah.*`),
