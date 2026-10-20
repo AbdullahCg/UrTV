@@ -2,17 +2,19 @@
 # Download the latest APKs from GitHub and install them on the TV.
 #   optimize/install.sh saver      شاشة تلفزيونك: install + make it the screensaver
 #   optimize/install.sh launcher   the home screen: install + make it the default Home
-#   optimize/install.sh all        both
+#   optimize/install.sh music      استماع: Quran recitations and live radio (opt-in)
 #   optimize/install.sh extras     two free apps from their own GitHub releases: TV Bro (a TV web browser,
 #                                  github.com/truefedex/tv-bro) and SmartTube (YouTube without ads,
 #                                  github.com/yuliskov/SmartTube), the build that fits the TV's processor
+#   optimize/install.sh all        all three (saver, launcher, music)
 # The first install of the screensaver replaces an APK signed with another key: uninstall the old one first
 # (pm uninstall sa.urtv.screensaver) — this script does that only if a plain install fails.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
 REL=https://github.com/tshi-dev/UrTV/releases/download/${APK_TAG:-apk-latest}   # APK_TAG=v3.N: that numbered build
-what="${1:?usage: optimize/install.sh saver|launcher|all|extras}"
+what="${1:?usage: optimize/install.sh saver|launcher|music|extras|all}"
+case "$what" in saver|launcher|music|extras|all) ;; *) echo "usage: optimize/install.sh saver|launcher|music|extras|all" >&2; exit 2;; esac
 failed=0   # an extra that did not install: the rest are still tried, then run.sh must not count the step as done
 
 push_install() {   # $1 apk name, $2 package
@@ -145,4 +147,9 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
     echo "   Some TCL firmware pins Home to the stock launcher; on those sets keep the stock home."
     exit 1
   fi
+fi
+
+if [ "$what" = music ] || [ "$what" = all ]; then
+  push_install urtv-listening.apk sa.urtv.listening
+  echo "Listening installed (استماع): open it from the all-apps row on the home screen."
 fi

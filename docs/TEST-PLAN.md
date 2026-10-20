@@ -153,6 +153,24 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | T9 | `optimize/reset.sh`, then `optimize/venv/bin/python -I optimize/tv.py pm list packages sa.urtv` and `optimize/venv/bin/python -I optimize/tv.py settings get secure screensaver_enabled` | The package list is empty; `screensaver_enabled` is the value in `optimize/run-*/backup.txt` (under «== screensaver»: the components line, then this one; `null` means unset) |
 | T10 | Put a `!!` line in `optimize/run/report.md` and run `optimize/run.sh` | It ends with «Done, with problems:» and that line, exit code 1; no «All steps done» |
 
+## 10. Listening app (استماع, opt-in)
+
+Install: `optimize/install.sh music`; open «استماع» from the all-apps row. The app controls are in
+[LISTENING.md](LISTENING.md).
+
+| ID | Action | Expected |
+|---|---|---|
+| M1 | Open the app | Arabic RTL home list: «متابعة الاستماع» (if history), «القرّاء», ten reciters, «الإذاعات», live stations; first row focused |
+| M2 | D-pad down through reciters and stations | The selected row always has a solid dark card, thick gold frame and gold chevron; section headers are skipped |
+| M3 | OK on a reciter | 114-surah grid in reading order, first surah focused; Back returns to the list |
+| M4 | OK on الفاتحة | Player shows the surah and reciter; progress advances; OK pauses and resumes |
+| M5 | ▶ then ◀ | Progress jumps +10 s then −10 s; no restart |
+| M6 | Let الفاتحة finish | البقرة starts automatically with the same reciter |
+| M7 | OK on «إذاعة القرآن الكريم - السعودية» | Live player, long title fits, audio plays, no error (this also proves the scoped radiojar cleartext redirect) |
+| M8 | ▼ → ٣٠ دقيقة, then reopen the player | Gold «بعد … دقيقة» shows; the timer can be cancelled/stopped from the same dialog |
+| M9 | Play, press Home, wait for the screensaver | Audio continues; the TV media play/pause key controls it; reopening the app shows the player/resume row |
+| M10 | `optimize/music.sh status`, `surah sudais 1`, `pause`, `radio 0`, `sleep 1`, `stop` | Status line has `playing`, `source`, names, `pos`, `dur`, `sleep`, `error`; each command acts on the TV |
+
 ---
 
 ## Report format

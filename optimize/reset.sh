@@ -10,15 +10,19 @@ tv() { "$PY" -I optimize/tv.py "$@"; }
 
 echo "1/4 Stock home first (never leave the TV without one)…"
 lists=(optimize/lists/tcl-safe.txt optimize/lists/tcl-optional.txt)
-[ -f optimize/lists/mine.txt ] && lists+=(optimize/lists/mine.txt)
+for extra in optimize/lists/mine*.txt; do   # local lists, e.g. mine-bloat.txt; absent on a fresh clone
+  [ -f "$extra" ] && lists+=("$extra")
+done
 optimize/restore.sh "${lists[@]}" > /dev/null
 stock=no
 for _ in 1 2 3 4; do   # a cold stock home can take a while to come up
+  tv "input keyevent KEYCODE_HOME" > /dev/null
   sleep 6
-  if tv "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" | grep -qE 'launcherx|tvlauncher'; then
+  home=$(tv "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN" | grep -E 'launcherx|tvlauncher' | tail -n 1 || true)
+  here=$(tv "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" | head -n 1 || true)
+  if [ -n "$home" ] && grep -qE 'launcherx|tvlauncher' <<< "$here"; then
     stock=yes; break
   fi
-  tv "input keyevent KEYCODE_HOME" > /dev/null
 done
 if [ "$stock" = no ]; then
   echo "!! The stock home is not on screen. Stopping before removing anything: press Home on the remote,"
@@ -44,7 +48,7 @@ else
 fi
 
 echo "3/4 Removing our apps (old and new names; missing ones are skipped)…"
-for p in sa.urtv.home sa.urtv.screensaver sa.yourtv.home sa.yourtv.screensaver com.abdullah.tvhome com.abdullah.tvsaver; do
+for p in sa.urtv.home sa.urtv.screensaver sa.urtv.listening sa.yourtv.home sa.yourtv.screensaver com.abdullah.tvhome com.abdullah.tvsaver; do
   tv "pm uninstall $p" | grep -q Success && echo "   removed $p" || true
 done
 # TV Bro and SmartTube: only if the setup put them there (not in the TV's package list saved before it)

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#040E09</color>
+    <color name="sand">#F6EFE0</color>
+    <color name="dim">#C3B8A2</color>
+    <color name="gold">#DCB86F</color>
+    <color name="green">#57D294</color>
+    <color name="red">#EE6A50</color>
+    <color name="row">#0FFFFFFF</color>
+    <color name="row_focus">#26DCB86F</color>
+</resources>

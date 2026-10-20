@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">استماع</string>
+    <string name="tagline">القرآن الكريم، بلا إعلانات</string>
+    <string name="reciters">القرّاء</string>
+    <string name="stations">الإذاعات</string>
+    <string name="continue_listening">متابعة الاستماع</string>
+    <string name="continue_detail">سورة %1$s — %2$s</string>
+    <string name="surah_count">%1$s سورة</string>
+    <string name="choose_surah">اختر سورة</string>
+    <string name="live">بث مباشر</string>
+    <string name="now_playing">يُتلى الآن</string>
+    <string name="buffering">جارٍ التحميل…</string>
+    <string name="no_connection">تعذر الاتصال</string>
+    <string name="retrying">انقطع البث، جارٍ إعادة المحاولة…</string>
+    <string name="sleep_timer">مؤقت النوم</string>
+    <string name="sleep_hint">سيتوقف الصوت بهدوء</string>
+    <string name="sleep_off">إيقاف المؤقت</string>
+    <string name="sleep_30">٣٠ دقيقة</string>
+    <string name="sleep_60">٦٠ دقيقة</string>
+    <string name="sleep_90">٩٠ دقيقة</string>
+    <string name="stop_now">إيقاف التشغيل الآن</string>
+    <string name="sleep_left">يتوقف بعد %1$s دقيقة</string>
+    <string name="hint_main">OK اختيار  •  رجوع خروج</string>
+    <string name="hint_player">OK تشغيل/إيقاف  •  يمين/يسار تقديم  •  أسفل مؤقت النوم  •  رجوع للقائمة</string>
+    <string name="back">رجوع</string>
+    <string name="stop">إيقاف</string>
+    <string name="play_pause">تشغيل أو إيقاف</string>
+    <string name="previous">السابق</string>
+    <string name="next">التالي</string>
+    <string name="sleep_icon">مؤقت النوم</string>
+    <string name="channel_name">التشغيل</string>
+</resources>
