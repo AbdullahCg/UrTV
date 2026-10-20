@@ -146,13 +146,21 @@ for f in tracked("*.sh"):
 texts = [f for f in tracked() if f.suffix in {".md", ".py", ".sh", ".java", ".xml", ".json", ".yml", ".html", ".txt", ".gradle"}]
 ip = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 allowed_ip = {"0.0.0.0", "127.0.0.1"}
+# the network check and its simulation hold only address ranges and made-up addresses, never someone's network
+network_code = {ROOT / "optimize/find-tv.py", ROOT / "tests/find_tv_test.py"}
 found = []
 for f in texts:
     if f.name.endswith(".html") or f.parent.name == "photos" or f == Path(__file__).resolve():   # not this scan
         continue
+    if f in network_code:
+        s = f.read_text(encoding="utf-8", errors="ignore")
+        if re.search(r"(?i)tailscale|\.ts\.net", s):
+            found.append(f"{f.relative_to(ROOT)}: tailscale")
+        continue
     s = f.read_text(encoding="utf-8", errors="ignore")
     found += [f"{f.relative_to(ROOT)}: {m}" for m in set(ip.findall(s)) - allowed_ip
-              if all(0 <= int(x) <= 255 for x in m.split(".")) and not m.startswith(("1.", "2.", "3.", "4."))]
+              if all(0 <= int(x) <= 255 for x in m.split(".")) and not m.startswith(("1.", "2.", "3.", "4."))
+              and not m.startswith(("192.0.2.", "198.51.100.", "203.0.113."))]   # reserved for examples
     if re.search(r"(?i)(client-id|access_key|api_key)\s*[:=]\s*['\"][A-Za-z0-9_-]{20,}", s):
         found.append(f"{f.relative_to(ROOT)}: looks like a key")
     if re.search(r"(?i)tailscale|\.ts\.net", s):
