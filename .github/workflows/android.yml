@@ -49,6 +49,15 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk urtv-screensaver.apk
           cp android/launcher/build/outputs/apk/release/launcher-release.apk urtv-home.apk
 
+      - name: Which key signed them
+        run: |
+          for f in urtv-screensaver.apk urtv-home.apk; do
+            fp=$(keytool -printcert -jarfile "$f" | grep -m1 'SHA256:' | sed 's/.*SHA256: //')
+            echo "$f signed by: $(keytool -printcert -jarfile "$f" | grep -m1 '^Owner:') ($fp)"
+          done
+          if [ -n "${ANDROID_KEYSTORE:-}" ]; then echo "Signed with the key from the repository's secrets."
+          else echo "::warning::Signed with the old key that is public in this repo: run .github/tools/make_signing_key.py"; fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: apks

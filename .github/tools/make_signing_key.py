@@ -8,7 +8,9 @@ must never be committed.
   pip install cryptography
   python .github/tools/make_signing_key.py
 
-Then on GitHub: the repository → Settings → Secrets and variables → Actions → New repository secret, twice:
+With GitHub CLI installed and signed in (`gh auth login`), it stores both secrets in the repository itself and
+prints nothing secret. Without it, it prints them, for GitHub: the repository → Settings → Secrets and variables →
+Actions → New repository secret, twice:
   ANDROID_KEYSTORE_B64       the long text it prints
   ANDROID_KEYSTORE_PASSWORD  the password it prints
 The next build signs with it. TVs that have the apps from before need them installed again once
@@ -17,6 +19,8 @@ The next build signs with it. TVs that have the apps from before need them insta
 import base64
 import datetime
 import secrets
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +31,7 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.x509.oid import NameOID
 
 ALIAS = b"urtv"   # android/*/build.gradle signs with this alias
+REPO = "tshi-dev/UrTV"
 
 
 def make(password):
@@ -48,11 +53,25 @@ def main():
     password = secrets.token_urlsafe(30)
     data = make(password)
     out.write_bytes(data)
-    print(f"Key saved to {out}  (keep it, with the password, somewhere safe; never commit it)\n")
-    print("GitHub secret ANDROID_KEYSTORE_PASSWORD:")
-    print(password + "\n")
-    print("GitHub secret ANDROID_KEYSTORE_B64:")
-    print(base64.b64encode(data).decode())
+    (Path.home() / "urtv-signing-key-password.txt").write_text(password + "\n")
+    print(f"Key saved to {out}, its password to {Path.home() / 'urtv-signing-key-password.txt'}")
+    print("Keep both somewhere safe (a password manager, a USB stick); never commit them.\n")
+    secret = {"ANDROID_KEYSTORE_B64": base64.b64encode(data).decode(), "ANDROID_KEYSTORE_PASSWORD": password}
+    gh = gh_ready()
+    if gh:
+        for name, value in secret.items():   # the value goes in on stdin, never on the command line
+            subprocess.run([gh, "secret", "set", name, "--repo", REPO], input=value, text=True, check=True)
+        print(f"Both secrets are now in {REPO}. The next build signs with this key.")
+        return
+    print("GitHub CLI isn't signed in, so add these two secrets by hand (see the top of this file):\n")
+    for name, value in secret.items():
+        print(f"{name}:\n{value}\n")
+
+
+def gh_ready():
+    """GitHub CLI's path if it is installed and signed in, else None."""
+    gh = shutil.which("gh")
+    return gh if gh and subprocess.run([gh, "auth", "status"], capture_output=True).returncode == 0 else None
 
 
 if __name__ == "__main__":
