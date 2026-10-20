@@ -1,0 +1,24 @@
+{
+ "leagues not found": [],
+ "teams per league": {
+  "Saudi-Arabian Pro League": 21,
+  "Saudi First Division League": 25,
+  "English Premier League": 24,
+  "Spanish La Liga": 23,
+  "Italian Serie A": 23,
+  "German Bundesliga": 20,
+  "French Ligue 1": 21,
+  "Portuguese Primeira Liga": 21,
+  "Dutch Eredivisie": 21,
+  "Turkish Super Lig": 22,
+  "Egyptian Premier League": 21,
+  "UAE Pro League": 16,
+  "Qatar Stars League": 13,
+  "American Major League Soccer": 30
+ },
+ "national teams not found": [
+  "Jordan (search gave: nothing)"
+ ],
+ "teams": 336,
+ "without an Arabic name": 187
+}
