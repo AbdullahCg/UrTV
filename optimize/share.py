@@ -8,9 +8,11 @@ notes. Nothing personal: no city, clubs, favourites or apps, no names, network a
 import datetime
 import platform
 import re
+import os
 import shutil
 import subprocess
 import sys
+import urllib.parse
 from pathlib import Path
 
 for stream in (sys.stdout, sys.stderr):   # Windows writes pipes in its own code page
@@ -19,7 +21,9 @@ for stream in (sys.stdout, sys.stderr):   # Windows writes pipes in its own code
 
 RUN = Path(__file__).resolve().parent / "run"
 OUT = RUN / "share.md"
-SEND_TO = "https://x.com/A_Albihlal"
+QR = RUN / "share-qr.png"
+AUTHOR = "https://x.com/A_Albihlal"
+AUTHOR_ID = ""   # the author's numeric X id: with it the phone opens the message already written, ready to send
 
 
 def scrub(text):   # in case a note or an output carries something personal
@@ -59,25 +63,43 @@ def steps():
             started[step] = t
             if stopped_at:   # the time between a stop and the next try went into finding out why
                 gap = int((t - stopped_at).total_seconds())
-                lines.append(f"- {gap // 60}m {gap % 60:02d}s stopped, until it was run again")
+                lines.append(f"[{gap // 60}:{gap % 60:02d} until it was run again]")
                 stopped_at = None
         elif step in started:
             took = int((t - started.pop(step)).total_seconds())
-            lines.append(f"- {step}: {took // 60}m {took % 60:02d}s" + ("" if what == "done" else f" — stopped{m.group(4)}"))
+            lines.append(f"{step} {took // 60}:{took % 60:02d}" + ("" if what == "done" else f" STOPPED{m.group(4)}"))
             stopped_at = t if what == "stopped" else None
-    if first:
-        total = int((last - first).total_seconds())
-        lines.append(f"- total, first step to last: {total // 60} min")
-    return lines
+    total = f"{int((last - first).total_seconds()) // 60} min in all" if first else ""
+    return [", ".join(lines), total] if lines else [total]
+
+
+def memory(summary):   # summary.md's table as short lines: they read better in a message and fit a QR code
+    if not summary.exists():
+        return ["(not measured)"]
+    rows = [[c.strip() for c in l.strip("|").split("|")] for l in summary.read_text(encoding="utf-8").splitlines()
+            if l.startswith("|") and not l.startswith("|---")]
+    if not rows:
+        return ["(not measured)"]
+    head, out = rows[0], []
+    total = "".join(ch for ch in (head[1] if len(head) > 1 else "") if ch.isdigit())
+    for r in rows[1:]:
+        if len(r) < 6 or not r[1].isdigit():
+            out.append(f"- {r[0]}: {r[1] if len(r) > 1 else ''}")
+            continue
+        out.append(f"- {r[0]}: {r[1]} MB free{' of ' + total if total else ''}, {r[2]} MB swap, {r[3]} processes, "
+                   f"{r[4] or '?'} CPU idle, {r[5]} disabled")
+    return out
 
 
 def report_checks():
     report = RUN / "report.md"
     if not report.exists():
         return ["(no report.md yet: the setup didn't finish)"]
-    keep = [l for l in report.read_text(encoding="utf-8").splitlines()
-            if l.startswith(("- ok:", "- !!", "Home:", "Screensaver:"))]
-    return keep or ["(nothing in report.md)"]
+    lines = report.read_text(encoding="utf-8").splitlines()
+    ok = sum(l.startswith("- ok:") for l in lines)
+    bad = [l[2:] for l in lines if l.startswith("- !!")]
+    return [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
+            *[l for l in lines if l.startswith(("Home:", "Screensaver:"))]]
 
 
 def main():
@@ -91,11 +113,11 @@ def main():
         f"TV: {tv()}",
         f"Computer: {computer()}",
         "",
-        "Steps (how long each took):",
+        "Steps, minutes:seconds:",
         *steps(),
         "",
         "Memory:",
-        summary.read_text(encoding="utf-8").strip() if summary.exists() else "(not measured)",
+        *memory(summary),
         "",
         "Checks:",
         *report_checks(),
@@ -106,7 +128,41 @@ def main():
     OUT.write_text(text, encoding="utf-8")
     print(text)
     print(f"Saved in {OUT.relative_to(RUN.parent.parent)}.")
-    print(("Copied to the clipboard. " if copy(OUT) else "") + f"Send it as a message to {SEND_TO} (Message → paste).")
+    # most people use X on their phone, not on this computer: a QR code carries it there
+    link = (f"https://x.com/messages/compose?recipient_id={AUTHOR_ID}&text={urllib.parse.quote(text)}"
+            if AUTHOR_ID else AUTHOR)
+    if qr(link):
+        print(f"QR code: {QR.relative_to(RUN.parent.parent)}" + (" (open on this screen)" if show(QR) else ""))
+        print("Scan it with the phone's camera: X opens " +
+              ("a message to the author with this text in it; press send." if AUTHOR_ID else
+               "the author's page; press Message and paste (copy the text on the phone first)."))
+    print(("Copied to the clipboard. " if copy(OUT) else "") + f"Or on this computer: {AUTHOR} → Message → paste.")
+
+
+def qr(link):
+    try:
+        import segno
+    except ImportError:
+        print("(no QR code: run optimize/setup.sh once to install segno)")
+        return False
+    segno.make(link, error="l").save(str(QR), scale=6, border=4)
+    return True
+
+
+def show(path):
+    """Open the picture on this computer's screen, if there is a way."""
+    try:
+        if sys.platform == "win32" or os.environ.get("MSYSTEM"):
+            os.startfile(str(path))   # noqa: S606  (Windows' own viewer)
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(path)], check=True, timeout=20)
+        elif shutil.which("xdg-open"):
+            subprocess.run(["xdg-open", str(path)], check=True, timeout=20, capture_output=True)
+        else:
+            return False
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def copy(path):
