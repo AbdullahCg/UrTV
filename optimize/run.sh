@@ -7,7 +7,7 @@
 #   SKIP_EXTRAS=1 optimize/run.sh     without TV Bro and SmartTube
 # Before: optimize/setup.sh and optimize/find-tv.sh. Optional packages the household gave up go in
 # optimize/lists/mine.txt (one per line, picked from lists/tcl-optional.txt) before running.
-# Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md, steps.log (times).
+# Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md, steps.log (times), run.log.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
@@ -40,6 +40,8 @@ if [ "${1:-}" = status ]; then
   exit 0
 fi
 
+exec > >(tee -a "$RUN/run.log") 2>&1   # everything it says, for optimize/share.sh: its !! lines and dropped connections
+
 check_list() {   # never disable what UAD-ng rates Unsafe; show everything that is not "Recommended"
   local out
   out=$("$PY" -I optimize/check-packages.py "$1")
@@ -64,6 +66,11 @@ report() {
   echo
   echo "Home: $(tv "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN" | tail -1)"
   echo "Screensaver: $(tv "settings get secure screensaver_components")"
+  echo "Versions: screensaver $(tv "dumpsys package sa.urtv.screensaver | grep -m1 versionName" | sed 's/.*=//'), home $(tv "dumpsys package sa.urtv.home | grep -m1 versionName" | sed 's/.*=//')"
+  echo "Extras: TV Bro $([ -n "$(tv "pm list packages com.phlox.tvwebbrowser")" ] && echo yes || echo no), SmartTube $([ -n "$(tv "pm list packages org.smarttube.stable")" ] && echo yes || echo no)"
+  local picks
+  picks=$(grep -cvE '^\s*(#|$)' optimize/lists/mine.txt 2>/dev/null || true)
+  echo "Optional picks (lists/mine.txt): ${picks:-0}"
   echo "Undo everything: optimize/reset.sh"
 }
 

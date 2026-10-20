@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Write how the setup went, for its owner to send to UrTV's author if they want to (optimize/share.sh).
 
-Only what helps fix the setup for others: the TV's maker, model and Android version, the computer's system, how
-long each step took and where it stopped, memory before and after, the protected-features check, and the agent's
-notes. Nothing personal: no city, clubs, favourites or apps, no names, network addresses or file paths.
+Only what helps fix the setup for others: the TV (maker, model, firmware, Android), the computer's system, the agent,
+UrTV's version and the apps', how long each step took and where it stopped, the errors and dropped connections,
+memory before and after, the checks, the agent's notes and the owner's own words if they want to add any.
+Nothing personal: no city, clubs, favourites or apps of theirs, no names, network addresses or file paths.
+
+    optimize/share.sh --agent "Codex (gpt-…)" --owner "the owner's words, if any" "the agent's notes"
 """
+import argparse
 import datetime
 import os
 import platform
@@ -41,8 +45,30 @@ def scrub(text):   # in case a note or an output carries something personal
 
 def tv():
     props = dict(re.findall(r"^(\S+) = (.*)$", (RUN / "tv.txt").read_text(encoding="utf-8"), re.M))
-    return (f"{props.get('ro.product.manufacturer', '?')} {props.get('ro.product.model', '?')}, "
-            f"Android {props.get('ro.build.version.release', '?')} (SDK {props.get('ro.build.version.sdk', '?')})")
+    return (f"{props.get('ro.product.manufacturer', '?')} {props.get('ro.product.model', '?')} "
+            f"({props.get('ro.product.device', '?')}), Android {props.get('ro.build.version.release', '?')} "
+            f"(SDK {props.get('ro.build.version.sdk', '?')}), firmware {props.get('ro.build.display.id', '?')}")
+
+
+def urtv_version():   # this copy of the repo: its last commit
+    try:
+        out = subprocess.run(["git", "-C", str(RUN.parent.parent), "log", "-1", "--format=%h %cs"],
+                             capture_output=True, text=True, timeout=20).stdout.strip()
+        return out or "?"
+    except Exception:  # noqa: BLE001
+        return "?"
+
+
+def trouble():   # from run.log: what the scripts said went wrong, and how often ADB dropped
+    log = RUN / "run.log"
+    if not log.exists():
+        return []
+    lines = [l.strip() for l in re.split(r"[\r\n]+", log.read_text(encoding="utf-8", errors="replace"))]
+    errors = list(dict.fromkeys(l for l in lines if l.startswith("!!") or " !! " in l))[:8]
+    drops = sum("(connection problem" in l for l in lines)
+    resumed = sum(l.startswith("resuming upload") for l in lines)
+    out = [f"ADB: {drops} dropped connections (retried), {resumed} resumed uploads"]
+    return out + [f"- {l}" for l in errors]
 
 
 def computer():
@@ -104,22 +130,28 @@ def report_checks():
     ok = sum(l.startswith("- ok:") for l in lines)
     bad = [l[2:] for l in lines if l.startswith("- !!")]
     return [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
-            *[l for l in lines if l.startswith(("Home:", "Screensaver:"))]]
+            *[l for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
 
 
 def main():
     if not (RUN / "tv.txt").exists():
         sys.exit("!! No setup results here (optimize/run/tv.txt): run the setup first.")
-    notes = " ".join(sys.argv[1:]).strip()
+    a = argparse.ArgumentParser(description="Send the author how the setup went (nothing personal).")
+    a.add_argument("--agent", default="", help="which agent ran the setup, and its model")
+    a.add_argument("--owner", default="", help="the owner's own words for the author, if they gave any")
+    a.add_argument("notes", nargs="*", help="the agent's notes: what failed or was slow, and what fixed it")
+    args = a.parse_args()
+    notes = " ".join(args.notes).strip()
     summary = RUN / "summary.md"
     parts = [
-        f"UrTV setup report, {datetime.date.today()}",
+        f"UrTV setup report, {datetime.date.today()}, UrTV {urtv_version()}",
         "",
         f"TV: {tv()}",
-        f"Computer: {computer()}",
+        f"Computer: {computer()}" + (f", agent: {args.agent}" if args.agent else ""),
         "",
         "Steps, minutes:seconds:",
         *steps(),
+        *trouble(),
         "",
         "Memory:",
         *memory(summary),
@@ -129,6 +161,8 @@ def main():
     ]
     if notes:
         parts += ["", "Notes from the agent:", notes]
+    if args.owner.strip():
+        parts += ["", "From the owner:", args.owner.strip()]
     text = scrub("\n".join(parts)) + "\n"
     OUT.write_text(text, encoding="utf-8")
     print(text)
@@ -160,7 +194,11 @@ def qr(link):
     except ImportError:
         print("(no QR code: run optimize/setup.sh once to install segno)")
         return False
-    segno.make(link, error="l").save(str(QR), scale=6, border=4)
+    try:
+        segno.make(link, error="l").save(str(QR), scale=6, border=4)
+    except segno.DataOverflowError:
+        print("(too long for a QR code: send it from a computer with internet: optimize/share.sh again)")
+        return False
     return True
 
 

@@ -123,8 +123,8 @@ yet»), delete the folder and clone again.
 ## Rules (protective layer: these win over everything else here)
 
 - Use only the scripts in `optimize/`. They are made for slow, dropping ADB over Wi-Fi: they retry by themselves
-  and remember progress. **If a command fails, run the same command again.** Don't write your own adb loops, probes or test
-  scripts to find out why: the `!!` line and the table below say what to do.
+  and remember progress. **If a command fails, run the same command again.** Don't write your own adb loops,
+  probes or test scripts to find out why: the `!!` line and the table below say what to do.
 - One command at a time: never run two scripts against the TV at once, or in the background while you run another.
 - Long commands (`run.sh`, `measure.sh`, `--reboot`) can be silent for 5 minutes. Give them a long timeout (40
   minutes for `run.sh`). If your tool kills one anyway, nothing is lost: run the same command again, it continues.
@@ -136,7 +136,8 @@ yet»), delete the folder and clone again.
 - Never uninstall system apps, never `pm clear`, never factory-reset, never touch accounts, Wi-Fi, network or
   developer settings (turning ADB off locks us out). Never delete `optimize/run/` or `optimize/backup-*.txt`: they
   are how we undo. Everything is reversible: `optimize/reset.sh` puts the TV back as it came.
-- Ask me before anything not in this prompt. If something fails twice, stop, show me the output, propose a fix.
+- Ask me before anything not in this prompt. If something fails twice, and the table's fix didn't help, stop,
+  show me the output and propose a fix.
 - Never tell me something worked without its proof: the script's own success line, or a screenshot you looked at.
 
 ## When something goes wrong (expected, and what to do)
@@ -278,12 +279,13 @@ Only after everything above, undo included, and nowhere earlier: your last messa
 
 > آخر شي: تبغى ترسل لصاحب المشروع ملخص كيف مشى التركيب؟ يساعده يحسّنه للناس. فيه بس نوع التلفزيون ونسخة
 > أندرويد، وكم أخذت كل خطوة ووش اللي تعطّل، والذاكرة قبل وبعد. ما فيه أي شي شخصي: لا مدينة ولا أندية ولا
-> تطبيقات ولا عناوين.
+> تطبيقات ولا عناوين. وإذا عندك كلمة تبغى توصله (عجبك؟ شي ضايقك؟)، اكتبها مع ردك.
 
-If I say yes, run it with your own notes: what failed or was slow, how long it cost and what fixed it, in two to
-five plain lines, with no names, addresses or paths:
+If I say yes, run it with: your name and model as the agent; my words if I wrote any (as I wrote them, minus
+anything personal); and your own notes: what failed or was slow, how long it cost and what fixed it, in two to five
+plain lines, with no names, addresses or paths:
 ```
-optimize/share.sh "<your notes>"
+optimize/share.sh --agent "<you and your model>" --owner "<my words, or leave it out>" "<your notes>"
 ```
 It sends the summary to the author by itself (anonymously, no account) and prints `Sent to the author`: show me the
 text and tell me it went. If it couldn't send it, it opens a QR code on this computer's screen instead
