@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Find a club's TheSportsDB id, by its Arabic or English name: optimize/saver.sh find-team الهلال
+"""Find a club's TheSportsDB id, by its Arabic or English name, or list a league's clubs to pick from.
 
-Saudi clubs and the national team come straight from assets/shared/team-ids.json (built in CI from their
-leagues' matches): TheSportsDB's free search misses some of them, the Saudi Al-Hilal among them. Other clubs are
-searched: Arabic names go through assets/shared/teams-ar.json to their English spellings, and the usual spellings
-are tried too (Al-Hilal, Al Hilal, Hilal, … FC), so one call is enough. Saudi clubs first.
-Prints `id:Name  |  league  |  country`, ready for `optimize/saver.sh teams`.
+    optimize/saver.sh find-team الهلال          a club: every match in our list, Saudi clubs first
+    optimize/saver.sh find-team --list Saudi    every club of the leagues whose name has "Saudi"
+
+Our list, assets/shared/teams.json, has every club of the app's leagues and the national teams, with their ids
+(built in CI from their matches: TheSportsDB's free search misses some clubs, the Saudi Al-Hilal among them).
+Only a club that isn't in it is searched online: Arabic names go through assets/shared/teams-ar.json to their
+English spellings, and the usual spellings are tried too (Al-Hilal, Al Hilal, Hilal, … FC).
+Prints `id:Name  |  Arabic  |  leagues`, ready for `optimize/saver.sh teams`.
 """
 import json
 import re
@@ -20,7 +23,7 @@ for stream in (sys.stdout, sys.stderr):   # Windows writes pipes in its own code
 
 SHARED = Path(__file__).resolve().parents[1] / "assets/shared"
 ARABIC = json.loads((SHARED / "teams-ar.json").read_text(encoding="utf-8"))      # English name -> Arabic
-IDS = json.loads((SHARED / "team-ids.json").read_text(encoding="utf-8"))         # Arabic -> [id, English]
+CLUBS = json.loads((SHARED / "teams.json").read_text(encoding="utf-8"))         # [{id, en, ar, leagues}]
 API = "https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t="
 
 
@@ -33,13 +36,19 @@ def key(name):   # Al-Hilal, Al Hilal, al hilal FC -> alhilal
     return re.sub(r"[^a-z]", "", re.sub(r"\s+(S?FC|F\.C\.|Club)$", "", name.strip(), flags=re.I).lower())
 
 
-def known(q):   # a Saudi club or the national team, from our own list: [id, English name] or None
-    arabic = [q] if re.search(r"[\u0600-\u06FF]", q) else [ar for en, ar in ARABIC.items() if key(en) == key(q)]
-    for a in arabic:
-        for name, found in IDS.items():
-            if plain(name) == plain(a):
-                return found
-    return None
+def ours(q):   # the clubs in our list that match: the exact name first, else names that contain it
+    if re.search(r"[\u0600-\u06FF]", q):
+        english = {key(en) for en, ar in ARABIC.items() if plain(ar) == plain(q)}
+        exact = [c for c in CLUBS if (c["ar"] and plain(c["ar"]) == plain(q)) or key(c["en"]) in english]
+        return exact or [c for c in CLUBS if c["ar"] and plain(q) in plain(c["ar"])]
+    exact = [c for c in CLUBS if key(c["en"]) == key(q)]
+    return exact or [c for c in CLUBS if key(q) and key(q) in key(c["en"])]
+
+
+def show(clubs, limit=15):
+    saudi = lambda c: not any("Saudi" in l for l in c["leagues"])   # noqa: E731
+    for c in sorted(clubs, key=lambda c: (saudi(c), c["en"]))[:limit]:
+        print(f"{c['id']}:{c['en']}  |  {c['ar'] or '-'}  |  {', '.join(c['leagues'])}")
 
 
 def spellings(name):
@@ -63,9 +72,14 @@ def main():
     q = " ".join(sys.argv[1:]).strip()
     if not q:
         sys.exit("usage: optimize/saver.sh find-team NAME   (Arabic or English)")
-    hit = known(q)
+    if sys.argv[1] == "--list":
+        words = [w.lower() for w in sys.argv[2:]]
+        show([c for c in CLUBS if any(all(w in l.lower() for w in words) for l in c["leagues"])] if words else CLUBS,
+             limit=None)
+        return
+    hit = ours(q)
     if hit:
-        print(f"{hit[0]}:{hit[1]}  |  Saudi club or national team (our list)  |  Saudi Arabia")
+        show(hit)
         return
     if re.search(r"[\u0600-\u06FF]", q):
         names = [en for en, ar in ARABIC.items() if plain(ar) == plain(q)]
