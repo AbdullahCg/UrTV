@@ -5,7 +5,7 @@ name: Fetch verse texts
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [master, content]
     paths: ['.github/tools/fetch_verses.py']
 
 permissions:

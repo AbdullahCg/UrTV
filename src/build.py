@@ -127,6 +127,7 @@ def simple_parts(parts):
 
 
 WEAK = re.compile(r"da.?if|weak|munkar|mawdu|fabricat|shadh|mudtarib", re.I)   # as .github/tools/verify_hadith.py
+ALBANI_OK = {"sahih", "hasan", "hasan sahih"}   # as .github/tools/verify_hadith.py
 GRADE_AR = {"sahih": "صحيح", "hasan": "حسن", "hasan sahih": "حسن صحيح", "sahih lighairihi": "صحيح لغيره",
             "hasan lighairihi": "حسن لغيره"}
 
@@ -139,6 +140,15 @@ def scholars(grades):
 
 def weak_by_scholars(grades):
     return any(WEAK.search(g.get("grade", "")) for g in scholars(grades))
+
+
+def albani_accepts(book, grades):
+    """Bukhari and Muslim: yes. The four Sunan: only if Al-Albani grades the narration Sahih, Hasan or Hasan Sahih;
+    one he grades weak in any form, or does not grade, is never shown."""
+    if book in ("صحيح البخاري", "صحيح مسلم"):
+        return True
+    albani = [g.get("grade", "") for g in grades or [] if "albani" in g.get("name", "").lower()]
+    return bool(albani) and all(" ".join(re.sub(r"[^a-z ]", " ", a.lower()).split()) in ALBANI_OK for a in albani)
 
 
 def albani_grade(grades):
@@ -169,8 +179,9 @@ def weak_in_tirmidhi(text):
 
 def hadith_for_screen():
     """assets/shared/hadith.json -> each hadith from its companion on (simple_parts) if it fits the card, with the
-    book, its number and a grade: al-Tirmidhi's own, or for the other Sunan Al-Albani's. One a scholar grades weak
-    (or al-Tirmidhi does not grade حسن or صحيح) is not shown."""
+    book, its number and a grade: al-Tirmidhi's own, or for the other Sunan Al-Albani's. One a scholar grades weak,
+    one from the four Sunan Al-Albani does not grade Sahih, Hasan or Hasan Sahih, or one al-Tirmidhi does not grade
+    حسن or صحيح, is not shown."""
     digits = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
     out = []
     for h in json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8")):
@@ -184,7 +195,8 @@ def hadith_for_screen():
         if not parts:
             continue
         words = sum(len(p[1].split()) for p in parts)
-        if weak_in_tirmidhi(full["text"]) or weak_by_scholars(full.get("grades")):
+        if weak_in_tirmidhi(full["text"]) or weak_by_scholars(full.get("grades")) \
+                or not albani_accepts(full["book"], full.get("grades")):
             continue
         if any(k == "q" for k, _ in parts) and words <= HADITH_MAX_WORDS:
             grade = tirmidhi_grade(full["text"]) or albani_grade(full.get("grades"))

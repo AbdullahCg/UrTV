@@ -5,7 +5,7 @@ name: Verify hadith against the six books
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [master, content]
     paths: ['.github/tools/verify_hadith.py', 'assets/shared/hadith.json']
 
 permissions:
