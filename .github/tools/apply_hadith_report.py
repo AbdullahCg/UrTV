@@ -42,6 +42,8 @@ def main():
                 continue
             seen[key] = h["text"]
             entry["full"] = {"book": f["book"], "number": number, "text": f["text"]}
+            if f.get("grades") is not None:   # the four Sunan: the scholars' grades of this narration
+                entry["full"]["grades"] = f["grades"]
         kept.append(entry)
     DATA.write_text(json.dumps(kept, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"kept {len(kept)}, dropped {len(dropped)} (not found in these words):")

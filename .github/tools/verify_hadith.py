@@ -6,6 +6,10 @@ assets/shared/hadith.json is searched (letters only, harakat and punctuation ign
 the six books from github.com/fawazahmed0/hadith-api, and every book and hadith number it appears in is
 recorded. A hadith found in none of them must not be shown.
 
+For the four Sunan the scholars' grades of each narration (Al-Albani and others, as the API's English editions
+carry them, matched by hadith number) are read too; a narration graded weak is not picked when another holds the
+words, and the grades are kept in the report.
+
 For each found hadith the full narration is kept too, exactly as the book has it (chain of narrators and all):
 one whose isnad is at most ISNAD_MAX_WORDS words (a very long chain is not picked when a shorter one exists), in
 the first book in the order below that has one, then the shortest (in al-Tirmidhi, one he grades صحيح or حسن
@@ -23,6 +27,17 @@ BOOKS = {  # edition -> Arabic name
 }
 URL = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/{}.min.json"
 ISNAD_MAX_WORDS = 35   # the words before the Prophet's first quoted words; src/build.py has the same limit
+GRADED = {"ara-abudawud": "eng-abudawud", "ara-tirmidhi": "eng-tirmidhi", "ara-nasai": "eng-nasai",
+          "ara-ibnmajah": "eng-ibnmajah"}   # Bukhari and Muslim are sahih by their own standard
+WEAK = re.compile(r"da.?if|weak|munkar|mawdu|fabricat|shadh|mudtarib", re.I)
+
+
+def weak_grades(grades):
+    """True if a scholar grades it weak; Al-Albani's grade decides when the scholars differ."""
+    if not grades:
+        return False
+    albani = [g for g in grades if "albani" in g.get("name", "").lower()]
+    return any(WEAK.search(g.get("grade", "")) for g in (albani or grades))
 
 
 def norm(s):
@@ -52,6 +67,15 @@ def main():
         raw[ed] = {h["hadithnumber"]: h for h in hadiths}
         books[ed] = [(h["hadithnumber"], norm(h.get("text") or "")) for h in hadiths]
         print(name, len(books[ed]), "hadith")
+    grades = {}
+    for ed, eng in GRADED.items():
+        try:
+            grades[ed] = {h["hadithnumber"]: h.get("grades") or [] for h in get(URL.format(eng))["hadiths"]}
+            sample = next((g for g in grades[ed].values() if g), [])
+            print(eng, len(grades[ed]), "hadith; grades like", sample[:2])
+        except Exception as e:  # noqa: BLE001  (no grades: the narration is then picked without them)
+            print(eng, "unavailable:", e)
+    grade_of = lambda ed, n: grades.get(ed, {}).get(n)
     report = []
     for h in wanted:
         key = norm(h["text"])
@@ -63,11 +87,11 @@ def main():
             isnad = lambda t: len(t.split('"')[0].split())
             order = list(BOOKS)
             ed, n = min(((f["edition"], f["number"]) for f in found), key=lambda e: (
-                isnad(raw[e[0]][e[1]]["text"]) > ISNAD_MAX_WORDS, order.index(e[0]),
+                weak_grades(grade_of(*e)), isnad(raw[e[0]][e[1]]["text"]) > ISNAD_MAX_WORDS, order.index(e[0]),
                 not graded(raw[e[0]][e[1]]["text"]), len(raw[e[0]][e[1]]["text"])))
             src = raw[ed][n]
             full = {"book": BOOKS[ed], "number": n, "arabicnumber": src.get("arabicnumber"),
-                    "reference": src.get("reference"), "grades": src.get("grades"), "text": src["text"]}
+                    "reference": src.get("reference"), "grades": grade_of(ed, n), "text": src["text"]}
         report.append({"text": h["text"], "found": found, "full": full})
         print("OK " if found else "NOT FOUND", h["text"], [(f["book"], f["number"]) for f in found][:6])
     Path("hadith").mkdir(exist_ok=True)
