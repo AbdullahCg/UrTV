@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UrTV · أرسل الملخص</title>
 <!-- Opened from the QR code optimize/share.sh shows: the summary travels in the address after #, so it never
-     reaches a server until the owner sends it. «أرسل» puts it in the author's Google Form (anonymous, no account);
-     without the form, the button copies it and opens a message to the author in X. -->
+     reaches a server until the owner presses «أرسل»: then it goes to the author's Google Form (anonymous, no
+     account), a row in the author's sheet. -->
 <style>
   :root { --bg: #f6f4ef; --card: #fff; --ink: #1c1b19; --muted: #6b665d; --line: #e4dfd5; --accent: #0f6b4f; --on-accent: #fff; }
   @media (prefers-color-scheme: dark) {
@@ -18,11 +18,8 @@
   main { max-width: 34rem; margin: 0 auto; padding: 24px 16px 40px; }
   h1 { font-size: 1.35rem; margin: 0 0 .25rem; }
   p { margin: .25rem 0 1rem; color: var(--muted); }
-  ol { margin: 0 0 1.25rem; padding-inline-start: 1.25rem; }
-  li { margin: .2rem 0; }
   button.go { width: 100%; border: 0; cursor: pointer; font-family: inherit; }
   button.go:disabled { opacity: .6; }
-  .alt { display: block; text-align: center; color: var(--muted); margin-top: .4rem; }
   .go { display: block; text-align: center; text-decoration: none; background: var(--accent); color: var(--on-accent);
         font-weight: 700; font-size: 1.1rem; padding: 16px; border-radius: 14px; }
   .done { text-align: center; color: var(--accent); font-weight: 600; min-height: 1.6em; margin: .6rem 0 1rem; }
@@ -36,51 +33,23 @@
   <h1>ملخص تركيب تلفزيونك</h1>
   <p>شكراً إنك تشاركه: يساعد صاحب المشروع يحسّن التركيب للكل. ما فيه أي شي شخصي.</p>
   <div id="ready" hidden>
-    <div id="viaForm" hidden>
-      <button class="go" id="send" type="button">أرسل</button>
-      <a class="alt" id="altX" href="https://x.com/messages/compose?recipient_id=876049783">أو أرسله في X</a>
-    </div>
-    <div id="viaX" hidden>
-      <ol>
-        <li>اضغط الزر: ينسخ الملخص ويفتح رسالة لصاحب المشروع في X.</li>
-        <li>في الرسالة اضغط مطوّل والصق، وبعدها أرسل.</li>
-      </ol>
-      <a class="go" id="go" href="https://x.com/messages/compose?recipient_id=876049783">انسخ الملخص وافتح X</a>
-    </div>
+    <button class="go" id="send" type="button">أرسل</button>
     <div class="done" id="done" role="status"></div>
     <pre id="text"></pre>
   </div>
   <div class="empty" id="none" hidden>ما وصل ملخص مع الرابط. امسح الكود اللي على شاشة الكمبيوتر مرة ثانية.</div>
 </main>
 <script>
-  // the author's Google Form, the same two values as in optimize/share.py; empty: X only
+  // the author's Google Form: its id, and its one question's (the same in optimize/share.py)
   var FORM_ID = "1FAIpQLSfDJFfy1NgiB-ZMXoBI29n_KTdYnGadn1-iOqXJOxaQJEr-ZQ", FORM_FIELD = "1457112794";
   var text = "";
   try { text = decodeURIComponent(location.hash.slice(1)); } catch (e) {}
-  var viaForm = !!(FORM_ID && FORM_FIELD);
   if (text) {
     document.getElementById("text").textContent = text;
     document.getElementById("ready").hidden = false;
-    document.getElementById(viaForm ? "viaForm" : "viaX").hidden = false;
   } else {
     document.getElementById("none").hidden = false;
   }
-  function copyNow() {   // the old way first: it is synchronous, so it finishes before X opens
-    var t = document.createElement("textarea");
-    t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
-    document.body.appendChild(t); t.select(); t.setSelectionRange(0, text.length);
-    var ok = false;
-    try { ok = document.execCommand("copy"); } catch (e) {}
-    document.body.removeChild(t);
-    if (navigator.clipboard) navigator.clipboard.writeText(text).catch(function () {});
-    return ok;
-  }
-  function copied() {
-    copyNow();
-    document.getElementById("done").textContent = "انتسخ ✓ الحين الصقه في الرسالة وأرسل";
-  }
-  document.getElementById("go").addEventListener("click", copied);
-  document.getElementById("altX").addEventListener("click", copied);
   document.getElementById("send").addEventListener("click", function () {
     var button = this, done = document.getElementById("done");
     button.disabled = true;

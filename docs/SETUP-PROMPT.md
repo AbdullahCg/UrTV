@@ -272,9 +272,9 @@ grep '!!' optimize/run/report.md || echo none     # must print «none»
   (`optimize/reset.sh`; on Windows in Git Bash), what it brings back, and that if I ever want it, I can open an
   agent on this computer and say «رجّع التلفزيون مثل ما كان: شغّل optimize/reset.sh في مجلد UrTV».
 
-## 8. Ask me to share how it went (last message)
+## 8. Ask me to share how it went (the very last thing)
 
-On its own, word for word:
+Only after everything above, undo included, and nowhere earlier: your last message, on its own, word for word:
 
 > آخر شي: تبغى ترسل لصاحب المشروع ملخص كيف مشى التركيب؟ يساعده يحسّنه للناس. فيه بس نوع التلفزيون ونسخة
 > أندرويد، وكم أخذت كل خطوة ووش اللي تعطّل، والذاكرة قبل وبعد. ما فيه أي شي شخصي: لا مدينة ولا أندية ولا

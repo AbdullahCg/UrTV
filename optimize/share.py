@@ -6,9 +6,9 @@ long each step took and where it stopped, memory before and after, the protected
 notes. Nothing personal: no city, clubs, favourites or apps, no names, network addresses or file paths.
 """
 import datetime
+import os
 import platform
 import re
-import os
 import shutil
 import subprocess
 import sys
@@ -23,9 +23,8 @@ for stream in (sys.stdout, sys.stderr):   # Windows writes pipes in its own code
 RUN = Path(__file__).resolve().parent / "run"
 OUT = RUN / "share.md"
 QR = RUN / "share-qr.png"
-AUTHOR = "https://x.com/A_Albihlal"
 # The author's Google Form (anonymous, no sign-in): each summary becomes a row in the author's sheet. The same two
-# values are in docs/share/index.html. Empty: nothing is sent, the QR code and X are the way.
+# values are in docs/share/index.html.
 FORM_ID = "1FAIpQLSfDJFfy1NgiB-ZMXoBI29n_KTdYnGadn1-iOqXJOxaQJEr-ZQ"   # from the form's link: docs.google.com/forms/d/e/<FORM_ID>/viewform
 FORM_FIELD = "1457112794"   # the question's number: entry.<FORM_FIELD>=… in the form's pre-filled link
 # Without the form, or offline: the QR code opens this page (docs/share/, GitHub Pages) with the summary after the #
@@ -137,17 +136,14 @@ def main():
     if send(text):
         print("Sent to the author. Thank you!")
         return
-    # not sent from here: a QR code carries it to the phone, whose page sends it (or opens X)
+    # not sent from here (no internet?): a QR code carries it to the phone, whose page sends it
     if qr(PAGE + "#" + urllib.parse.quote(text)):
         print(f"QR code: {QR.relative_to(RUN.parent.parent)}" + (" (open on this screen)" if show(QR) else ""))
         print("Scan it with the phone's camera: a page opens with this text and a button that sends it.")
-    print(("Copied to the clipboard. " if copy(OUT) else "") + f"Or on this computer: {AUTHOR} → Message → paste.")
 
 
 def send(text):
-    """Into the author's Google Form, anonymously; False if there is no form yet or it didn't go through."""
-    if not (FORM_ID and FORM_FIELD):
-        return False
+    """Into the author's Google Form, anonymously; False if it didn't go through."""
     url = f"https://docs.google.com/forms/d/e/{FORM_ID}/formResponse"
     data = urllib.parse.urlencode({f"entry.{FORM_FIELD}": text}).encode()
     try:
@@ -182,20 +178,6 @@ def show(path):
         return True
     except Exception:  # noqa: BLE001
         return False
-
-
-def copy(path):
-    """Best effort: the system's own clipboard tool, if there is one."""
-    tools = [["powershell", "-NoProfile", "-Command", f"Get-Content -Raw -Encoding UTF8 '{path}' | Set-Clipboard"],
-             ["pbcopy"], ["wl-copy"], ["xclip", "-selection", "clipboard"]]
-    for cmd in tools:
-        if shutil.which(cmd[0]):
-            try:
-                feed = None if cmd[0] == "powershell" else path.read_bytes()
-                return subprocess.run(cmd, input=feed, capture_output=True, timeout=20).returncode == 0
-            except Exception:  # noqa: BLE001
-                continue
-    return False
 
 
 if __name__ == "__main__":
