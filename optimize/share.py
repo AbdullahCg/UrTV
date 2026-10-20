@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
 for stream in (sys.stdout, sys.stderr):   # Windows writes pipes in its own code page
@@ -23,8 +24,11 @@ RUN = Path(__file__).resolve().parent / "run"
 OUT = RUN / "share.md"
 QR = RUN / "share-qr.png"
 AUTHOR = "https://x.com/A_Albihlal"
-# X won't take a message's text from a link, so the QR code opens this page (docs/share/, on GitHub Pages) with the
-# summary after the #: one tap there copies it and opens a message to the author in X
+# The author's Google Form (anonymous, no sign-in): each summary becomes a row in the author's sheet. The same two
+# values are in docs/share/index.html. Empty: nothing is sent, the QR code and X are the way.
+FORM_ID = ""      # from the form's link: docs.google.com/forms/d/e/<FORM_ID>/viewform
+FORM_FIELD = ""   # the question's number: entry.<FORM_FIELD>=… in the form's pre-filled link
+# Without the form, or offline: the QR code opens this page (docs/share/, GitHub Pages) with the summary after the #
 PAGE = "https://tshi-dev.github.io/UrTV/share/"
 
 
@@ -130,12 +134,28 @@ def main():
     OUT.write_text(text, encoding="utf-8")
     print(text)
     print(f"Saved in {OUT.relative_to(RUN.parent.parent)}.")
-    # most people use X on their phone, not on this computer: a QR code carries it there
+    if send(text):
+        print("Sent to the author. Thank you!")
+        return
+    # not sent from here: a QR code carries it to the phone, whose page sends it (or opens X)
     if qr(PAGE + "#" + urllib.parse.quote(text)):
         print(f"QR code: {QR.relative_to(RUN.parent.parent)}" + (" (open on this screen)" if show(QR) else ""))
-        print("Scan it with the phone's camera: a page opens with this text; its button copies it and opens a message")
-        print("to the author in X; paste and send.")
+        print("Scan it with the phone's camera: a page opens with this text and a button that sends it.")
     print(("Copied to the clipboard. " if copy(OUT) else "") + f"Or on this computer: {AUTHOR} → Message → paste.")
+
+
+def send(text):
+    """Into the author's Google Form, anonymously; False if there is no form yet or it didn't go through."""
+    if not (FORM_ID and FORM_FIELD):
+        return False
+    url = f"https://docs.google.com/forms/d/e/{FORM_ID}/formResponse"
+    data = urllib.parse.urlencode({f"entry.{FORM_FIELD}": text}).encode()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=30) as r:
+            return r.status == 200
+    except Exception as e:  # noqa: BLE001
+        print(f"(couldn't send it from this computer: {e})")
+        return False
 
 
 def qr(link):
