@@ -126,6 +126,29 @@ def simple_parts(parts):
     return out
 
 
+WEAK = re.compile(r"da.?if|weak|munkar|mawdu|fabricat|shadh|mudtarib", re.I)   # as .github/tools/verify_hadith.py
+GRADE_AR = {"sahih": "صحيح", "hasan": "حسن", "hasan sahih": "حسن صحيح", "sahih lighairihi": "صحيح لغيره",
+            "hasan lighairihi": "حسن لغيره"}
+
+
+def scholars(grades):
+    """The four Sunan: Al-Albani's grade decides when the scholars differ; with no Al-Albani, all of them."""
+    albani = [g for g in grades or [] if "albani" in g.get("name", "").lower()]
+    return albani or grades or []
+
+
+def weak_by_scholars(grades):
+    return any(WEAK.search(g.get("grade", "")) for g in scholars(grades))
+
+
+def albani_grade(grades):
+    for g in grades or []:
+        if "albani" in g.get("name", "").lower():
+            ar = GRADE_AR.get(re.sub(r"[^a-z ]", "", g.get("grade", "").lower()).strip())
+            return f"{ar} عند الألباني" if ar else ""
+    return ""
+
+
 def tirmidhi_grade(text):
     bare = re.sub(HARAKAT, "", text)
     if "قال أبو عيسى" not in bare:
@@ -146,7 +169,8 @@ def weak_in_tirmidhi(text):
 
 def hadith_for_screen():
     """assets/shared/hadith.json -> each hadith from its companion on (simple_parts) if it fits the card, with the
-    book, its number and, for al-Tirmidhi, his grade."""
+    book, its number and a grade: al-Tirmidhi's own, or for the other Sunan Al-Albani's. One a scholar grades weak
+    (or al-Tirmidhi does not grade حسن or صحيح) is not shown."""
     digits = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
     out = []
     for h in json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8")):
@@ -160,10 +184,10 @@ def hadith_for_screen():
         if not parts:
             continue
         words = sum(len(p[1].split()) for p in parts)
-        if weak_in_tirmidhi(full["text"]):
+        if weak_in_tirmidhi(full["text"]) or weak_by_scholars(full.get("grades")):
             continue
         if any(k == "q" for k, _ in parts) and words <= HADITH_MAX_WORDS:
-            grade = tirmidhi_grade(full["text"])
+            grade = tirmidhi_grade(full["text"]) or albani_grade(full.get("grades"))
             source = f"{full['book']} · {str(full['number']).translate(digits)}" + (f" · {grade}" if grade else "")
             out.append({"parts": parts, "source": source})
     return out

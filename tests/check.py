@@ -81,7 +81,7 @@ shown = [json.dumps(h["parts"], ensure_ascii=False) for h in hadith]
 check("no verse or hadith twice", len({v["text"] for v in verses}) == len(verses) and len(set(shown)) == len(shown))
 raw = json.loads((ROOT / "assets/shared/hadith.json").read_text(encoding="utf-8"))
 sys.path.insert(0, str(ROOT / "src"))
-from build import narration_parts, simple_parts, weak_in_tirmidhi, HADITH_MAX_WORDS, ISNAD_MAX_WORDS   # noqa: E402
+from build import narration_parts, simple_parts, weak_in_tirmidhi, weak_by_scholars, HADITH_MAX_WORDS, ISNAD_MAX_WORDS   # noqa: E402
 sys.path.insert(0, str(ROOT / ".github/tools"))
 from verify_hadith import norm as plain   # noqa: E402  (the six-book check's own matching)
 form = lambda h: json.dumps(simple_parts(narration_parts(h["full"]["text"])), ensure_ascii=False)
@@ -102,6 +102,11 @@ weak = {form(h) for h in raw if h.get("full") and weak_in_tirmidhi(h["full"]["te
 check("no hadith al-Tirmidhi grades only غريب/ضعيف, or as a companion's words, is shown", weak and not (weak & set(shown)), len(weak & set(shown)))
 long_chain = {form(h) for h in raw if h.get("full") and (lambda w: w and w[0][0] == "n" and len(w[0][1].split()) > ISNAD_MAX_WORDS)(narration_parts(h["full"]["text"]))}
 check(f"no hadith with an isnad over {ISNAD_MAX_WORDS} words is shown", not (long_chain & set(shown)), len(long_chain & set(shown)))
+graded_weak = {form(h) for h in raw if h.get("full") and weak_by_scholars(h["full"].get("grades"))}
+check("no hadith the scholars grade weak (Al-Albani first) is shown", graded_weak and not (graded_weak & set(shown)), len(graded_weak & set(shown)))
+sunan = [h for h in raw if h.get("full") and h["full"]["book"] not in ("صحيح البخاري", "صحيح مسلم")]
+check("every narration from the four Sunan carries the scholars' grades", all(h["full"].get("grades") for h in sunan),
+      [h["text"][:30] for h in sunan if not h["full"].get("grades")])
 check("every hadith on screen has the Prophet's words and fits the card",
       all(any(k == "q" for k, _ in h["parts"]) and sum(len(t.split()) for _, t in h["parts"]) <= HADITH_MAX_WORDS for h in hadith))
 font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
