@@ -2,7 +2,7 @@ name: Build APKs
 
 on:
   push:
-    branches: [master]
+    branches: [master, next]   # next: a test build in apk-next, before anything reaches apk-latest
     paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
@@ -66,6 +66,7 @@ jobs:
 
       # fixed download links: .../releases/download/apk-latest/urtv-screensaver.apk and urtv-home.apk
       - name: Publish to the apk-latest release
+        if: github.ref_name == 'master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
@@ -78,6 +79,7 @@ jobs:
 
       # and every build kept under its own number, the apps' version: APK_TAG=v3.N optimize/install.sh all
       - name: Publish to the numbered release
+        if: github.ref_name == 'master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v3.${{ github.run_number }}
@@ -86,4 +88,18 @@ jobs:
           files: |
             urtv-screensaver.apk
             urtv-home.apk
+          make_latest: false
+
+      # next: one test release, replaced by each build; install with APK_TAG=apk-next optimize/install.sh all
+      - name: Publish to the apk-next test release
+        if: github.ref_name == 'next'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-next
+          name: Test build from next
+          body: "Both apps at version 3.${{ github.run_number }}, built from next at ${{ github.sha }}. For testing only."
+          files: |
+            urtv-screensaver.apk
+            urtv-home.apk
+          prerelease: true
           make_latest: false

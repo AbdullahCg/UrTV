@@ -129,8 +129,31 @@ def report_checks():
     lines = report.read_text(encoding="utf-8").splitlines()
     ok = sum(l.startswith("- ok:") for l in lines)
     bad = [l[2:] for l in lines if l.startswith("- !!")]
-    return [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
-            *[l for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+    out = [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
+           *[l for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+    return out + packages(lines)
+
+
+def packages(lines):   # what our lists turned off, what they left on, and what the home screen hides
+    state = {}   # (state, list) -> packages
+    for l in lines:
+        m = re.match(r"- pkg (off|on|absent): (\S+) \((\S+)\)", l)
+        if m:
+            state.setdefault((m.group(1), m.group(3)), []).append(m.group(2))
+    out = []
+    for lst in ("tcl-safe", "tcl-optional", "home-replaced"):
+        off, on = state.get(("off", lst), []), state.get(("on", lst), [])
+        absent = len(state.get(("absent", lst), []))
+        if off or on or absent:
+            out.append(f"{lst}: {len(off)} off, {len(on)} still on, {absent} not on this TV")
+            out += [f"  off: {', '.join(off)}"] if off else []
+            out += [f"  on: {', '.join(on)}"] if on else []
+    if state.get(("off", "keep")):
+        out.append(f"!! protected but off: {', '.join(state[('off', 'keep')])}")
+    hides = [l[len("- home hides: "):] for l in lines if l.startswith("- home hides: ")]
+    if hides:
+        out.append("Home screen leaves out: " + "; ".join(hides))
+    return out
 
 
 def main():

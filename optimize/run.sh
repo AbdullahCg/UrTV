@@ -74,6 +74,21 @@ report() {
   local picks
   picks=$(grep -cvE '^\s*(#|$)' optimize/lists/mine.txt 2>/dev/null || true)
   echo "Optional picks (lists/mine.txt): ${picks:-0}"
+  echo
+  echo "Packages from our lists (off: disabled, on: still on, absent: not on this TV):"
+  local disabled installed l pkg state
+  disabled=$(tv "pm list packages -d" | tr -d '\r')
+  installed=$(tv "pm list packages" | tr -d '\r')
+  for l in tcl-safe tcl-optional keep home-replaced; do
+    for pkg in $(grep -vE '^\s*(#|$)' "optimize/lists/$l.txt" | awk '{print $1}'); do
+      if grep -qx "package:$pkg" <<< "$disabled"; then state=off
+      elif grep -qx "package:$pkg" <<< "$installed"; then state=on
+      else state=absent; fi
+      echo "- pkg $state: $pkg ($l)"
+    done
+  done
+  echo "Left off the home screen:"
+  optimize/dock.sh hidden 2> /dev/null | sed 's/^/- home hides: /' || true
   echo "Undo everything: optimize/reset.sh"
 }
 

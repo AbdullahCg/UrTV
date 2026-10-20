@@ -235,10 +235,17 @@ optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال
 optimize/saver.sh card <verse|shows|prayers|forecast|matches|none>        # beside the clock (verse unless I said otherwise)
 optimize/saver.sh home-card none                  # home screen: no card
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
+optimize/dock.sh hidden                           # apps the home screen leaves out, and why
 optimize/saver.sh update
 optimize/saver.sh show                            # read both back to me
 optimize/dock.sh show
 ```
+The home screen lists what the TV's own home listed: next to a Google home only TV apps, so the maker's helpers
+stay out. Change that only by these rules: `optimize/dock.sh show <pkg>` for an app it left out that is one of
+mine (on the step 1 screenshot) or that I asked for; `optimize/dock.sh hide <pkg>` for an app it shows that is in
+`optimize/lists/tcl-safe.txt` or `tcl-optional.txt`; never hide one in `keep.txt`. Any other you are unsure about:
+list it for me in step 7 instead of choosing.
+
 Take every id from `find-team`'s output, which comes from our list of every club in the app's leagues and the
 national teams; never guess one. If it gives several, pick the one I meant (a Saudi club before a namesake abroad).
 If I said «لا شي» to clubs, skip `find-team` and `teams`. `optimize/saver.sh` without arguments lists every option.

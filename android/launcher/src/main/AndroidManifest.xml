@@ -75,6 +75,9 @@
                 <action android:name="sa.urtv.home.LIST_APPS" />
                 <action android:name="sa.urtv.home.SET_DOCK" />
                 <action android:name="sa.urtv.home.RESET_DOCK" />
+                <action android:name="sa.urtv.home.HIDDEN" />
+                <action android:name="sa.urtv.home.HIDE" />
+                <action android:name="sa.urtv.home.SHOW" />
             </intent-filter>
         </receiver>
     </application>
