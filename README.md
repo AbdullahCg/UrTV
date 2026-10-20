@@ -112,7 +112,8 @@ tests/run.sh          every check: build, data, fonts, scripts, private data, fl
 ```
 
 Every push builds both APKs in GitHub Actions and publishes them to the `apk-latest` release; `tests/run.sh` runs
-on every push too. Local Android build (needs the SDK): `python3 src/build.py && gradle -p android assembleRelease`.
+on every push too. Local Android build (needs the SDK): `python3 src/build.py && gradle -p android assembleRelease`
+(signed with the debug key; the release key lives only in the repository's secrets).
 
 **Screen settings** come from the URL fragment (works on `file://` and in WebView):
 

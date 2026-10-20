@@ -33,13 +33,11 @@ jobs:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then
-            [ -n "$KEYSTORE_PASSWORD" ] || { echo "::error::ANDROID_KEYSTORE_B64 is set but ANDROID_KEYSTORE_PASSWORD is not"; exit 1; }
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
-            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
-          else
-            echo "::warning::No ANDROID_KEYSTORE_B64 secret yet: signed with the old key that is public in this repo"
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::ANDROID_KEYSTORE_B64 and ANDROID_KEYSTORE_PASSWORD must both be in the repository's secrets"; exit 1
           fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
 
       - name: Build APKs
         env:
@@ -58,8 +56,6 @@ jobs:
           for f in urtv-screensaver.apk urtv-home.apk; do
             echo "$f:"; "$apksigner" verify --print-certs "$f" | grep -m2 -E 'certificate (DN|SHA-256)'
           done
-          if [ -n "${ANDROID_KEYSTORE:-}" ]; then echo "Signed with the key from the repository's secrets."
-          else echo "::warning::Signed with the old key that is public in this repo: run .github/tools/make_signing_key.py"; fi
 
       - uses: actions/upload-artifact@v4
         with:
@@ -69,9 +65,7 @@ jobs:
             urtv-home.apk
 
       # fixed download links: .../releases/download/apk-latest/urtv-screensaver.apk and urtv-home.apk
-      # (old key, until the new one is tested)
       - name: Publish to the apk-latest release
-        if: env.ANDROID_KEYSTORE == ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
@@ -82,17 +76,14 @@ jobs:
             urtv-home.apk
           make_latest: true
 
-      # signed with the new key: a numbered release per build, the apps' own version (v3.N); test one with
-      # APK_TAG=v3.N optimize/install.sh all. apk-latest keeps the old-key build until that test passes
+      # and every build kept under its own number, the apps' version: APK_TAG=v3.N optimize/install.sh all
       - name: Publish to the numbered release
-        if: env.ANDROID_KEYSTORE != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v3.${{ github.run_number }}
           name: UrTV 3.${{ github.run_number }}
-          body: "Both apps at version 3.${{ github.run_number }}, built from ${{ github.sha }}, signed with the key from the repository's secrets"
+          body: "Both apps at version 3.${{ github.run_number }}, built from ${{ github.sha }}"
           files: |
             urtv-screensaver.apk
             urtv-home.apk
-          prerelease: true
           make_latest: false

@@ -58,7 +58,8 @@ Follow the recommended strategy. Expected shape (adjust if research shows better
 - Team names Arabic (built-in table, then Wikidata, then transliteration); show titles and «S&P 500» stay English.
 - No API keys; all data sources stay free.
 - Burn-in protection and night dimming must work on every target.
-- Do not commit credentials. The existing Android keystore is the one exception and must stay as is.
+- Do not commit credentials, the Android signing key included: it lives only in the repository's secrets
+  (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`; see `.github/tools/make_signing_key.py`).
 - The existing Android app and its auto-update must keep working: test it, or at least don't change its files without reason.
 
 ## Step 3 — test and document
