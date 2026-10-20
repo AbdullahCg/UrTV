@@ -26,7 +26,7 @@ QR = RUN / "share-qr.png"
 AUTHOR = "https://x.com/A_Albihlal"
 # The author's Google Form (anonymous, no sign-in): each summary becomes a row in the author's sheet. The same two
 # values are in docs/share/index.html. Empty: nothing is sent, the QR code and X are the way.
-FORM_ID = ""      # from the form's link: docs.google.com/forms/d/e/<FORM_ID>/viewform
+FORM_ID = "1FAIpQLSfDJFfy1NgiB-ZMXoBI29n_KTdYnGadn1-iOqXJOxaQJEr-ZQ"   # from the form's link: docs.google.com/forms/d/e/<FORM_ID>/viewform
 FORM_FIELD = ""   # the question's number: entry.<FORM_FIELD>=… in the form's pre-filled link
 # Without the form, or offline: the QR code opens this page (docs/share/, GitHub Pages) with the summary after the #
 PAGE = "https://tshi-dev.github.io/UrTV/share/"
