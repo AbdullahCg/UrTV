@@ -31,8 +31,10 @@ jobs:
       - name: Signing key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
+            [ -n "$KEYSTORE_PASSWORD" ] || { echo "::error::ANDROID_KEYSTORE_B64 is set but ANDROID_KEYSTORE_PASSWORD is not"; exit 1; }
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
             echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
           else

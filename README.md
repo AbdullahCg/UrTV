@@ -74,6 +74,8 @@ the home-screen switch has a 5-minute automatic fallback, and `optimize/reset.sh
 
 **Download the apps yourself:** [releases/apk-latest](https://github.com/tshi-dev/UrTV/releases/tag/apk-latest)
 (install with `adb install`; the agent route above also sets everything up).
+Every build is also kept as a numbered release (`v3.N`, the apps' version), to go back to one:
+`APK_TAG=v3.N optimize/install.sh all`.
 
 ## For agents and scripts
 
