@@ -20,29 +20,28 @@ Set up my Android TV / Google TV with **تلفزيونك** from https://github.c
 (bloat off, safely), an Arabic home screen, and the screensaver «شاشة تلفزيونك». Talk to me in Arabic (or my
 language); keep commands in English.
 
-## Start here: approvals, my two questions, «Allow» on the TV (the first 5 minutes; then I can leave)
+## Start here: three short messages, word for word, before you touch the TV
 
-Everything that needs me comes first, while you get going; after that you work alone. Never skip a question or
-assume my answers, and never skip or work around anything that asks me (an approval on this computer, «Allow USB
-debugging?» on the TV).
+Everything that needs me comes first; after that you work alone. Your first three messages are fixed: send them in
+this order, each on its own, word for word, and wait for my answer after each. Never skip one (not even the first:
+you can't see my approval settings, so never assume they are already right), never merge them, never assume my
+answers, and never skip or work around anything that asks me (an approval on this computer, «Allow USB
+debugging?» on the TV). Cloning the repo and reading this file before message 1 is fine; nothing else.
 
-Your very first message, before any command, sets up the approvals so I don't have to approve every command for
-40 minutes. If you are Codex, word for word:
+**Message 1, approvals.** If you are Codex:
 
 > قبل نبدأ: من القائمة اللي تحت خانة الكتابة، اختر «Approve for me» للموافقات، عشان ما أوقف أسألك عن كل أمر.
+> وقلّي «تم».
 
-Any other agent: ask me in one line to allow running commands and network access in this folder for the whole task.
-Then, in the next message, my first question.
+Any other agent: the same in your words: ask me to allow running commands and network access in this folder for
+the whole task, and to say «تم».
 
-Two short messages, each on its own and in this order, word for word. Never mix them with anything else (not
-with «Allow USB debugging?», not with progress news): one focused question at a time.
-
-First, the city alone, and wait for my answer:
+**Message 2, the city:**
 
 > وش مدينتك؟
 > (لمواقيت الصلاة والطقس. مثال: الرياض، جدة، الرس)
 
-Then, after I answer:
+**Message 3, the clubs and the defaults:**
 
 > وتتابع مباريات أي أندية؟ اكتب أسماءها، أو «لا شي».
 >
@@ -51,6 +50,9 @@ Then, after I answer:
 > • المفضلة: أول ٦ تطبيقات من واجهتك الحالية، بنفس الترتيب
 > • بركّب TV Bro (متصفح للتلفزيون) و SmartTube (يوتيوب بدون إعلانات)، مجانيين من GitHub
 > • ما فيه بطاقة في الواجهة الرئيسية، ووقت شاشة التوقف يبقى مثل ما هو، وما أعطّل إضافات TCL الاختيارية
+
+After my answer to message 3, start steps 0 and 1 at once, in the same turn: don't end your turn to wait for me
+again. The only other thing I do is press Allow on the TV, and step 1 tells me when, without stopping.
 
 Those defaults, unless I change them:
 - the card beside the clock: verse and hadith;
@@ -61,14 +63,8 @@ Those defaults, unless I change them:
 - nothing from `optimize/lists/tcl-optional.txt` is disabled (`optimize/lists/mine.txt` stays empty);
 - if I pick the episodes card: all genres and languages.
 
-Then tell me, on its own:
-
-> الحين بتطلع لك على التلفزيون رسالة «Allow USB debugging?»: اضغط Allow وعلّم «Always allow» (ولو طلع لك هنا
-> طلب موافقة، وافق). بعدها تقدر تتركني، أكمّل لحالي حوالي ٤٠ دقيقة.
-
-and go straight on with steps 0 and 1, so every approval comes up while I am still here. My city is checked
-later against `android/app/src/main/java/sa/urtv/screensaver/Cities.java`; if it isn't there, step 4 sets it
-with its coordinates (`city <name> <lat> <lon>`) without asking me again.
+My city is checked later against `android/app/src/main/java/sa/urtv/screensaver/Cities.java`; if it isn't there,
+step 4 sets it with its coordinates (`city <name> <lat> <lon>`) without asking me again.
 
 ## 0. Can you reach my TV? (check this first, 1 minute)
 
@@ -83,20 +79,22 @@ often you retry, so find out before anything else.
 
 **Permissions first.** Some agents run commands in a sandbox that blocks the network or starting programs until I
 allow it (Codex on Windows does). The signs are errors like `getaddrinfo() thread failed to start`,
-`Bash/E_ACCESSDENIED` or `Operation not permitted`. They mean "not allowed yet", not "can't reach the TV", so
-before the first command ask me once to allow network access and running git, bash and python in this folder for
-the whole task, then go on. On Windows, run every script in Git Bash (they find a working Python themselves,
-past the Microsoft Store shortcut); if `bash` isn't found, use its full path:
+`Bash/E_ACCESSDENIED` or `Operation not permitted`. They mean "not allowed yet", not "can't reach the TV":
+message 1 is how I allow them (network access and running git, bash and python in this folder, for the whole
+task); if one still appears, send me message 1 again, then go on. On Windows, run every script in Git Bash (they
+find a working Python themselves, past the Microsoft Store shortcut); if `bash` isn't found, use its full path:
 `"C:\Program Files\Git\bin\bash.exe" -lc "cd <this folder> && optimize/find-tv.sh --check"`.
 
 **Codex on Windows:** its sandbox can never start Git Bash (`0xC0000022`, `NtCreateDirectoryObject`: a known Codex
 bug, openai/codex#54449). So run every Git Bash command **outside the sandbox**: request escalated permissions for
 it, with this justification: "Git Bash cannot start inside the Codex Windows sandbox (openai/codex#54449); this runs
 the UrTV setup script the user asked for, in this folder, to reach their TV on their Wi-Fi." With «Approve for me»
-the reviewer decides; when it offers to allow `bash.exe` from now on, take it. I don't need Full access for this. If
-it is turned down, ask once more with the same justification and the exact command; if it is turned down again,
-stop and tell me exactly what was refused. Don't port the scripts to PowerShell or look for another way: they need
-Git Bash.
+the reviewer decides; when it offers to allow `bash.exe` from now on, take it. I don't need Full access for this.
+A refusal that never reached a reviewer (`you cannot ask for escalated permissions`, `rejected by policy`,
+`sandbox_approval is false`) means approvals are not on «Approve for me»: Codex then rejects every escalation by
+itself (openai/codex#32563). Send me message 1 again, wait for «تم», then run the same command. If a reviewer turns
+it down, ask once more with the same justification and the exact command; if it is turned down again, stop and tell
+me exactly what was refused. Don't port the scripts to PowerShell or look for another way: they need Git Bash.
 
 **Missing Git or Python is yours to fix, not mine.** If Git Bash isn't there, or a script says
 `!! No working Python 3 here`, ask me once, then install it yourself and carry on:
@@ -147,6 +145,8 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | You see | It means | Do |
 |---|---|---|
 | `getaddrinfo() thread failed to start`, `Bash/E_ACCESSDENIED`, `Operation not permitted` | your sandbox hasn't been allowed network or programs yet | ask me to allow them for this folder (see step 0), then the same command |
+| `0xC0000022` or `NtCreateDirectoryObject` starting Git Bash (Codex) | Codex's sandbox can't start Git Bash | run it outside the sandbox (step 0, «Codex on Windows») |
+| `you cannot ask for escalated permissions`, `rejected by policy` (Codex) | Codex's approvals are not on «Approve for me» | message 1 again, wait for «تم», then the same command |
 | `!! No working Python 3 here`, or `python` opens the Microsoft Store | Python not installed, or only Windows' Store shortcut | ask me once, install it yourself (`winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements`), then the same command again in Git Bash |
 | `(connection problem: …; retrying in 5s)` | Wi-Fi ADB dropped for a moment | nothing, it retries by itself |
 | `resuming upload at 40%` | an earlier upload was cut off | nothing, it continues and checks the file |
@@ -182,8 +182,12 @@ optimize/find-tv.sh                       # accept "Allow USB debugging?" on the
 optimize/venv/bin/python -I optimize/tv.py --probe     # first tell me to watch the TV (below)
 optimize/shot.sh home my-apps
 ```
-Before `--probe`, tell me to look at the TV now: «Allow USB debugging?» appears there; I press Allow and tick
-«Always allow». Until I do, the command stays silent (up to 2 minutes): that is the wait, not a fault.
+Right before `--probe`, tell me, word for word, and **don't end your turn or wait for my reply**: run `--probe` straight
+after it. It waits by itself (silent, up to 2 minutes) until I press Allow; that is the wait, not a fault. If it times
+out, tell me again and run it once more.
+
+> الحين بتطلع لك على التلفزيون رسالة «Allow USB debugging?»: اضغط Allow وعلّم «Always allow». بعدها تقدر
+> تتركني، أكمّل لحالي حوالي ٤٠ دقيقة.
 Tell me the model and Android version. Look at `optimize/run/shots/my-apps.png` and write down the first **6 apps**
 of my apps / favourites row, left to right, by name: they become the favourites of the new home screen in step 4.
 Only then, if this TV was set up with these tools before (also older versions, whose apps are `sa.yourtv.*` or `com.abdullah.*`),
