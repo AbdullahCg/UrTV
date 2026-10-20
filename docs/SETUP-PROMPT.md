@@ -119,20 +119,20 @@ of my apps / favourites row, left to right, by name: they become the favourites 
 Only then, if this TV was set up with these tools before (also older versions, whose apps are `sa.yourtv.*` or `com.abdullah.*`),
 run `optimize/reset.sh` so we start like new.
 
-## 2. My choices (5 minutes, with me, all at once so the rest runs on its own)
+## 2. My choices (1 minute: keep it short)
 
-Ask me these together, in plain Arabic, and write the answers down:
-1. **My city** (for prayer times, weather and the clock line).
-2. **My favourite clubs** (and national team) whose games I want to follow (up to 10, most important first).
-3. **Beside the clock on the screensaver:** «آية أو حديث اليوم», «جديد المسلسلات», «مواقيت الصلاة اليوم»,
-   «طقس الأيام القادمة», «مباريات فرقي القادمة», or nothing. If episodes: which genres and languages I like.
-4. **The same card on the home screen too?** (off unless I say so)
-5. **After how many minutes** the screensaver should start.
-6. **What I never use**, from `optimize/lists/tcl-optional.txt`, group by group in plain words (the TCL tab and
-   channels, the game bar, T-Cast, accessory updates, Google TV / Play Movies, YouTube Music, region leftovers).
-   Copy the package lines of what I give up into `optimize/lists/mine.txt`; if I keep everything, skip it.
+Ask me only this, in one short message, in plain Arabic, word for word like this (fill in nothing else):
 
-Read my 6 apps from step 1 back to me and let me swap any.
+> سؤالين بس:
+> ١. مدينتك؟
+> ٢. الأندية اللي تتابع مبارياتها؟ (أو «لا شي»)
+> وجنب الساعة بحط «آية وحديث اليوم». تبغى غيرها؟ مواقيت الصلاة، المسلسلات، الطقس، المباريات، أو لا شي.
+
+Everything else takes its default; don't ask about it (I can change any of it later, see step 7):
+- the favourites row: the 6 apps you noted in step 1, in that order; an icon you couldn't name is left out;
+- no card on the home screen; the TV's own screensaver delay is kept;
+- nothing from `optimize/lists/tcl-optional.txt` is disabled (`optimize/lists/mine.txt` stays empty);
+- if I pick the episodes card: all genres and languages.
 
 Before you start step 3, tell me in plain Arabic how to undo everything, so I know it is safe: one command,
 `optimize/reset.sh`, run from this folder (say the folder's full path), puts the TV back as it came (the
@@ -158,15 +158,13 @@ itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1
 ```
 optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (or: city <name> <lat> <lon>)
 optimize/saver.sh find-team <club>                # for each club, then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
-optimize/saver.sh card <verse|shows|prayers|forecast|matches|none>        # beside the clock
-optimize/saver.sh home-card <verse|shows|prayers|forecast|matches|none>   # home screen (none unless I said yes)
-optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in my order)
-optimize/venv/bin/python -I optimize/tv.py "settings put system screen_off_timeout <minutes × 60000>"
+optimize/saver.sh card <verse|shows|prayers|forecast|matches|none>        # beside the clock (verse unless I said otherwise)
+optimize/saver.sh home-card none                  # home screen: no card
+optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
 optimize/saver.sh update
 optimize/saver.sh show ; optimize/dock.sh show    # read it back to me
 ```
-If I chose episodes: `optimize/saver.sh genres <Drama,Comedy,...>` and `optimize/saver.sh langs <Arabic,English,...>`
-(only what I asked for; nothing = all). `optimize/saver.sh` without arguments lists the names.
+If I said «لا شي» to clubs, skip `find-team` and `teams`. `optimize/saver.sh` without arguments lists every option.
 
 ## 5. Check (5 minutes)
 
@@ -194,6 +192,8 @@ grep '!!' optimize/run/report.md || echo none     # must print «none»
 
 - The before/after table from `optimize/run/report.md` and its feature check.
 - What was disabled, my settings, and anything that looked wrong or slow.
+- In one line, what I can still ask you to change any time: the favourites, the card on the home screen, the
+  screensaver delay, and the optional TCL extras (the TCL tab and channels, game bar, T-Cast…).
 - How to undo, again, as the last thing you say: the folder's full path and the exact command to paste there
   (`optimize/reset.sh`; on Windows in Git Bash), what it brings back, and that if I ever want it, I can open an
   agent on this computer and say «رجّع التلفزيون مثل ما كان: شغّل optimize/reset.sh في مجلد UrTV».

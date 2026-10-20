@@ -24,9 +24,9 @@
    أو استخدم تبويب Code في تطبيق Claude على سطح المكتب مع مجلد على جهازك (مو بيئة سحابية).
    وأول ما يسويه المساعد أنه يتأكد أنه يقدر يوصل لشبكة بيتك؛ وإذا ما قدر يقولك بوضوح.
 
-وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك كل الأسئلة مرة وحدة: مدينتك،
-والأندية اللي تتابع مبارياتها، ووش يطلع جنب الساعة (آية وحديث، جديد المسلسلات، مواقيت الصلاة…)، ووش ما تستخدمه أبداً.
-بعدها يكمل الباقي في حوالي 40 دقيقة، ويقيس الذاكرة قبل وبعد.
+وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك سؤالين: مدينتك، والأندية اللي
+تتابع مبارياتها. وجنب الساعة «آية وحديث اليوم» إلا إذا تبغى غيرها. بعدها يكمل الباقي في حوالي 40 دقيقة، ويقيس الذاكرة
+قبل وبعد. وأي شي ثاني تقدر تغيّره بعدين.
 
 **آمن:** ما يحذف أي تطبيق، وما يلمس AirPlay ولا Chromecast ولا عرض الشاشة ولا الصوت ولا المداخل، وتبديل الواجهة
 فيه رجوع تلقائي بعد 5 دقائق، و`optimize/reset.sh` يرجّع التلفزيون مثل ما كان.
@@ -50,9 +50,9 @@
    ```
    The agent's first step checks that it can reach your home network, and says so plainly if it can't.
 
-That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks a few questions in
-one go (your city, the clubs whose games you follow, what goes beside the clock: verse and hadith, new episodes,
-prayer times…, and what you never use), then does the rest in about 40 minutes, measuring memory before and after.
+That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks two questions (your
+city, the clubs whose games you follow; verse and hadith go beside the clock unless you want something else), then
+does the rest in about 40 minutes, measuring memory before and after. Anything else can be changed later.
 The full prompt is in [docs/SETUP-PROMPT.md](docs/SETUP-PROMPT.md) if you want to read or adapt it.
 
 **Safe by design:** nothing is uninstalled; AirPlay, Chromecast, mirroring, voice and inputs are never touched;
