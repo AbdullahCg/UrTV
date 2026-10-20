@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Put a TV that was set up with these tools back the way it came, so it can be set up again "like new":
 # every package from our lists re-enabled, the stock home and screensaver back, our apps (old and new names)
-# removed, tweaks undone. Your own apps and data are not touched.
+# removed, and TV Bro and SmartTube if the setup installed them, tweaks undone. Your own apps and data are not touched.
 #   optimize/reset.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -34,6 +34,12 @@ printf '%s\n' "settings delete secure screensaver_components" "settings delete s
 echo "3/4 Removing our apps (old and new names; missing ones are skipped)…"
 for p in sa.urtv.home sa.urtv.screensaver sa.yourtv.home sa.yourtv.screensaver com.abdullah.tvhome com.abdullah.tvsaver; do
   tv "pm uninstall $p" | grep -q Success && echo "   removed $p" || true
+done
+# TV Bro and SmartTube: only if the setup put them there (not in the TV's package list saved before it)
+for p in com.phlox.tvwebbrowser org.smarttube.stable; do
+  if [ -f optimize/run/backup.txt ] && ! grep -qx "package:$p" optimize/run/backup.txt; then
+    tv "pm uninstall $p" | grep -q Success && echo "   removed $p" || true
+  fi
 done
 
 echo "4/4 Tweaks back to Android's defaults…"

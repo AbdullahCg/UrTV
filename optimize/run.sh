@@ -4,6 +4,7 @@
 #   optimize/run.sh            do the next steps
 #   optimize/run.sh status     what is done
 #   SKIP_LAUNCHER=1 optimize/run.sh   keep the TV's own home screen (firmware that won't let another app be Home)
+#   SKIP_EXTRAS=1 optimize/run.sh     without TV Bro and SmartTube
 # Before: optimize/setup.sh and optimize/find-tv.sh. Optional packages the household gave up go in
 # optimize/lists/mine.txt (one per line, picked from lists/tcl-optional.txt) before running.
 # Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md.
@@ -14,7 +15,7 @@ RUN=optimize/run
 mkdir -p "$RUN"
 tv() { "$PY" -I optimize/tv.py "$@"; }
 
-STEPS=(probe backup keep before before-saver safe mine tweaks screensaver launcher after after-saver report)
+STEPS=(probe backup keep before before-saver safe mine tweaks screensaver launcher extras after after-saver report)
 title() {
   case "$1" in
     probe)       echo "Connect and identify the TV" ;;
@@ -27,6 +28,7 @@ title() {
     tweaks)      echo "Speed and memory tweaks" ;;
     screensaver) echo "Install شاشة تلفزيونك" ;;
     launcher)    echo "Install the home screen (safety switch on)" ;;
+    extras)      echo "Install TV Bro (web browser) and SmartTube (YouTube without ads)" ;;
     after)       echo "Measure after (restart + 3 min)" ;;
     after-saver) echo "Measure our screensaver (1 min)" ;;
     report)      echo "Write the report" ;;
@@ -84,6 +86,7 @@ do_step() {
     screensaver) optimize/install.sh saver ;;
     launcher)    if [ "${SKIP_LAUNCHER:-}" = 1 ]; then echo "   skipped (SKIP_LAUNCHER=1): the TV keeps its own home screen"
                  else optimize/install.sh launcher; fi ;;
+    extras)      if [ "${SKIP_EXTRAS:-}" = 1 ]; then echo "   skipped (SKIP_EXTRAS=1)"; else optimize/install.sh extras; fi ;;
     after)       optimize/measure.sh after ;;
     after-saver) optimize/measure.sh after-screensaver --screensaver ;;
     report)      report > "$RUN/report.md"; cat "$RUN/report.md" ;;

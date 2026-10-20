@@ -121,23 +121,30 @@ run `optimize/reset.sh` so we start like new.
 
 ## 2. My choices (1 minute: keep it short)
 
-Ask me only this, in one short message, in plain Arabic, word for word like this (fill in nothing else):
+Ask me only this, in one short message, in plain Arabic, word for word like this:
 
 > سؤالين بس:
 > ١. مدينتك؟
 > ٢. الأندية اللي تتابع مبارياتها؟ (أو «لا شي»)
-> وجنب الساعة بحط «آية وحديث اليوم». تبغى غيرها؟ مواقيت الصلاة، المسلسلات، الطقس، المباريات، أو لا شي.
+>
+> والباقي بخليه على الافتراضي، وتقدر تطلب تغيير أي شي منه الحين أو بعدين:
+> • جنب الساعة: «آية وحديث اليوم» (أو: مواقيت الصلاة، المسلسلات، الطقس، المباريات، لا شي)
+> • المفضلة: أول ٦ تطبيقات من واجهتك الحالية، بنفس الترتيب
+> • بركّب TV Bro (متصفح للتلفزيون) و SmartTube (يوتيوب بدون إعلانات)، مجانيين من GitHub
+> • ما فيه بطاقة في الواجهة الرئيسية، ووقت شاشة التوقف يبقى مثل ما هو، وما أعطّل إضافات TCL الاختيارية
 
-Everything else takes its default; don't ask about it (I can change any of it later, see step 7):
+Those defaults, unless I change them:
+- the card beside the clock: verse and hadith;
 - the favourites row: the 6 apps you noted in step 1, in that order; an icon you couldn't name is left out;
+- TV Bro and SmartTube installed (`optimize/run.sh` does it; if I don't want them: `SKIP_EXTRAS=1 optimize/run.sh`);
 - no card on the home screen; the TV's own screensaver delay is kept;
 - nothing from `optimize/lists/tcl-optional.txt` is disabled (`optimize/lists/mine.txt` stays empty);
 - if I pick the episodes card: all genres and languages.
 
 Before you start step 3, tell me in plain Arabic how to undo everything, so I know it is safe: one command,
 `optimize/reset.sh`, run from this folder (say the folder's full path), puts the TV back as it came (the
-disabled apps back on, the TV's own home screen and screensaver back, our two apps removed, the speed tweaks
-back to Android's defaults); my photos, accounts and other apps are not touched. Any agent on this computer can
+disabled apps back on, the TV's own home screen and screensaver back, our two apps removed, TV Bro and
+SmartTube removed if the setup installed them, the speed tweaks back to Android's defaults); my photos, accounts and other apps are not touched. Any agent on this computer can
 run it for me later.
 
 ## 3. Run it (20–30 minutes, the TV restarts twice)
@@ -146,7 +153,8 @@ run it for me later.
 optimize/run.sh
 ```
 It saves the TV's state, measures memory and the TV's own screensaver, disables telemetry/ads/demos and my picks,
-applies the speed and memory tweaks, installs the screensaver and the home screen (behind the safety switch),
+applies the speed and memory tweaks, installs the screensaver and the home screen (behind the safety switch) and
+TV Bro and SmartTube (from their own GitHub releases, the build for this TV's processor),
 measures again and writes `optimize/run/report.md`. If it stops for any reason: `optimize/run.sh` again (it
 continues), and `optimize/run.sh status` shows where it is.
 

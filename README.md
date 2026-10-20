@@ -25,7 +25,8 @@
    وأول ما يسويه المساعد أنه يتأكد أنه يقدر يوصل لشبكة بيتك؛ وإذا ما قدر يقولك بوضوح.
 
 وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك سؤالين: مدينتك، والأندية اللي
-تتابع مبارياتها. وجنب الساعة «آية وحديث اليوم» إلا إذا تبغى غيرها. بعدها يكمل الباقي في حوالي 40 دقيقة، ويقيس الذاكرة
+تتابع مبارياتها. والباقي يقولك وش افتراضيه وتقدر تغيّره: جنب الساعة «آية وحديث اليوم»، ويركّب TV Bro (متصفح) وSmartTube
+(يوتيوب بدون إعلانات). بعدها يكمل الباقي في حوالي 40 دقيقة، ويقيس الذاكرة
 قبل وبعد. وأي شي ثاني تقدر تغيّره بعدين.
 
 **آمن:** ما يحذف أي تطبيق، وما يلمس AirPlay ولا Chromecast ولا عرض الشاشة ولا الصوت ولا المداخل، وتبديل الواجهة
@@ -51,8 +52,9 @@
    The agent's first step checks that it can reach your home network, and says so plainly if it can't.
 
 That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks two questions (your
-city, the clubs whose games you follow; verse and hadith go beside the clock unless you want something else), then
-does the rest in about 40 minutes, measuring memory before and after. Anything else can be changed later.
+city, the clubs whose games you follow) and tells you the defaults you can change: verse and hadith beside the
+clock, and TV Bro (a browser) and SmartTube (YouTube without ads) installed, free from their own GitHub. Then it does
+the rest in about 40 minutes, measuring memory before and after. Anything else can be changed later.
 The full prompt is in [docs/SETUP-PROMPT.md](docs/SETUP-PROMPT.md) if you want to read or adapt it.
 
 **Safe by design:** nothing is uninstalled; AirPlay, Chromecast, mirroring, voice and inputs are never touched;
@@ -67,6 +69,7 @@ the home-screen switch has a 5-minute automatic fallback, and `optimize/reset.sh
 |---|---|---|
 | **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, or a verse/hadith of the day, over Saudi landscapes | `urtv-screensaver.apk` |
 | **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default) | `urtv-home.apk` |
+| **Two free apps** | [TV Bro](https://github.com/truefedex/tv-bro), a web browser for the TV, and [SmartTube](https://github.com/yuliskov/SmartTube), YouTube without ads, from their own releases (skip with `SKIP_EXTRAS=1`) | `optimize/install.sh extras` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), closed apps frozen, Play Store kept from running in the background, faster animations | `optimize/` |
 
 **Download the apps yourself:** [releases/apk-latest](https://github.com/tshi-dev/UrTV/releases/tag/apk-latest)

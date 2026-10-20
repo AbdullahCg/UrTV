@@ -3,13 +3,16 @@
 #   optimize/install.sh saver      شاشة تلفزيونك: install + make it the screensaver
 #   optimize/install.sh launcher   the home screen: install + make it the default Home
 #   optimize/install.sh all        both
+#   optimize/install.sh extras     two free apps from their own GitHub releases: TV Bro (a TV web browser,
+#                                  github.com/truefedex/tv-bro) and SmartTube (YouTube without ads,
+#                                  github.com/yuliskov/SmartTube), the build that fits the TV's processor
 # The first install of the screensaver replaces an APK signed with another key: uninstall the old one first
 # (pm uninstall sa.urtv.screensaver) — this script does that only if a plain install fails.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
 REL=https://github.com/tshi-dev/UrTV/releases/download/apk-latest
-what="${1:?usage: optimize/install.sh saver|launcher|all}"
+what="${1:?usage: optimize/install.sh saver|launcher|all|extras}"
 
 push_install() {   # $1 apk name, $2 package
   curl -fsSL -o "optimize/$1" "$REL/$1"
@@ -28,6 +31,36 @@ push_install() {   # $1 apk name, $2 package
   fi
   "$PY" -I optimize/tv.py "rm -f /data/local/tmp/$1"
 }
+
+from_github() {   # $1 owner/repo, $2 package, $3 asset pattern ({abi} = the TV's processor types, best first)
+  local abis url name out
+  abis=$("$PY" -I optimize/tv.py "getprop ro.product.cpu.abilist" | tr -d '\r')
+  url=$(curl -fsSL "https://api.github.com/repos/$1/releases/latest" | "$PY" -I -c '
+import json, re, sys
+assets = {a["name"]: a["browser_download_url"] for a in json.load(sys.stdin)["assets"]}
+for abi in [a for a in sys.argv[2].split(",") if a] + ["universal", ""]:
+    pat = re.compile(sys.argv[1].replace("{abi}", re.escape(abi)) + "$")
+    hit = sorted(n for n in assets if pat.search(n))
+    if hit:
+        print(assets[hit[0]]); break
+' "$3" "$abis") || true
+  if [ -z "$url" ]; then echo "!! No build of $1 for this TV ($abis): skipped"; return 0; fi
+  name=$(basename "$url")
+  curl -fsSL -o "optimize/$name" "$url"
+  "$PY" -I optimize/tv.py --push-b64 "optimize/$name" "/data/local/tmp/$name"
+  out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$name")
+  "$PY" -I optimize/tv.py "rm -f /data/local/tmp/$name" > /dev/null
+  rm -f "optimize/$name"
+  if grep -q Success <<< "$out"; then echo "Installed $name"
+  elif grep -qE 'UPDATE_INCOMPATIBLE|signatures do not match' <<< "$out"; then
+    echo "$2 is already installed from somewhere else: left as it is (with its settings)."   # never removed
+  else echo "!! Install of $name failed: $out"; fi
+}
+
+if [ "$what" = extras ]; then
+  from_github truefedex/tv-bro com.phlox.tvwebbrowser 'tvbro-[0-9.]+-generic-geckoExcluded\.apk'   # light: the TV's WebView
+  from_github yuliskov/SmartTube org.smarttube.stable 'SmartTube_stable_[0-9.]+_{abi}\.apk'
+fi
 
 if [ "$what" = saver ] || [ "$what" = all ]; then
   push_install urtv-screensaver.apk sa.urtv.screensaver
