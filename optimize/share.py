@@ -23,7 +23,7 @@ RUN = Path(__file__).resolve().parent / "run"
 OUT = RUN / "share.md"
 QR = RUN / "share-qr.png"
 AUTHOR = "https://x.com/A_Albihlal"
-AUTHOR_ID = ""   # the author's numeric X id: with it the phone opens the message already written, ready to send
+AUTHOR_ID = "876049783"   # the author's numeric X id: with it the phone opens the message already written, ready to send
 
 
 def scrub(text):   # in case a note or an output carries something personal
