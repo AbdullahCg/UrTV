@@ -123,6 +123,12 @@ Ask me these together, in plain Arabic, and write the answers down:
 
 Read my 6 apps from step 1 back to me and let me swap any.
 
+Before you start step 3, tell me in plain Arabic how to undo everything, so I know it is safe: one command,
+`optimize/reset.sh`, run from this folder (say the folder's full path), puts the TV back as it came (the
+disabled apps back on, the TV's own home screen and screensaver back, our two apps removed, the speed tweaks
+back to Android's defaults); my photos, accounts and other apps are not touched. Any agent on this computer can
+run it for me later.
+
 ## 3. Run it (20–30 minutes, the TV restarts twice)
 
 ```
@@ -177,4 +183,6 @@ grep '!!' optimize/run/report.md || echo none     # must print «none»
 
 - The before/after table from `optimize/run/report.md` and its feature check.
 - What was disabled, my settings, and anything that looked wrong or slow.
-- Undo, any time: `optimize/reset.sh`.
+- How to undo, again, as the last thing you say: the folder's full path and the exact command to paste there
+  (`optimize/reset.sh`; on Windows in Git Bash), what it brings back, and that if I ever want it, I can open an
+  agent on this computer and say «رجّع التلفزيون مثل ما كان: شغّل optimize/reset.sh في مجلد UrTV».
