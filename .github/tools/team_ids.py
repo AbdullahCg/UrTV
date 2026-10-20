@@ -1,73 +1,72 @@
 #!/usr/bin/env python3
-"""TheSportsDB ids of the 172 Saudi clubs in .github/tools/saudi-clubs-ar.json, from Wikidata (run in CI; Wikidata
-is unreachable from the dev container). TheSportsDB's free name search misses some of them altogether (it never
-returns the Saudi Al-Hilal), so optimize/find-team.py looks Saudi clubs up in this list first.
+"""TheSportsDB ids of the Saudi clubs, from their leagues' matches (run in CI; TheSportsDB is unreachable from the
+dev container). The free name search misses some clubs altogether (it never returns the Saudi Al-Hilal), but every
+match lists both clubs' ids, so a season of the Pro League and the First Division names them all.
 
-Which Wikidata property holds the TheSportsDB team id is found, not assumed: the one whose value on Al-Hilal's
-entry is 136013, the id the app has always used for it. Writes teams/ids.json ({Arabic name: [id, English name]})
-and teams/ids-missing.json for review before it goes to assets/shared/team-ids.json.
+Checked, not assumed: Al-Hilal must come out as 136013, the id the app has always used. Writes teams/ids.json
+({Arabic name: [id, English name]}, Arabic from assets/shared/teams-ar.json) and teams/ids-unnamed.json (clubs found
+with no Arabic name yet), for review before it goes to assets/shared/team-ids.json.
 """
 import json
+import re
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-API = "https://www.wikidata.org/w/api.php"
-UA = {"User-Agent": "UrTV club ids (github.com/tshi-dev/UrTV)"}
-KNOWN = ("نادي الهلال (السعودية)", "136013")   # Al-Hilal: Prefs.TEAM_PRESETS
+API = "https://www.thesportsdb.com/api/v1/json/123/"
+LEAGUES = {"4668": "Saudi-Arabian Pro League", "5627": "Saudi First Division League"}   # data-leagues branch
+SEASONS = ["2025-2026", "2024-2025"]
+KNOWN = ("Al-Hilal", "136013")
 
 
-def get(params):
-    url = API + "?" + urllib.parse.urlencode({**params, "format": "json", "maxlag": "5"})
-    for attempt in range(6):
-        time.sleep(1.5)
+def get(path):
+    """The free key allows a few requests a minute: pace them and back off on 429."""
+    for attempt in range(8):
+        time.sleep(4)
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
+            with urllib.request.urlopen(urllib.request.Request(API + path, headers={"User-Agent": "urtv"}),
+                                        timeout=60) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
             if e.code != 429:
                 raise
-            time.sleep(15 * (attempt + 1))
-    raise RuntimeError("rate limited")
+            time.sleep(30 * (attempt + 1))
+    raise RuntimeError("rate limited: " + path)
 
 
-def values(entity, prop):
-    return [c["mainsnak"]["datavalue"]["value"] for c in entity.get("claims", {}).get(prop, [])
-            if c["mainsnak"].get("datavalue") and isinstance(c["mainsnak"]["datavalue"]["value"], str)]
+def key(name):   # Al-Hilal, Al Hilal, al hilal FC -> alhilal
+    name = re.sub(r"\s+(S?FC|F\.C\.|Club|Saudi Club)$", "", name.strip(), flags=re.I)
+    return re.sub(r"[^a-z]", "", name.lower())
 
 
 def main():
-    clubs = json.load(open(".github/tools/saudi-clubs-ar.json", encoding="utf-8"))
-    entities = {}
-    for i in range(0, len(clubs), 40):   # wbgetentities takes up to 50 titles
-        d = get({"action": "wbgetentities", "sites": "arwiki", "titles": "|".join(c["article"] for c in clubs[i:i + 40]),
-                 "props": "claims|labels|sitelinks", "languages": "en", "sitefilter": "arwiki"})
-        for e in d.get("entities", {}).values():
-            title = (e.get("sitelinks", {}).get("arwiki") or {}).get("title")
-            if title:
-                entities[title] = e
-    hilal = entities.get(KNOWN[0])
-    if hilal is None:
-        raise SystemExit(f"{KNOWN[0]} isn't on Wikidata any more: can't tell which property is TheSportsDB's")
-    props = [p for p in hilal.get("claims", {}) if KNOWN[1] in values(hilal, p)]
-    if len(props) != 1:
-        raise SystemExit(f"expected one property with {KNOWN[1]} on Al-Hilal, found {props}")
-    prop = props[0]
-    print("TheSportsDB team id property:", prop)
-    ids, missing = {}, []
-    for c in clubs:
-        e = entities.get(c["article"])
-        found = values(e, prop) if e else []
-        if found:
-            ids[c["ar"]] = [found[0], ((e.get("labels") or {}).get("en") or {}).get("value", "")]
-        else:
-            missing.append(c["ar"])
+    teams = {}   # id -> English name
+    for league in LEAGUES:
+        paths = [f"eventsseason.php?id={league}&s={s}" for s in SEASONS]
+        paths += [f"eventspastleague.php?id={league}", f"eventsnextleague.php?id={league}"]
+        for path in paths:
+            for e in get(path).get("events") or []:
+                for side in ("Home", "Away"):
+                    if e.get(f"id{side}Team") and e.get(f"str{side}Team"):
+                        teams[e[f"id{side}Team"]] = e[f"str{side}Team"]
+    print(len(teams), "clubs from the matches")
+    by_key = {key(n): i for i, n in teams.items()}
+    if by_key.get(key(KNOWN[0])) != KNOWN[1]:
+        raise SystemExit(f"{KNOWN[0]} came out as {by_key.get(key(KNOWN[0]))}, not {KNOWN[1]}: not trusting this")
+    arabic = json.loads(Path("assets/shared/teams-ar.json").read_text(encoding="utf-8"))
+    ids, named = {}, set()
+    for en, ar in arabic.items():
+        i = by_key.get(key(en))
+        if i and ar not in ids:
+            ids[ar] = [i, teams[i]]
+            named.add(i)
+    unnamed = {i: n for i, n in teams.items() if i not in named}
     Path("teams").mkdir(exist_ok=True)
     Path("teams/ids.json").write_text(json.dumps(ids, ensure_ascii=False, indent=1), encoding="utf-8")
-    Path("teams/ids-missing.json").write_text(json.dumps(missing, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(len(ids), "clubs with an id;", len(missing), "without")
+    Path("teams/ids-unnamed.json").write_text(json.dumps(unnamed, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(len(ids), "with an Arabic name;", len(unnamed), "without")
 
 
 if __name__ == "__main__":

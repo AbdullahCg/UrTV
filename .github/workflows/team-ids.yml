@@ -1,12 +1,12 @@
-name: Club ids from Wikidata
+name: Club ids from the leagues' matches
 
-# Wikidata is unreachable from the dev container; CI finds the Saudi clubs'
-# TheSportsDB ids and pushes them to the data-team-ids branch for review.
+# TheSportsDB is unreachable from the dev container; CI finds the Saudi clubs'
+# ids in their leagues' matches and pushes them to the data-team-ids branch for review.
 on:
   workflow_dispatch:
   push:
-    branches: [master]
-    paths: ['.github/tools/team_ids.py', '.github/tools/saudi-clubs-ar.json']
+    branches: [master, next]
+    paths: ['.github/tools/team_ids.py']
 
 permissions:
   contents: write
@@ -24,5 +24,5 @@ jobs:
           git checkout --orphan data-team-ids
           git rm -rfq --cached .
           git add teams
-          git commit -qm "Saudi clubs' TheSportsDB ids from Wikidata"
+          git commit -qm "Saudi clubs' TheSportsDB ids from their matches"
           git push -f origin data-team-ids
