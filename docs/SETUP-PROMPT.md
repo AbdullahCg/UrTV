@@ -20,6 +20,49 @@ Set up my Android TV / Google TV with **تلفزيونك** from https://github.c
 (bloat off, safely), an Arabic home screen, and the screensaver «شاشة تلفزيونك». Talk to me in Arabic (or my
 language); keep commands in English.
 
+## Start here: my two questions, then the approvals (the first 5 minutes; then I can leave)
+
+Everything that needs me comes first, while you get going; after that you work alone. Your very first message,
+before any command, is my first question. Never skip a question or assume my answers, and never skip, work around
+or approve for me anything that asks me (an approval on this computer, «Allow USB debugging?» on the TV).
+
+Two short messages, each on its own and in this order, word for word. Never mix them with anything else (not
+with «Allow USB debugging?», not with progress news): one focused question at a time.
+
+First, the city alone, and wait for my answer:
+
+> وش مدينتك؟
+> (لمواقيت الصلاة والطقس. مثال: الرياض، جدة، الرس)
+
+Then, after I answer:
+
+> وتتابع مباريات أي أندية؟ اكتب أسماءها، أو «لا شي».
+>
+> والباقي بخليه على الافتراضي، وتقدر تطلب تغيير أي شي منه الحين أو بعدين:
+> • جنب الساعة: «آية وحديث اليوم» (أو: مواقيت الصلاة، المسلسلات، الطقس، المباريات، لا شي)
+> • المفضلة: أول ٦ تطبيقات من واجهتك الحالية، بنفس الترتيب
+> • بركّب TV Bro (متصفح للتلفزيون) و SmartTube (يوتيوب بدون إعلانات)، مجانيين من GitHub
+> • ما فيه بطاقة في الواجهة الرئيسية، ووقت شاشة التوقف يبقى مثل ما هو، وما أعطّل إضافات TCL الاختيارية
+
+Those defaults, unless I change them:
+- the card beside the clock: verse and hadith;
+- the favourites row: the first 6 apps of my current home screen (you note them in step 1), in that order; an icon
+  you couldn't name is left out;
+- TV Bro and SmartTube installed (`optimize/run.sh` does it; if I don't want them: `SKIP_EXTRAS=1 optimize/run.sh`);
+- no card on the home screen; the TV's own screensaver delay is kept;
+- nothing from `optimize/lists/tcl-optional.txt` is disabled (`optimize/lists/mine.txt` stays empty);
+- if I pick the episodes card: all genres and languages.
+
+Then tell me, on its own:
+
+> الحين بتطلع لك طلبات موافقة هنا على الكمبيوتر (تشغيل الأوامر والوصول للشبكة)، وعلى التلفزيون رسالة
+> «Allow USB debugging?»: وافق عليها كلها، وفي التلفزيون علّم «Always allow». بعدها تقدر تتركني، أكمّل لحالي
+> حوالي ٤٠ دقيقة.
+
+and go straight on with steps 0 and 1, so every approval comes up while I am still here. My city is checked
+later against `android/app/src/main/java/sa/urtv/screensaver/Cities.java`; if it isn't there, step 4 sets it
+with its coordinates (`city <name> <lat> <lon>`) without asking me again.
+
 ## 0. Can you reach my TV? (check this first, 1 minute)
 
 I am on a computer on the same Wi-Fi as the TV, and your commands most likely run on it. A clone or download that
@@ -139,35 +182,7 @@ of my apps / favourites row, left to right, by name: they become the favourites 
 Only then, if this TV was set up with these tools before (also older versions, whose apps are `sa.yourtv.*` or `com.abdullah.*`),
 run `optimize/reset.sh` so we start like new.
 
-## 2. My choices (1 minute: two short questions)
-
-Two short messages, each on its own and in this order, word for word. Never mix them with anything else (not
-with «Allow USB debugging?», not with progress news): one focused question at a time.
-
-First, the city alone, and wait for my answer:
-
-> وش مدينتك؟
-> (لمواقيت الصلاة والطقس. مثال: الرياض، جدة، الرس)
-
-If the city isn't in `optimize/saver.sh cities`, ask me once for the nearest big city.
-
-Then, after I answer:
-
-> وتتابع مباريات أي أندية؟ اكتب أسماءها، أو «لا شي».
->
-> والباقي بخليه على الافتراضي، وتقدر تطلب تغيير أي شي منه الحين أو بعدين:
-> • جنب الساعة: «آية وحديث اليوم» (أو: مواقيت الصلاة، المسلسلات، الطقس، المباريات، لا شي)
-> • المفضلة: أول ٦ تطبيقات من واجهتك الحالية، بنفس الترتيب
-> • بركّب TV Bro (متصفح للتلفزيون) و SmartTube (يوتيوب بدون إعلانات)، مجانيين من GitHub
-> • ما فيه بطاقة في الواجهة الرئيسية، ووقت شاشة التوقف يبقى مثل ما هو، وما أعطّل إضافات TCL الاختيارية
-
-Those defaults, unless I change them:
-- the card beside the clock: verse and hadith;
-- the favourites row: the 6 apps you noted in step 1, in that order; an icon you couldn't name is left out;
-- TV Bro and SmartTube installed (`optimize/run.sh` does it; if I don't want them: `SKIP_EXTRAS=1 optimize/run.sh`);
-- no card on the home screen; the TV's own screensaver delay is kept;
-- nothing from `optimize/lists/tcl-optional.txt` is disabled (`optimize/lists/mine.txt` stays empty);
-- if I pick the episodes card: all genres and languages.
+## 2. Before you run it: how to undo
 
 Before you start step 3, tell me in plain Arabic how to undo everything, so I know it is safe: one command,
 `optimize/reset.sh`, run from this folder (say the folder's full path), puts the TV back as it came (the
@@ -192,7 +207,7 @@ itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1
 ## 4. Apply my choices (5 minutes; no remote needed)
 
 ```
-optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (or: city <name> <lat> <lon>)
+optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon>)
 optimize/saver.sh find-team <club>                # for each club, then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
 optimize/saver.sh card <verse|shows|prayers|forecast|matches|none>        # beside the clock (verse unless I said otherwise)
 optimize/saver.sh home-card none                  # home screen: no card
