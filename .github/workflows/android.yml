@@ -74,21 +74,21 @@ jobs:
         with:
           tag_name: apk-latest
           name: Latest APKs
-          body: "Build ${{ github.run_number }} from ${{ github.sha }}"
+          body: "Both apps at version 3.${{ github.run_number }}, built from ${{ github.sha }}"
           files: |
             urtv-screensaver.apk
             urtv-home.apk
           make_latest: true
 
-      # signed with the new key: its own release to test first (APK_TAG=apk-new optimize/install.sh all);
-      # apk-latest keeps the old-key build until then
-      - name: Publish to the apk-new release
+      # signed with the new key: a numbered release per build, the apps' own version (v3.N); test one with
+      # APK_TAG=v3.N optimize/install.sh all. apk-latest keeps the old-key build until that test passes
+      - name: Publish to the numbered release
         if: env.ANDROID_KEYSTORE != ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-new
-          name: New-key APKs (testing)
-          body: "Build ${{ github.run_number }} from ${{ github.sha }}, signed with the key from the repository's secrets"
+          tag_name: v3.${{ github.run_number }}
+          name: UrTV 3.${{ github.run_number }}
+          body: "Both apps at version 3.${{ github.run_number }}, built from ${{ github.sha }}, signed with the key from the repository's secrets"
           files: |
             urtv-screensaver.apk
             urtv-home.apk

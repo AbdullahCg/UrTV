@@ -13,8 +13,8 @@ prints nothing secret. Without it, it prints them, for GitHub: the repository â†
 Actions â†’ New repository secret, twice:
   ANDROID_KEYSTORE_B64       the long text it prints
   ANDROID_KEYSTORE_PASSWORD  the password it prints
-The next build signs with it and goes to its own release, apk-new, to test first:
-  APK_TAG=apk-new optimize/install.sh all
+The next build signs with it and goes to its own numbered release (v3.N, the apps' version), to test first:
+  APK_TAG=v3.N optimize/install.sh all
 apk-latest keeps the old-key build until that test passes. TVs that have the apps from before need them installed
 again once (optimize/install.sh does that by itself; their settings start over).
 """
@@ -63,7 +63,7 @@ def main():
     if gh:
         for name, value in secret.items():   # the value goes in on stdin, never on the command line
             subprocess.run([gh, "secret", "set", name, "--repo", REPO], input=value, text=True, check=True)
-        print(f"Both secrets are now in {REPO}. The next build signs with this key, in the apk-new release.")
+        print(f"Both secrets are now in {REPO}. The next build signs with this key, in a release named v3.<build number>.")
         return
     print("GitHub CLI isn't signed in, so add these two secrets by hand (see the top of this file):\n")
     for name, value in secret.items():
