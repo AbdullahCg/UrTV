@@ -165,6 +165,7 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `!! Install of … failed` | usually storage, or a very old Android | stop and show me |
 | `!! The safety switch put the stock home back` | ADB was slower than the 5-minute switch | nothing is broken: the same command again |
 | `!! Home did not open the new launcher` | slow ADB, or firmware that pins its own home | leave the TV 5 minutes; `optimize/run.sh` once more; if again, `SKIP_LAUNCHER=1 optimize/run.sh` |
+| the TV has no home at all (black screen, Home does nothing) | our home app is gone while the stock home is off | `optimize/restore.sh` (no list: only the home screen), then `optimize/install.sh launcher`; more in `docs/OPTIMIZE.md`, «Home screen problems» |
 | `!! The stock home is not on screen` (reset) | the stock home was slow to start | ask me to press Home, then `optimize/reset.sh` again |
 | `!! still off` (keep.sh) | a protected feature would not turn back on | **stop**, show me; don't continue |
 | the TV's own screensaver screenshot is black | Android hides it from screenshots | expected; ours can be shot |

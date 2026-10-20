@@ -32,21 +32,26 @@ WebView and Google services.** One set had AirPlay, mirroring and voice disabled
 optimized before still had voice, mirroring and firmware updates off after a reset, so `optimize/keep.sh` turns
 everything in keep.txt back on; `run.sh` and `reset.sh` run it.
 
-## The black screen (what not to do)
+## Home screen problems (what we have seen, and the fix)
 
-Disabling the stock home (`launcherx` or `tvlauncher`) **and** the setup app (`setupwraith`) with no working
-replacement leaves the TV with no home: black screen, reboot loop, and Wi-Fi did not come up for ~10 minutes,
-so ADB was gone too. Recovery needed someone at the TV to rejoin Wi-Fi from the remote.
+TCL puts Home back on its own launcher at every boot, so ours only stays home while the stock launcher is
+disabled. That is why switching is risky: if ours is gone or broken while the stock one is off, the TV has no home.
 
-The safe way, built into `optimize/install.sh launcher`:
+| What you see | Why | Fix |
+|---|---|---|
+| Black screen, reboot loop, Wi-Fi gone for ~10 minutes (so ADB too) | the stock home (`launcherx` or `tvlauncher`) and the setup app (`setupwraith`) were disabled with no working replacement (3 October, before these tools) | someone at the TV rejoins Wi-Fi with the remote, then `optimize/restore.sh`. Prevented by `install.sh launcher`, below |
+| No home at all after our home app was removed: black screen, Home does nothing | ours was the only home enabled: removed by hand, or replaced by a build signed with another key | `optimize/restore.sh` (no list: only the home screen), then `optimize/install.sh launcher`. Since the move to the new signing key (October), `install.sh` turns the stock home on before it replaces a home app signed with another key |
+| Our home is installed, but Home opens Google TV | ADB was slower than the 5-minute safety switch, which put the stock home back (`!! The safety switch put the stock home back`) | `optimize/install.sh launcher` again |
+| The same, twice: `!! Home did not open the new launcher` | firmware that pins Home to the stock launcher (HOME priorities not honoured, the boot manager starts the stock home) | keep the stock home: `SKIP_LAUNCHER=1 optimize/run.sh`; open تلفزيونك from the apps row |
+| Google TV home and none of our apps, after `optimize/reset.sh` | that is what reset does | set up again from the prompt |
+
+The safe way to switch, built into `optimize/install.sh launcher`:
 1. Install the new home first.
 2. Start `optimize/deadman.sh` on the TV: unless `/data/local/tmp/home_ok` appears within 300 s it re-enables
    the stock home and the setup app and presses Home.
-3. Disable the setup app, then the stock home.
-4. Press Home and check the new launcher is in front; only then create `home_ok`.
-
-Some TCL firmware pins Home to the stock launcher (HOME intent priorities are not honoured and the boot manager
-starts the stock home). On those sets keep the stock home and open the new launcher from the app row instead.
+3. Disable the setup app, then the stock home (this order avoided the black screen).
+4. Press Home and check the new launcher is in front (3 tries); only then create `home_ok`, and confirm the safety
+   switch hadn't already fired.
 
 ## TCL quirks
 
