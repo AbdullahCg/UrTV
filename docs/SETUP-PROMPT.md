@@ -20,7 +20,7 @@ Set up my Android TV / Google TV with **تلفزيونك** from https://github.c
 (bloat off, safely), an Arabic home screen, and the screensaver «شاشة تلفزيونك». Talk to me in Arabic (or my
 language); keep commands in English.
 
-## Start here: my two questions, then the approvals (the first 5 minutes; then I can leave)
+## Start here: approvals, my two questions, «Allow» on the TV (the first 5 minutes; then I can leave)
 
 Everything that needs me comes first, while you get going; after that you work alone. Never skip a question or
 assume my answers, and never skip or work around anything that asks me (an approval on this computer, «Allow USB
