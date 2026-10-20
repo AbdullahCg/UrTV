@@ -286,5 +286,5 @@ five plain lines, with no names, addresses or paths:
 optimize/share.sh "<your notes>"
 ```
 Show me the text it prints. It also opens a QR code on this computer's screen (`optimize/run/share-qr.png`; if it
-didn't open, open it for me): tell me to scan it with my phone's camera, and X opens on the phone with the message
-to the author, so I only press send. Never send it yourself, and never run it if I say no.
+didn't open, open it for me): tell me to scan it with my phone's camera: a page opens with the summary, and its button
+copies it and opens a message to the author in X, where I paste and send. Never send it yourself, and never run it if I say no.

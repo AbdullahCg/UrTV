@@ -23,7 +23,9 @@ RUN = Path(__file__).resolve().parent / "run"
 OUT = RUN / "share.md"
 QR = RUN / "share-qr.png"
 AUTHOR = "https://x.com/A_Albihlal"
-AUTHOR_ID = "876049783"   # the author's numeric X id: with it the phone opens the message already written, ready to send
+# X won't take a message's text from a link, so the QR code opens this page (docs/share/, on GitHub Pages) with the
+# summary after the #: one tap there copies it and opens a message to the author in X
+PAGE = "https://tshi-dev.github.io/UrTV/share/"
 
 
 def scrub(text):   # in case a note or an output carries something personal
@@ -129,13 +131,10 @@ def main():
     print(text)
     print(f"Saved in {OUT.relative_to(RUN.parent.parent)}.")
     # most people use X on their phone, not on this computer: a QR code carries it there
-    link = (f"https://x.com/messages/compose?recipient_id={AUTHOR_ID}&text={urllib.parse.quote(text)}"
-            if AUTHOR_ID else AUTHOR)
-    if qr(link):
+    if qr(PAGE + "#" + urllib.parse.quote(text)):
         print(f"QR code: {QR.relative_to(RUN.parent.parent)}" + (" (open on this screen)" if show(QR) else ""))
-        print("Scan it with the phone's camera: X opens " +
-              ("a message to the author with this text in it; press send." if AUTHOR_ID else
-               "the author's page; press Message and paste (copy the text on the phone first)."))
+        print("Scan it with the phone's camera: a page opens with this text; its button copies it and opens a message")
+        print("to the author in X; paste and send.")
     print(("Copied to the clipboard. " if copy(OUT) else "") + f"Or on this computer: {AUTHOR} → Message → paste.")
 
 
