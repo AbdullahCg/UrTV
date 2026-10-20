@@ -27,7 +27,9 @@ optimize/find-tv.sh --check            # Windows without Git Bash: python optimi
 - `OK: this terminal can reach the home network` → go on with step 1.
 - `!! This terminal cannot reach the home network` → **stop**. Tell me, in plain words, that you can't reach the TV
   from where your commands run, and that I need an agent running on this computer itself (for example Claude Code
-  installed on it: Windows in Git Bash, Mac in Terminal). Don't look for workarounds.
+  installed on it: Windows in Git Bash, Mac in Terminal). Give me the one line to paste there:
+  «Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step.»
+  Don't look for workarounds.
 
 Signs you are in such a place, if you want to know why: your address is not 192.168.x, 10.x or 172.16–31.x; the
 network interfaces are only `lo` and `tap0`; `echo > /dev/tcp/<router>/80` says `Network is unreachable`; or every
