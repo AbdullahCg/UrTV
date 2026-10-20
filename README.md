@@ -20,7 +20,8 @@
 
    > ركّب تلفزيوني من https://github.com/tshi-dev/UrTV: انسخ المستودع واتبع `docs/SETUP-PROMPT.md` خطوة بخطوة.
 
-   على ويندوز ثبّت قبلها [Git for Windows](https://git-scm.com/download/win) و[Python 3](https://www.python.org/downloads/).
+   على ويندوز: في PowerShell الصق الأسطر الثلاثة تحت (في القسم الإنجليزي)، ثم افتح PowerShell جديد واكتب `claude`،
+   أو استخدم تبويب Code في تطبيق Claude على سطح المكتب مع مجلد على جهازك (مو بيئة سحابية).
    وأول ما يسويه المساعد أنه يتأكد أنه يقدر يوصل لشبكة بيتك؛ وإذا ما قدر يقولك بوضوح.
 
 وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك كل الأسئلة مرة وحدة: مدينتك،
@@ -41,8 +42,13 @@
 
    > Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step.
 
-   Windows: install [Git for Windows](https://git-scm.com/download/win) and [Python 3](https://www.python.org/downloads/)
-   first. The agent's first step checks that it can reach your home network, and says so plainly if it can't.
+   Windows, in PowerShell, then a new PowerShell window and `claude` (or the desktop app's Code tab on a local folder):
+   ```
+   winget install -e --id Git.Git
+   winget install -e --id Python.Python.3.12
+   irm https://claude.ai/install.ps1 | iex
+   ```
+   The agent's first step checks that it can reach your home network, and says so plainly if it can't.
 
 That's it. The agent connects, keeps your 6 favourite apps from the current home screen, asks a few questions in
 one go (your city, the clubs whose games you follow, what goes beside the clock: verse and hadith, new episodes,

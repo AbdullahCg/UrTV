@@ -5,8 +5,14 @@ turn on **USB debugging** (and **Network debugging** if it is listed). Keep the 
 
 **Then** open an AI agent that runs commands **on a computer on the same Wi-Fi** as the TV (for example Claude Code
 installed on it; a chat in the browser or a cloud session can't reach your TV), and paste everything below the line.
-Windows: install [Git for Windows](https://git-scm.com/download/win) (it brings Git Bash) and
-[Python 3](https://www.python.org/downloads/) (tick «Add python.exe to PATH») first.
+On Windows, everything it needs installs from PowerShell in three lines (then close PowerShell, open a new one,
+type `claude` and log in):
+```
+winget install -e --id Git.Git
+winget install -e --id Python.Python.3.12
+irm https://claude.ai/install.ps1 | iex
+```
+Or in the Claude desktop app: the **Code** tab, with a **local** folder on this computer (not a cloud environment).
 
 ---
 
@@ -27,7 +33,10 @@ optimize/find-tv.sh --check            # Windows without Git Bash: python optimi
 - `OK: this terminal can reach the home network` → go on with step 1.
 - `!! This terminal cannot reach the home network` → **stop**. Tell me, in plain words, that you can't reach the TV
   from where your commands run, and that I need an agent running on this computer itself (for example Claude Code
-  installed on it: Windows in Git Bash, Mac in Terminal). Give me the one line to paste there:
+  installed on it, or the Claude desktop app's Code tab on a local folder; on Windows first, in PowerShell:
+  `winget install -e --id Git.Git`, `winget install -e --id Python.Python.3.12`, `irm https://claude.ai/install.ps1 | iex`,
+  then a new PowerShell window and `claude`). A chat that only links to my computer's folders or screen does not
+  run commands on it, so it does not count. Give me the one line to paste there:
   «Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step.»
   Don't look for workarounds.
 
