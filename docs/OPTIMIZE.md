@@ -34,15 +34,26 @@ everything in keep.txt back on; `run.sh` and `reset.sh` run it.
 
 ## Home screen problems (what we have seen, and the fix)
 
-TCL puts Home back on its own launcher at every boot, so ours only stays home while the stock launcher is
-disabled. That is why switching is risky: if ours is gone or broken while the stock one is off, the TV has no home.
+**Why Home can't simply be changed on a TCL Google TV.** Everything the system offers reports success and changes
+nothing: `cmd package set-home-activity`, `cmd role add-role-holder android.app.role.HOME <pkg>` and the official
+picker (`am start -a android.settings.HOME_SETTINGS`) all leave Home on the stock launcher. The HOME candidates
+rank `launcherx` (2) > `setupwraith`, the setup app's RecoveryActivity (1) > any installed launcher (0) >
+FallbackHome (-1000) (`cmd package query-activities -a android.intent.action.MAIN -c android.intent.category.HOME`),
+and an app can't rank itself higher: a rebuilt launcher with `android:priority="15"` on its HOME filter still
+reported 0. On every Home press and boot the firmware starts the stock launcher by name (WindowManager: `start home
+ainfo is com.google.android.apps.tv.launcherx reason is startDockOrHome`; `TclBootAppManager:
+startBootAppBeforeLauncher`). So ours only becomes and stays home with `launcherx` **and** `setupwraith` disabled,
+and that is the risky part: disable `launcherx` alone and `setupwraith` takes Home; disable both while ours is
+missing or broken and the TV has no home at all. `install.sh launcher` does it the safe way (below), and it works:
+it is how the first TCL set got our home screen after the black screen.
 
 | What you see | Why | Fix |
 |---|---|---|
-| Black screen, reboot loop, Wi-Fi gone for ~10 minutes (so ADB too) | the stock home (`launcherx` or `tvlauncher`) and the setup app (`setupwraith`) were disabled with no working replacement (3 October, before these tools) | someone at the TV rejoins Wi-Fi with the remote, then `optimize/restore.sh`. Prevented by `install.sh launcher`, below |
+| Black screen, reboot loop, Wi-Fi gone for ~10 minutes (so ADB too) | the stock home (`launcherx` or `tvlauncher`) and the setup app (`setupwraith`) were disabled with no working replacement (3 October, before these tools) | someone at the TV rejoins Wi-Fi from the remote's quick settings; then ADB answers again and `optimize/restore.sh` turns both back on (what worked then: the same `pm enable`s in a background loop on the TV). Prevented by `install.sh launcher`, below |
 | No home at all after our home app was removed: black screen, Home does nothing | ours was the only home enabled: removed by hand, or replaced by a build signed with another key | `optimize/restore.sh` (no list: only the home screen), then `optimize/install.sh launcher`. Since the move to the new signing key (October), `install.sh` turns the stock home on before it replaces a home app signed with another key |
 | Our home is installed, but Home opens Google TV | ADB was slower than the 5-minute safety switch, which put the stock home back (`!! The safety switch put the stock home back`) | `optimize/install.sh launcher` again |
-| The same, twice: `!! Home did not open the new launcher` | firmware that pins Home to the stock launcher (HOME priorities not honoured, the boot manager starts the stock home) | keep the stock home: `SKIP_LAUNCHER=1 optimize/run.sh`; open تلفزيونك from the apps row |
+| The same, twice: `!! Home did not open the new launcher` | a firmware that still opens something else with both disabled (not seen on our TCL sets) | keep the stock home: `SKIP_LAUNCHER=1 optimize/run.sh`; open تلفزيونك from the apps row, by voice («open تلفزيونك»), or map a remote key to it with Key Mapper (FOSS, `io.github.sds100.keymapper`, e.g. double-press Home) |
+| Home settings, the role or `set-home-activity` say our launcher is home, but Home still opens Google TV | the firmware pins the stock launcher (above) | don't keep trying those; `optimize/install.sh launcher` |
 | Google TV home and none of our apps, after `optimize/reset.sh` | that is what reset does | set up again from the prompt |
 
 The safe way to switch, built into `optimize/install.sh launcher`:
