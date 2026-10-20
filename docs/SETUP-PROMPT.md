@@ -177,7 +177,7 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `!! still off` (keep.sh) | a protected feature would not turn back on | **stop**, show me; don't continue |
 | the TV's own screensaver screenshot is black | Android hides it from screenshots | expected; ours can be shot |
 | our screensaver shot has no weather or matches yet | data still loading | `optimize/saver.sh update`, wait a minute, shoot again |
-| `find-team` finds nothing | the club isn't in our Arabic list, or TheSportsDB spells it differently | once with the English name (it tries «Al-», «FC» and the like itself) |
+| `find-team` finds nothing | a spelling our list doesn't have, or a club outside the app's leagues | once with the English name; or `optimize/saver.sh find-team --list <league word>` (e.g. `Saudi`, `Premier`) and pick it from there |
 | `screensaver: preview` (shot.sh), or «not measured» for a screensaver | this Android won't start the screensaver from ADB (some Android 14 sets) | expected: the shot is our app's preview of the same page; don't look for other ways to start it |
 | `optimize/run.sh status` has no «protected features» step | an old copy of this repo | `git pull`, then `optimize/run.sh` |
 
@@ -234,8 +234,11 @@ optimize/saver.sh card <verse|shows|prayers|forecast|matches|none>        # besi
 optimize/saver.sh home-card none                  # home screen: no card
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
 optimize/saver.sh update
-optimize/saver.sh show ; optimize/dock.sh show    # read it back to me
+optimize/saver.sh show                            # read both back to me
+optimize/dock.sh show
 ```
+Take every id from `find-team`'s output, which comes from our list of every club in the app's leagues and the
+national teams; never guess one. If it gives several, pick the one I meant (a Saudi club before a namesake abroad).
 If I said «لا شي» to clubs, skip `find-team` and `teams`. `optimize/saver.sh` without arguments lists every option.
 
 ## 5. Check (5 minutes)
