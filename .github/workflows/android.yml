@@ -49,11 +49,12 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk urtv-screensaver.apk
           cp android/launcher/build/outputs/apk/release/launcher-release.apk urtv-home.apk
 
+      # apksigner, not keytool: the home APK has no v1 (JAR) signature, so keytool sees no signer in it
       - name: Which key signed them
         run: |
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
           for f in urtv-screensaver.apk urtv-home.apk; do
-            fp=$(keytool -printcert -jarfile "$f" | grep -m1 'SHA256:' | sed 's/.*SHA256: //')
-            echo "$f signed by: $(keytool -printcert -jarfile "$f" | grep -m1 '^Owner:') ($fp)"
+            echo "$f:"; "$apksigner" verify --print-certs "$f" | grep -m2 -E 'certificate (DN|SHA-256)'
           done
           if [ -n "${ANDROID_KEYSTORE:-}" ]; then echo "Signed with the key from the repository's secrets."
           else echo "::warning::Signed with the old key that is public in this repo: run .github/tools/make_signing_key.py"; fi
@@ -66,7 +67,9 @@ jobs:
             urtv-home.apk
 
       # fixed download links: .../releases/download/apk-latest/urtv-screensaver.apk and urtv-home.apk
+      # (old key, until the new one is tested)
       - name: Publish to the apk-latest release
+        if: env.ANDROID_KEYSTORE == ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
@@ -76,3 +79,18 @@ jobs:
             urtv-screensaver.apk
             urtv-home.apk
           make_latest: true
+
+      # signed with the new key: its own release to test first (APK_TAG=apk-new optimize/install.sh all);
+      # apk-latest keeps the old-key build until then
+      - name: Publish to the apk-new release
+        if: env.ANDROID_KEYSTORE != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-new
+          name: New-key APKs (testing)
+          body: "Build ${{ github.run_number }} from ${{ github.sha }}, signed with the key from the repository's secrets"
+          files: |
+            urtv-screensaver.apk
+            urtv-home.apk
+          prerelease: true
+          make_latest: false
