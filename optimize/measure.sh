@@ -16,7 +16,14 @@ tv() { "$PY" -I optimize/tv.py "$@"; }
 
 if [ "$mode" = --screensaver ]; then
   tv "input keyevent KEYCODE_HOME" > /dev/null
-  tv "am start -n com.android.systemui/.Somnambulator" > /dev/null
+  if ! optimize/start-saver.sh > /dev/null; then   # some Android 14 sets don't let ADB start it: nothing to measure
+    echo "Android didn't start the screensaver from ADB on this TV: $label not measured." | tee "$out"
+    if [ -f optimize/run/summary.md ]; then
+      echo "| $label | not measured (Android didn't start the screensaver from ADB) | | | | |" >> optimize/run/summary.md
+    fi
+    tv "input keyevent KEYCODE_HOME" > /dev/null
+    exit 0
+  fi
   echo "screensaver running; reading in 60 s…"
   sleep "${SAVER_S:-60}"
 else

@@ -28,7 +28,8 @@
 وبس. المساعد يتصل بالتلفزيون، ويحفظ أول 6 تطبيقات مفضلة من واجهتك الحالية، ويسألك سؤالين: مدينتك، والأندية اللي
 تتابع مبارياتها. والباقي يقولك وش افتراضيه وتقدر تغيّره: جنب الساعة «آية وحديث اليوم»، ويركّب TV Bro (متصفح) وSmartTube
 (يوتيوب بدون إعلانات). بعدها يكمل الباقي في حوالي 40 دقيقة، ويقيس الذاكرة
-قبل وبعد. وأي شي ثاني تقدر تغيّره بعدين.
+قبل وبعد. وأي شي ثاني تقدر تغيّره بعدين. وفي الآخر يسألك إذا تبغى ترسل لصاحب المشروع ملخص كيف مشى
+التركيب (بدون أي شي شخصي)، عشان يحسّنه للكل.
 
 **آمن:** ما يحذف أي تطبيق، وما يلمس AirPlay ولا Chromecast ولا عرض الشاشة ولا الصوت ولا المداخل، وتبديل الواجهة
 فيه رجوع تلقائي بعد 5 دقائق، و`optimize/reset.sh` يرجّع التلفزيون مثل ما كان.
@@ -57,6 +58,8 @@ That's it. The agent connects, keeps your 6 favourite apps from the current home
 city, the clubs whose games you follow) and tells you the defaults you can change: verse and hadith beside the
 clock, and TV Bro (a browser) and SmartTube (YouTube without ads) installed, free from their own GitHub. Then it does
 the rest in about 40 minutes, measuring memory before and after. Anything else can be changed later.
+At the end it asks whether you'd like to send the author a summary of how it went (nothing personal), so it
+gets better for everyone.
 The full prompt is in [docs/SETUP-PROMPT.md](docs/SETUP-PROMPT.md) if you want to read or adapt it.
 
 **Safe by design:** nothing is uninstalled; AirPlay, Chromecast, mirroring, voice and inputs are never touched;
@@ -92,6 +95,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
 | `optimize/keep.sh` | turn back on anything protected (AirPlay, casting, voice, updates…) that something turned off |
 | `optimize/reset.sh` | back to stock: lists re-enabled, stock home and screensaver back, our apps removed |
+| `optimize/share.sh` | if the owner wants: how the setup went (TV model, time per step, what failed, memory before/after; nothing personal), to send to the author |
 
 What we learned on real TCL sets, and what must stay on: [docs/OPTIMIZE.md](docs/OPTIMIZE.md). Manual test plan:
 [docs/TEST-PLAN.md](docs/TEST-PLAN.md).

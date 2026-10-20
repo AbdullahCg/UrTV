@@ -4,7 +4,7 @@
 #   optimize/saver.sh cities                       built-in Saudi cities by region
 #   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed)
 #   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude
-#   optimize/saver.sh find-team Hilal              search TheSportsDB from this computer: id | name | league
+#   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 10)
 #   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast matches verse none
 #   optimize/saver.sh home-card none               on the home screen (launcher): same choices, none = off
@@ -43,13 +43,6 @@ case "${1:-}" in
   home-card) send SET "--es home_panel $(quote "${2:?usage: optimize/saver.sh home-card none}")" ;;
   genres)    send SET "--es genres $(quote "${2-}")" ;;
   langs)     send SET "--es langs $(quote "${2-}")" ;;
-  find-team)
-    q="${2:?usage: optimize/saver.sh find-team NAME}"
-    url="https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=$(printf %s "$q" | python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read()))')"
-    curl -fsS "$url" | python3 -c '
-import json, sys
-for t in json.load(sys.stdin).get("teams") or []:
-    if t.get("strSport") == "Soccer":
-        print("%s:%s  |  %s  |  %s" % (t["idTeam"], t["strTeam"], t.get("strLeague") or "", t.get("strCountry") or ""))' ;;
+  find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
   *) sed -n '2,16p' "$0"; exit 1 ;;
 esac

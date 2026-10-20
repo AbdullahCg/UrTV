@@ -29,6 +29,10 @@ def run(cmd):
             continue
         m = re.fullmatch(r"\[ -f (\S+) \] && echo y", part)
         if m: out.append("y" if m.group(1) in FS else ""); continue
+        m = re.fullmatch(r"\[ -d '(\S+)' \] && echo y", part)
+        if m: out.append("y" if m.group(1) == "/data/local/tmp" else ""); continue
+        m = re.fullmatch(r"df -h (\S+) \| tail -1", part)
+        if m: out.append(m.group(1) + " 4.0G 3.0G 1.0G 75%"); continue
         m = re.fullmatch(r"md5sum (\S+)", part)
         if m:
             v = FS[m.group(1)]
@@ -84,4 +88,19 @@ def one(seed):
 
 bad = [seed for seed in range(50) if not one(seed)]
 print(f"upload: {50 - len(bad)}/50 intact despite {stats['drop']} dropped connections and {stats['lost']} lost replies")
-sys.exit(1 if bad else 0)
+
+# Git Bash on Windows rewrites /data/local/tmp/x into its own folder before Python sees it: tv.py cuts it back off
+tv.is_git_folder = lambda f: f in ("C:/Program Files/Git", "D:/data/Git")
+real_name, tv.os.name = tv.os.name, "nt"
+paths = {
+    "C:/Program Files/Git/data/local/tmp/x.apk": "/data/local/tmp/x.apk",
+    "C:\\Program Files\\Git\\sdcard\\shot.png": "/sdcard/shot.png",
+    "D:/data/Git/data/local/tmp/x.apk": "/data/local/tmp/x.apk",   # a Git folder that itself has /data/ in it
+    "C:/Users/me/data/x.apk": "C:/Users/me/data/x.apk",             # a real Windows path stays as it is
+    "/data/local/tmp/x.apk": "/data/local/tmp/x.apk",
+    "pm install -r /data/local/tmp/x.apk": "pm install -r /data/local/tmp/x.apk",
+}
+wrong = {k: tv.tv_path(k) for k, v in paths.items() if tv.tv_path(k) != v}
+tv.os.name = real_name
+print(f"Git Bash paths: {len(paths) - len(wrong)}/{len(paths)} put back" + (f": wrong {wrong}" if wrong else ""))
+sys.exit(1 if bad or wrong else 0)

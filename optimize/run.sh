@@ -7,7 +7,7 @@
 #   SKIP_EXTRAS=1 optimize/run.sh     without TV Bro and SmartTube
 # Before: optimize/setup.sh and optimize/find-tv.sh. Optional packages the household gave up go in
 # optimize/lists/mine.txt (one per line, picked from lists/tcl-optional.txt) before running.
-# Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md.
+# Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md, steps.log (times).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
@@ -93,12 +93,18 @@ do_step() {
   esac
 }
 
+# when each step started, ended or stopped: optimize/share.sh turns it into how long each took
+stamp() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$RUN/steps.log"; }
+trap 'rc=$?; [ "$rc" -eq 0 ] || stamp "stopped ${current:-?} (exit $rc)"' EXIT
 for s in "${STEPS[@]}"; do
   [ -f "$RUN/.done-$s" ] && continue
+  current=$s
   echo
   echo "▶ $(title "$s")"
+  stamp "start $s"
   do_step "$s"
   touch "$RUN/.done-$s"
+  stamp "done $s"
 done
 echo
 echo "All steps done. Next: settings (optimize/saver.sh), favourites (optimize/dock.sh), photos (optimize/shot.sh)."

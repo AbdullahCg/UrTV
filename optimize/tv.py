@@ -16,6 +16,7 @@ reopened, and an interrupted upload resumes where it stopped.
 import base64
 import hashlib
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -23,6 +24,10 @@ from pathlib import Path
 from adb_shell.adb_device import AdbDeviceTcp
 from adb_shell.auth.keygen import keygen
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+
+for _stream in (sys.stdout, sys.stderr):   # Windows writes pipes in its own code page: Arabic would crash
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST_FILE = os.path.join(HERE, ".tv_host")  # written by find-tv.sh, git-ignored
@@ -80,10 +85,32 @@ class TV:
         return self.call("shell", cmd, read_timeout_s=timeout) or ""
 
 
+ANDROID_ROOT = re.compile(r"/(?:data|sdcard|storage|system|vendor|product|apex|mnt|proc|dev|cache|odm|oem)(?=/|$)")
+
+
+def tv_path(arg):
+    """A path on the TV, as Git Bash on Windows may have rewritten it: it turns an argument like /data/local/tmp/x
+    into C:/Program Files/Git/data/local/tmp/x before Python sees it. Cut its own folder back off."""
+    if os.name != "nt" or not re.match(r"[A-Za-z]:[\\/]", arg):
+        return arg
+    s = arg.replace("\\", "/")
+    for m in ANDROID_ROOT.finditer(s):
+        if is_git_folder(s[:m.start()]):
+            return s[m.start():]
+    return arg
+
+
+def is_git_folder(folder):   # Git Bash's own folder is the one with its bash in it
+    return os.path.exists(folder + "/usr/bin/bash.exe") or os.path.exists(folder + "/bin/bash.exe")
+
+
 def push_b64(tv, local, remote, chunk=96_000):   # one argument may not exceed 128 KB on Android
     """Upload in base64 pieces; on a retry, pieces already on the TV are kept (resumes, not restarts)."""
     data = open(local, "rb").read()
     enc = base64.b64encode(data).decode()
+    folder = remote.rsplit("/", 1)[0] or "/"
+    if tv.shell(f"[ -d '{folder}' ] && echo y").strip() != "y":
+        sys.exit(f"!! {folder} is not a folder on the TV, so nothing can be uploaded to {remote}.")
     tmp = remote + ".b64"
     have = tv.shell(f"[ -f {tmp} ] && wc -c < {tmp} || echo 0").strip()
     done = int(have) if have.isdigit() and int(have) % chunk == 0 and int(have) <= len(enc) else 0
@@ -103,7 +130,9 @@ def push_b64(tv, local, remote, chunk=96_000):   # one argument may not exceed 1
                 break
             size = tv.shell(f"head -c {i} {tmp} > {tmp}.x && mv {tmp}.x {tmp}; echo -n '{piece}' >> {tmp}; wc -c < {tmp}").strip()
         if size != want:
-            sys.exit(f"!! upload keeps failing at {i * 100 // len(enc)}% (TV storage full?). Run the same command again.")
+            free = tv.shell(f"df -h {folder} | tail -1").strip()
+            sys.exit(f"!! upload keeps failing at {i * 100 // len(enc)}% (the TV wrote {size or 'nothing'} of {want}; "
+                     f"space there: {free}). Run the same command again.")
         print(f"\r   uploading {Path(local).name}: {int(want) * 100 // len(enc)}%", end="", flush=True)
     print()
     tv.shell(f"[ -f {tmp} ] && base64 -d {tmp} > {remote} && rm -f {tmp}")   # safe to repeat if the reply is lost
@@ -160,16 +189,16 @@ def main():
             if line and not line.startswith("#"):
                 print(f"$ {line}\n{tv.shell(line).rstrip()}")
     elif a[0] == "--pull":
-        tv.call("pull", a[1], a[2])
+        tv.call("pull", tv_path(a[1]), a[2])
     elif a[0] == "--push-b64":
-        push_b64(tv, a[1], a[2])
+        push_b64(tv, a[1], tv_path(a[2]))
     elif a[0] == "--shot":
         tv.shell("screencap -p /sdcard/_shot.png")
         tv.call("pull", "/sdcard/_shot.png", a[1])
         tv.shell("rm /sdcard/_shot.png")
         print(f"saved {a[1]}")
     else:
-        print(tv.shell(" ".join(a)).rstrip())
+        print(tv.shell(" ".join(tv_path(x) for x in a)).rstrip())
     tv.close()
 
 

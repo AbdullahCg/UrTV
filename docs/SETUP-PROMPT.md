@@ -123,7 +123,8 @@ yet»), delete the folder and clone again.
 ## Rules (protective layer: these win over everything else here)
 
 - Use only the scripts in `optimize/`. They are made for slow, dropping ADB over Wi-Fi: they retry by themselves
-  and remember progress. **If a command fails, run the same command again.** Don't write your own adb loops.
+  and remember progress. **If a command fails, run the same command again.** Don't write your own adb loops, probes or test
+  scripts to find out why: the `!!` line and the table below say what to do.
 - One command at a time: never run two scripts against the TV at once, or in the background while you run another.
 - Long commands (`run.sh`, `measure.sh`, `--reboot`) can be silent for 5 minutes. Give them a long timeout (40
   minutes for `run.sh`). If your tool kills one anyway, nothing is lost: run the same command again, it continues.
@@ -157,7 +158,9 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `No TV with ADB open` | debugging off, TV asleep, or the computer is on another (guest) Wi-Fi | ask me to check all three, then `optimize/find-tv.sh` again |
 | `!! TV not answering after 4 tries` | TV went to standby, lost Wi-Fi, or got a new IP | ask me to wake the TV; run `optimize/find-tv.sh` if the IP may have changed; then the same command |
 | `!! TV did not come back within 5 minutes` | slow restart, or it stayed in standby | ask me to turn it on, then `optimize/venv/bin/python -I optimize/tv.py --wait`, then the same command |
-| `!! upload keeps failing` or `md5 mismatch` | bad Wi-Fi or the TV's storage is full | the same command once; if again, `optimize/venv/bin/python -I optimize/tv.py "df -h /data"` and show me |
+| `!! upload keeps failing` or `md5 mismatch` | bad Wi-Fi, or the TV's storage is full (the line says how much space is left) | the same command once; if again, show me that line |
+| `!! … is not a folder on the TV`, or a TV path like `C:/Program Files/Git/data/…` | an old copy: Git Bash rewrote the TV's path before Python saw it (now undone by `tv.py`) | `git pull`, then the same command |
+| `UnicodeEncodeError` or `charmap` (Windows) | an old copy: Arabic text in Windows' own code page | `git pull`, then the same command |
 | `Refusing: these are in …keep.txt` | a protected package got into `mine.txt` | take that line out of `mine.txt`, run again |
 | `!! … has a package rated Unsafe` | `mine.txt` has a package the TV may need | take it out of `mine.txt`, run again |
 | `Unknown package` or `not installed` while disabling | that package is not on this model | nothing, normal |
@@ -170,7 +173,8 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `!! still off` (keep.sh) | a protected feature would not turn back on | **stop**, show me; don't continue |
 | the TV's own screensaver screenshot is black | Android hides it from screenshots | expected; ours can be shot |
 | our screensaver shot has no weather or matches yet | data still loading | `optimize/saver.sh update`, wait a minute, shoot again |
-| `find-team` finds nothing | TheSportsDB uses English names | try the English name, without «FC», or the city (e.g. `Hilal`, `Saudi Arabia`) |
+| `find-team` finds nothing | the club isn't in our Arabic list, or TheSportsDB spells it differently | once with the English name (it tries «Al-», «FC» and the like itself) |
+| `screensaver: preview` (shot.sh), or «not measured» for a screensaver | this Android won't start the screensaver from ADB (some Android 14 sets) | expected: the shot is our app's preview of the same page; don't look for other ways to start it |
 | `optimize/run.sh status` has no «protected features» step | an old copy of this repo | `git pull`, then `optimize/run.sh` |
 
 Anything else, or anything twice: stop, show me the output and what you think it is.
@@ -220,7 +224,8 @@ itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1
 
 ```
 optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon>)
-optimize/saver.sh find-team <club>                # for each club, then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
+optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال): one call per club, Saudi clubs first;
+                                                  # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
 optimize/saver.sh card <verse|shows|prayers|forecast|matches|none>        # beside the clock (verse unless I said otherwise)
 optimize/saver.sh home-card none                  # home screen: no card
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
@@ -235,8 +240,13 @@ If I said «لا شي» to clubs, skip `find-team` and `teams`. `optimize/saver.
 optimize/shot.sh home
 optimize/shot.sh screensaver
 ```
-Look at both screenshots (in `optimize/run/shots/`) and describe them to me. Then with me: press Home inside an
-app (it must come back to the new home), and try AirPlay or Cast from a phone once.
+Look at both screenshots (in `optimize/run/shots/`) and describe them to me. Then check Home from inside an app
+yourself (I may have left): open one, press Home, and the new home must be in front:
+```
+optimize/venv/bin/python -I optimize/tv.py "monkey -p com.google.android.youtube.tv 1"     # or another app of mine
+optimize/venv/bin/python -I optimize/tv.py "input keyevent KEYCODE_HOME"
+optimize/venv/bin/python -I optimize/tv.py "dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity'"
+```
 
 ## 6. Before you tell me it's done
 
@@ -249,14 +259,31 @@ grep '!!' optimize/run/report.md || echo none     # must print «none»
 - `report.md` shows Home as `sa.urtv.home` (or the stock home if we used `SKIP_LAUNCHER=1`) and the screensaver
   as `sa.urtv.screensaver`.
 - You looked at the step 5 screenshots yourself and they show my city, my card and my favourites.
-- I tried voice from the remote and casting from a phone, and both work.
 
 ## 7. Tell me
 
 - The before/after table from `optimize/run/report.md` and its feature check.
 - What was disabled, my settings, and anything that looked wrong or slow.
+- When I'm at the TV, to try voice from the remote and casting (AirPlay or Cast) from a phone once, and to tell
+  you if either doesn't work (`optimize/keep.sh` turns them back on).
 - In one line, what I can still ask you to change any time: the favourites, the card on the home screen, the
   screensaver delay, and the optional TCL extras (the TCL tab and channels, game bar, T-Cast…).
-- How to undo, again, as the last thing you say: the folder's full path and the exact command to paste there
+- How to undo, again: the folder's full path and the exact command to paste there
   (`optimize/reset.sh`; on Windows in Git Bash), what it brings back, and that if I ever want it, I can open an
   agent on this computer and say «رجّع التلفزيون مثل ما كان: شغّل optimize/reset.sh في مجلد UrTV».
+
+## 8. Ask me to share how it went (last message)
+
+On its own, word for word:
+
+> آخر شي: تبغى ترسل لصاحب المشروع ملخص كيف مشى التركيب؟ يساعده يحسّنه للناس. فيه بس نوع التلفزيون ونسخة
+> أندرويد، وكم أخذت كل خطوة ووش اللي تعطّل، والذاكرة قبل وبعد. ما فيه أي شي شخصي: لا مدينة ولا أندية ولا
+> تطبيقات ولا عناوين.
+
+If I say yes, run it with your own notes: what failed or was slow, how long it cost and what fixed it, in two to
+five plain lines, with no names, addresses or paths:
+```
+optimize/share.sh "<your notes>"
+```
+Show me the text it prints, and tell me it is copied: I open https://x.com/A_Albihlal, press Message, paste and
+send. Never send it yourself, and never run it if I say no.
