@@ -430,7 +430,7 @@ public class SettingsActivity extends Activity {
 
     private static String arabicNum(int n) {
         StringBuilder b = new StringBuilder();
-        for (char c : String.valueOf(n).toCharArray()) b.append((char) ('٠' + (c - '0')));
+        for (char c : String.valueOf(n).toCharArray()) b.append(c);
         return b.toString();
     }
 

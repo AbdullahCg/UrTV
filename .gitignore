@@ -16,6 +16,16 @@ optimize/lists/mine.txt
 *.jks
 *.keystore
 
+# Local build tools, device-specific notes and diagnostic artifacts
+optimize/tools/
+optimize/*.zip
+optimize/*-preview.png
+optimize/*-latest.txt
+optimize/fork-features.patch
+optimize/fork-ci.patch
+optimize/idle-before.txt
+docs/LOCAL-TV-SETUP.md
+
 # written when the CI tools in .github/tools are run locally (the workflows push these to data-* branches)
 /teams/
 /hadith/

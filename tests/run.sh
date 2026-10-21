@@ -11,3 +11,5 @@ python3 tests/find_team_test.py
 python3 tests/team_search_test.py
 python3 tests/team_ids_test.py
 node tests/page.test.mjs
+node tests/markets.test.mjs
+python3 tests/pin_crypto_test.py

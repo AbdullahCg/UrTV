@@ -43,8 +43,12 @@ else
   echo "   (no optimize/run/backup.txt: screensaver_enabled and screen_off_timeout left as they are)"
 fi
 
+if [ -f optimize/idle-before.txt ]; then
+  tv --batch < optimize/idle-before.txt > /dev/null
+fi
+
 echo "3/4 Removing our apps (old and new names; missing ones are skipped)…"
-for p in sa.urtv.home sa.urtv.screensaver sa.yourtv.home sa.yourtv.screensaver com.abdullah.tvhome com.abdullah.tvsaver; do
+for p in sa.urtv.home sa.urtv.screensaver sa.urtv.notify sa.yourtv.home sa.yourtv.screensaver com.abdullah.tvhome com.abdullah.tvsaver; do
   tv "pm uninstall $p" | grep -q Success && echo "   removed $p" || true
 done
 # TV Bro and SmartTube: only if the setup put them there (not in the TV's package list saved before it)

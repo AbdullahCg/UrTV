@@ -104,6 +104,13 @@
     padding:.8vh 0;border-bottom:1px solid rgba(220,184,111,.13);
   }
   .week li:last-child{border-bottom:none}
+  /* a Home Assistant pop-up from «تنبيهات تلفزيونك» in the card's place (urtvNote) */
+  .week{transition:opacity .3s ease, transform .3s cubic-bezier(.2,.7,.2,1)}
+  .week.swap{opacity:0;transform:translateY(-10px) scale(.985)}
+  .week.note li{white-space:normal}
+  .week.note li.nt{font-weight:500;font-size:clamp(16px,1.4vw,26px);color:#FFFCF2}
+  .week.note li.nm{color:#C9BFA6}
+  .week.note img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-top:1vh}
   .week li span:first-child{flex:0 1 auto;max-width:68%;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em}
   .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .rt{flex:0 0 auto;color:#E0BA74;font-size:.74em;font-variant-numeric:tabular-nums}
@@ -228,9 +235,13 @@
   .wxr:not(:empty)::before{content:'  ·  ';white-space:pre;color:rgba(214,175,107,.7)}
   .wxt:empty,.wxd:empty,.wxr:empty{display:none}
   .rule.l{margin-left:0;margin-right:auto;background:linear-gradient(90deg,var(--gold),rgba(220,184,111,0))}
-  .mk{margin-top:1.2vh;display:flex;justify-content:flex-end;gap:1.6em;white-space:nowrap;
+  .mk{margin-top:1.2vh;display:flex;justify-content:flex-end;gap:1.2em;white-space:nowrap;
     font-size:clamp(12px,1.06vw,21px);font-weight:400;color:#D8CDB6}
   .mk .m{display:inline-flex;align-items:baseline;gap:.45em}
+  .mk .m{flex-wrap:wrap;max-width:12em}
+  .mk .quote{flex-basis:100%;direction:ltr;text-align:right;font-variant-numeric:tabular-nums;font-size:.9em;color:#FFFCF2}
+  .mk .quote[hidden]{display:none}
+  .mk .asof{display:block;font-size:.68em;color:var(--dim);margin-top:.2em}
   .mk .delta{font-size:.72em}
   .mk .delta.up{color:#79D6A0}
   .mk .delta.down{color:#EE8B70}
@@ -272,9 +283,9 @@
       <div class="wxsub"><span id="wx-city">الرياض</span><span class="wxr" id="wx-range"></span></div>
       <div class="rule l"></div>
       <div class="mk">
-        <span class="m"><span>تاسي</span><span id="tasi-chg" class="delta" hidden></span></span>
-        <span class="m"><span>S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span></span>
-        <span class="m"><span>بيتكوين</span><span id="btc-chg" class="delta" hidden></span></span>
+        <span class="m"><span>تاسي</span><span id="tasi-chg" class="delta" hidden></span><span id="tasi-price" class="quote" hidden></span></span>
+        <span class="m"><span>S&amp;P 500</span><span id="spx-chg" class="delta" hidden></span><span id="spx-price" class="quote" hidden></span></span>
+        <span class="m"><span>بيتكوين</span><span id="btc-chg" class="delta" hidden></span><span id="btc-price" class="quote" hidden></span></span>
       </div>
     </div>
   </header>
@@ -356,9 +367,9 @@ const CONFIG = {
   widget: _Q.get('widget') === '1',
 };
 
-const GREG = 'ar-SA-u-ca-gregory-nu-arab';
+const GREG = 'ar-SA-u-ca-gregory-nu-latn';
 const AR = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
-const ar = s => String(s).replace(/[0-9]/g, d => AR[+d]);
+const ar = s => String(s).replace(/[٠-٩]/g, d => String(AR.indexOf(d)));
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = n => String(n).padStart(2,'0');
 
@@ -391,7 +402,7 @@ function tickClock(){
 function tickDates(){
   const now = new Date();
   try{
-    let h = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura',{
+    let h = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn',{
       timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
     }).format(now);
     h = h.replace(/\s*هـ\s*$/,'').replace(/،\s*$/,'');
@@ -826,10 +837,25 @@ async function loadMatches(){
 }
 
 const TICKERS = [
-  {sym:'^TASI.SR', chg:'tasi-chg'},
-  {sym:'^GSPC',    chg:'spx-chg'},
-  {cg:'bitcoin',   chg:'btc-chg'},
+  {sym:'^TASI.SR', chg:'tasi-chg', price:'tasi-price'},
+  {sym:'^GSPC',    chg:'spx-chg', price:'spx-price'},
+  {cg:'bitcoin',  chg:'btc-chg', price:'btc-price'},
 ];
+
+// Latest provider quote, not a live exchange feed. Never fabricate a missing price.
+function paintPrice(t, value, timestamp){
+  const el = document.getElementById(t.price);
+  if(!el || typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return;
+  const time = typeof timestamp === 'number' && timestamp > 0 ? timestamp * 1000 : Date.now();
+  el.hidden = false;
+  el.textContent = (t.cg ? '$' : '') + new Intl.NumberFormat('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}).format(value);
+  const stamp = document.createElement('span');
+  stamp.className = 'asof';
+  stamp.textContent = new Date(time).toLocaleString('en-GB', {timeZone:CONFIG.timezone, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+  el.appendChild(stamp);
+  el.title = 'آخر تحديث: ' + new Date(time).toLocaleString('en-GB', {timeZone:CONFIG.timezone});
+  el.dataset.quoteTime = String(time);
+}
 
 // never invent a direction: unknown hides the marker
 function paintDir(t, up){
@@ -868,10 +894,11 @@ async function yahooChart(sym){
 async function loadTicker(t){
   try{
     if(t.cg){                                  // crypto: CoinGecko, CORS friendly
-      const r = await fetchT(`https://api.coingecko.com/api/v3/simple/price?ids=${t.cg}&vs_currencies=usd&include_24hr_change=true`, 10000);
+      const r = await fetchT(`https://api.coingecko.com/api/v3/simple/price?ids=${t.cg}&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true`, 10000);
       if(!r.ok) throw 0;
       const j = await r.json();
       const c = j && j[t.cg] ? j[t.cg] : null;
+      if(c) paintPrice(t, c.usd, c.last_updated_at);
       const d = c ? (c.usd_24h_change ?? c.usd_24hr_change ?? null) : null;
       paintDir(t, typeof d === 'number' ? d >= 0 : null);
       return;
@@ -879,6 +906,7 @@ async function loadTicker(t){
     const j = await yahooChart(t.sym);
     const res = j.chart.result[0];
     const price = res.meta.regularMarketPrice;
+    paintPrice(t, price, res.meta.regularMarketTime);
     const closes = (res.indicators.quote[0].close || []).filter(x=>x != null);
     const prev = closes.length >= 2 ? closes[closes.length-2]
                : (res.meta.chartPreviousClose || res.meta.previousClose || null);
@@ -978,7 +1006,49 @@ try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || 
 let LIST_PAGE = 0;
 const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:'مباريات فرقك'};
 
+// «تنبيهات تلفزيونك»: the screensaver app calls this while dreaming; the card goes back by itself.
+let noteUntil = 0, noteTimer = null;
+window.urtvNote = function(title, message, image, seconds){
+  const box = document.querySelector('.week'), ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
+  const ms = (seconds || 15) * 1000, wasHidden = getComputedStyle(box).display === 'none';
+  noteUntil = Date.now() + ms;
+  clearTimeout(noteTimer);
+  // out (or in from nothing when the panel is off), swap the content, back in: never a jump
+  swapWeek(box, wasHidden, () => {
+    const p = riyadhParts();
+    box.querySelectorAll('img.note-img').forEach(i => i.remove());
+    hd.textContent = `تنبيه · ${fmt12(p.h, p.mi)}`;
+    ul.classList.remove('flip');
+    ul.innerHTML = (title ? `<li class="nt">${esc(title)}</li>` : '') + (message ? `<li class="nm">${esc(message)}</li>` : '');
+    if(image) ul.insertAdjacentHTML('afterend', `<img class="note-img" src="${image}" alt="">`);
+    box.classList.add('note');
+  });
+  noteTimer = setTimeout(() => {
+    noteUntil = 0;
+    if(CONFIG.panel === 'none'){
+      box.classList.add('swap');
+      setTimeout(() => { box.style.display = 'none'; box.classList.remove('note', 'swap'); box.querySelectorAll('img.note-img').forEach(i => i.remove()); }, 320);
+      return;
+    }
+    swapWeek(box, false, () => {
+      box.classList.remove('note');
+      box.querySelectorAll('img.note-img').forEach(i => i.remove());
+      renderPanel(false);
+    });
+  }, ms);
+};
+function swapWeek(box, fromHidden, fill){
+  if(fromHidden){
+    box.classList.add('swap'); box.style.display = ''; fill();
+    requestAnimationFrame(() => requestAnimationFrame(() => box.classList.remove('swap')));
+    return;
+  }
+  box.classList.add('swap');
+  setTimeout(() => { fill(); requestAnimationFrame(() => box.classList.remove('swap')); }, 300);
+}
+
 function renderPanel(animate){
+  if(Date.now() < noteUntil) return;   // a pop-up is showing; it redraws the panel when it ends
   const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
   const P = CONFIG.panel;
   if(P === 'shows'){ renderWeekPage(animate); return; }
@@ -1067,7 +1137,7 @@ function quoteOfDay(){
   const h = HADITH[half % HADITH.length];
   const saw = s => s.replace(/ﷺ/g, '<span class="saw">ﷺ</span>').replace(/[﴿﴾]/g, m => `<span class="orn">${m}</span>`);
   const body = h.parts.map(([k, t]) => k === 'q' ? `«${saw(esc(t))}»` : `<span class="nar">${saw(esc(t))}</span>`).join(' ');
-  return {title:'حديث اليوم', rows:[`<li class="quote hadith">${body}</li>`, `<li class="src">${esc(h.source)}</li>`]};
+  return {title:'حديث اليوم', rows:[`<li class="quote hadith">${body}</li>`, `<li class="src">${esc(ar(h.source))}</li>`]};
 }
 
 const WX_CODES = {
@@ -1220,7 +1290,7 @@ function applyBackground(force){
 }
 
 // Last painted panels, shown at once on the next start while fresh data loads.
-const SNAP_KEY = 'snap3:' + location.hash;   // bump when the panels' markup changes
+const SNAP_KEY = 'snap5-latin-quotes:' + location.hash;
 const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
 function saveSnap(){
   try{ localStorage.setItem(SNAP_KEY, JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''))); }catch(e){}

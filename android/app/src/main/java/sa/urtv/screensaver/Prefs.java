@@ -121,7 +121,7 @@ final class Prefs {
     String minRating() { return sp.getString("minRating", "7"); }
     void setMinRating(String v) { sp.edit().putString("minRating", v).apply(); }
 
-    boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
+    boolean autoUpdate() { return sp.getBoolean("autoUpdate", false); } // local market-value screen: retain custom page
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
     SharedPreferences raw() { return sp; }

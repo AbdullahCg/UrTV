@@ -271,7 +271,7 @@ public class DockActivity extends Activity {
 
     private static String ar(int n) {
         StringBuilder b = new StringBuilder();
-        for (char ch : String.valueOf(n).toCharArray()) b.append((char) ('٠' + (ch - '0')));
+        for (char ch : String.valueOf(n).toCharArray()) b.append(ch);
         return b.toString();
     }
 }

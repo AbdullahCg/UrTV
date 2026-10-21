@@ -4,7 +4,7 @@ name: Checks
 # in a real browser. The Android apps are compiled by android.yml.
 on:
   push:
-    branches: [master, next, content]
+    branches: [master, next, content, custom-tv]
   pull_request:
   workflow_dispatch:
 
@@ -16,6 +16,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - run: pip install fonttools brotli pillow
       - run: npm install --no-save playwright@1.56.1 && npx playwright install --with-deps chromium
       - run: tests/run.sh

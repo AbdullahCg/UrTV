@@ -2,6 +2,8 @@
 
 <h1 align="center">تلفزيونك · UrTV</h1>
 
+Custom edition: per-app PINs with a master settings PIN, English digits, numeric market quotes, and Home Assistant notification/camera features integrated from Emadalnazawi's fork. See [custom features and credits](docs/CUSTOM-FEATURES.md) and [App locks setup](docs/APP-LOCKS.md).
+
 <p align="center" dir="rtl">واجهة رئيسية عربية وشاشة توقف سعودية لتلفزيونات Android TV و Google TV، وتسريع آمن للتلفزيون.<br>يركّبها لك مساعد ذكاء اصطناعي بأمر واحد.</p>
 
 <p align="center">An Arabic home screen and a Saudi screensaver for Android TV / Google TV, and a safe speed-up.<br>Your AI agent sets it all up.</p>

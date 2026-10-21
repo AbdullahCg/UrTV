@@ -53,16 +53,16 @@ for (const file of ['urtv.html', 'tv.html']) {
         const b = e.getBoundingClientRect(), cs = getComputedStyle(e);
         return cs.display !== 'none' && b.width && (b.left < -2 || b.right > innerWidth + 2 || b.bottom > innerHeight + 2);
       }).map(e => e.className || e.id || e.tagName).slice(0, 5);
-      const latin = (document.querySelector('.stage').innerText.match(/[0-9]+/g) || []).filter(x => x !== '500');
+      const latin = document.querySelector('.stage').innerText.match(/[٠-٩]+/g) || [];
       return { hh, mm, h: toN(hh), m: toN(mm), ap: document.getElementById('ck-ap').textContent,
                sub: document.getElementById('clock-sub').textContent, off, latin,
                photo: !!document.querySelector('.photo').style.backgroundImage };
     });
-    check(`${tag}: 12-hour clock in Arabic digits`, /^[٠-٩]{1,2}$/.test(r.hh) && r.h >= 1 && r.h <= 12
-      && /^[٠-٩]{2}$/.test(r.mm) && r.m < 60 && ['ص', 'م'].includes(r.ap), JSON.stringify(r));
+    check(`${tag}: 12-hour clock in English digits`, /^[0-9]{1,2}$/.test(r.hh) && r.h >= 1 && r.h <= 12
+      && /^[0-9]{2}$/.test(r.mm) && r.m < 60 && ['ص', 'م'].includes(r.ap), JSON.stringify(r));
     check(`${tag}: city from the settings`, r.sub === 'بتوقيت جدة', r.sub);
     check(`${tag}: nothing off screen`, !r.off.length, r.off.join(', '));
-    check(`${tag}: no Latin digits (except S&P 500)`, !r.latin.length, r.latin.join(' '));
+    check(`${tag}: no Arabic-Indic digits`, !r.latin.length, r.latin.join(' '));
     check(`${tag}: a background photo`, r.photo);
     await ctx.close();
   }
@@ -200,22 +200,22 @@ for (const panel of ['prayers', 'verse', 'shows']) {
 
   await p.evaluate(`MATCHES['136013'] = ${game('g1', 1.8, [2, 1], 'FT')}; renderMatches();`);
   let t = await slot();
-  check('whistle blown: final score at once, not «مباشر»', t.includes('النتيجة النهائية') && t.includes('٢ - ١') && !t.includes('مباشر'), t);
+  check('whistle blown: final score at once, not «مباشر»', t.includes('النتيجة النهائية') && t.includes('2 - 1') && !t.includes('مباشر'), t);
 
   await p.evaluate(`keepResult('136013', MATCHES['136013']); MATCHES['136013'] = ${game('g2', -72, null, 'NS')};
                     RESULTS = {}; renderMatches();`);
   t = await slot();
-  check('API moved to the next fixture: score still shown', t.includes('النتيجة النهائية') && t.includes('٢ - ١'), t);
+  check('API moved to the next fixture: score still shown', t.includes('النتيجة النهائية') && t.includes('2 - 1'), t);
 
   await p.reload();
   await p.waitForTimeout(800);
   await p.evaluate(`MATCHES['136013'] = ${game('g2', -72, null, 'NS')}; renderMatches();`);
   t = await slot();
-  check('after a restart the same day: score still shown', t.includes('٢ - ١'), t);
+  check('after a restart the same day: score still shown', t.includes('2 - 1'), t);
 
   await p.evaluate(`KEPT['136013'] = [${game('g1', 27, [2, 1], 'FT')}]; renderMatches();`);
   t = await slot();
-  check('a day later: score gone, next fixture shown', !t.includes('٢ - ١') && t.includes('×'), t);
+  check('a day later: score gone, next fixture shown', !t.includes('2 - 1') && t.includes('×'), t);
   await ctx.close();
 }
 
