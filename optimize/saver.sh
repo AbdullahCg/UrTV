@@ -15,6 +15,7 @@
 #                                                  French Hindi German  ("" = all)
 #   optimize/saver.sh minrating 7                  episodes card: lowest rating shown: 0 6 6.5 7 7.5 8
 #   optimize/saver.sh update                       download the latest screen now
+#   optimize/saver.sh auto-update off|on            allow downloaded pages to replace the bundled one
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -45,6 +46,12 @@ case "${1:-}" in
   genres)    send SET "--es genres $(quote "${2-}")" ;;
   langs)     send SET "--es langs $(quote "${2-}")" ;;
   minrating) send SET "--es minrating $(quote "${2:?usage: optimize/saver.sh minrating 7}")" ;;
+  auto-update)
+    case "${2:-}" in
+      off) send SET "--ez auto_update false" ;;
+      on)  send SET "--ez auto_update true" ;;
+      *) echo "usage: optimize/saver.sh auto-update off|on"; exit 1 ;;
+    esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
   *) sed -n '2,17p' "$0"; exit 1 ;;
 esac

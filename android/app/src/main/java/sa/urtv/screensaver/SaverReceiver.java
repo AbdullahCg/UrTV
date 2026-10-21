@@ -17,6 +17,7 @@ import java.util.List;
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.SET
  *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
+ *       [--ez auto_update false]
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *
  * The answer is in the "data" of am's output. Unknown values are refused with a message, nothing half-saved.
@@ -94,6 +95,7 @@ public class SaverReceiver extends BroadcastReceiver {
         String panel = i.getStringExtra("panel"), home = i.getStringExtra("home_panel");
         if (panel != null && !isPanel(panel)) return "error: panel is one of " + panels();
         if (home != null && !isPanel(home)) return "error: home_panel is one of " + panels();
+        boolean hasAutoUpdate = i.hasExtra("auto_update");
         String rating = i.getStringExtra("minrating");
         if (rating != null && !Arrays.asList(Prefs.MIN_RATINGS).contains(rating))
             return "error: minrating is one of " + Prefs.join(Arrays.asList(Prefs.MIN_RATINGS), " ");
@@ -106,6 +108,7 @@ public class SaverReceiver extends BroadcastReceiver {
         if (teams != null) p.setList("teams", teams);
         if (panel != null) p.setPanel(panel);
         if (home != null) p.setHomePanel(home);
+        if (hasAutoUpdate) p.setAutoUpdate(i.getBooleanExtra("auto_update", false));
         if (rating != null) p.setMinRating(rating);
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);

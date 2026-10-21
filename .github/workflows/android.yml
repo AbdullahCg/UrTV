@@ -2,7 +2,7 @@ name: Build APKs
 
 on:
   push:
-    branches: [master, next]   # next: a test build in apk-next, before anything reaches apk-latest
+    branches: [master, next, custom-tv]   # custom-tv builds fetch their own page when page updates are enabled
     paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
