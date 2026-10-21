@@ -8,9 +8,9 @@ import javax.crypto.spec.PBEKeySpec;
 /** Salted, deliberately slow PIN verifier; no plaintext PIN is persisted. */
 final class PinCrypto {
     private static final int ROUNDS = 120000;
-    static boolean valid(String pin) { return pin != null && pin.matches("[0-9]{4,8}"); }
+    static boolean valid(String pin) { return pin != null && pin.matches("[0-9]{4}"); }
     static String create(String pin) {
-        if (!valid(pin)) throw new IllegalArgumentException("PIN must have 4–8 digits");
+        if (!valid(pin)) throw new IllegalArgumentException("PIN must have 4 digits");
         byte[] salt = new byte[16]; new SecureRandom().nextBytes(salt);
         return "1:" + ROUNDS + ":" + hex(salt) + ":" + hex(derive(pin, salt, ROUNDS));
     }

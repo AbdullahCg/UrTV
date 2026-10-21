@@ -189,6 +189,12 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStop() {
+        PinPrompt.dismiss(this);
+        super.onStop();
+    }
+
+    @Override
     protected void onDestroy() {
         unregisterReceiver(packages);
         unregisterReceiver(dockChanged);

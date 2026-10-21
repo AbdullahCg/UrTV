@@ -2,12 +2,14 @@
 
 On the UrTV home screen, open the top **Settings** button, then **App locks** (قفل التطبيقات).
 
-1. Create a master PIN (4–8 English digits) and confirm it. There is no default PIN.
+1. Create a master PIN (exactly 4 English digits) and confirm it. There is no default PIN.
 2. Select an app and enter its own PIN twice. Different apps can use different PINs.
 3. Opening that app through UrTV now asks for its PIN. Cancel returns to Home without opening the app.
 4. Return to App locks using the master PIN to change or remove an app PIN, change the master PIN, or remove all locks.
 
 The master PIN can also unlock an app for recovery. A new PIN check is required for every launch through UrTV; unlocking does not permanently unlock the app. Leading zeros are preserved. The remote's number keys or the on-screen keypad both work.
+
+The keypad matches the launcher's green, gold and soft translucent surfaces. Buttons are large and separated, with an ivory focus highlight. The fourth digit submits automatically—there is no Continue button or extra OK press. Remote number keys, numeric-keypad keys and the on-screen keypad all work. Delete removes one digit; Clear removes all digits. Holding a number key does not repeat digits accidentally.
 
 Five failed attempts cause a 30-second cooldown shared across apps and settings. PINs are stored as salted PBKDF2-HMAC-SHA256 verifiers (120,000 rounds), in the launcher's private preferences. Plaintext PINs are not stored, logged, sent over the network, or included in backups. The PIN keypad blocks screen capture. PIN hashing runs off the UI thread.
 

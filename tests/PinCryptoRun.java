@@ -11,7 +11,7 @@ public final class PinCryptoRun {
         check(!PinCrypto.verify("0123",null),"missing record rejected");
         check(!PinCrypto.verify("0123","bad"),"malformed record rejected");
         check(!PinCrypto.valid("123")&&!PinCrypto.valid("123456789")&&!PinCrypto.valid("12a4"),"PIN constraints");
-        check(PinCrypto.verify("12345678",PinCrypto.create("12345678")),"8 digit PIN");
+        check(!PinCrypto.valid("12345")&&!PinCrypto.valid("12345678"),"exactly 4 digits required");
         check(!first.contains("0123"),"no plaintext PIN in saved verifier");
         System.out.println("PASS salted PIN verifier, correct/wrong PINs, leading zero, limits and corrupt records");
     }

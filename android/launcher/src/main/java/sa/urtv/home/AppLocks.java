@@ -53,7 +53,7 @@ final class AppLocks {
         });
     }
     static void choose(Activity a, String title, java.util.function.Consumer<String> save) {
-        PinPrompt.ask(a,title,"اختر رمزاً من 4 إلى 8 أرقام",first ->
+        PinPrompt.ask(a,title,"اختر رمزاً من 4 أرقام",first ->
             PinPrompt.ask(a,"تأكيد الرمز","أعد إدخال الرمز",second -> {
                 if (first.equals(second)) save.accept(first);
                 else toast(a,"الرمزان غير متطابقين. لم يتغير شيء");
