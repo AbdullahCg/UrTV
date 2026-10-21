@@ -339,7 +339,7 @@ public class MainActivity extends Activity {
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
         TextView settings = pill("الإعدادات", R.drawable.ic_settings);
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
-        // «تلاوة»: the Quran and the radio are part of this app, so the pill opens them right here
+        // the «تلاوة» pill: the Quran and the radio are part of this app, so it opens them right here
         TextView tilawah = pill("تلاوة", R.drawable.ic_listen);
         tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
         List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings));

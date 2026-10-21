@@ -27,7 +27,8 @@ import java.util.Arrays;
  * Updates the home app itself from the project's GitHub release.
  *
  * A newer build is downloaded by itself (every six hours, and once at start); the top bar then shows
- * «تحديث جاهز» and one press installs it — Android shows its own "install this update?" screen on top.
+ * a gold «تحديث جاهز» pill and one press installs it — Android shows its own "install this update?"
+ * screen on top.
  * The APK is only accepted when it is the same package, newer, and signed with the same key as the
  * copy that is running, so a download can never replace the app with something else.
  */

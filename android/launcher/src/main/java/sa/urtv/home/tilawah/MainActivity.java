@@ -290,7 +290,7 @@ public class MainActivity extends Activity {
                     rows.add(new Row(false, KIND_STATION, cat.stations.get(i).name, getString(R.string.live), i));
                 }
             } else {
-                // الأذان: today's times with the next one marked, then the switch and the muezzin
+                // the adhan section: today's times with the next one marked, then the switch and the muezzin
                 PrayerTimes times = PrayerTimes.today(MainActivity.this);
                 PrayerTimes.Next next = PrayerTimes.next(MainActivity.this);
                 for (int prayer : PrayerTimes.PRAYERS) {

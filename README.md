@@ -105,20 +105,20 @@ adhans at Umm al-Qura times with a choice of 21 recordings, and its own update f
 Nothing to install apart from the home app; [docs/TILAWAH.md](docs/TILAWAH.md) has the screens, the
 remote keys and the ADB controls.
 
-### «تلاوة» on the TV
+### The «تلاوة» screen on the TV
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/02-tilawah-reciters.jpg" alt="The تلاوة screen: three tabs, the forty reciters" width="100%"><br><b>القرّاء · الإذاعات · الأذان</b><br>Three tabs, read from the right. The selected row has a thick gold frame and a gold chevron.</td>
-<td width="50%"><img src="docs/screenshots/03-adhan-times.jpg" alt="Today's prayer times at Umm al-Qura" width="100%"><br><b>مواقيت أم القرى</b><br>Today's five times, the next one in gold with the time left.</td>
+<td width="50%"><img src="docs/screenshots/02-tilawah-reciters.jpg" alt="The تلاوة screen: three tabs, the forty reciters" width="100%"><br><b>The «القرّاء · الإذاعات · الأذان» tabs</b><br>Three tabs, read from the right. The selected row has a thick gold frame and a gold chevron.</td>
+<td width="50%"><img src="docs/screenshots/03-adhan-times.jpg" alt="Today's prayer times at Umm al-Qura" width="100%"><br><b>The «مواقيت أم القرى» times</b><br>Today's five times, the next one in gold with the time left.</td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/05-muezzins.jpg" alt="The 21 muezzins by name" width="100%"><br><b>٢١ مؤذنًا</b><br>Twenty-one named recordings; the chosen one in gold with its city.</td>
-<td width="50%"><img src="docs/screenshots/07-surah-grid.jpg" alt="The 114 surahs, right to left" width="100%"><br><b>١١٤ سورة</b><br>The surahs of a reciter, six columns, right to left.</td>
+<td width="50%"><img src="docs/screenshots/05-muezzins.jpg" alt="The 21 muezzins by name" width="100%"><br><b>The «٢١ مؤذنًا»</b><br>Twenty-one named recordings; the chosen one in gold with its city.</td>
+<td width="50%"><img src="docs/screenshots/07-surah-grid.jpg" alt="The 114 surahs, right to left" width="100%"><br><b>The «١١٤ سورة» grid</b><br>The surahs of a reciter, six columns, right to left.</td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/08-player.jpg" alt="The player" width="100%"><br><b>المشغّل</b><br>Title, reciter, progress and the transport row; during an adhan it shows the muezzin and hides the skip buttons.</td>
-<td width="50%"><img src="docs/screenshots/09-update-pill.jpg" alt="The home screen with the update pill" width="100%"><br><b>تحديث جاهز</b><br>The app checks for a newer build by itself and installs it with one press.</td>
+<td width="50%"><img src="docs/screenshots/08-player.jpg" alt="The player" width="100%"><br><b>The «المشغّل»</b><br>Title, reciter, progress and the transport row; during an adhan it shows the muezzin and hides the skip buttons.</td>
+<td width="50%"><img src="docs/screenshots/09-update-pill.jpg" alt="The home screen with the update pill" width="100%"><br><b>The «تحديث جاهز» pill</b><br>The app checks for a newer build by itself and installs it with one press.</td>
 </tr>
 </table>
 

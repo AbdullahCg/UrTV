@@ -156,7 +156,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | T9 | `optimize/reset.sh`, then `optimize/venv/bin/python -I optimize/tv.py pm list packages sa.urtv` and `optimize/venv/bin/python -I optimize/tv.py settings get secure screensaver_enabled` | The package list is empty; `screensaver_enabled` is the value in `optimize/run-*/backup.txt` (under «== screensaver»: the components line, then this one; `null` means unset) |
 | T10 | Put a `!!` line in `optimize/run/report.md` and run `optimize/run.sh` | It ends with «Done, with problems:» and that line, exit code 1; no «All steps done» |
 
-## 11. «تلاوة» — the Quran, the radio, the adhan and the update (inside the home app)
+## 11. The «تلاوة» screen — the Quran, the radio, the adhan and the update (inside the home app)
 
 Install: `optimize/install.sh launcher` (or `all`). «تلاوة» is the leftmost pill in the home screen's
 top bar (the row reads from the right: المصادر، واي فاي، الإعدادات، شاشة التوقف، تلاوة); it is not

@@ -2,7 +2,7 @@
 # Download the latest APKs from GitHub and install them on the TV.
 #   optimize/install.sh saver      شاشة تلفزيونك: install + make it the screensaver
 #   optimize/install.sh launcher   the home screen: install + make it the default Home
-#                                  (it carries «تلاوة»: the Quran recitations and the radio)
+#                                  (it carries the «تلاوة» screens: the Quran recitations and the radio)
 #   optimize/install.sh extras     two free apps from their own GitHub releases: TV Bro (a TV web browser,
 #                                  github.com/truefedex/tv-bro) and SmartTube (YouTube without ads,
 #                                  github.com/yuliskov/SmartTube), the build that fits the TV's processor

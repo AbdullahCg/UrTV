@@ -1,6 +1,6 @@
-# تلاوة (tilawah) — the Quran, the radio and the adhan
+# Tilawah «تلاوة» — the Quran, the radio and the adhan
 
-«تلاوة» is part of the **home app** (`sa.urtv.home`), not an app of its own: the pill in the top bar
+The «تلاوة» screen is part of the **home app** (`sa.urtv.home`), not an app of its own: the pill in the top bar
 opens it, and it is never listed among the TV's apps. It plays the Quran only — forty reciters' Hafs
 murattal (114 surahs each) and live Quran radio — plus the five daily adhans at Umm al-Qura times.
 There is no local/USB music, no Spotify or YouTube Music, no account, no ads and no analytics.
@@ -12,11 +12,11 @@ Package `sa.urtv.home` · classes `sa.urtv.home.tilawah` · label «تلاوة»
 | | |
 |---|---|
 | <img src="screenshots/02-tilawah-reciters.jpg" alt="The reciters tab" width="320"> | <img src="screenshots/03-adhan-times.jpg" alt="The adhan tab" width="320"> |
-| **القرّاء** — forty reciters, 114 surahs each, and «متابعة التلاوة» when a surah is paused | **الأذان** — today's five times at Umm al-Qura, the next one in gold with the time left |
+| The **«القرّاء»** tab — forty reciters, 114 surahs each, and «متابعة التلاوة» when a surah is paused | The **«الأذان»** tab — today's five times at Umm al-Qura, the next one in gold with the time left |
 | <img src="screenshots/05-muezzins.jpg" alt="The muezzins" width="320"> | <img src="screenshots/07-surah-grid.jpg" alt="The surah grid" width="320"> |
-| **المؤذن** — 21 named recordings; the chosen one in gold with its city | **سورة** — the 114 surahs of a reciter, six columns, right to left |
+| The **«المؤذن»** list — 21 named recordings; the chosen one in gold with its city | The **«سورة»** grid — the 114 surahs of a reciter, six columns, right to left |
 | <img src="screenshots/06-adhan-player.jpg" alt="The adhan in the player" width="320"> | <img src="screenshots/08-player.jpg" alt="A surah in the player" width="320"> |
-| **During an adhan** — «الأذان» and the muezzin's name; the skip buttons are gone and the arrows do not seek | **A surah** — title, reciter, progress and the transport row |
+| During an adhan — «الأذان» and the muezzin's name; the skip buttons are gone and the arrows do not seek | A surah — title, reciter, progress and the transport row |
 
 ## Where it lives
 

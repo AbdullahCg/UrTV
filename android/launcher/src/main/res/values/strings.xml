@@ -32,7 +32,7 @@
     <string name="sleep_icon">مؤقت النوم</string>
     <string name="channel_name">التشغيل</string>
 
-    <!-- الأذان -->
+    <!-- the adhan section -->
     <string name="adhan">الأذان</string>
     <string name="adhan_auto">الأذان التلقائي</string>
     <string name="adhan_on">مفعّل</string>
