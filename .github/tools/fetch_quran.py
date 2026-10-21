@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the listening app's catalog from mp3quran.net and alquran.cloud.
+"""Build the «تلاوة» catalog from mp3quran.net and alquran.cloud.
 
 The generated JSON is committed so the app builds offline; run this again when a reciter or a
 station changes. `--check` only verifies that every URL still answers with audio; streams do move,
@@ -18,7 +18,7 @@ from pathlib import Path
 
 API = "https://www.mp3quran.net/api/v3/"
 SURAHS_API = "https://api.alquran.cloud/v1/surah"
-OUT = Path(__file__).resolve().parent.parent.parent / "android/listening/src/main/assets/quran"
+OUT = Path(__file__).resolve().parent.parent.parent / "android/launcher/src/main/assets/quran"
 
 # Arabic name exactly as mp3quran spells it, and the short id the app and optimize/music.sh use.
 RECITERS = [
@@ -32,6 +32,36 @@ RECITERS = [
     ("محمد صديق المنشاوي", "minshawi"),
     ("أحمد بن علي العجمي", "ajmi"),
     ("علي بن عبدالرحمن الحذيفي", "hudhaifi"),
+    ("محمود خليل الحصري", "husary"),
+    ("عبدالله المطرود", "matrood"),
+    ("عبدالله بصفر", "basfar"),
+    ("بندر بليله", "baleela"),
+    ("صلاح بو خاطر", "bukhatir"),
+    ("علي جابر", "alijaber"),
+    ("فارس عباد", "farsabbad"),
+    ("عمر الدريويز", "duraiwiz"),
+    ("هاني الرفاعي", "hanirifai"),
+    ("عبدالودود حنيف", "hinaify"),
+    ("علي حجاج السويسي", "aligaga"),
+    ("فؤاد الخامري", "khamiri"),
+    ("عبدالبديع غيلان", "ghailan"),
+    ("عبدالكريم الحازمي", "hazmi"),
+    ("خالد القحطاني", "qahtani"),
+    ("خالد الجليل", "jaleel"),
+    ("أحمد ديبان", "deeban"),
+    ("أنس العمادي", "emadi"),
+    ("محمد جبريل", "jibreel"),
+    ("محمد الفقيه", "faqih"),
+    ("زكي داغستاني", "daghistani"),
+    ("محمود عبدالحكم", "abdulhakim"),
+    ("عبدالرحمن العوسي", "oosi"),
+    ("عبدالله الكندري", "kandari"),
+    ("عبدالعزيز الزهراني", "zahrani"),
+    ("صالح الصاهود", "sahood"),
+    ("مفتاح السلطني", "saltani"),
+    ("يوسف الشويعي", "shouei"),
+    ("ياسر سلامة", "salama"),
+    ("وديع اليمني", "yamani"),
 ]
 
 # Continuous streams. The Saudi Quran Radio (radiojar) redirects to http, which the app permits

@@ -61,14 +61,24 @@ final class HomeCard {
 
     private String readUrl() {
         try (Cursor c = activity.getContentResolver().query(CONFIG, null, null, null, null)) {
-            if (c == null || !c.moveToFirst()) return null;
+            if (c == null || !c.moveToFirst()) return fallback();
             String frag = c.getString(0), panel = c.getString(1);
-            if (frag == null || panel == null || "none".equals(panel)) return null;
+            if (frag == null || panel == null) return fallback();
+            if ("none".equals(panel)) return null;    // the user turned the card off
             frag = frag.replaceAll("(^|&)(panel|week)=[^&]*", "");   // the screensaver's own card choice
             return "file:///android_asset/web/tv.html#" + frag + "&panel=" + panel + "&widget=1";
         } catch (RuntimeException e) {
-            return null;   // screensaver app missing or too old
+            return fallback();   // the screensaver's settings are out of reach
         }
+    }
+
+    /**
+     * The screensaver's settings could not be read: it is missing, too old, or signed with another
+     * key (a test build of this app). The prayer times of the default city are shown instead of
+     * an empty screen.
+     */
+    private String fallback() {
+        return "file:///android_asset/web/tv.html#panel=prayers&widget=1";
     }
 
     @SuppressLint("SetJavaScriptEnabled")

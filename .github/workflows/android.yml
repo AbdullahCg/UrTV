@@ -49,13 +49,19 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk urtv-screensaver.apk
           cp android/launcher/build/outputs/apk/release/launcher-release.apk urtv-home.apk
-          cp android/listening/build/outputs/apk/release/listening-release.apk urtv-listening.apk
+
+      # what the launcher's self-update reads: the build number it compares with its own versionCode
+      - name: latest.json
+        run: |
+          printf '{"run": %s, "version": "3.%s", "sha": "%s", "apk": "urtv-home.apk", "screensaver": "urtv-screensaver.apk"}\n' \
+            "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > latest.json
+          cat latest.json
 
       # apksigner, not keytool: the home APK has no v1 (JAR) signature, so keytool sees no signer in it
       - name: Which key signed them
         run: |
           apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
-          for f in urtv-screensaver.apk urtv-home.apk urtv-listening.apk; do
+          for f in urtv-screensaver.apk urtv-home.apk; do
             echo "$f:"; "$apksigner" verify --print-certs "$f" | grep -m2 -E 'certificate (DN|SHA-256)'
           done
 
@@ -65,34 +71,34 @@ jobs:
           path: |
             urtv-screensaver.apk
             urtv-home.apk
-            urtv-listening.apk
+            latest.json
 
-      # fixed download links: .../releases/download/apk-latest/urtv-screensaver.apk, urtv-home.apk and urtv-listening.apk
+      # fixed download links: .../releases/download/apk-latest/urtv-screensaver.apk, urtv-home.apk and latest.json
       - name: Publish to the apk-latest release
         if: github.ref_name == 'master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
           name: Latest APKs
-          body: "Screensaver and home at version 3.${{ github.run_number }}, listening at 1.${{ github.run_number }}, built from ${{ github.sha }}"
+          body: "Both apps at version 3.${{ github.run_number }}, built from ${{ github.sha }}"
           files: |
+            latest.json
             urtv-screensaver.apk
             urtv-home.apk
-            urtv-listening.apk
           make_latest: true
 
-      # and every build kept under its own number, the screensaver/home version: APK_TAG=v3.N optimize/install.sh all
+      # and every build kept under its own number: APK_TAG=v3.N optimize/install.sh all
       - name: Publish to the numbered release
         if: github.ref_name == 'master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v3.${{ github.run_number }}
           name: UrTV 3.${{ github.run_number }}
-          body: "Screensaver and home at version 3.${{ github.run_number }}, listening at 1.${{ github.run_number }}, built from ${{ github.sha }}"
+          body: "Both apps at version 3.${{ github.run_number }}, built from ${{ github.sha }}"
           files: |
+            latest.json
             urtv-screensaver.apk
             urtv-home.apk
-            urtv-listening.apk
           make_latest: false
 
       # next: one test release, replaced by each build; install with APK_TAG=apk-next optimize/install.sh all
@@ -102,10 +108,10 @@ jobs:
         with:
           tag_name: apk-next
           name: Test build from next
-          body: "Screensaver and home at version 3.${{ github.run_number }}, listening at 1.${{ github.run_number }}, built from next at ${{ github.sha }}. For testing only."
+          body: "Both apps at version 3.${{ github.run_number }}, built from next at ${{ github.sha }}. For testing only."
           files: |
+            latest.json
             urtv-screensaver.apk
             urtv-home.apk
-            urtv-listening.apk
           prerelease: true
           make_latest: false

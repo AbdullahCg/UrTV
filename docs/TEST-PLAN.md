@@ -126,9 +126,12 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 
 | ID | Action | Expected |
 |---|---|---|
-| L1 | Fresh install of both apps, press Home | No card on the home screen (off by default) |
+| L1 | Fresh install of both apps, press Home | No card on the home screen (the screensaver's card choice is «لا شيء» by default) |
 | L2 | Screensaver settings → «بطاقة على الشاشة الرئيسية» → مواقيت الصلاة, then Home | Card under the pills on the left: today's prayers, next one gold. D-pad never lands on it |
 | L3 | Repeat L2 with each option, then «لا شيء» | Card follows the choice; «لا شيء» removes it |
+| L4 | On the home screen, look at the top bar and the app rows, then press ▶ and ◀ on the pills and on the favourites | Everything reads from the right (المصادر، واي فاي، الإعدادات، شاشة التوقف، تلاوة; the first app of a row on the right); the right arrow always moves the highlight to the right and the left arrow to the left |
+| L6 | Look at the clock in the top corner | The time on the right and the «ص» / «م» on its left (١٢:٣٣ ص) |
+| L7 | Build the launcher with another key (a test build) and press Home | The card on the home screen falls back to «مواقيت اليوم» for the default city, because the screensaver's settings cannot be read |
 | L8 | Long-press OK on any app → «ترتيب المفضلة…» (also: screensaver settings → «ترتيب التطبيقات المفضلة») | List of favourites, numbered, first one focused |
 | L9 | OK on the 3rd app, ▲ twice, OK; then Back | It turns gold, moves to the top, drops; home row shows it first |
 | L10 | «إزالة» beside an app (▶/◀ to reach it); then «+» on an app under «إضافة تطبيق» | Removed / added at the end; never below 5 or above 10 (a message says so) |
@@ -153,23 +156,29 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | T9 | `optimize/reset.sh`, then `optimize/venv/bin/python -I optimize/tv.py pm list packages sa.urtv` and `optimize/venv/bin/python -I optimize/tv.py settings get secure screensaver_enabled` | The package list is empty; `screensaver_enabled` is the value in `optimize/run-*/backup.txt` (under «== screensaver»: the components line, then this one; `null` means unset) |
 | T10 | Put a `!!` line in `optimize/run/report.md` and run `optimize/run.sh` | It ends with «Done, with problems:» and that line, exit code 1; no «All steps done» |
 
-## 10. Listening app (استماع, opt-in)
+## 11. «تلاوة» — the Quran, the radio, the adhan and the update (inside the home app)
 
-Install: `optimize/install.sh music`; open «استماع» from the all-apps row. The app controls are in
-[LISTENING.md](LISTENING.md).
+Install: `optimize/install.sh launcher` (or `all`). «تلاوة» is the leftmost pill in the home screen's
+top bar (the row reads from the right: المصادر، واي فاي، الإعدادات، شاشة التوقف، تلاوة); it is not
+in «كل التطبيقات». Full reference: [TILAWAH.md](TILAWAH.md).
 
 | ID | Action | Expected |
 |---|---|---|
-| M1 | Open the app | Arabic RTL home list: «متابعة الاستماع» (if history), «القرّاء», ten reciters, «الإذاعات», live stations; first row focused |
-| M2 | D-pad down through reciters and stations | The selected row always has a solid dark card, thick gold frame and gold chevron; section headers are skipped |
-| M3 | OK on a reciter | 114-surah grid in reading order, first surah focused; Back returns to the list |
-| M4 | OK on الفاتحة | Player shows the surah and reciter; progress advances; OK pauses and resumes |
-| M5 | ▶ then ◀ | Progress jumps +10 s then −10 s; no restart |
-| M6 | Let الفاتحة finish | البقرة starts automatically with the same reciter |
-| M7 | OK on «إذاعة القرآن الكريم - السعودية» | Live player, long title fits, audio plays, no error (this also proves the scoped radiojar cleartext redirect) |
-| M8 | ▼ → ٣٠ دقيقة, then reopen the player | Gold «بعد … دقيقة» shows; the timer can be cancelled/stopped from the same dialog |
-| M9 | Play, press Home, wait for the screensaver | Audio continues; the TV media play/pause key controls it; reopening the app shows the player/resume row |
-| M10 | `optimize/music.sh status`, `surah sudais 1`, `pause`, `radio 0`, `sleep 1`, `stop` | Status line has `playing`, `source`, names, `pos`, `dur`, `sleep`, `error`; each command acts on the TV |
+| W1 | Press «تلاوة» in the top bar | The «تلاوة» screen opens with a tab bar read from the right — «القرّاء» (active, on the right), «الإذاعات», «الأذان» (on the left); the title is on the right; the first reciter is focused, not the top row |
+| W2 | Compare the five times with the screensaver's prayer panel | Same times (within a minute); Isha = Maghrib + 90 min (120 in Ramadan) |
+| W3 | Left/Right from the list, then Up from the first row, then Down | The section changes and its list starts at the top; the right arrow always moves the highlight to the right and the left arrow to the left; Up reaches the tab bar (solid gold on the active tab), Down returns to the first row; the selected row always has a solid dark card, thick gold frame and gold chevron |
+| W4 | OK on a reciter, then OK on الفاتحة | 114-surah grid in reading order; the player shows the surah and reciter; audio plays; Back returns |
+| W5 | Play, press Home, wait for the screensaver | Audio continues; the media play/pause key controls it; «تلاوة» shows «متابعة التلاوة» again |
+| W6 | OK on «إذاعة القرآن الكريم - السعودية» | Live player, long title fits, audio plays, no error (this also proves the scoped radiojar cleartext redirect) |
+| W7 | OK on a prayer row (e.g. المغرب) | That adhan plays now through the player screen («الأذان» + the muezzin's name); the previous/next buttons are gone and Left/Right do nothing; Back leaves it playing |
+| W8 | OK on «الأذان التلقائي» | It switches to «متوقف» and back to «مفعّل»; the state survives a reboot |
+| W9 | OK on «المؤذن» | 21 muezzins by name (الحرم المكي، الأقصى، عبد الباسط…), the chosen one in gold with its city; OK picks one and plays 12 seconds of it |
+| W10 | Play a surah, then `optimize/music.sh adhan now 3` | The surah pauses, the adhan plays, then the surah resumes at the same position (status: `source=adhan` during it, `adhan_last` updated) |
+| W11 | `optimize/music.sh adhan voice 7` then `adhan now` | Voice 7 plays; `optimize/music.sh status` shows `voice=7` |
+| W12 | Set the TV clock a few minutes before a prayer time, wait for the alarm; then reboot the TV and check `optimize/music.sh status` | The adhan plays by itself at the exact minute with no app on screen; after the reboot `adhan_next` is a future timestamp (the alarm was put back) |
+| W13 | With a newer build published (or a local `latest.json`), reopen the home screen | A gold «تحديث جاهز» pill appears by itself at the right end of the top bar (`تحديث N٪` while downloading); `files/update/home.apk` exists |
+| W14 | Press «تحديث جاهز», then confirm Android's installer screen | Android asks to install, the app restarts on the new `versionCode`, the pill disappears; an APK signed with another key is refused before the installer ever opens |
+| W15 | `optimize/music.sh status`, `surah sudais 1`, `pause`, `radio 0`, `sleep 1`, `stop` | Status line has `playing`, `source`, names, `pos`, `dur`, `sleep`, `adhan`, `voice`, `adhan_next`, `error`; each command acts on the TV |
 
 ---
 

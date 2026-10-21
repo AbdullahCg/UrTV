@@ -94,7 +94,9 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
-    private TextView greeting, clock, ampm, date, title, wifiPill, appsLabel;
+    private TextView greeting, clock, ampm, date, title, wifiPill, appsLabel, updatePill;
+    /** the self-update pill keeps its id: it is added to and removed from the bar while the app runs */
+    private static final int UPDATE_PILL_ID = 0x0A11D0;
     private int glowColor = 0xFF3A3A3A;
     private ValueAnimator glowAnim;
     private int lastFocusedId = View.NO_ID;
@@ -104,7 +106,12 @@ public class MainActivity extends Activity {
     private HomeCard homeCard;
 
     private final BroadcastReceiver tick = new BroadcastReceiver() {
-        @Override public void onReceive(Context c, Intent i) { updateClock(); updateWifi(); }
+        @Override public void onReceive(Context c, Intent i) {
+            updateClock();
+            updateWifi();
+            SelfUpdater.check(MainActivity.this);
+            updateUpdatePill();
+        }
     };
     private final BroadcastReceiver packages = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { buildApps(); }
@@ -136,6 +143,12 @@ public class MainActivity extends Activity {
         pf.addDataScheme("package");
         registerReceiver(packages, pf);
         registerReceiver(dockChanged, new IntentFilter(Dock.CHANGED));
+
+        // the self-update: a newer build downloads in the background, then the pill appears
+        updatePill = (TextView) findViewById(UPDATE_PILL_ID);
+        SelfUpdater.listen(this::updateUpdatePill);
+        SelfUpdater.check(this);
+        updateUpdatePill();
     }
 
     @Override
@@ -148,6 +161,8 @@ public class MainActivity extends Activity {
         registerReceiver(tick, tf);
         updateClock();
         updateWifi();
+        updateUpdatePill();
+        SelfUpdater.check(this);
         homeCard.refresh();
         View last = lastFocusedId == View.NO_ID ? null : findViewById(lastFocusedId);
         if (last == null && !dockCards.isEmpty()) last = dockCards.get(0);
@@ -197,6 +212,9 @@ public class MainActivity extends Activity {
     private View buildUi() {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
+        // The home is built in code, so it inherits no direction from the window: set it here and
+        // the pills, the favourites and the app rows all read from right to left.
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
         // Wallpaper: two stacked layers so a new photo can crossfade in over the old one.
         wallBack = wallpaperLayer();
@@ -297,8 +315,9 @@ public class MainActivity extends Activity {
         clock = text(58, "display", 0xFFFFFDF6);
         clock.setIncludeFontPadding(false);
         ampm = text(16, "medium", GOLD);
-        clockRow.addView(ampm, llp(-2, -2, 0, dp(6), dp(8), 0));
+        // the row reads from the right: the time first, then the ص or the م on its left
         clockRow.addView(clock);
+        clockRow.addView(ampm, llp(-2, -2, 0, dp(6), dp(8), 0));
         left.addView(clockRow, llp(-2, -2, 0, dp(-2), 0, 0));
 
         date = text(14, "regular", 0xFFC6BBA4);
@@ -320,8 +339,21 @@ public class MainActivity extends Activity {
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
         TextView settings = pill("الإعدادات", R.drawable.ic_settings);
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
-        for (TextView p : isInstalled(SAVER_PKG) ? new TextView[]{inputs, wifiPill, settings, saver}
-                                                  : new TextView[]{inputs, wifiPill, settings}) {
+        // «تلاوة»: the Quran and the radio are part of this app, so the pill opens them right here
+        TextView tilawah = pill("تلاوة", R.drawable.ic_listen);
+        tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
+        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings));
+        if (isInstalled(SAVER_PKG)) row.add(saver);
+        if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
+        // the self-update, hidden until a newer build is on the TV (then it is the first pill read,
+        // and the row reads from the right, so it goes in before the others)
+        updatePill = pill("تحديث جاهز", R.drawable.ic_update);
+        updatePill.setId(UPDATE_PILL_ID);
+        updatePill.setTextColor(0xFFFFD79A);
+        updatePill.setOnClickListener(v -> SelfUpdater.install(this));
+        updatePill.setVisibility(View.GONE);
+        right.addView(updatePill, llp(-2, dp(30), dp(10), 0, 0, 0));
+        for (TextView p : row) {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
             pills.add(p);
         }
@@ -751,6 +783,34 @@ public class MainActivity extends Activity {
         return b.toString();
     }
 
+    /**
+     * The self-update pill: only there while a newer build is downloading or already on the TV.
+     * Pressing it when it says «تحديث جاهز» is the one press the launcher update takes.
+     */
+    private void updateUpdatePill() {
+        if (updatePill == null) return;
+        SelfUpdater.State state = SelfUpdater.state();
+        boolean show = state == SelfUpdater.State.READY || state == SelfUpdater.State.DOWNLOADING
+                || state == SelfUpdater.State.INSTALLING;
+        if (!show) {
+            if (updatePill.getVisibility() == View.VISIBLE) {
+                updatePill.setVisibility(View.GONE);
+                pills.remove(updatePill);
+                wireFocus();
+            }
+            return;
+        }
+        String label = state == SelfUpdater.State.DOWNLOADING
+                ? "تحديث " + arabicDigits(String.valueOf(SelfUpdater.progress())) + "٪"
+                : state == SelfUpdater.State.INSTALLING ? "جارٍ التثبيت…" : "تحديث جاهز";
+        updatePill.setText(label);
+        if (!pills.contains(updatePill)) {
+            pills.add(updatePill);   // the last pill is the rightmost, the first one read in Arabic
+            wireFocus();
+        }
+        updatePill.setVisibility(View.VISIBLE);
+    }
+
     /** Connected or not comes from ConnectivityManager: WifiManager hides the network (id -1, "<unknown ssid>")
      *  from apps without location access, which looked like "not connected". The name only when readable. */
     private void updateWifi() {
@@ -1075,7 +1135,58 @@ public class MainActivity extends Activity {
             showInputs(pills.get(0));
             return true;
         }
+        // In a right to left layout Android looks for the focus the other way round, so the rows are
+        // walked by hand here: «right» always moves the highlight to the right.
+        if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+            if (e.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT && moveFocusSideways(false)) return true;
+            if (e.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT && moveFocusSideways(true)) return true;
+        }
         return super.dispatchKeyEvent(e);
+    }
+
+    /** Moves the focus to the next item of the row, on the right (true) or on the left (false). */
+    private boolean moveFocusSideways(boolean right) {
+        View focused = getCurrentFocus();
+        if (focused == null) return false;
+        ViewGroup parent = focused.getParent() instanceof ViewGroup ? (ViewGroup) focused.getParent() : null;
+        if (parent == null) return false;
+
+        ViewGroup row = null;
+        View item = null;
+        if (parent instanceof LinearLayout && ((LinearLayout) parent).getOrientation() == LinearLayout.HORIZONTAL) {
+            // the focus is on an item of the row itself (a pill)
+            row = parent;
+            item = focused;
+        } else {
+            // the app tiles: the focus is on the card inside its box, the row is above the box
+            ViewGroup above = parent.getParent() instanceof ViewGroup ? (ViewGroup) parent.getParent() : null;
+            if (above instanceof LinearLayout && ((LinearLayout) above).getOrientation() == LinearLayout.HORIZONTAL) {
+                row = above;
+                item = parent;
+            }
+        }
+        if (row == null) return false;
+        int index = row.indexOfChild(item);
+        if (index < 0) return false;
+        // the row reads from the right, so the item before the focused one is the one on the right
+        int next = right ? index - 1 : index + 1;
+        if (next < 0 || next >= row.getChildCount()) return true;   // the edge of the row: stay put
+        View target = row.getChildAt(next);
+        if (target == null || target.getVisibility() != View.VISIBLE) return true;
+        View toFocus = target;
+        if (target instanceof ViewGroup) {
+            ViewGroup box = (ViewGroup) target;
+            for (int i = 0; i < box.getChildCount(); i++) {
+                View child = box.getChildAt(i);
+                if (child.isFocusable() && child.getVisibility() == View.VISIBLE) {
+                    toFocus = child;
+                    break;
+                }
+            }
+        }
+        if (!toFocus.isFocusable() || toFocus.getVisibility() != View.VISIBLE) return true;
+        toFocus.requestFocus();
+        return true;
     }
 
     /** 16:9 container. */
