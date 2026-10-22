@@ -63,6 +63,10 @@ final class Prefs {
     // digits on the screen (sent to the page as #digits=; hindi is what it always showed)
     static final String[][] DIGITS = {{"hindi", "هندية ١٢٣"}, {"latin", "عربية 123"}};
 
+    // look of the card beside the clock (sent to the page as #cardstyle=; current is the plain card it always had)
+    static final String[][] CARD_STYLES = {{"current", "الحالية"}, {"dark1", "داكنة"}, {"glass1", "زجاجية"},
+        {"dark3", "داكنة بإطار"}, {"glass3", "زجاجية بإطار"}};
+
     // minutes of idle before Android starts the screensaver (the TV's own screen_off_timeout; not stored here)
     static final String[] IDLE_MINUTES = {"1", "2", "5", "10", "15", "30"};
 
@@ -150,6 +154,14 @@ final class Prefs {
         return DIGITS[0][1];
     }
 
+    String cardStyle() { return sp.getString("cardStyle", "current"); }
+    void setCardStyle(String v) { sp.edit().putString("cardStyle", v).apply(); }
+
+    static String cardStyleLabel(String v) {
+        for (String[] c : CARD_STYLES) if (c[0].equals(v)) return c[1];
+        return CARD_STYLES[0][1];
+    }
+
     String photoMinutes() { return sp.getString("photoMinutes", "30"); }
     void setPhotoMinutes(String v) { sp.edit().putString("photoMinutes", v).apply(); }
 
@@ -186,7 +198,8 @@ final class Prefs {
             + "&shows=" + join(ids, ",")
             + "&minrating=" + minRating()
             + "&photos=" + photoMinutes()
-            + "&digits=" + digits();
+            + "&digits=" + digits()
+            + "&cardstyle=" + cardStyle();
     }
 
     /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */

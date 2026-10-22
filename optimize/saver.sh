@@ -17,6 +17,7 @@
 #   optimize/saver.sh photos 15                    change the photo every N minutes: 5 10 15 30 60 (default 30)
 #   optimize/saver.sh idle 10                      the TV starts the screensaver after N idle minutes: 1 2 5 10 15 30
 #                                                  (the TV's own timer; left alone unless you run this)
+#   optimize/saver.sh cardstyle glass1             look of the card beside the clock: current dark1 glass1 dark3 glass3
 #   optimize/saver.sh digits latin                 numbers: hindi = ١٢٣ (default), latin = 123
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
@@ -58,6 +59,7 @@ case "${1:-}" in
   langs)     send SET "--es langs $(quote "${2-}")" ;;
   minrating) send SET "--es minrating $(quote "${2:?usage: optimize/saver.sh minrating 7}")" ;;
   photos)    send SET "--es photos $(quote "${2:?usage: optimize/saver.sh photos 15}")" ;;
+  cardstyle) send SET "--es cardstyle $(quote "${2:?usage: optimize/saver.sh cardstyle glass1}")" ;;
   digits)    send SET "--es digits $(quote "${2:?usage: optimize/saver.sh digits latin}")" ;;
   idle)
     # the app may change the TV's timer only if the owner allowed it; the shell always may
@@ -71,5 +73,5 @@ case "${1:-}" in
       *) echo "$out" ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,21p' "$0"; exit 1 ;;
+  *) sed -n '2,22p' "$0"; exit 1 ;;
 esac

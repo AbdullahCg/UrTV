@@ -103,6 +103,8 @@ public class SettingsActivity extends Activity {
 
         header("بجانب الساعة");
         row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(false); } });
+        row("شكل البطاقة", Prefs.cardStyleLabel(prefs.cardStyle()), R.drawable.ic_eye,
+            new Runnable() { public void run() { pickCardStyle(); } });
 
         header("الشاشة الرئيسية (تلفزيونك)");
         row("بطاقة على الشاشة الرئيسية", Prefs.panelLabel(prefs.homePanel()), R.drawable.ic_eye,
@@ -396,6 +398,18 @@ public class SettingsActivity extends Activity {
         for (int i = 0; i < Prefs.MIN_RATINGS.length; i++) if (Prefs.MIN_RATINGS[i].equals(prefs.minRating())) sel = i;
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle("أقل تقييم")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setMinRating(Prefs.MIN_RATINGS[i]); d.dismiss(); render(); })
+            .show();
+    }
+
+    private void pickCardStyle() {
+        String[] labels = new String[Prefs.CARD_STYLES.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.CARD_STYLES[i][1];
+            if (Prefs.CARD_STYLES[i][0].equals(prefs.cardStyle())) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("شكل البطاقة")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setCardStyle(Prefs.CARD_STYLES[i][0]); d.dismiss(); render(); })
             .show();
     }
 

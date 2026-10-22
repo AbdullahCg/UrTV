@@ -19,8 +19,10 @@ import java.util.List;
  *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
+ *       [--es cardstyle current|dark1|glass1|dark3|glass3]
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *
+ * cardstyle = the look of the card beside the clock (Prefs.CARD_STYLES; current is the plain card).
  * digits = hindi (١٢٣, as always) or latin (123). photos = minutes between background photos (Prefs.PHOTO_MINUTES). idle = minutes before the TV starts the
  * screensaver (Prefs.IDLE_MINUTES): this is the system's screen_off_timeout, which a receiver (it runs as this
  * app, not as the shell) may write only when the app holds WRITE_SETTINGS; otherwise it says so and
@@ -110,6 +112,9 @@ public class SaverReceiver extends BroadcastReceiver {
         String digits = i.getStringExtra("digits");
         if (digits != null && !isChoice(Prefs.DIGITS, digits))
             return "error: digits is one of " + choices(Prefs.DIGITS);
+        String cardStyle = i.getStringExtra("cardstyle");
+        if (cardStyle != null && !isChoice(Prefs.CARD_STYLES, cardStyle))
+            return "error: cardstyle is one of " + choices(Prefs.CARD_STYLES);
         String idle = i.getStringExtra("idle");
         if (idle != null) {
             if (!Arrays.asList(Prefs.IDLE_MINUTES).contains(idle))
@@ -138,6 +143,7 @@ public class SaverReceiver extends BroadcastReceiver {
         if (rating != null) p.setMinRating(rating);
         if (photos != null) p.setPhotoMinutes(photos);
         if (digits != null) p.setDigits(digits);
+        if (cardStyle != null) p.setCardStyle(cardStyle);
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
         return "saved\n" + describe(c, p);
@@ -151,6 +157,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\nminrating: " + p.minRating()
             + "\nphotos: " + p.photoMinutes()
             + "\ndigits: " + p.digits()
+            + "\ncardstyle: " + p.cardStyle()
             + "\nidle: " + idle(Prefs.idleMs(c))
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
             + "\nautoupdate: " + p.autoUpdate();

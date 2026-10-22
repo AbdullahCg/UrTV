@@ -196,6 +196,39 @@ for (const [hash, latin] of [['', false], ['digits=hindi', false], ['digits=lati
   await ctx.close();
 }
 
+// ---- card style: #cardstyle=current|dark1|glass1|dark3|glass3, anything else = current; the launcher's card keeps its look
+for (const [hash, want] of [['', 'current'], ['cardstyle=current', 'current'], ['cardstyle=dark1', 'dark1'], ['cardstyle=glass1', 'glass1'],
+                             ['cardstyle=dark3', 'dark3'], ['cardstyle=glass3', 'glass3'], ['cardstyle=bogus', 'current'], ['cardstyle=DARK1', 'current']]) {
+  const { p, ctx, errors } = await open('tv.html', 'panel=verse&' + hash);
+  const r = await p.evaluate(() => ({ s: CONFIG.cardStyle, cls: document.documentElement.className.match(/cs-\S+/)?.[0] || '',
+    bg: getComputedStyle(document.querySelector('.week')).backgroundColor, radius: getComputedStyle(document.querySelector('.week')).borderTopLeftRadius }));
+  const ok = r.s === want && r.cls === (want === 'current' ? '' : 'cs-' + want)
+    && (want !== 'current' || (r.bg === 'rgba(4, 14, 9, 0.6)' && r.radius === '12px'));   // the default card is untouched
+  check(`link #${hash || '(empty)'} → card style ${want}`, !errors.length && ok, JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await open('tv.html', 'panel=verse&cardstyle=glass3&widget=1');
+  check('card-only mode ignores the card style', !errors.length && await p.evaluate(() => !/cs-/.test(document.documentElement.className)));
+  await ctx.close();
+}
+for (const style of ['dark1', 'glass1', 'dark3', 'glass3', 'current']) {
+  const { p, ctx, errors } = await open('tv.html', `panel=verse&cardstyle=${style}`);
+  const has = () => p.evaluate(() => !!document.querySelector('.week canvas.bl'));
+  const settling = !(await has());   // the photo is still drifting: the plain tint only
+  await p.evaluate(() => cardBlurNow());   // what the timer does 61 s after the photo
+  await p.waitForTimeout(500);
+  const made = await has();
+  const geo = await p.evaluate(() => { const c = document.querySelector('.week canvas.bl'), w = document.querySelector('.week').getBoundingClientRect();
+    return c ? { w: c.width, h: c.height, fits: Math.abs(c.getBoundingClientRect().width - w.width) < 4 } : null; });
+  await p.evaluate(() => showBackground('about:blank#other', {}));   // the photo changes
+  const gone = !(await has());
+  const want = style !== 'current';
+  check(`card style ${style}: plain while settling, blurred copy ${want ? 'made once, sized to the card, released on a new photo' : 'never made'}`,
+    !errors.length && settling && made === want && gone && (!want || (geo && geo.w > 50 && geo.h > 20 && geo.fits)), JSON.stringify({ settling, made, gone, geo }) + errors.join('; '));
+  await ctx.close();
+}
+
 // ---- old settings links and «لا شيء»
 for (const [hash, panel, shown] of [['', 'verse', true], ['week=0', 'none', false], ['week=1', 'verse', true],
                                      ['panel=none', 'none', false], ['panel=bogus', 'verse', true]]) {
