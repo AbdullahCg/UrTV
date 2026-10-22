@@ -22,6 +22,8 @@ import java.util.List;
  *       [--es cardstyle current|dark1|glass1|dark3|glass3]
  *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices] [--es stocks 2222,1120,AAPL]
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
+ *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.TASKS
+ *       --es op list | add --es text 'نص' | done --ei n 1 | del --ei n 1 | clear
  *
  * cardstyle = the look of the card beside the clock (Prefs.CARD_STYLES; current is the plain card).
  * markets = up to four of Prefs.MARKETS at the top left, in order; mkstyle = arrows only (as always) or the price and the day's change.
@@ -64,6 +66,9 @@ public class SaverReceiver extends BroadcastReceiver {
             }
             case "sa.urtv.screensaver.SET":
                 setResultData(set(c, p, i));
+                return;
+            case "sa.urtv.screensaver.TASKS":
+                setResultData(tasks(p, i));
                 return;
             default:
                 setResultData("error: unknown action " + action);
@@ -175,6 +180,40 @@ public class SaverReceiver extends BroadcastReceiver {
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
         return "saved\n" + describe(c, p);
+    }
+
+    /** «المهام»: n is the number list shows (from 1, done ones included). */
+    private static String tasks(Prefs p, Intent i) {
+        String op = String.valueOf(i.getStringExtra("op"));
+        switch (op) {
+            case "list":
+                return listing(p);
+            case "add": {
+                String why = p.addTask(i.getStringExtra("text"));
+                return why != null ? "error: " + why : "saved\n" + listing(p);
+            }
+            case "done":
+            case "del": {
+                int n = i.getIntExtra("n", 0);
+                boolean ok = "done".equals(op) ? p.doneTask(n) : p.deleteTask(n);
+                return !ok ? "error: no task number " + n + " (list shows the numbers)"
+                    : "saved\n" + listing(p);
+            }
+            case "clear":
+                p.clearTasks();
+                return "saved\nno tasks";
+            default:
+                return "error: op is one of list add done del clear";
+        }
+    }
+
+    private static String listing(Prefs p) {
+        List<Prefs.Task> all = p.tasks();
+        if (all.isEmpty()) return "no tasks";
+        StringBuilder b = new StringBuilder();
+        for (int k = 0; k < all.size(); k++)
+            b.append(k + 1).append(all.get(k).done ? ". [done] " : ". ").append(all.get(k).text).append('\n');
+        return b.toString().trim();
     }
 
     private static String describe(Context c, Prefs p) {

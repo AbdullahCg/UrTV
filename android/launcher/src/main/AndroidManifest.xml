@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- the optional home-screen card reads the screensaver's settings (signature permission, same key) -->
     <uses-permission android:name="sa.urtv.screensaver.READ_CONFIG" />
+    <!-- «المهام»: add, finish and delete tasks kept by the screensaver (signature permission, same key) -->
+    <uses-permission android:name="sa.urtv.screensaver.WRITE_TASKS" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />

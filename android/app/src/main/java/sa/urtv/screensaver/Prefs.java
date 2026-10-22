@@ -6,6 +6,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -240,7 +244,92 @@ final class Prefs {
             + "&cardstyle=" + cardStyle()
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()
-            + "&stocks=" + join(stocks(), ",");
+            + "&stocks=" + join(stocks(), ",")
+            + openTasksParam();
+    }
+
+    static final int MAX_TASKS = 12;
+    static final int TASK_CHARS = 60;
+
+    /** One task kept on the TV. */
+    static final class Task {
+        final String text;
+        final boolean done;
+        final long at;
+        Task(String text, boolean done, long at) { this.text = text; this.done = done; this.at = at; }
+    }
+
+    /** All tasks, oldest first (a JSON array of {t, done, at}); the number a person sees is the position + 1. */
+    List<Task> tasks() {
+        List<Task> out = new ArrayList<>();
+        try {
+            JSONArray a = new JSONArray(sp.getString("tasks", "[]"));
+            for (int k = 0; k < a.length(); k++) {
+                JSONObject o = a.getJSONObject(k);
+                out.add(new Task(o.getString("t"), o.optBoolean("done"), o.optLong("at")));
+            }
+        } catch (JSONException e) {
+            out.clear();
+        }
+        return out;
+    }
+
+    private void setTasks(List<Task> v) {
+        JSONArray a = new JSONArray();
+        try {
+            for (Task t : v) a.put(new JSONObject().put("t", t.text).put("done", t.done).put("at", t.at));
+        } catch (JSONException ignored) { }
+        sp.edit().putString("tasks", a.toString()).apply();
+    }
+
+    /** Trimmed, one line, at most TASK_CHARS characters; "" when nothing is left. */
+    static String cleanTask(String raw) {
+        String s = raw == null ? "" : raw.replaceAll("\\s+", " ").trim();
+        if (s.length() > TASK_CHARS) s = s.substring(0, TASK_CHARS).trim();
+        return s;
+    }
+
+    /** null when added; otherwise why not (full of open tasks, or empty text). Done tasks make room, oldest first. */
+    String addTask(String raw) {
+        String text = cleanTask(raw);
+        if (text.isEmpty()) return "the task is empty";
+        List<Task> v = tasks();
+        while (v.size() >= MAX_TASKS) {
+            int old = -1;
+            for (int k = 0; k < v.size() && old < 0; k++) if (v.get(k).done) old = k;
+            if (old < 0) return "at most " + MAX_TASKS + " tasks; finish or delete one first";
+            v.remove(old);
+        }
+        v.add(new Task(text, false, System.currentTimeMillis()));
+        setTasks(v);
+        return null;
+    }
+
+    /** n counts from 1; false when there is no such task */
+    boolean doneTask(int n) {
+        List<Task> v = tasks();
+        if (n < 1 || n > v.size()) return false;
+        Task t = v.get(n - 1);
+        v.set(n - 1, new Task(t.text, true, t.at));
+        setTasks(v);
+        return true;
+    }
+
+    boolean deleteTask(int n) {
+        List<Task> v = tasks();
+        if (n < 1 || n > v.size()) return false;
+        v.remove(n - 1);
+        setTasks(v);
+        return true;
+    }
+
+    void clearTasks() { sp.edit().remove("tasks").apply(); }
+
+    /** "&tasks=" and the open tasks, one per line, URL-encoded; nothing when there are none (the page shows «لا مهام اليوم»). */
+    private String openTasksParam() {
+        List<String> open = new ArrayList<>();
+        for (Task t : tasks()) if (!t.done) open.add(t.text);
+        return open.isEmpty() ? "" : "&tasks=" + Uri.encode(join(open, "\n"));
     }
 
     /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */

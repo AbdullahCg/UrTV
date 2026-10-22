@@ -12,6 +12,11 @@
         android:name="sa.urtv.screensaver.READ_CONFIG"
         android:protectionLevel="signature" />
 
+    <!-- the launcher adds, finishes and deletes «المهام» through the same provider -->
+    <permission
+        android:name="sa.urtv.screensaver.WRITE_TASKS"
+        android:protectionLevel="signature" />
+
     <!-- opens the launcher's «ترتيب المفضلة» from settings -->
     <queries>
         <package android:name="sa.urtv.home" />
@@ -85,6 +90,7 @@
                 <action android:name="sa.urtv.screensaver.SET" />
                 <action android:name="sa.urtv.screensaver.CITIES" />
                 <action android:name="sa.urtv.screensaver.UPDATE" />
+                <action android:name="sa.urtv.screensaver.TASKS" />
             </intent-filter>
         </receiver>
 
@@ -92,6 +98,7 @@
             android:name=".ConfigProvider"
             android:authorities="sa.urtv.screensaver.config"
             android:exported="true"
-            android:readPermission="sa.urtv.screensaver.READ_CONFIG" />
+            android:readPermission="sa.urtv.screensaver.READ_CONFIG"
+            android:writePermission="sa.urtv.screensaver.WRITE_TASKS" />
     </application>
 </manifest>

@@ -22,6 +22,8 @@
 #   optimize/saver.sh markets tasi,gold,btc        top left, up to 4 in order: tasi aramco spx btc gold silver xrp (default tasi,spx,btc)
 #   optimize/saver.sh mkstyle prices               markets: arrows (▲▼ only, default) or prices (price and day's change)
 #   optimize/saver.sh stocks 2222 1120 AAPL        watchlist of the stocks card (card stocks): up to 8 Tadawul codes (4 digits) or US tickers
+#   optimize/saver.sh tasks list                   «المهام» kept on the TV; N = the number list shows
+#   optimize/saver.sh tasks add 'نص'               (up to 12, 60 characters each)  |  done N  |  del N  |  clear
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
@@ -81,6 +83,18 @@ case "${1:-}" in
       error:*) echo "$out"; exit 1 ;;
       *) echo "$out" ;;
     esac ;;
+  tasks)
+    case "${2:-}" in
+      list)  send TASKS "--es op list" ;;
+      clear) send TASKS "--es op clear" ;;
+      add)   [ $# -eq 3 ] || { echo "usage: optimize/saver.sh tasks add 'نص'"; exit 1; }
+             text=$(quote "$3") || exit 1   # refuse before anything is sent
+             send TASKS "--es op add --es text $text" ;;
+      done|del)
+             [[ "${3:-}" =~ ^[0-9]+$ ]] || { echo "usage: optimize/saver.sh tasks $2 N   (N from 'tasks list')"; exit 1; }
+             send TASKS "--es op $2 --ei n $3" ;;
+      *) echo "usage: optimize/saver.sh tasks list | add 'نص' | done N | del N | clear"; exit 1 ;;
+    esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,26p' "$0"; exit 1 ;;
+  *) sed -n '2,28p' "$0"; exit 1 ;;
 esac
