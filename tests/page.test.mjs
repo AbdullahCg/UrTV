@@ -345,6 +345,23 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   await ctx.close();
 }
 
+
+// two games side by side on a small screen: long club names shrink, then take their short form, never «…»
+for (const [width, height] of [[1920, 1080], [960, 540], [720, 405]]) {
+  const { p, ctx } = await open('urtv.html', 'panel=verse', { width, height });
+  const r = await p.evaluate(() => {
+    const row = document.getElementById('match-row');
+    const blk = (a, b) => `<div class="mblock"><div class="big"><span>${a} × ${b}</span></div><div class="sub">بعد ٣ أيام</div></div>`;
+    row.innerHTML = blk('أستون فيلا', 'مانشستر سيتي') + blk('برشلونة', 'ريال مدريد');
+    fitMatches(row);
+    const sp = [...row.querySelectorAll('.big > span')];
+    return { names: sp.map(s => s.textContent), fit: sp.every(s => s.scrollWidth <= s.clientWidth + 1),
+             same: new Set(sp.map(s => getComputedStyle(s).fontSize)).size === 1 };
+  });
+  check(`two matches at ${width}px: names fit, one size, no «…»`, r.fit && r.same, JSON.stringify(r));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

@@ -884,7 +884,35 @@ function renderMatches(turn){
   if(turn) MATCH_PAGE++;
   MATCH_PAGE %= pages;
   row.innerHTML = slots.slice(MATCH_PAGE * per, MATCH_PAGE * per + per).join('');
+  fitMatches(row);
   if(turn && pages > 1){ row.classList.remove('flip'); void row.offsetWidth; row.classList.add('flip'); }
+}
+
+// Two games side by side leave little room: «مانشستر سيتي» came out «مانشستر سـ…». Each line steps down in size
+// until it fits; still too long, the long club names take their usual short form; the ellipsis stays a last resort.
+const TEAM_SHORT = {
+  'مانشستر سيتي':'السيتي', 'مانشستر يونايتد':'اليونايتد', 'ريال مدريد':'الريال', 'أتلتيكو مدريد':'أتلتيكو',
+  'باريس سان جيرمان':'باريس', 'بايرن ميونخ':'بايرن', 'بوروسيا دورتموند':'دورتموند', 'بوروسيا مونشنغلادباخ':'مونشنغلادباخ',
+  'باير ليفركوزن':'ليفركوزن', 'آينتراخت فرانكفورت':'فرانكفورت', 'نوتنغهام فورست':'فورست', 'كريستال بالاس':'بالاس',
+  'وولفرهامبتون':'وولفز', 'سبورتينغ لشبونة':'سبورتينغ', 'لوس أنجلوس جالاكسي':'جالاكسي', 'البنك الأهلي المصري':'البنك الأهلي',
+};
+const FIT_STEPS = [1, .92, .85, .78, .72];
+function fitMatches(row){
+  const spans = [...row.querySelectorAll('.mblock .big > span')];
+  const fitsAt = (sp, k) => { sp.style.fontSize = k === 1 ? '' : k + 'em'; return sp.scrollWidth <= sp.clientWidth + 1; };
+  const best = (sp, floor) => FIT_STEPS.find(k => k >= floor && fitsAt(sp, k)) || 0;
+  // each line: full names down to .85, then the short names (if any) down to .72; then one size for the row
+  const ks = spans.map(sp => {
+    let k = best(sp, .85);
+    if(!k){
+      const short = sp.innerHTML.replace(/[^<>]+(?=<|$)/g, t => Object.keys(TEAM_SHORT).reduce((a, n) => a.split(n).join(TEAM_SHORT[n]), t));
+      if(short !== sp.innerHTML) sp.innerHTML = short;
+      k = best(sp, 0) || FIT_STEPS[FIT_STEPS.length - 1];
+    }
+    return k;
+  });
+  const k = Math.min(1, ...ks);
+  spans.forEach(sp => { sp.style.fontSize = k === 1 ? '' : k + 'em'; });
 }
 
 async function fetchLast(id){
@@ -1396,6 +1424,7 @@ function restoreSnap(){
 
 function boot(){
   if(CONFIG.widget){ bootWidget(); return; }
+  if(document.fonts) document.fonts.ready.then(() => fitMatches(document.getElementById('match-row')));   // widths change once the fonts are in
   if(CONFIG.cardStyle !== 'current') document.documentElement.classList.add('cs-' + CONFIG.cardStyle);   // the launcher's card keeps its look
   restoreSnap();
   setTimeout(saveSnap, 15*1000);   // the dream can be killed before pagehide
