@@ -20,9 +20,11 @@ import java.util.List;
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3]
+ *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices]
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *
  * cardstyle = the look of the card beside the clock (Prefs.CARD_STYLES; current is the plain card).
+ * markets = up to four of Prefs.MARKETS at the top left, in order; mkstyle = arrows only (as always) or the price and the day's change.
  * digits = hindi (١٢٣, as always) or latin (123). photos = minutes between background photos (Prefs.PHOTO_MINUTES). idle = minutes before the TV starts the
  * screensaver (Prefs.IDLE_MINUTES): this is the system's screen_off_timeout, which a receiver (it runs as this
  * app, not as the shell) may write only when the app holds WRITE_SETTINGS; otherwise it says so and
@@ -115,6 +117,15 @@ public class SaverReceiver extends BroadcastReceiver {
         String cardStyle = i.getStringExtra("cardstyle");
         if (cardStyle != null && !isChoice(Prefs.CARD_STYLES, cardStyle))
             return "error: cardstyle is one of " + choices(Prefs.CARD_STYLES);
+        String mkStyle = i.getStringExtra("mkstyle");
+        if (mkStyle != null && !isChoice(Prefs.MK_STYLES, mkStyle))
+            return "error: mkstyle is one of " + choices(Prefs.MK_STYLES);
+        List<String> markets = codes(i.getStringExtra("markets"), Prefs.MARKETS);
+        if (markets != null) {
+            if (markets.contains(null)) return "error: markets are " + names(Prefs.MARKETS);
+            if (markets.isEmpty() || markets.size() > Prefs.MAX_MARKETS || new java.util.HashSet<>(markets).size() != markets.size())
+                return "error: markets is 1 to " + Prefs.MAX_MARKETS + " different ones of " + names(Prefs.MARKETS);
+        }
         String idle = i.getStringExtra("idle");
         if (idle != null) {
             if (!Arrays.asList(Prefs.IDLE_MINUTES).contains(idle))
@@ -144,6 +155,8 @@ public class SaverReceiver extends BroadcastReceiver {
         if (photos != null) p.setPhotoMinutes(photos);
         if (digits != null) p.setDigits(digits);
         if (cardStyle != null) p.setCardStyle(cardStyle);
+        if (mkStyle != null) p.setMkStyle(mkStyle);
+        if (markets != null) p.setMarkets(markets);
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
         return "saved\n" + describe(c, p);
@@ -158,6 +171,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\nphotos: " + p.photoMinutes()
             + "\ndigits: " + p.digits()
             + "\ncardstyle: " + p.cardStyle()
+            + "\nmarkets: " + Prefs.join(p.markets(), ",") + "\nmkstyle: " + p.mkStyle()
             + "\nidle: " + idle(Prefs.idleMs(c))
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
             + "\nautoupdate: " + p.autoUpdate();

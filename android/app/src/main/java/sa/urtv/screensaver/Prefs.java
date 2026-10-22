@@ -67,6 +67,17 @@ final class Prefs {
     static final String[][] CARD_STYLES = {{"current", "الحالية"}, {"dark1", "داكنة"}, {"glass1", "زجاجية"},
         {"dark3", "داكنة بإطار"}, {"glass3", "زجاجية بإطار"}};
 
+    // markets at the top left (sent to the page as #markets=, up to MAX_MARKETS, in this order of choice; tasi,spx,btc is what it always showed)
+    static final String[][] MARKETS = {
+        {"tasi", "تاسي"}, {"aramco", "أرامكو"}, {"spx", "S&P 500"}, {"btc", "بيتكوين"},
+        {"gold", "الذهب (الجرام بالريال)"}, {"silver", "الفضة (الجرام بالريال)"}, {"xrp", "ريبل"},
+    };
+    static final int MAX_MARKETS = 4;
+    static final String DEFAULT_MARKETS = "tasi,spx,btc";
+
+    // how the markets are shown (#mkstyle=; arrows is what it always showed)
+    static final String[][] MK_STYLES = {{"arrows", "الاتجاه فقط ▲▼"}, {"prices", "السعر والنسبة"}};
+
     // minutes of idle before Android starts the screensaver (the TV's own screen_off_timeout; not stored here)
     static final String[] IDLE_MINUTES = {"1", "2", "5", "10", "15", "30"};
 
@@ -155,6 +166,21 @@ final class Prefs {
         return DIGITS[0][1];
     }
 
+    /** Chosen markets in order, the keys of MARKETS. */
+    List<String> markets() {
+        List<String> v = list("markets");
+        return v.isEmpty() ? java.util.Arrays.asList(DEFAULT_MARKETS.split(",")) : v;
+    }
+    void setMarkets(List<String> v) { setList("markets", v); }
+
+    String mkStyle() { return sp.getString("mkStyle", "arrows"); }
+    void setMkStyle(String v) { sp.edit().putString("mkStyle", v).apply(); }
+
+    static String mkStyleLabel(String v) {
+        for (String[] m : MK_STYLES) if (m[0].equals(v)) return m[1];
+        return MK_STYLES[0][1];
+    }
+
     String cardStyle() { return sp.getString("cardStyle", "current"); }
     void setCardStyle(String v) { sp.edit().putString("cardStyle", v).apply(); }
 
@@ -200,7 +226,9 @@ final class Prefs {
             + "&minrating=" + minRating()
             + "&photos=" + photoMinutes()
             + "&digits=" + digits()
-            + "&cardstyle=" + cardStyle();
+            + "&cardstyle=" + cardStyle()
+            + "&markets=" + join(markets(), ",")
+            + "&mkstyle=" + mkStyle();
     }
 
     /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */

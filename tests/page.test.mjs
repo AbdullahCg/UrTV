@@ -21,9 +21,10 @@ const check = (name, ok, detail = '') => {
 
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 
-async function open(file, hash, { width = 1920, height = 1080, seed = true } = {}) {
+async function open(file, hash, { width = 1920, height = 1080, seed = true, net = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height } });
   await ctx.route(/^https?:/, r => {
+    if (net && net(r)) return;
     const u = r.request().url(), i = u.indexOf('/master/'), rel = i > 0 ? u.slice(i + 8) : '';
     if (/^(assets\/(backgrounds|fonts)|photos)\//.test(rel))
       return r.fulfill({ path: path.join(ROOT, rel), headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -489,6 +490,80 @@ for (const [width, height] of [[1920, 1080], [960, 540], [720, 405]]) {
   });
   check(`two matches at ${width}px: one line each, fits, one size`, r.fit && r.same && r.whole, JSON.stringify(r));
   await ctx.close();
+}
+
+// ---- «الأسواق»: which markets and the prices, with the network mocked (Yahoo chart and CoinGecko answers)
+const chart = (price, closes, prevClose) => JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: price, chartPreviousClose: prevClose },
+  indicators: { quote: [{ close: closes }] } }] } });
+const MOCK = { '^TASI.SR': chart(11500.4, [11400, 11450, 11500.4]), '2222.SR': chart(26.3, [26, 26.2, 26.3]), '^GSPC': chart(6800.2, [6850, 6900, 6800.2]),
+               'GC=F': chart(4000, [3950, 3980, 4000]), 'SI=F': chart(50, [49, 50, 50]) };
+const marketNet = state => r => {
+  const u = r.request().url();
+  if (state.off) { r.abort(); return true; }
+  let m = u.match(/chart\/([^?]+)\?/);
+  if (m) { const sym = decodeURIComponent(m[1]); if (state.fail && state.fail.includes(sym)) { r.fulfill({ status: 404, body: '{}' }); return true; }
+           r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: MOCK[sym] }); return true; }
+  m = u.match(/coingecko.*ids=(\w+)/);
+  if (m) { r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ [m[1]]: m[1] === 'bitcoin' ? { usd: 67000.4, usd_24h_change: -1.234 } : { usd: 2.3456, usd_24h_change: 3.1 } }) }); return true; }
+  return false;
+};
+const mk = p => p.evaluate(() => [...document.querySelectorAll('.mk .m')].map(m => ({ n: m.children[0].textContent,
+  px: (m.querySelector('.px') || {}).hidden === false ? m.querySelector('.px').textContent + '|' + (m.querySelector('.px').dataset.u || '') : null,
+  ch: m.querySelector('.delta').hidden ? null : m.querySelector('.delta').textContent, up: m.querySelector('.delta').classList.contains('up') })));
+{
+  const state = {};
+  const { p, ctx, errors } = await open('tv.html', 'markets=tasi,aramco,gold,btc&mkstyle=prices', { net: marketNet(state) });
+  await p.waitForTimeout(800);
+  let r = await mk(p), up = await p.evaluate(() => document.getElementById('mk-up').textContent);
+  check('markets prices: no errors', !errors.length, errors.join('; '));
+  check('markets prices: names in the order chosen', r.map(x => x.n).join() === 'تاسي,أرامكو,الذهب,بيتكوين', JSON.stringify(r));
+  check('markets prices: index 0 decimals, stock 2, gram of gold 2 in ريال, bitcoin in dollars',
+    r[0].px === '١١٬٥٠٠|' && r[1].px === '٢٦٫٣٠|ر.س' && r[2].px === '٤٨٢٫٢٦|ر.س' && r[3].px === '٦٧٬٠٠٠|$', JSON.stringify(r));
+  check('markets prices: the day\'s change with the arrow, coloured', r[0].ch === '▲ ٠٫٤٤٪' && r[0].up && r[2].ch === '▲ ٠٫٥٠٪' && r[3].ch === '▼ ١٫٢٣٪' && !r[3].up, JSON.stringify(r));
+  check('markets prices: «آخر تحديث» with the time', /^آخر تحديث [٠-٩]{1,2}:[٠-٩]{2} [صم]$/.test(up), up);
+  state.off = true;                       // offline: what is shown stays
+  await p.evaluate(() => TICKERS.forEach(loadTicker));
+  await p.waitForTimeout(500);
+  check('markets prices: offline keeps the last values', JSON.stringify(await mk(p)) === JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { p, ctx } = await open('tv.html', 'markets=aramco,silver,xrp&mkstyle=prices', { net: marketNet({ fail: ['2222.SR'] }) });
+  await p.waitForTimeout(800);
+  const r = await mk(p);
+  check('markets prices: an unknown price and change stay hidden, nothing invented', r[0].px === null && r[0].ch === null, JSON.stringify(r[0]));
+  check('markets prices: silver per gram, ripple in dollars', r[1].px === '٦٫٠٣|ر.س' && r[2].px === '٢٫٣٥|$' && r[2].ch === '▲ ٣٫١٠٪', JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { p, ctx } = await open('tv.html', 'markets=spx,gold&digits=latin&mkstyle=prices', { net: marketNet({}) });
+  await p.waitForTimeout(800);
+  const r = await mk(p);
+  check('markets prices: Latin digits when asked', r[0].px === '6,800|' && r[0].ch === '▼ 1.45%' && r[1].px === '482.26|ر.س', JSON.stringify(r));
+  await ctx.close();
+}
+for (const [hash, want, price] of [['', 'تاسي,S&P 500,بيتكوين', false], ['markets=foo', 'تاسي,S&P 500,بيتكوين', false],
+    ['markets=foo,gold,gold,silver,aramco,xrp,btc', 'الذهب,الفضة,أرامكو,ريبل', false], ['mkstyle=bogus', 'تاسي,S&P 500,بيتكوين', false]]) {
+  const { p, ctx, errors } = await open('tv.html', hash, { net: marketNet({}) });
+  await p.waitForTimeout(500);
+  const r = await mk(p), px = await p.evaluate(() => !!document.getElementById('mk-up') || !!document.querySelector('.mk .px'));
+  check(`markets «${hash}»: ${want}, arrows only`, !errors.length && r.map(x => x.n).join() === want && !px && r.every(x => x.ch === null || /^[▲▼]$/.test(x.ch)), JSON.stringify(r) + errors);
+  await ctx.close();
+}
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const hash of ['markets=tasi,aramco,gold,silver&mkstyle=prices', 'markets=btc,xrp&mkstyle=prices']) {
+    const { p, ctx } = await open('tv.html', hash, { width, height, net: marketNet({}) });
+    await p.waitForTimeout(800);
+    const r = await p.evaluate(() => {
+      const m = document.querySelector('.markets').getBoundingClientRect(), d = document.querySelector('.dates').getBoundingClientRect(),
+            clock = document.querySelector('.clockwrap').getBoundingClientRect();
+      const off = [...document.querySelectorAll('.markets *')].filter(e => { const b = e.getBoundingClientRect(); return b.width && (b.left < -1 || b.right > innerWidth + 1); }).map(e => e.className || e.id || e.textContent);
+      return { off, overDates: m.right > d.left - 4, overClock: m.bottom > clock.top - 2, up: document.getElementById('mk-up').getBoundingClientRect().bottom };
+    });
+    check(`markets prices at ${width}x${height} (${hash.slice(8, 30)}): fits, clear of the date and the clock`, !r.off.length && !r.overDates && !r.overClock, JSON.stringify(r));
+    await ctx.close();
+  }
 }
 
 await browser.close();

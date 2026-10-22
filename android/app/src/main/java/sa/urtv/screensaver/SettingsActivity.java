@@ -101,6 +101,12 @@ public class SettingsActivity extends Activity {
         row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
             new Runnable() { public void run() { pickDigits(); } });
 
+        header("الأسواق (أعلى اليسار)");
+        row("الأسواق (" + arabicNum(prefs.markets().size()) + "/" + arabicNum(Prefs.MAX_MARKETS) + ")", marketsLabel(),
+            R.drawable.ic_trophy, new Runnable() { public void run() { pickMarkets(); } });
+        row("عرض الأسواق", Prefs.mkStyleLabel(prefs.mkStyle()), R.drawable.ic_eye,
+            new Runnable() { public void run() { pickMkStyle(); } });
+
         header("بجانب الساعة");
         row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(false); } });
         row("شكل البطاقة", Prefs.cardStyleLabel(prefs.cardStyle()), R.drawable.ic_eye,
@@ -398,6 +404,45 @@ public class SettingsActivity extends Activity {
         for (int i = 0; i < Prefs.MIN_RATINGS.length; i++) if (Prefs.MIN_RATINGS[i].equals(prefs.minRating())) sel = i;
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle("أقل تقييم")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setMinRating(Prefs.MIN_RATINGS[i]); d.dismiss(); render(); })
+            .show();
+    }
+
+    private String marketsLabel() {
+        List<String> out = new ArrayList<>();
+        for (String k : prefs.markets()) out.add(labelOf(Prefs.MARKETS, k));
+        return Prefs.join(out, "، ");
+    }
+
+    /** Up to MAX_MARKETS; the order they are shown in is the order of the list. */
+    private void pickMarkets() {
+        List<String> cur = prefs.markets();
+        String[] labels = new String[Prefs.MARKETS.length];
+        final boolean[] on = new boolean[Prefs.MARKETS.length];
+        for (int i = 0; i < labels.length; i++) { labels[i] = Prefs.MARKETS[i][1]; on[i] = cur.contains(Prefs.MARKETS[i][0]); }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الأسواق (حتى " + arabicNum(Prefs.MAX_MARKETS) + ")")
+            .setMultiChoiceItems(labels, on, (d, i, checked) -> on[i] = checked)
+            .setPositiveButton("حفظ", (d, w) -> {
+                List<String> v = new ArrayList<>();
+                for (int i = 0; i < on.length; i++) if (on[i]) v.add(Prefs.MARKETS[i][0]);
+                if (v.isEmpty() || v.size() > Prefs.MAX_MARKETS) {
+                    toast("اختر من سوق إلى " + arabicNum(Prefs.MAX_MARKETS) + " أسواق");
+                    return;
+                }
+                prefs.setMarkets(v);
+                render();
+            })
+            .setNegativeButton("إلغاء", null).show();
+    }
+
+    private void pickMkStyle() {
+        String[] labels = new String[Prefs.MK_STYLES.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.MK_STYLES[i][1];
+            if (Prefs.MK_STYLES[i][0].equals(prefs.mkStyle())) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("عرض الأسواق")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setMkStyle(Prefs.MK_STYLES[i][0]); d.dismiss(); render(); })
             .show();
     }
 

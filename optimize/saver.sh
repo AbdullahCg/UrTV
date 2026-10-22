@@ -19,6 +19,8 @@
 #                                                  (the TV's own timer; left alone unless you run this)
 #   optimize/saver.sh cardstyle glass1             look of the card beside the clock: current dark1 glass1 dark3 glass3
 #   optimize/saver.sh digits latin                 numbers: hindi = ١٢٣ (default), latin = 123
+#   optimize/saver.sh markets tasi,gold,btc        top left, up to 4 in order: tasi aramco spx btc gold silver xrp (default tasi,spx,btc)
+#   optimize/saver.sh mkstyle prices               markets: arrows (▲▼ only, default) or prices (price and day's change)
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
@@ -60,6 +62,8 @@ case "${1:-}" in
   minrating) send SET "--es minrating $(quote "${2:?usage: optimize/saver.sh minrating 7}")" ;;
   photos)    send SET "--es photos $(quote "${2:?usage: optimize/saver.sh photos 15}")" ;;
   cardstyle) send SET "--es cardstyle $(quote "${2:?usage: optimize/saver.sh cardstyle glass1}")" ;;
+  markets)   send SET "--es markets $(quote "${2:?usage: optimize/saver.sh markets tasi,gold,btc}")" ;;
+  mkstyle)   send SET "--es mkstyle $(quote "${2:?usage: optimize/saver.sh mkstyle prices}")" ;;
   digits)    send SET "--es digits $(quote "${2:?usage: optimize/saver.sh digits latin}")" ;;
   idle)
     # the app may change the TV's timer only if the owner allowed it; the shell always may
@@ -73,5 +77,5 @@ case "${1:-}" in
       *) echo "$out" ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,22p' "$0"; exit 1 ;;
+  *) sed -n '2,24p' "$0"; exit 1 ;;
 esac
