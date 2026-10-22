@@ -930,6 +930,71 @@ for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 5
   await ctx.close();
 }
 
+// ---- the national days: 23 September (shown 21-25) and 22 February (shown 20-24), Riyadh time; #national=off turns them off
+{
+  const snap = p => p.evaluate(() => ({ nat: document.documentElement.classList.contains('nat'),
+    line: document.getElementById('natline').hidden ? '' : document.getElementById('natline').textContent,
+    label: document.getElementById('occ-label').textContent, big: document.getElementById('occ-days').textContent.trim(),
+    gold: getComputedStyle(document.querySelector('.week .hd')).color }));
+  const at = async (hash, iso) => {
+    const r = await open('tv.html', hash);
+    await r.p.evaluate(FAKE_NOW(iso) + '; tickDates(); tickOccasion();');
+    return r;
+  };
+  const lum = c => { const [R, G, B] = c.match(/\d+/g).slice(0, 3).map(x => { x /= 255; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4; });
+    return .2126 * R + .7152 * G + .0722 * B; };
+  const cases = [   // [what, hash, UTC instant, look on?, line, middle panel is the greeting?]
+    ['21 Sep 00:30 Riyadh (first shown hour)', '', '2026-09-20T21:30:00Z', true, 'اليوم الوطني السعودي ٩٦', false],
+    ['22 Sep', '', '2026-09-22T09:00:00Z', true, 'اليوم الوطني السعودي ٩٦', false],
+    ['23 Sep itself', '', '2026-09-23T09:00:00Z', true, 'اليوم الوطني السعودي ٩٦', true],
+    ['25 Sep 23:30 Riyadh (last shown hour)', '', '2026-09-25T20:30:00Z', true, 'اليوم الوطني السعودي ٩٦', false],
+    ['26 Sep 00:30 Riyadh (over)', '', '2026-09-25T21:30:00Z', false, '', false],
+    ['20 Sep (not yet)', '', '2026-09-20T09:00:00Z', false, '', false],
+    ['23 Sep, 2031 (the count follows the year)', '', '2031-09-23T09:00:00Z', true, 'اليوم الوطني السعودي ١٠١', true],
+    ['20 Feb', '', '2026-02-20T09:00:00Z', true, 'يوم التأسيس ٢٩٩ عامًا', false],
+    ['22 Feb itself', '', '2026-02-22T09:00:00Z', true, 'يوم التأسيس ٢٩٩ عامًا', true],
+    ['24 Feb', '', '2026-02-24T09:00:00Z', true, 'يوم التأسيس ٢٩٩ عامًا', false],
+    ['25 Feb (over)', '', '2026-02-25T09:00:00Z', false, '', false],
+    ['an ordinary day', '', '2026-10-22T09:00:00Z', false, '', false],
+    ['23 Sep with #national=off', 'national=off', '2026-09-23T09:00:00Z', false, '', false],
+    ['22 Feb with #national=off', 'national=off', '2026-02-22T09:00:00Z', false, '', false],
+    ['23 Sep with #national=bogus (= auto)', 'national=bogus', '2026-09-23T09:00:00Z', true, 'اليوم الوطني السعودي ٩٦', true],
+    ['23 Sep, latin digits', 'digits=latin', '2026-09-23T09:00:00Z', true, 'اليوم الوطني السعودي 96', true],
+  ];
+  for (const [what, hash, iso, on, line, greet] of cases) {
+    const { p, ctx, errors } = await at(hash, iso);
+    const r = await snap(p);
+    check(`national: ${what}`, !errors.length && r.nat === on && r.line === line
+      && (r.big === 'كل عام والوطن بخير') === greet && (!greet || r.label === 'اليوم الوطني' || r.label === 'يوم التأسيس'),
+      JSON.stringify(r) + errors.join('; '));
+    if (!on) check(`national: ${what}: gold accent unchanged`, r.gold === 'rgb(214, 175, 107)', r.gold);
+    await ctx.close();
+  }
+  {   // the green stays readable on the dark page (WCAG AA for text, 4.5:1) and is not the flag
+    const { p, ctx } = await at('', '2026-09-23T09:00:00Z');
+    const r = await p.evaluate(() => ({ hd: getComputedStyle(document.querySelector('.week .hd')).color,
+      line: getComputedStyle(document.getElementById('natline')).color, flag: !!document.querySelector('img[src*="flag"],[class*="flag"]') }));
+    const bg = lum('rgb(4, 14, 9)');
+    for (const k of ['hd', 'line']) {
+      const c = (lum(r[k]) + .05) / (bg + .05);
+      check(`national: ${k} text contrast on the dark page is ${c.toFixed(1)}:1`, c >= 4.5 && !r.flag, r[k]);
+    }
+    await ctx.close();
+  }
+  for (const [w, h] of [[1920, 1080], [960, 540]]) {   // nothing off screen or colliding, and a picture for the owner
+    const { p, ctx } = await at('teams=136013&panel=verse', '2026-09-23T09:00:00Z');
+    await p.setViewportSize({ width: w, height: h });
+    await p.waitForTimeout(300);
+    const r = await p.evaluate(() => { const top = document.querySelector('.top').getBoundingClientRect(),
+      ln = document.getElementById('natline').getBoundingClientRect(), mid = document.querySelector('.p-mid').getBoundingClientRect();
+      return { lineIn: ln.right <= innerWidth && ln.left >= 0, topOk: top.bottom < innerHeight * .3, midIn: mid.left >= 0 && mid.right <= innerWidth,
+        txt: document.querySelector('#occ-days .txt').getBoundingClientRect().height < mid.height }; });
+    check(`national ${w}x${h}: the line and the greeting fit`, r.lineIn && r.topOk && r.midIn && r.txt, JSON.stringify(r));
+    if (process.env.SHOTS) await p.screenshot({ path: path.join(process.env.SHOTS, `national-${w}x${h}.png`) });
+    await ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

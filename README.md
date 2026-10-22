@@ -130,7 +130,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 |---|---|
 | `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
-| `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
+| `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `national`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
 | `optimize/music.sh` | «تلاوة» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
@@ -173,7 +173,7 @@ urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137
 `teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
 `forecast`, `matches`, `verse`, `wisdom`, `adhkar`, `stocks`, `tasks` or `none`. `stocks`: the watchlist of the stocks card, up to 8
 (`2222,1120,AAPL,NVDA`: 4 digits is a Tadawul code, letters a US ticker). Also `genres`, `langs`, `shows`, `minrating` for the episodes card,
-`digits`: `hindi` (١٢٣, the default) or `latin` (123), and `cardstyle`: the card's look, `current` (default), `dark1`,
+`digits`: `hindi` (١٢٣, the default) or `latin` (123), `national`: `auto` (default; on National Day, 21–25 September, and Founding Day, 20–24 February, the accent turns Saudi green with a small line under the dates, and the day itself greets «كل عام والوطن بخير») or `off`, and `cardstyle`: the card's look, `current` (default), `dark1`,
 `glass1`, `dark3` or `glass3`. `markets`: up to 4 of `tasi`, `aramco`, `spx`, `btc`, `gold`, `silver` (per gram, in riyals),
 `xrp`, in order (default `tasi,spx,btc`); `mkstyle`: `arrows` (a ▲/▼ only, the default) or `prices` (the price, the day's change and
 the time of the last update).

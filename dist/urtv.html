@@ -18,9 +18,15 @@
     --sand:#F6EFE0;
     --dim:#C3B8A2;
     --gold:#DCB86F;
+    --gold-2:#D6AF6B;
+    --gold-3:#E0BA74;
+    --gold-hi:#FFE9B8;
+    --gold-rgb:220,184,111;
     --green-lt:#57D294;
     --red:#EE6A50;
   }
+  /* National Day and Founding Day (see nationalNow()): the gold accents turn Saudi green, light enough to read on the dark photos */
+  html.nat{--gold:#34B872;--gold-2:#2FAE6B;--gold-3:#4CCB88;--gold-hi:#CDF3DD;--gold-rgb:52,184,114}
   *{margin:0;padding:0;box-sizing:border-box}
   /* Hidden until the clock, the saved panels and the photo are in place, then one fade in: no half-built
      frames. The delayed animation shows it anyway if the script ever fails. */
@@ -89,26 +95,26 @@
   .week{
     width:min(760px,48vw);justify-self:end;
     background:rgba(4,14,9,.60);   /* no backdrop blur: over a moving photo it is redone every frame */
-    border:1px solid rgba(220,184,111,.16);
+    border:1px solid rgba(var(--gold-rgb),.16);
     border-radius:12px;
     padding:1.7vh 1.4vw;
   }
   .week .hd{
     display:flex;align-items:center;gap:.7em;margin-bottom:1vh;
-    font-size:clamp(12px,1vw,18px);font-weight:500;letter-spacing:.18em;color:#D6AF6B;
+    font-size:clamp(12px,1vw,18px);font-weight:500;letter-spacing:.18em;color:var(--gold-2);
   }
-  .week .hd::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(220,184,111,.5),transparent)}
+  .week .hd::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(var(--gold-rgb),.5),transparent)}
   .week ul{list-style:none;display:flex;flex-direction:column;gap:0}
   .week li{
     display:flex;align-items:baseline;gap:1.05em;
     font-size:clamp(14px,1.16vw,22px);font-weight:400;color:#F6EEDC;
     white-space:nowrap;line-height:1.3;
-    padding:.8vh 0;border-bottom:1px solid rgba(220,184,111,.13);
+    padding:.8vh 0;border-bottom:1px solid rgba(var(--gold-rgb),.13);
   }
   .week li:last-child{border-bottom:none}
   .week li span:first-child{flex:0 1 auto;max-width:68%;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em}
   .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
-  .week li .rt{flex:0 0 auto;color:#E0BA74;font-size:.74em;font-variant-numeric:tabular-nums}
+  .week li .rt{flex:0 0 auto;color:var(--gold-3);font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .mwhen{display:block;font-style:normal;margin-top:.15em;font-size:.68em;font-weight:300;color:#A79C85;overflow:hidden;text-overflow:ellipsis}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
   .week ul.flip li{animation:weekIn .5s ease both}
@@ -120,15 +126,15 @@
   .week li.task::before{content:'';flex:0 0 auto;width:.4em;height:.4em;border-radius:50%;background:var(--gold);align-self:center}
   .week li.task span{max-width:100%;min-width:0}
   .week li.past{color:#8F8670}
-  .week li.next{color:#FFE9B8}
-  .week li.next .dt{color:#E0BA74}
+  .week li.next{color:var(--gold-hi)}
+  .week li.next .dt{color:var(--gold-3)}
   .week li.quote{white-space:normal;display:block;font-size:clamp(17px,1.5vw,29px);line-height:1.75;
     border-bottom:none;padding:.4vh 0 0;color:#FFF7E6}
   /* Thmanyah draws ﴿﴾ as small angle marks: they come from the NotoMarks subset */
-  .week li.quote .orn{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:#D6AF6B;
+  .week li.quote .orn{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:var(--gold-2);
     font-size:1.05em;padding:0 .15em}
   /* ﷺ is not in Thmanyah either: NotoMarks, in gold like the verse brackets so it reads as ornament */
-  .week li.quote .saw{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:#D6AF6B;font-size:1.6em;line-height:1;vertical-align:-.1em}
+  .week li.quote .saw{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:var(--gold-2);font-size:1.6em;line-height:1;vertical-align:-.1em}
   /* the Uthmanic Hafs face is small for its size and its marks stack high: larger, with more leading */
   .week li.quote .qt{font-family:'UthmanicHafs','Thmanyah',serif;font-size:1.32em}
   .week li.quote.quran{line-height:1.95}
@@ -150,7 +156,7 @@
   .week li.quote.hadith.q3{font-size:clamp(12px,.94vw,18px)}
   .week li.quote .nar{font-size:.66em;color:#B9AE96}
   .week li.quote .nar .saw{font-size:1.45em}
-  .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:#D6AF6B}
+  .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:var(--gold-2)}
   /* «أذكار الصباح والمساء»: the header takes a line icon and the window's end; the footer holds source, count and dots */
   .week .hd::after{order:1}
   .week .hd svg{flex:0 0 auto;width:1.5em;height:1.5em;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
@@ -165,12 +171,12 @@
   .week li.stk .up{color:#79D6A0}
   .week li.stk .down{color:#EE8B70}
   .week li.adf{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:.8em;align-items:center;
-    border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:#D6AF6B}
+    border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:var(--gold-2)}
   .week li.adf .s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-bottom:.3em;margin-bottom:-.3em}
   .week li.adf .c{color:#B9AE96;font-size:.92em;white-space:nowrap}
   .week li.adf .d{justify-self:end;display:flex;gap:.4em}
-  .week li.adf .d i{width:.48em;height:.48em;border-radius:50%;background:rgba(220,184,111,.26)}
-  .week li.adf .d i.on{background:#E0BA74}
+  .week li.adf .d i{width:.48em;height:.48em;border-radius:50%;background:rgba(var(--gold-rgb),.26)}
+  .week li.adf .d i.on{background:var(--gold-3)}
   .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
 
   /* ===== card styles (#cardstyle=; the default keeps the plain card above) =====
@@ -188,7 +194,7 @@
 
   html.cs-dark1 .week{border-radius:26px;border-color:rgba(246,239,224,.10)}
   html.cs-dark1 .week::before{background:rgba(8,14,10,.52)}
-  html.cs-dark1 .week::after{box-shadow:inset -3px 0 0 #DCB86F}   /* a thin gold line on the edge facing the clock */
+  html.cs-dark1 .week::after{box-shadow:inset -3px 0 0 var(--gold)}   /* a thin gold line on the edge facing the clock */
 
   html.cs-glass1 .week{border-radius:34px;border-color:rgba(255,255,255,.22);box-shadow:0 24px 60px rgba(0,0,0,.35)}
   html.cs-glass1 .week::before{background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.04) 45%,rgba(255,255,255,.02) 60%,rgba(255,255,255,.10))}
@@ -198,9 +204,9 @@
   /* framed: an inner gold frame with a diamond on its top and bottom edge, the header centred */
   html.cs-dark3 .week,html.cs-glass3 .week{padding:calc(1.7vh + 8px) calc(1.4vw + 8px)}
   html.cs-dark3 .week .frm,html.cs-glass3 .week .frm{display:block;position:absolute;inset:12px;z-index:0;pointer-events:none;
-    border:1px solid rgba(220,184,111,.55);border-radius:14px}
+    border:1px solid rgba(var(--gold-rgb),.55);border-radius:14px}
   html.cs-dark3 .week .dia,html.cs-glass3 .week .dia{display:block;position:absolute;left:50%;width:18px;height:18px;z-index:0;
-    pointer-events:none;border:1px solid rgba(220,184,111,.75)}
+    pointer-events:none;border:1px solid rgba(var(--gold-rgb),.75)}
   html.cs-dark3 .week .dia.t,html.cs-glass3 .week .dia.t{top:12px;transform:translate(-50%,-50%) rotate(45deg)}
   html.cs-dark3 .week .dia.b,html.cs-glass3 .week .dia.b{bottom:12px;transform:translate(-50%,50%) rotate(45deg)}
   html.cs-dark3 .week .hd,html.cs-glass3 .week .hd{justify-content:center}
@@ -211,16 +217,18 @@
   html.cs-dark3 .week .dia{background:#07160F}
 
   html.cs-glass3 .week{border-radius:30px;border-color:rgba(255,255,255,.20);box-shadow:0 24px 60px rgba(0,0,0,.35)}
-  html.cs-glass3 .week::before{background:linear-gradient(135deg,rgba(120,200,150,.20),rgba(20,60,40,.10) 50%,rgba(220,184,111,.12))}
+  html.cs-glass3 .week::before{background:linear-gradient(135deg,rgba(120,200,150,.20),rgba(20,60,40,.10) 50%,rgba(var(--gold-rgb),.12))}
   html.cs-glass3 .week::after{box-shadow:inset 0 1px 0 rgba(255,255,255,.40),inset 0 -1px 0 rgba(255,255,255,.06)}
   html.cs-glass3 .week .dia{background:rgb(30,60,44)}
 
   .dates{text-align:right;flex-shrink:0}
   .hijri{font-size:clamp(19px,1.86vw,37px);font-weight:500;color:var(--sand);line-height:1.3}
+  .natline{margin-top:.55vh;font-size:clamp(12px,1.06vw,21px);font-weight:500;color:var(--gold)}
+  .natline[hidden]{display:none}
   .greg{margin-top:.55vh;font-size:clamp(12px,1.06vw,21px);font-weight:300;color:var(--dim)}
   /* starts at the screen edge, under the first letters, and fades toward the middle */
   .rule{margin-top:1.2vh;width:clamp(100px,9vw,190px);height:1px;margin-left:auto;margin-right:0;
-    background:linear-gradient(270deg,var(--gold),rgba(220,184,111,0))}
+    background:linear-gradient(270deg,var(--gold),rgba(var(--gold-rgb),0))}
 
   /* the card keeps its width on the left; the clock is centred in the space between it and the right edge */
   .mid{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4.5vw}
@@ -252,13 +260,13 @@
   .bottom{
     display:grid;grid-template-columns:1fr .9fr 1.3fr;
     gap:2.4vw;align-items:start;
-    border-top:1px solid rgba(220,184,111,.30);
+    border-top:1px solid rgba(var(--gold-rgb),.30);
     padding-top:2.1vh;
   }
   .panel{min-width:0}
   .panel .label{
     font-size:clamp(12px,.98vw,18px);font-weight:500;letter-spacing:.2em;
-    color:#D6AF6B;margin-bottom:.8vh;white-space:nowrap;
+    color:var(--gold-2);margin-bottom:.8vh;white-space:nowrap;
   }
   .panel .big{
     display:flex;align-items:baseline;gap:.4em;flex-wrap:nowrap;white-space:nowrap;min-width:0;line-height:1.1;
@@ -280,7 +288,7 @@
   .p-mid .num{font-size:1.3em;line-height:1}
   .p-mid .txt{display:inline-block;max-width:100%;white-space:normal;font-size:.5em;line-height:1.3}
   .panel .sub .note{font-size:.9em;color:#A79C85;margin-top:.2vh}
-  .p-mid .unit{font-size:.46em;font-weight:500;color:#D6AF6B;letter-spacing:.02em;display:inline;vertical-align:.5em}
+  .p-mid .unit{font-size:.46em;font-weight:500;color:var(--gold-2);letter-spacing:.02em;display:inline;vertical-align:.5em}
   .p-match{text-align:left}
   .p-match .big{justify-content:flex-end}
   .p-match .sub{white-space:normal;line-height:1.4;max-width:100%;font-size:clamp(11px,.88vw,17px)}
@@ -288,7 +296,7 @@
 
   .mrow{display:flex;flex-direction:row;gap:1.6vw;align-items:flex-end;justify-content:flex-end;min-width:0}
   .mblock{text-align:left;flex:0 1 auto;min-width:0;max-width:100%}
-  .mblock:not(:last-child){padding-inline-end:1.6vw;border-inline-end:1px solid rgba(220,184,111,.25)}
+  .mblock:not(:last-child){padding-inline-end:1.6vw;border-inline-end:1px solid rgba(var(--gold-rgb),.25)}
   .mrow:has(.mblock + .mblock) .big{font-size:clamp(18px,1.6vw,34px)}
   .mblock .big{justify-content:flex-end;min-width:0}
   .mrow.flip .mblock{animation:weekIn .5s ease both}
@@ -316,7 +324,7 @@
   .wxsub{margin-top:.55vh;font-size:clamp(12px,1.06vw,21px);font-weight:300;color:var(--dim);white-space:nowrap}
   .wxr:not(:empty)::before{content:'  ·  ';white-space:pre;color:rgba(214,175,107,.7)}
   .wxt:empty,.wxd:empty,.wxr:empty{display:none}
-  .rule.l{margin-left:0;margin-right:auto;background:linear-gradient(90deg,var(--gold),rgba(220,184,111,0))}
+  .rule.l{margin-left:0;margin-right:auto;background:linear-gradient(90deg,var(--gold),rgba(var(--gold-rgb),0))}
   .mk{margin-top:1.2vh;display:flex;justify-content:flex-end;gap:1.6em;white-space:nowrap;
     font-size:clamp(12px,1.06vw,21px);font-weight:400;color:#D8CDB6}
   .mk .m{display:inline-flex;align-items:baseline;gap:.45em}
@@ -327,12 +335,12 @@
   .mk.px .px[data-u]::after{content:' ' attr(data-u);font-size:.7em;color:#A79C85}
   .mk.px.g{display:grid;grid-template-columns:repeat(2,max-content);width:max-content;gap:.5vh 1.6em}
   .mkup{margin-top:.6vh;text-align:left;font-size:clamp(10px,.82vw,16px);font-weight:300;color:var(--dim);white-space:nowrap}
-  .p-prayer.now .big{color:#FFE9B8;text-shadow:0 0 40px rgba(220,184,111,.45)}
+  .p-prayer.now .big{color:var(--gold-hi);text-shadow:0 0 40px rgba(var(--gold-rgb),.45)}
   .p-prayer.now .label{color:#F1CF8A}
   .live{color:#EE8B70;font-weight:500}
   .dimmer{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30;transition:opacity 6s linear}
   .stage{transition:transform 3s ease}
-  .sc{color:#E0BA74;letter-spacing:.02em}
+  .sc{color:var(--gold-3);letter-spacing:.02em}
 
   /* #slot=none: the left panel is gone and the other two share the row */
   html.slot-none .p-match{display:none}
@@ -361,6 +369,7 @@
     <div class="dates">
       <div class="hijri" id="hijri">—</div>
       <div class="greg" id="greg">—</div>
+      <div class="natline" id="natline" hidden></div>
       <div class="rule"></div>
     </div>
 
@@ -467,6 +476,8 @@ const CONFIG = {
   markets: (l => l.length ? l : ['tasi','spx','btc'])(
     _list('markets').filter((k, i, a) => ['tasi','aramco','spx','btc','gold','silver','xrp'].includes(k) && a.indexOf(k) === i).slice(0, 4)),
   mkStyle: _Q.get('mkstyle') === 'prices' ? 'prices' : 'arrows',
+  // the national days (23 September, 22 February): #national=auto (the default) or off
+  national: _Q.get('national') === 'off' ? 'off' : 'auto',
   // the stocks card's watchlist: #stocks=2222,1120,AAPL,NVDA (up to 8; 4 digits = a Tadawul code, letters = a US ticker)
   stocks: _list('stocks').map(x => x.toUpperCase()).filter((x, i, a) => /^(\d{4}|[A-Z][A-Z.\-]{0,5})$/.test(x) && a.indexOf(x) === i).slice(0, 8),
   // the bottom-left slot: #slot=matches|weather|fasting|countdown|none (anything else = matches)
@@ -518,8 +529,28 @@ function tickClock(){
   setText(document.getElementById('ck-ap'), p.h < 12 ? 'ص' : 'م');
 }
 
+// National Day (23 September, shown 21-25) and Founding Day (22 February, shown 20-24), by the Riyadh date.
+// n = the year count shown; today = the day itself. Null when off or outside the days.
+const NATIONAL = [
+  {mo:9, d:23, name:'اليوم الوطني السعودي', short:'اليوم الوطني', since:1930, unit:''},
+  {mo:2, d:22, name:'يوم التأسيس', short:'يوم التأسيس', since:1727, unit:' عامًا'},
+];
+function nationalNow(){
+  if(CONFIG.national === 'off') return null;
+  const p = riyadhParts();
+  for(const e of NATIONAL){
+    const diff = Math.round((Date.UTC(p.y, p.mo-1, p.d) - Date.UTC(p.y, e.mo-1, e.d)) / 86400000);
+    if(Math.abs(diff) <= 2) return {...e, today: diff === 0, n: p.y - e.since};
+  }
+  return null;
+}
+
 function tickDates(){
   const now = new Date();
+  const nat = nationalNow(), nl = document.getElementById('natline');
+  document.documentElement.classList.toggle('nat', !!nat);
+  nl.hidden = !nat;
+  if(nat) setText(nl, nat.name + ' ' + ar(nat.n) + nat.unit);
   try{
     let h = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-' + NU,{
       timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
@@ -722,6 +753,15 @@ function tickOccasion(){
   const elL=document.getElementById('occ-label'),
         elD=document.getElementById('occ-days'),
         elS=document.getElementById('occ-sub');
+
+  // ---- the national day itself: a greeting instead of the countdown ----
+  const nat = nationalNow();
+  if(nat && nat.today){
+    setText(elL, nat.short);
+    setHTML(elD, '<span class="txt">كل عام والوطن بخير</span>');
+    setText(elS, '');
+    return;
+  }
 
   // ---- Ramadan mode: iftar / suhoor instead of the countdown ----
   if(hijriMonthNow() === 9 && PRAYERS.length){

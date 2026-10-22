@@ -22,7 +22,7 @@ import java.util.Locale;
  *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
- *       [--es cardstyle current|dark1|glass1|dark3|glass3]
+ *       [--es cardstyle current|dark1|glass1|dark3|glass3] [--es national auto|off]
  *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices] [--es stocks 2222,1120,AAPL]
  *       [--es slot matches|weather|fasting|countdown|markets|none] [--es countdown 2026-12-01|clear --es cdname 'رحلة الصيف']
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
@@ -31,6 +31,7 @@ import java.util.Locale;
  *
  * slot = what the bottom-left slot shows (Prefs.SLOTS). countdown = the date (YYYY-MM-DD) slot=countdown counts down to, or
  * "clear"; cdname = its name (up to 40 characters).
+ * national = auto (as always from now: the quiet green look on National Day, 21-25 September, and Founding Day, 20-24 February) or off.
  * cardstyle = the look of the card beside the clock (Prefs.CARD_STYLES; current is the plain card).
  * markets = up to four of Prefs.MARKETS at the top left, in order; mkstyle = arrows only (as always) or the price and the day's change.
  * stocks = the watchlist of the stocks card (panel stocks): up to Prefs.MAX_STOCKS Tadawul codes (4 digits) or US tickers.
@@ -126,6 +127,9 @@ public class SaverReceiver extends BroadcastReceiver {
         String digits = i.getStringExtra("digits");
         if (digits != null && !isChoice(Prefs.DIGITS, digits))
             return "error: digits is one of " + choices(Prefs.DIGITS);
+        String national = i.getStringExtra("national");
+        if (national != null && !isChoice(Prefs.NATIONAL, national))
+            return "error: national is one of " + choices(Prefs.NATIONAL);
         String cardStyle = i.getStringExtra("cardstyle");
         if (cardStyle != null && !isChoice(Prefs.CARD_STYLES, cardStyle))
             return "error: cardstyle is one of " + choices(Prefs.CARD_STYLES);
@@ -187,6 +191,7 @@ public class SaverReceiver extends BroadcastReceiver {
         if (rating != null) p.setMinRating(rating);
         if (photos != null) p.setPhotoMinutes(photos);
         if (digits != null) p.setDigits(digits);
+        if (national != null) p.setNational(national);
         if (cardStyle != null) p.setCardStyle(cardStyle);
         if (mkStyle != null) p.setMkStyle(mkStyle);
         if (markets != null) p.setMarkets(markets);
@@ -243,6 +248,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\nminrating: " + p.minRating()
             + "\nphotos: " + p.photoMinutes()
             + "\ndigits: " + p.digits()
+            + "\nnational: " + p.national()
             + "\ncardstyle: " + p.cardStyle()
             + "\nmarkets: " + Prefs.join(p.markets(), ",") + "\nmkstyle: " + p.mkStyle()
             + "\nstocks: " + Prefs.join(p.stocks(), ",")

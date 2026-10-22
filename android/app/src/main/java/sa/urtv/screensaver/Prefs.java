@@ -67,6 +67,9 @@ final class Prefs {
     // digits on the screen (sent to the page as #digits=; hindi is what it always showed)
     static final String[][] DIGITS = {{"hindi", "هندية ١٢٣"}, {"latin", "عربية 123"}};
 
+    // the national days (sent to the page as #national=; auto shows them on their days, off never)
+    static final String[][] NATIONAL = {{"auto", "تلقائي"}, {"off", "إيقاف"}};
+
     // look of the card beside the clock (sent to the page as #cardstyle=; current is the plain card it always had)
     static final String[][] CARD_STYLES = {{"current", "الحالية"}, {"dark1", "داكنة"}, {"glass1", "زجاجية"},
         {"dark3", "داكنة بإطار"}, {"glass3", "زجاجية بإطار"}};
@@ -199,6 +202,14 @@ final class Prefs {
         return MK_STYLES[0][1];
     }
 
+    String national() { return "off".equals(sp.getString("national", "auto")) ? "off" : "auto"; }
+    void setNational(String v) { sp.edit().putString("national", v).apply(); }
+
+    static String nationalLabel(String v) {
+        for (String n : NATIONAL) if (n[0].equals(v)) return n[1];
+        return NATIONAL[0][1];
+    }
+
     String cardStyle() { return sp.getString("cardStyle", "current"); }
     void setCardStyle(String v) { sp.edit().putString("cardStyle", v).apply(); }
 
@@ -258,6 +269,7 @@ final class Prefs {
             + "&photos=" + photoMinutes()
             + "&digits=" + digits()
             + "&cardstyle=" + cardStyle()
+            + "&national=" + national()
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()
             + "&stocks=" + join(stocks(), ",")

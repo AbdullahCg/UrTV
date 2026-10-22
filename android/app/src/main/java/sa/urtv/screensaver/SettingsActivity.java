@@ -100,6 +100,8 @@ public class SettingsActivity extends Activity {
         header("العرض");
         row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
             new Runnable() { public void run() { pickDigits(); } });
+        row("المناسبات الوطنية", Prefs.nationalLabel(prefs.national()), R.drawable.ic_eye,
+            new Runnable() { public void run() { pickNational(); } });
         row("الخانة اليسرى", Prefs.slotLabel(prefs.slot()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickSlot(); } });
         if ("countdown".equals(prefs.slot()) || !prefs.countdownDate().isEmpty())
@@ -540,6 +542,18 @@ public class SettingsActivity extends Activity {
         }
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الأرقام")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setDigits(Prefs.DIGITS[i][0]); d.dismiss(); render(); })
+            .show();
+    }
+
+    private void pickNational() {
+        String[] labels = new String[Prefs.NATIONAL.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.NATIONAL[i][1];
+            if (Prefs.NATIONAL[i][0].equals(prefs.national())) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("المناسبات الوطنية")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setNational(Prefs.NATIONAL[i][0]); d.dismiss(); render(); })
             .show();
     }
 
