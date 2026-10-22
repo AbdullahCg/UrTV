@@ -39,7 +39,8 @@ only the report is redone), and it starts from the first step when the TV (its s
 Results go to `optimize/run/` (before/after table in `summary.md`, `report.md`). `optimize/reset.sh`
 puts a TV back as it came, including older versions of these apps. The ADB client (`optimize/tv.py`) retries and
 reconnects by itself, uploads APKs in verified pieces that resume after a drop, and restarts the TV only through
-`tv.py --reboot` (sent once, so a retry can never restart it twice).
+`tv.py --reboot` (sent once, so a retry can never restart it twice; the TV counts as back only from a new boot, by the
+kernel's boot id or the uptime, so one that is slow to shut down is not reported back too soon).
 
 ## What must stay on
 

@@ -7,7 +7,7 @@
     tv.py --pull /sdcard/x.png x.png
     tv.py --push-b64 local.apk /data/local/tmp/x.apk   chunked base64 upload with md5 check
     tv.py --shot out.png                     screenshot from the TV
-    tv.py --reboot                           restart the TV (sent once, never retried) and wait until it is back
+    tv.py --reboot                           restart the TV (sent once, never retried) and wait until it is back from a new boot
     tv.py --wait                             wait until the TV answers again (after a reboot), up to 5 min
 
 Built for slow or flaky Wi-Fi: connecting and every command are retried, a dropped connection is
@@ -148,21 +148,51 @@ def push_b64(tv, local, remote, chunk=96_000):   # one argument may not exceed 1
     print(f"pushed {local} -> {remote} ({len(data)} bytes, md5 ok)")
 
 
-def wait_for_tv(limit_s=300):
-    """After a reboot: try every 10 s until the TV answers and has finished booting."""
+def boot_marker(dev):
+    """Which boot the TV is in: the kernel's boot id (new on every boot), else the uptime (it only grows inside one boot)."""
+    bid = dev.shell("cat /proc/sys/kernel/random/boot_id", read_timeout_s=15).strip()
+    if re.fullmatch(r"[0-9a-fA-F-]{32,40}", bid):
+        return ("id", bid)
+    try:
+        return ("up", float(dev.shell("cat /proc/uptime", read_timeout_s=15).split()[0]))
+    except (IndexError, ValueError):
+        return None
+
+
+def is_new_boot(before, now):
+    """Is `now` a later boot than `before`? True, False, or None when that can't be told: no ids to compare, or an uptime
+    that is not lower (a TV that was up only briefly passes its old uptime again soon after it restarts)."""
+    if before is None or now is None or before[0] != now[0]:
+        return None
+    if before[0] == "id":
+        return now[1] != before[1]
+    return True if now[1] < before[1] else None
+
+
+def wait_for_tv(limit_s=300, before=None, restart=False):
+    """Try every 10 s until the TV answers and has finished booting. After a reboot (restart=True) the TV may still
+    answer for a while before it goes down, so it only counts as back from a different boot than `before`; where the
+    boots can't be told apart, only once it was seen not answering."""
     start = time.time()
+    down = False   # seen not answering, or still booting, since we started
     while time.time() - start < limit_s:
         try:
             dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=15.0)
             dev.connect(rsa_keys=[signer()], auth_timeout_s=30)
             booted = dev.shell("getprop sys.boot_completed", read_timeout_s=15).strip()
+            now = boot_marker(dev) if restart else None
             dev.close()
-            if booted == "1":
+            if booted != "1":
+                down = True
+            elif not restart or is_new_boot(before, now) or (is_new_boot(before, now) is None and down):
                 print(f"TV is back ({int(time.time() - start)} s)")
                 return
         except Exception:  # noqa: BLE001
-            pass
+            down = True
         time.sleep(10)
+    if restart and not down:
+        sys.exit("!! The TV kept answering but never restarted: it may have ignored the reboot. Restart it from its "
+                 "own menu (not with this command again), then go on.")
     sys.exit("!! TV did not come back within 5 minutes. Check it is on and on Wi-Fi (ADB stays on after a reboot).")
 
 
@@ -175,12 +205,19 @@ def main():
         try:
             dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=30.0)
             dev.connect(rsa_keys=[signer()], auth_timeout_s=60)
+        except Exception as e:  # noqa: BLE001  (nothing was sent: safe to run again)
+            sys.exit(f"!! Can't reach the TV to restart it ({type(e).__name__}: {e}). Nothing was sent; run it again.")
+        try:
+            before = boot_marker(dev)   # which boot this is, to know the TV really came back from a new one
+        except Exception:  # noqa: BLE001
+            before = None
+        try:
             dev.shell("reboot", read_timeout_s=10)
         except Exception:  # noqa: BLE001  (the connection drops as the TV goes down)
             pass
         print("restarting the TV…")
         time.sleep(45)
-        wait_for_tv()
+        wait_for_tv(before=before, restart=True)
         return
     tv = TV()
     if not a or a == ["--probe"]:
