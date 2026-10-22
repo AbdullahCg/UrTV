@@ -34,6 +34,7 @@ final class TeamSearch {
     private static final Pattern HARAKAT = Pattern.compile("[ً-ٰٟـۖ-ۭ]");
     private static final Pattern DOTTED = Pattern.compile("\\b([fs])\\.c\\.");
     private static final Pattern WORD = Pattern.compile("[a-z0-9]+|[ء-يٮ-ۓ٠-٩]+");
+    private static final Pattern ARABIC_WORD = Pattern.compile("[ء-ي]+");
     private static final Pattern ARABIC_START = Pattern.compile("^[ء-ي]");
     private static final Set<String> FILLER_AR = set("نادي", "فريق");
     private static final Set<String> FILLER_EN = set("fc", "sc", "cf", "afc", "sfc", "club", "football", "clube");
@@ -95,11 +96,19 @@ final class TeamSearch {
 
     private static final Pattern LATIN = Pattern.compile("[a-z0-9]+");
 
-    /** "nassr" -> "nsr", "wehda" -> "whd": an English name without doubled letters or vowels after the first. */
+    /** "nassr" -> "nsr", "wehda" -> "whd": a name without doubled letters or vowels after the first. In Arabic the
+     *  vowel letters ا و ي go too, and a leading تش is ش: تشيلسي, تشلسي and شيلسي are one name. */
     static String skeleton(String word) {
-        if (!LATIN.matcher(word).matches()) return "";
-        String s = word.replaceAll("(.)\\1+", "$1");
-        s = s.charAt(0) + s.substring(1).replaceAll("[aeiouy]", "");
+        String s;
+        if (LATIN.matcher(word).matches()) {
+            s = word.replaceAll("(.)\\1+", "$1");
+            s = s.charAt(0) + s.substring(1).replaceAll("[aeiouy]", "");
+        } else if (ARABIC_WORD.matcher(word).matches()) {
+            s = word.replaceAll("(.)\\1+", "$1").replaceFirst("^تش", "ش");
+            s = s.charAt(0) + s.substring(1).replaceAll("[اويء]", "");
+        } else {
+            return "";
+        }
         return s.length() >= 3 ? s : "";
     }
 
