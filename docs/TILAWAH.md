@@ -95,22 +95,6 @@ right and the left arrow to the left.
 - The switch and the muezzin live in the app's preferences (`tilawah`); the alarm needs
   `SCHEDULE_EXACT_ALARM` (Android 12+; the app falls back to an inexact alarm if it is refused).
 
-## The self-update
-
-The home app updates itself from the project's GitHub release:
-
-1. Every six hours (and at start) it reads `latest.json` from the `apk-latest` release:
-   `{"run": 42, "version": "3.42", "sha": "…", "apk": "urtv-home.apk"}`.
-2. When `run` is newer than the installed `versionCode`, the APK is downloaded to
-   `files/update/home.apk` by itself. The top bar then shows a gold «تحديث جاهز» pill.
-3. One press installs it: the APK must be the same package, newer, and **signed with the same key**
-   as the running app (SHA-256 of the signing certificate; the archive is read with
-   `getPackageArchiveInfo` before anything is handed to `PackageInstaller`). Android then shows its
-   own "install this update?" screen; the launcher restarts itself afterwards.
-
-`optimize/install.sh launcher` grants the app the `REQUEST_INSTALL_PACKAGES` appop over ADB, without
-which Android refuses to install from the app; `optimize/reset.sh` puts it back.
-
 ## Control it over ADB
 
 `optimize/music.sh` wraps the app's shell-only broadcast receiver (the receiver requires
@@ -165,20 +149,20 @@ python3 .github/tools/fetch_quran.py --check   # ranged GET of every stream URL
   the app retries and reports it.
 
 The assets live in `android/launcher/src/main/assets/quran/` (`reciters.json`, `stations.json`,
-`surahs.json`). `tests/tilawah_test.py` checks the catalog, the adhan, the update, the cleartext
+`surahs.json`). `tests/tilawah_test.py` checks the catalog, the adhan, the cleartext
 scope and the manifest.
 
 ## Network and privacy
 
 - Runtime requests are the audio streams and their redirects, the adhan recordings
-  (`assabile.com`), one Aladhan call a day (`api.aladhan.com`, method 4) and the release's
-  `latest.json` and APK on GitHub. There is no account, upload, analytics or ad SDK.
+  (`assabile.com`) and one Aladhan call a day (`api.aladhan.com`, method 4). There is no account,
+  upload, analytics or ad SDK.
 - `res/xml/network_security_config.xml` sets `cleartextTrafficPermitted="false"` globally. The Saudi
   Quran Radio (`stream.radiojar.com`) redirects to its CDN over `http://n0X.radiojar.com`; cleartext
   is allowed only for `radiojar.com` and its subdomains. Nothing else may use HTTP.
 - Permissions: internet, network/Wi-Fi state (Wi-Fi lock), wake lock, foreground media playback,
-  notifications, boot completed (the adhan alarm), exact alarms, and install packages (the
-  self-update). There is no storage permission and no access to local media.
+  notifications, boot completed (the adhan alarm), exact alarms, and modify audio settings (the
+  adhan's own volume). There is no storage permission and no access to local media.
 
 ## Build and test
 
@@ -188,10 +172,9 @@ gradle -p android :launcher:assembleRelease
 python3 tests/tilawah_test.py
 ```
 
-CI builds the home app with the screensaver, renames it to `urtv-home.apk`, writes `latest.json`
-with the build number, and publishes both to `apk-latest` and the numbered `v3.N` releases. The
-release key comes from the repository's `ANDROID_KEYSTORE` secret; a local build without it uses the
-debug key, so it cannot update a release install (the self-update refuses a different key too).
+CI builds the home app with the screensaver, renames it to `urtv-home.apk`, and publishes it to
+`apk-latest` and the numbered `v3.N` releases. The release key comes from the repository's
+`ANDROID_KEYSTORE` secret; a local build without it uses the debug key.
 
 ## Known limits
 
@@ -199,6 +182,5 @@ debug key, so it cannot update a release install (the self-update refuses a diff
 - No downloads/offline mode for surahs, by design (the adhan recordings are cached).
 - The adhan times are Umm al-Qura; a TV outside Saudi Arabia gets that method for its own
   coordinates, which is the project's choice, not a local authority's calendar.
-- The self-update needs Android's own confirmation screen: one press on the pill, then «تثبيت».
 - The UI is Arabic/RTL; the transport buttons are intentionally LTR so the previous/next arrows match
   every other player.

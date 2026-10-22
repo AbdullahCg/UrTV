@@ -48,10 +48,8 @@ else
 fi
 
 echo "3/4 Removing our apps (old and new names; missing ones are skipped)…"
-# the appops the launcher was given for its self-update and the adhan (they vanish with the app anyway)
-for op in REQUEST_INSTALL_PACKAGES SCHEDULE_EXACT_ALARM; do
-  tv "appops set sa.urtv.home $op default" > /dev/null 2>&1 || true
-done
+# the appop the launcher was given for the adhan (it vanishes with the app anyway)
+tv "appops set sa.urtv.home SCHEDULE_EXACT_ALARM default" > /dev/null 2>&1 || true
 for p in sa.urtv.home sa.urtv.screensaver sa.urtv.listening sa.yourtv.home sa.yourtv.screensaver com.abdullah.tvhome com.abdullah.tvsaver; do
   tv "pm uninstall $p" | grep -q Success && echo "   removed $p" || true
 done

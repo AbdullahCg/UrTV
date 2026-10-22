@@ -94,9 +94,7 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
-    private TextView greeting, clock, ampm, date, title, wifiPill, appsLabel, updatePill;
-    /** the self-update pill keeps its id: it is added to and removed from the bar while the app runs */
-    private static final int UPDATE_PILL_ID = 0x0A11D0;
+    private TextView greeting, clock, ampm, date, title, wifiPill, appsLabel;
     private int glowColor = 0xFF3A3A3A;
     private ValueAnimator glowAnim;
     private int lastFocusedId = View.NO_ID;
@@ -109,8 +107,6 @@ public class MainActivity extends Activity {
         @Override public void onReceive(Context c, Intent i) {
             updateClock();
             updateWifi();
-            SelfUpdater.check(MainActivity.this);
-            updateUpdatePill();
         }
     };
     private final BroadcastReceiver packages = new BroadcastReceiver() {
@@ -143,12 +139,6 @@ public class MainActivity extends Activity {
         pf.addDataScheme("package");
         registerReceiver(packages, pf);
         registerReceiver(dockChanged, new IntentFilter(Dock.CHANGED));
-
-        // the self-update: a newer build downloads in the background, then the pill appears
-        updatePill = (TextView) findViewById(UPDATE_PILL_ID);
-        SelfUpdater.listen(this::updateUpdatePill);
-        SelfUpdater.check(this);
-        updateUpdatePill();
     }
 
     @Override
@@ -161,8 +151,6 @@ public class MainActivity extends Activity {
         registerReceiver(tick, tf);
         updateClock();
         updateWifi();
-        updateUpdatePill();
-        SelfUpdater.check(this);
         homeCard.refresh();
         View last = lastFocusedId == View.NO_ID ? null : findViewById(lastFocusedId);
         if (last == null && !dockCards.isEmpty()) last = dockCards.get(0);
@@ -345,14 +333,6 @@ public class MainActivity extends Activity {
         List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings));
         if (isInstalled(SAVER_PKG)) row.add(saver);
         if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
-        // the self-update, hidden until a newer build is on the TV (then it is the first pill read,
-        // and the row reads from the right, so it goes in before the others)
-        updatePill = pill("تحديث جاهز", R.drawable.ic_update);
-        updatePill.setId(UPDATE_PILL_ID);
-        updatePill.setTextColor(0xFFFFD79A);
-        updatePill.setOnClickListener(v -> SelfUpdater.install(this));
-        updatePill.setVisibility(View.GONE);
-        right.addView(updatePill, llp(-2, dp(30), dp(10), 0, 0, 0));
         for (TextView p : row) {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
             pills.add(p);
@@ -781,34 +761,6 @@ public class MainActivity extends Activity {
         StringBuilder b = new StringBuilder(s.length());
         for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
         return b.toString();
-    }
-
-    /**
-     * The self-update pill: only there while a newer build is downloading or already on the TV.
-     * Pressing it when it says «تحديث جاهز» is the one press the launcher update takes.
-     */
-    private void updateUpdatePill() {
-        if (updatePill == null) return;
-        SelfUpdater.State state = SelfUpdater.state();
-        boolean show = state == SelfUpdater.State.READY || state == SelfUpdater.State.DOWNLOADING
-                || state == SelfUpdater.State.INSTALLING;
-        if (!show) {
-            if (updatePill.getVisibility() == View.VISIBLE) {
-                updatePill.setVisibility(View.GONE);
-                pills.remove(updatePill);
-                wireFocus();
-            }
-            return;
-        }
-        String label = state == SelfUpdater.State.DOWNLOADING
-                ? "تحديث " + arabicDigits(String.valueOf(SelfUpdater.progress())) + "٪"
-                : state == SelfUpdater.State.INSTALLING ? "جارٍ التثبيت…" : "تحديث جاهز";
-        updatePill.setText(label);
-        if (!pills.contains(updatePill)) {
-            pills.add(updatePill);   // the last pill is the rightmost, the first one read in Arabic
-            wireFocus();
-        }
-        updatePill.setVisibility(View.VISIBLE);
     }
 
     /** Connected or not comes from ConnectivityManager: WifiManager hides the network (id -1, "<unknown ssid>")

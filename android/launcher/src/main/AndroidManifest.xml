@@ -17,8 +17,6 @@
     <!-- the adhan alarm, put back after a reboot or a clock change -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <!-- the self-update: installs the APK it downloads (optimize/install.sh allows the appop over ADB) -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -173,10 +171,5 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
-
-        <!-- the installer's answer to the self-update (only reached through the app's own PendingIntent) -->
-        <receiver
-            android:name=".UpdateReceiver"
-            android:exported="false" />
     </application>
 </manifest>

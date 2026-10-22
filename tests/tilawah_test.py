@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks for «تلاوة», the Quran and radio screens inside the home app, the adhan and the self-update.
+"""Checks for «تلاوة», the Quran and radio screens inside the home app, and the adhan.
 
     python3 tests/tilawah_test.py
 
@@ -168,8 +168,7 @@ check("the adhan alarm action is declared", "sa.urtv.home.ADHAN" in adhan_action
 permissions = {p.get(A + "name") for p in manifest.findall("uses-permission")}
 for permission in ["android.permission.WAKE_LOCK", "android.permission.FOREGROUND_SERVICE",
                    "android.permission.RECEIVE_BOOT_COMPLETED",
-                   "android.permission.SCHEDULE_EXACT_ALARM",
-                   "android.permission.REQUEST_INSTALL_PACKAGES"]:
+                   "android.permission.SCHEDULE_EXACT_ALARM"]:
     check(f"{permission.split('.')[-1]} is declared", permission in permissions)
 
 # ---- the label and the pill in the home screen
@@ -248,29 +247,18 @@ check("the alarm is exact and survives idle",
 check("device location comes from the screensaver",
       "sa.urtv.screensaver.config" in text(TILAWAH / "Place.java"))
 
-# ---- the self-update
-updater = text(JAVA / "SelfUpdater.java")
-check("the update reads latest.json", "latest.json" in updater)
-check("the update checks the signing key", "fingerprint" in updater and "getApkContentsSigners" in updater)
-check("the update installs through PackageInstaller", "PackageInstaller" in updater)
-check("a local build can point the updater elsewhere", 'name="update_base"' in config_xml)
-
 workflow = text(ROOT / ".github/workflows/android.yml")
-check("CI publishes latest.json", workflow.count("latest.json") >= 3, workflow.count("latest.json"))
 check("CI no longer builds a listening APK", "urtv-listening" not in workflow)
-check("CI writes the build number into latest.json",
-      '"run": %s' in workflow and "$GITHUB_RUN_NUMBER" in workflow)
 
 music = text(ROOT / "optimize/music.sh")
 check("music.sh drives the new component",
       "sa.urtv.home/.tilawah.MusicReceiver" in music and "sa.urtv.listening" not in music)
 check("music.sh can test the adhan", "adhan voice" in music and "sa.urtv.home.ADHAN_" in music)
 install = text(ROOT / "optimize/install.sh")
-check("install grants the install-permission appop", "REQUEST_INSTALL_PACKAGES allow" in install)
 check("install still knows the two apps", "urtv-home.apk" in install and "urtv-screensaver.apk" in install)
 reset = text(ROOT / "optimize/reset.sh")
 check("reset still removes the old standalone app", "sa.urtv.listening" in reset)
-check("reset puts the appops back", "REQUEST_INSTALL_PACKAGES" in reset)
+check("reset puts the adhan appop back", "SCHEDULE_EXACT_ALARM" in reset)
 
 if failures:
     print(f"\n{len(failures)} tilawah check(s) failed.")

@@ -160,7 +160,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | T11 | `optimize/saver.sh photos 15`, then `optimize/saver.sh show`; then `optimize/saver.sh photos 7` | `saved`, `show` lists `photos: 15`; the second prints `error: photos is one of 5 10 15 30 60` and changes nothing; put it back with `photos 30` |
 | T12 | `optimize/saver.sh idle 10`, then `optimize/saver.sh show` and `optimize/venv/bin/python -I optimize/tv.py settings get system screen_off_timeout`; then `optimize/saver.sh idle 3` | `idle: 10` (set by the app, or «set from the shell» when the app may not), `show` lists `idle: 10`, the setting prints `600000`; `idle 3` prints `error: idle is one of 1 2 5 10 15 30`; put the TV's old value back afterwards |
 
-## 11. The «تلاوة» screen — the Quran, the radio, the adhan and the update (inside the home app)
+## 11. The «تلاوة» screen — the Quran, the radio and the adhan (inside the home app)
 
 Install: `optimize/install.sh launcher` (or `all`). «تلاوة» is the leftmost pill in the home screen's
 top bar (the row reads from the right: المصادر، واي فاي، الإعدادات، شاشة التوقف، تلاوة); it is not
@@ -180,8 +180,6 @@ in «كل التطبيقات». Full reference: [TILAWAH.md](TILAWAH.md).
 | W10 | Play a surah, then `optimize/music.sh adhan now 3` | The surah pauses, the adhan plays, then the surah resumes at the same position (status: `source=adhan` during it, `adhan_last` updated) |
 | W11 | `optimize/music.sh adhan voice 7` then `adhan now` | Voice 7 plays; `optimize/music.sh status` shows `voice=7` |
 | W12 | Set the TV clock a few minutes before a prayer time, wait for the alarm; then reboot the TV and check `optimize/music.sh status` | The adhan plays by itself at the exact minute with no app on screen; after the reboot `adhan_next` is a future timestamp (the alarm was put back) |
-| W13 | With a newer build published (or a local `latest.json`), reopen the home screen | A gold «تحديث جاهز» pill appears by itself at the right end of the top bar (`تحديث N٪` while downloading); `files/update/home.apk` exists |
-| W14 | Press «تحديث جاهز», then confirm Android's installer screen | Android asks to install, the app restarts on the new `versionCode`, the pill disappears; an APK signed with another key is refused before the installer ever opens |
 | W15 | `optimize/music.sh status`, `surah sudais 1`, `pause`, `radio 0`, `sleep 1`, `stop` | Status line has `playing`, `source`, names, `pos`, `dur`, `sleep`, `adhan`, `voice`, `adhan_next`, `error`; each command acts on the TV |
 
 ---

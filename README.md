@@ -91,7 +91,7 @@ screen: [docs/RECREATE-PROMPT.md](docs/RECREATE-PROMPT.md).
 | | | |
 |---|---|---|
 | **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, or a verse/hadith of the day, over Saudi landscapes | `urtv-screensaver.apk` |
-| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default). The «تلاوة» pill opens the Quran and the radio, with the adhan at Umm al-Qura times and a self-update from this repository | `urtv-home.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default). The «تلاوة» pill opens the Quran and the radio, with the adhan at Umm al-Qura times | `urtv-home.apk` |
 | **Two free apps** | [TV Bro](https://github.com/truefedex/tv-bro), a web browser for the TV, and [SmartTube](https://github.com/yuliskov/SmartTube), YouTube without ads, from their own releases (skip with `SKIP_EXTRAS=1`) | `optimize/install.sh extras` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), closed apps frozen, Play Store kept from running in the background, faster animations | `optimize/` |
 
@@ -100,8 +100,8 @@ screen: [docs/RECREATE-PROMPT.md](docs/RECREATE-PROMPT.md).
 Every build is also kept as a numbered release (`v3.N`, the screensaver and home version), to go back
 to one: `APK_TAG=v3.N optimize/install.sh all`.
 
-The home screen carries «تلاوة»: forty reciters (114 surahs each), live Quran radio, the five daily
-adhans at Umm al-Qura times with a choice of 21 recordings, and its own update from this repository.
+The home screen carries «تلاوة»: forty reciters (114 surahs each), live Quran radio, and the five daily
+adhans at Umm al-Qura times with a choice of 21 recordings.
 Nothing to install apart from the home app; [docs/TILAWAH.md](docs/TILAWAH.md) has the screens, the
 remote keys and the ADB controls.
 
@@ -118,7 +118,7 @@ remote keys and the ADB controls.
 </tr>
 <tr>
 <td width="50%"><img src="docs/screenshots/08-player.jpg" alt="The player" width="100%"><br><b>The «المشغّل»</b><br>Title, reciter, progress and the transport row; during an adhan it shows the muezzin and hides the skip buttons.</td>
-<td width="50%"><img src="docs/screenshots/09-update-pill.jpg" alt="The home screen with the update pill" width="100%"><br><b>The «تحديث جاهز» pill</b><br>The app checks for a newer build by itself and installs it with one press.</td>
+<td width="50%"><img src="docs/screenshots/06-adhan-player.jpg" alt="The player during an adhan" width="100%"><br><b>During the adhan</b><br>The muezzin's name, and no skip or seek: the surah waits and comes back.</td>
 </tr>
 </table>
 
@@ -150,7 +150,7 @@ src/build.py          builds the two pages in dist/
 dist/urtv.html        stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline
 dist/tv.html          light page the Android app loads (0.3 MB); the app serves fonts and photos from disk
 android/app           the screensaver app (sa.urtv.screensaver): DreamService, settings, auto-update
-android/launcher      the home screen (sa.urtv.home); sa.urtv.home.tilawah is «تلاوة»: catalog, player, adhan, self-update
+android/launcher      the home screen (sa.urtv.home); sa.urtv.home.tilawah is «تلاوة»: catalog, player, adhan
 assets/               fonts, bundled photos, Arabic team names, verse and hadith texts
 photos/               the hosted photo set (5 shown per 4 days, rotating every 30 min)
 optimize/             TV tools (Python ADB client, no adb binary needed); lists/ says what may be turned off
@@ -159,9 +159,8 @@ docs/                 the agent prompts (setup, recreate), what we learned on re
 tests/run.sh          every check: build, data, fonts, scripts, private data, «تلاوة» and the adhan, flaky-ADB upload, the screen in a browser
 ```
 
-A push to `master` builds the two APKs in GitHub Actions and publishes them, with `latest.json` for the
-launcher's self-update, to `apk-latest` and a numbered `v3.N` release; a push to `next` publishes `apk-next`
-instead (a test build). `tests/run.sh` runs on `master`, `next`,
+A push to `master` builds both APKs in GitHub Actions and publishes them to `apk-latest` and a numbered `v3.N`
+release; a push to `next` publishes `apk-next` instead (a test build). `tests/run.sh` runs on `master`, `next`,
 `content` and pull requests. Local Android build (needs the SDK): `python3 src/build.py && gradle -p android assembleRelease`
 (signed with the debug key; the release key lives only in the repository's secrets).
 
