@@ -346,20 +346,27 @@ for (const panel of ['prayers', 'verse', 'shows']) {
 }
 
 
-// two games side by side on a small screen: a game that does not fit breaks between its teams, names whole
+// two games side by side on a small screen: each game stays on one line and fits, never «…»
 for (const [width, height] of [[1920, 1080], [960, 540], [720, 405]]) {
   const { p, ctx } = await open('urtv.html', 'panel=verse', { width, height });
   const r = await p.evaluate(() => {
     const row = document.getElementById('match-row');
     const blk = (a, b) => `<div class="mblock"><div class="big"><span><span class="tm">${a}</span> × <span class="tm">${b}</span></span></div><div class="sub">بعد ٣ أيام</div></div>`;
-    row.innerHTML = blk('أستون فيلا', 'مانشستر سيتي') + blk('برشلونة', 'ريال مدريد');
-    fitMatches(row);
+    const out = [];
+    for (const [a, b, c, d] of [['أستون فيلا', 'مانشستر سيتي', 'برشلونة', 'ريال مدريد'], ['باريس سان جيرمان', 'بايرن ميونخ', 'الهلال', 'النصر']]) {
+      row.innerHTML = blk(a, b) + blk(c, d);
+      fitMatches(row);
+      const sp = [...row.querySelectorAll('.big > span')];
+      const rg = document.createRange();
+      out.push({ fit: sp.every(s => { rg.selectNodeContents(s); const cs = getComputedStyle(s); return rg.getBoundingClientRect().width <= s.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + .05; }),
+                 same: new Set(sp.map(s => getComputedStyle(s).fontSize)).size === 1 });
+    }
     const sp = [...row.querySelectorAll('.big > span')];
-    return { names: sp.map(s => s.textContent), whole: ['مانشستر', 'سيتي', 'ريال', 'مدريد'].every(w => row.textContent.includes(w)),
-             fit: sp.every(s => s.scrollWidth <= s.clientWidth + 1),
-             same: new Set(sp.map(s => getComputedStyle(s).fontSize)).size === 1 };
+    return { out, whole: !row.textContent.includes('…') && row.querySelectorAll('.big > span').length === 2 && [...row.querySelectorAll('.big > span')].every(s => s.getBoundingClientRect().height < parseFloat(getComputedStyle(s).fontSize) * 2),
+             fit: out.every(o => o.fit),
+             same: out.every(o => o.same) };
   });
-  check(`two matches at ${width}px: whole names fit (second team on the next line if needed), one size`, r.fit && r.same && r.whole, JSON.stringify(r));
+  check(`two matches at ${width}px: one line each, fits, one size`, r.fit && r.same && r.whole, JSON.stringify(r));
   await ctx.close();
 }
 

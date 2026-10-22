@@ -259,10 +259,8 @@
   .mrow.flip .mblock{animation:weekIn .5s ease both}
   .mrow.flip .mblock + .mblock{animation-delay:.08s}
   .mblock .big > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
-    padding-bottom:.3em;margin-bottom:-.3em}  /* room for the dots under ي, ج… */
-  /* a game too long for its line: the second team goes whole on the line under the first (see fitMatches) */
-  .mblock .big > span.stack{line-height:1.12;padding-bottom:.2em;margin-bottom:0}
-  .mblock .big > span.stack .tm:last-child{display:block}
+    padding-bottom:.3em;margin-bottom:-.3em;    /* room for the dots under ي, ج… */
+    padding-inline:.15em;margin-inline:-.15em;max-width:calc(100% + .3em)}  /* and for a final ر or ن past the ends */
   .none-week{font-size:clamp(26px,2.5vw,54px);font-weight:700;font-family:'ThmanyahDisplay','Thmanyah',serif;color:#A79C85}
 
   /* A new photo settles in over a minute, then holds still: an endless drift kept the TV redrawing
@@ -897,17 +895,29 @@ function renderMatches(turn){
   if(turn && pages > 1){ row.classList.remove('flip'); void row.offsetWidth; row.classList.add('flip'); }
 }
 
-// Two games side by side leave little room: «مانشستر سيتي» came out «مانشستر سـ…». A game that doesn't fit breaks
-// between its teams, never inside a name: the first team and the × (or the score) on top, the second team whole
-// under it. A name that still doesn't fit steps the row down in size; the ellipsis stays a last resort.
+// Two games side by side leave little room: «مانشستر سيتي» came out «مانشستر سـ…». A game always stays on one line:
+// the row steps down in size until every game fits; still too long, the long club names take their usual short
+// form (only then); the ellipsis stays a last resort. Both games keep one size.
+const TEAM_SHORT = {
+  'مانشستر سيتي':'السيتي', 'مانشستر يونايتد':'اليونايتد', 'ريال مدريد':'الريال', 'أتلتيكو مدريد':'أتلتيكو',
+  'باريس سان جيرمان':'باريس', 'بايرن ميونخ':'بايرن', 'بوروسيا دورتموند':'دورتموند', 'بوروسيا مونشنغلادباخ':'مونشنغلادباخ',
+  'باير ليفركوزن':'ليفركوزن', 'آينتراخت فرانكفورت':'فرانكفورت', 'نوتنغهام فورست':'فورست', 'كريستال بالاس':'بالاس',
+  'وولفرهامبتون':'وولفز', 'سبورتينغ لشبونة':'سبورتينغ', 'لوس أنجلوس جالاكسي':'جالاكسي', 'البنك الأهلي المصري':'البنك الأهلي',
+};
 const FIT_STEPS = [1, .92, .85, .78, .72];
 function fitMatches(row){
   const spans = [...row.querySelectorAll('.mblock .big > span')];
-  const fits = sp => sp.scrollWidth <= sp.clientWidth + 1;
-  spans.forEach(sp => { sp.style.fontSize = ''; sp.classList.remove('stack'); if(!fits(sp)) sp.classList.add('stack'); });
-  const best = sp => FIT_STEPS.find(k => { sp.style.fontSize = k === 1 ? '' : k + 'em'; return fits(sp); }) || FIT_STEPS[FIT_STEPS.length - 1];
-  const k = Math.min(1, ...spans.map(best));
-  spans.forEach(sp => { sp.style.fontSize = k === 1 ? '' : k + 'em'; });
+  const range = document.createRange();
+  const fits = sp => {   // to the fraction of a pixel: scrollWidth rounds, and a name short by 0.4 px still got «…»
+    range.selectNodeContents(sp);
+    const cs = getComputedStyle(sp);
+    return range.getBoundingClientRect().width <= sp.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + .05;
+  };
+  const size = k => spans.forEach(sp => { sp.style.fontSize = k === 1 ? '' : k + 'em'; });
+  const step = () => FIT_STEPS.find(k => { size(k); return spans.every(fits); });
+  if(step()) return;
+  spans.forEach(sp => sp.querySelectorAll('.tm').forEach(t => { const s = TEAM_SHORT[t.textContent.trim()]; if(s) t.textContent = s; }));
+  if(!step()) size(FIT_STEPS[FIT_STEPS.length - 1]);
 }
 
 async function fetchLast(id){
