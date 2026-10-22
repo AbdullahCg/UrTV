@@ -3,6 +3,7 @@ package sa.urtv.screensaver;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -22,10 +23,11 @@ final class ScreenView {
         w.setVerticalScrollBarEnabled(false);
         w.setHorizontalScrollBarEnabled(false);
         w.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        final Context app = c.getApplicationContext();   // the client must not keep the dream or activity alive
         w.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
-                WebResourceResponse res = PhotoCache.serve(c, r.getUrl().toString());
+                WebResourceResponse res = PhotoCache.serve(app, r.getUrl().toString());
                 return res != null ? res : super.shouldInterceptRequest(v, r);
             }
         });
@@ -41,5 +43,13 @@ final class ScreenView {
         w.loadUrl(new Prefs(c).dashboardUrl(c));
         UpdateJob.schedule(c);
         return w;
+    }
+
+    /** Takes the view out of its window and frees the WebView and everything it holds. */
+    static void release(WebView w) {
+        if (w == null) return;
+        w.stopLoading();
+        if (w.getParent() instanceof ViewGroup) ((ViewGroup) w.getParent()).removeView(w);
+        w.destroy();
     }
 }

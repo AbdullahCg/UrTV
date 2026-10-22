@@ -19,7 +19,8 @@ public class ScreenDream extends DreamService {
 
     @Override
     public void onDetachedFromWindow() {
-        if (web != null) { web.destroy(); web = null; }
+        ScreenView.release(web);
+        web = null;
         super.onDetachedFromWindow();
     }
 }

@@ -29,7 +29,8 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (web != null) web.destroy();
+        ScreenView.release(web);
+        web = null;
         super.onDestroy();
     }
 }
