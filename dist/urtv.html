@@ -107,6 +107,7 @@
   .week li span:first-child{flex:0 1 auto;max-width:68%;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em}
   .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .rt{flex:0 0 auto;color:#E0BA74;font-size:.74em;font-variant-numeric:tabular-nums}
+  .week li .mwhen{display:block;font-style:normal;margin-top:.15em;font-size:.68em;font-weight:300;color:#A79C85;overflow:hidden;text-overflow:ellipsis}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
   .week ul.flip li{animation:weekIn .5s ease both}
   .week ul.flip li:nth-child(2){animation-delay:.06s}
@@ -873,6 +874,14 @@ function resultsFor(id){
     .filter(ev => ev && ev.idEvent && !seen.has(ev.idEvent) && seen.add(ev.idEvent));
 }
 
+// «السبت ٢٤ أكتوبر · ٩:١٦ م»: the small line under an upcoming game, in the slot and in the card beside the clock
+function matchWhen(d){
+  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
+    .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  return new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'}).format(d).replace('،','')
+    + ' · ' + fmt12(+p.hour % 24, +p.minute);
+}
+
 function matchSlot(id, now, shown){
   const done = resultsFor(id).filter(ev => finishedRecently(ev, now)).sort((a,b)=>toDate(b)-toDate(a))[0];
   if(done){
@@ -894,7 +903,7 @@ function matchSlot(id, now, shown){
   const t12 = ar(fmt12(+p.hour % 24, +p.minute));
   const live = diff <= 0 && ev.intHomeScore != null && ev.intAwayScore != null;
   // «بعد ٣ أيام» and under it the date and time, small: «السبت ٢٤ أكتوبر · ٩:١٦ م»
-  const dateLine = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'}).format(d).replace('،','') + ' · ' + t12;
+  const dateLine = matchWhen(d);
   const sub = diff > 0 ? `بعد ${shortRemaining(diff)}</div><div class="sub when">${dateLine}` : `<span class="live">مباشر</span> · ${liveStatus(ev, t12)}`;
   const mid = live ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
   return `<div class="mblock">`
@@ -1253,6 +1262,7 @@ async function loadWeek(){
 }
 
 const WEEK_ROWS = 5;
+const MATCH_ROWS = 4;   // the games card: each game takes two lines (teams, date and time)
 let WEEK_POOL = [];
 let WEEK_PAGE = 0;
 
@@ -1308,9 +1318,10 @@ function renderPanel(animate){
     setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : P === 'tasks' ? 'لا مهام اليوم' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
   }
-  if((P === 'matches' || P === 'stocks' || P === 'tasks') && rows.length > WEEK_ROWS){        // page through, like the shows
-    const start = (LIST_PAGE * WEEK_ROWS) % rows.length;
-    rows = Array.from({length: WEEK_ROWS}, (_, i) => rows[(start + i) % rows.length]);
+  const per = P === 'matches' ? MATCH_ROWS : WEEK_ROWS;
+  if((P === 'matches' || P === 'stocks' || P === 'tasks') && rows.length > per){        // page through, like the shows
+    const start = (LIST_PAGE * per) % rows.length;
+    rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
   }
   setHTML(ul, rows.join(''), animate);
   ul.classList.remove('flip');
@@ -1348,8 +1359,6 @@ function matchRows(){
     next.forEach(ev => { if(ev && ev.idEvent && !seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(MATCHES[id] && MATCHES[id].idEvent === ev.idEvent ? MATCHES[id] : ev); } });
     resultsFor(id).forEach(ev => { if(!seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(ev); } });
   });
-  const day = d => new Intl.DateTimeFormat(GREG, {timeZone:CONFIG.timezone, weekday:'long'}).format(d);
-  const today = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(new Date());
   return evs.map(ev => ({ev, t: toDate(ev).getTime()}))
     .filter(x => finishedRecently(x.ev, now)
       || (now < x.t + 2.5*3600000 && !FINAL.includes((x.ev.strStatus || '').toUpperCase())
@@ -1358,13 +1367,13 @@ function matchRows(){
     .map(({ev, t}) => {
       const d = new Date(t), scored = ev.intHomeScore != null && ev.intAwayScore != null;
       const mid = scored && now >= t ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
-      const p = new Intl.DateTimeFormat('en-GB', {timeZone:CONFIG.timezone, hour:'2-digit', minute:'2-digit', hour12:false})
-        .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+      const upcoming = !finishedRecently(ev, now) && now < t;
       const when = finishedRecently(ev, now) ? 'انتهت'
         : now >= t ? '<span class="live">مباشر</span>'
-        : (new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(d) === today ? 'اليوم' : day(d))
-          + ' ' + fmt12(+p.hour % 24, +p.minute);
-      return `<li><span>${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}${mid}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span><span class="dt">${when}</span></li>`;
+        : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
+      // an upcoming game has its date and time under the teams, as in the bottom row
+      const dateLine = upcoming ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
+      return `<li><span>${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}${mid}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}${dateLine}</span><span class="dt">${when}</span></li>`;
     });
 }
 
@@ -1781,7 +1790,7 @@ function boot(){
   setInterval(loadWeather, 30*60*1000);
   setInterval(()=>{
     if(CONFIG.panel === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
-    if(CONFIG.panel === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
+    if(CONFIG.panel === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > MATCH_ROWS); }
     if(CONFIG.panel === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
     if(CONFIG.panel === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);
@@ -1812,7 +1821,7 @@ function bootWidget(){
   if(P === 'stocks'){ loadStocks(); setInterval(loadStocks, 15*60*1000); }
   setInterval(() => {
     if(P === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
-    if(P === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
+    if(P === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > MATCH_ROWS); }
     if(P === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
     if(P === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);

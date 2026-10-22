@@ -824,6 +824,28 @@ for (const [hash, asks] of [['teams=136013', true], ['teams=136013&slot=weather'
   check(`link #${hash}: matches data ${asks ? 'asked' : 'not asked'}`, (sports > 0) === asks, String(sports));
   await ctx.close();
 }
+// the card beside the clock: an upcoming game has «السبت ٢٤ أكتوبر · ٩:١٦ م» under its teams, at every size and card style
+for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 540, ''], [1920, 1080, 'dark1'], [1920, 1080, 'glass1'],
+                                      [1920, 1080, 'dark3'], [1920, 1080, 'glass3'], [1280, 720, 'dark3'], [960, 540, 'glass3']]) {
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches' + (style ? '&cardstyle=' + style : ''), { width, height });
+  const r = await p.evaluate(() => {
+    const T = Date.parse('2026-10-21T18:16:00Z'), R = Date;
+    window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+    const names = [['Al-Hilal', 'Al-Nassr'], ['Manchester City', 'Real Madrid'], ['Barcelona', 'Liverpool'], ['Arsenal', 'Chelsea'], ['Inter', 'Milan']];
+    NEXT_LIST['136013'] = names.map(([a, b], i) => ({ idEvent: 'm' + i, strHomeTeam: a, strAwayTeam: b, strStatus: 'NS',
+      strTimestamp: new Date(Date.parse('2026-10-24T18:16:00Z') + i * 86400000).toISOString() }));
+    renderPanel(false);
+    const card = document.querySelector('.week'), c = card.getBoundingClientRect(), lis = [...card.querySelectorAll('li')];
+    const wh = lis.map(li => (li.querySelector('.mwhen') || {}).textContent);
+    const clipped = [...card.querySelectorAll('li > span')].filter(e => e.scrollWidth > e.clientWidth + 1).length;
+    const bar = document.querySelector('.bottom').getBoundingClientRect();
+    return { wh, rows: lis.length, clipped, within: c.bottom < bar.top - 4 && c.height < .42 * innerHeight && c.left >= 0,
+             dt: lis[0].querySelector('.dt').textContent };
+  });
+  check(`matches card at ${width}x${height}${style ? ' ' + style : ''}: date and time under each game, nothing clipped`,
+    !errors.length && r.wh[0] === 'السبت ٢٤ أكتوبر · ٩:١٦ م' && r.wh[1].startsWith('الأحد') && r.rows === 4 && !r.clipped && r.within && r.dt === 'بعد ٣ أيام', JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
 
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
