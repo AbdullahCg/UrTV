@@ -77,7 +77,7 @@ const SAMPLE = {
   },
 };
 const EXPECT = { prayers: [6, 'مواقيت اليوم'], forecast: [5, 'الأيام القادمة'], matches: [2, 'مباريات فرقك'],
-                 verse: [2, null], shows: [1, 'هذا الأسبوع'] };
+                 verse: [2, null], wisdom: [2, 'حكمة اليوم'], shows: [1, 'هذا الأسبوع'] };
 for (const [panel, [rows, title]] of Object.entries(EXPECT)) {
   const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=' + panel);
   if (SAMPLE[panel]) await p.evaluate(`(${SAMPLE[panel]})(); renderPanel(false);`);
@@ -96,6 +96,29 @@ for (const [panel, [rows, title]] of Object.entries(EXPECT)) {
     return out.sort().join(',');
   });
   check('card verse: a verse one day, a hadith the next', both === 'آية اليوم,حديث اليوم', both);
+  await ctx.close();
+}
+
+// ---- «حكمة اليوم»: one saying a day by the Riyadh day number, every one fits the card, the source is shown
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', 'panel=wisdom', { width, height });
+  const r = await p.evaluate(() => {
+    const day = riyadhDayNumber(), card = document.querySelector('.week'), bad = [], seen = new Set();
+    for (let k = 0; k < WISDOM.length + 2; k++) {
+      window.riyadhDayNumber = () => day + k;
+      renderPanel(false);
+      const li = card.querySelectorAll('#week-list li'), c = card.getBoundingClientRect();
+      const clock = document.querySelector('.clockwrap').getBoundingClientRect(), bar = document.querySelector('.bottom').getBoundingClientRect();
+      const top = document.querySelector('.top').getBoundingClientRect();
+      if (k < WISDOM.length) seen.add(li[0].textContent);
+      if (li[0].textContent !== WISDOM[(day + k) % WISDOM.length].text || li[1].textContent !== WISDOM[(day + k) % WISDOM.length].source
+          || document.getElementById('week-hd').textContent !== 'حكمة اليوم' || c.top < top.bottom || c.bottom > bar.top - 4
+          || c.right > clock.left - 4 || c.height > 0.42 * innerHeight) bad.push(li[0].textContent.slice(0, 30));
+    }
+    return { n: WISDOM.length, days: seen.size, bad };
+  });
+  check(`card wisdom at ${width}x${height}: ${r.n} sayings, one each day, all fit`,
+    !errors.length && r.n >= 50 && r.days === r.n && !r.bad.length, JSON.stringify(r) + errors.join('; '));
   await ctx.close();
 }
 

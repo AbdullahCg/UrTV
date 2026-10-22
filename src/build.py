@@ -226,6 +226,7 @@ def main():
     html = html.replace("__TEAMS_BY_ID__", js_json(by_id))
     html = html.replace("__VERSES__", js_json(verses_for_screen()))
     html = html.replace("__HADITH__", js_json(hadith_for_screen()))   # checked by CI
+    html = html.replace("__WISDOM__", js_json(json.loads((ROOT / "assets/shared/wisdom.json").read_text(encoding="utf-8"))))
 
     bg_dir = ROOT / "assets/backgrounds"
     bgs = json.loads((bg_dir / "backgrounds.json").read_text(encoding="utf-8"))

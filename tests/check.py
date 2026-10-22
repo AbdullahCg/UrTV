@@ -72,6 +72,12 @@ verses = json.loads(re.search(r"const VERSES = (\[.*?\]);", page, re.S).group(1)
 hadith = json.loads(re.search(r"const HADITH = (\[.*?\]);", page, re.S).group(1))
 check("verses present", len(verses) >= 200, len(verses))
 check("hadith present", len(hadith) >= 200, len(hadith))
+wisdom = json.loads(re.search(r"const WISDOM = (\[.*?\]);", page, re.S).group(1))
+check("wisdom: at least 50 sayings, none twice, each short, each with a source",
+      len(wisdom) >= 50 and len({w["text"] for w in wisdom}) == len(wisdom)
+      and all(0 < len(w["text"]) <= 90 and w["source"] for w in wisdom), len(wisdom))
+check("wisdom: only «مثل عربي» or a named classical book (nothing attributed to a person)",
+      all(w["source"] in ("مثل عربي", "مجمع الأمثال للميداني") for w in wisdom), sorted({w["source"] for w in wisdom}))
 check("at least 500 verses and hadith together (a new one every day for over a year)", len(verses) + len(hadith) >= 500, len(verses) + len(hadith))
 basmala = [v["surah"] for v in verses if v["surah"] != "سورة الفاتحة"
            and re.sub("[\u064B-\u065F\u0670]", "", v["text"]).startswith("بسم الله الرحمن الرحيم")]
@@ -117,7 +123,7 @@ check("every hadith on screen has the Prophet's words and fits the card",
 font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
 marks = set(TTFont(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2").getBestCmap())
 text = "".join(v["text"] + v["surah"] for v in verses) + "".join(t for h in hadith for _, t in h["parts"]) \
-    + "".join(h["source"] for h in hadith)
+    + "".join(h["source"] for h in hadith) + "".join(w["text"] + w["source"] for w in wisdom)
 missing = sorted({c for c in text if not c.isspace() and ord(c) not in font and c not in "ﷺ﴿﴾"})   # those: NotoMarks
 check("verse/hadith text: every character in Thmanyah", not missing, missing)
 check("NotoMarks has ﷺ ﴿ ﴾", {0xFDFA, 0xFD3E, 0xFD3F} <= marks)

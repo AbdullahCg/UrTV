@@ -395,8 +395,8 @@ const CONFIG = {
             : [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137'])
     .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)).slice(0, 10),
   sportsKey: '123',
-  // the card beside the clock: shows | prayers | forecast | matches | verse | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','matches','verse','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   matchesPerPage: 2,
   matchPageMs: 15000,
@@ -1109,6 +1109,7 @@ function renderPanel(animate){
   else if(P === 'forecast') rows = forecastRows();
   else if(P === 'matches') rows = matchRows();
   else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
+  else if(P === 'wisdom'){ const q = wisdomOfDay(); setText(hd, q.title); rows = q.rows; }
   if(PANEL_TITLE[P]) setText(hd, PANEL_TITLE[P]);
   if(!rows.length){
     ul.classList.remove('flip');
@@ -1192,6 +1193,14 @@ function quoteOfDay(){
   const saw = s => s.replace(/ﷺ/g, '<span class="saw">ﷺ</span>').replace(/[﴿﴾]/g, m => `<span class="orn">${m}</span>`);
   const body = h.parts.map(([k, t]) => k === 'q' ? `«${saw(esc(t))}»` : `<span class="nar">${saw(esc(t))}</span>`).join(' ');
   return {title:'حديث اليوم', rows:[`<li class="quote hadith${quoteSize(h.parts.reduce((n, [, t]) => n + t.length, 0))}">${body}</li>`, `<li class="src">${esc(h.source)}</li>`]};
+}
+
+// «حكمة اليوم»: one saying a day by the Riyadh day number, proverbs and classical sayings only (assets/shared/wisdom.json)
+const WISDOM = [{"text": "الصبر مفتاح الفرج", "source": "مثل عربي"}, {"text": "الجار قبل الدار", "source": "مثل عربي"}, {"text": "الرفيق قبل الطريق", "source": "مثل عربي"}, {"text": "الصديق وقت الضيق", "source": "مثل عربي"}, {"text": "ما حكَّ جلدَك مثلُ ظفرِك", "source": "مثل عربي"}, {"text": "من جدَّ وجد، ومن زرع حصد", "source": "مثل عربي"}, {"text": "لكلِّ مقامٍ مقال", "source": "مثل عربي"}, {"text": "الطيور على أشكالها تقع", "source": "مثل عربي"}, {"text": "الحاجة تفتق الحيلة", "source": "مثل عربي"}, {"text": "إذا عُرف السبب بطل العجب", "source": "مثل عربي"}, {"text": "ربَّ أخٍ لك لم تلده أمُّك", "source": "مجمع الأمثال للميداني"}, {"text": "الصيف ضيَّعتِ اللبن", "source": "مجمع الأمثال للميداني"}, {"text": "على نفسها جنت براقش", "source": "مجمع الأمثال للميداني"}, {"text": "أسمع جعجعةً ولا أرى طحنًا", "source": "مجمع الأمثال للميداني"}, {"text": "اليد الواحدة لا تصفِّق", "source": "مثل عربي"}, {"text": "في التأني السلامة وفي العجلة الندامة", "source": "مثل عربي"}, {"text": "من حفر حفرةً لأخيه وقع فيها", "source": "مثل عربي"}, {"text": "الحرُّ تكفيه الإشارة", "source": "مثل عربي"}, {"text": "ما لا يُدرَك كلُّه لا يُترك كلُّه", "source": "مثل عربي"}, {"text": "الباب الذي يأتيك منه الريح سدَّه واستَرِح", "source": "مثل عربي"}, {"text": "كلُّ إناءٍ بما فيه ينضح", "source": "مثل عربي"}, {"text": "رمتني بدائها وانسلَّت", "source": "مجمع الأمثال للميداني"}, {"text": "أعطِ الخبزَ لخبَّازه ولو أكل نصفه", "source": "مثل عربي"}, {"text": "عند الامتحان يُكرَم المرء أو يُهان", "source": "مثل عربي"}, {"text": "الوقت من ذهب", "source": "مثل عربي"}, {"text": "إن كان الكلام من فضة فالسكوت من ذهب", "source": "مثل عربي"}, {"text": "العلم في الصغر كالنقش على الحجر", "source": "مثل عربي"}, {"text": "من شبَّ على شيءٍ شاب عليه", "source": "مثل عربي"}, {"text": "جزاء سنمَّار", "source": "مجمع الأمثال للميداني"}, {"text": "ربَّ ضارةٍ نافعة", "source": "مثل عربي"}, {"text": "الغائب حجَّته معه", "source": "مثل عربي"}, {"text": "الناس معادن", "source": "مثل عربي"}, {"text": "ما ضاع حقٌّ وراءه مطالب", "source": "مثل عربي"}, {"text": "لا دخان بلا نار", "source": "مثل عربي"}, {"text": "البعيد عن العين بعيد عن القلب", "source": "مثل عربي"}, {"text": "كثرة الطباخين تحرق الطبيخ", "source": "مثل عربي"}, {"text": "الطمع يُقلُّ ما جمع", "source": "مثل عربي"}, {"text": "أول الغيث قطرة", "source": "مثل عربي"}, {"text": "الاتحاد قوة", "source": "مثل عربي"}, {"text": "القرد في عين أمه غزال", "source": "مثل عربي"}, {"text": "الجود بالموجود", "source": "مثل عربي"}, {"text": "لكلِّ جوادٍ كبوة", "source": "مجمع الأمثال للميداني"}, {"text": "لكلِّ ساقطةٍ لاقطة", "source": "مثل عربي"}, {"text": "ليس كلُّ ما يلمع ذهبًا", "source": "مثل عربي"}, {"text": "الحاجة أم الاختراع", "source": "مثل عربي"}, {"text": "درهم وقاية خيرٌ من قنطار علاج", "source": "مثل عربي"}, {"text": "من صبر ظفر", "source": "مثل عربي"}, {"text": "الإنسان بأخلاقه", "source": "مثل عربي"}, {"text": "الوعد دَين", "source": "مثل عربي"}, {"text": "الطبع يغلب التطبع", "source": "مثل عربي"}, {"text": "الجزاء من جنس العمل", "source": "مثل عربي"}, {"text": "كلُّ ممنوعٍ مرغوب", "source": "مثل عربي"}, {"text": "الأقارب عقارب", "source": "مثل عربي"}, {"text": "عِش رجبًا ترَ عجبًا", "source": "مجمع الأمثال للميداني"}, {"text": "ما كلُّ بيضاءَ شحمة ولا كلُّ سوداءَ تمرة", "source": "مجمع الأمثال للميداني"}, {"text": "دوام الحال من المحال", "source": "مثل عربي"}, {"text": "الباطل لا يدوم", "source": "مثل عربي"}, {"text": "خير البرِّ عاجله", "source": "مجمع الأمثال للميداني"}, {"text": "الحذر لا يمنع القدر", "source": "مثل عربي"}, {"text": "التكرار يعلِّم الشطَّار", "source": "مثل عربي"}, {"text": "اللبيب بالإشارة يفهم", "source": "مثل عربي"}, {"text": "آخر الدواء الكيّ", "source": "مثل عربي"}, {"text": "جاء يكحِّلها فأعماها", "source": "مجمع الأمثال للميداني"}, {"text": "حبل الكذب قصير", "source": "مثل عربي"}, {"text": "من تأنَّى نال ما تمنَّى", "source": "مثل عربي"}, {"text": "لا ناقة لي فيها ولا جمل", "source": "مثل عربي"}];
+function wisdomOfDay(){
+  if(!WISDOM.length) return quoteOfDay();
+  const w = WISDOM[riyadhDayNumber() % WISDOM.length];
+  return {title:'حكمة اليوم', rows:[`<li class="quote${quoteSize(w.text.length)}">${esc(w.text)}</li>`, `<li class="src">${esc(w.source)}</li>`]};
 }
 
 const WX_CODES = {
