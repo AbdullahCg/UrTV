@@ -126,6 +126,13 @@
   .week li.quote .saw{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:#D6AF6B;font-size:1.6em;line-height:1;vertical-align:-.1em}
   /* a full hadith: the isnad and the narration small and muted, the Prophet's words ﷺ at full size */
   .week li.quote.hadith{font-size:clamp(15px,1.3vw,25px);line-height:1.7}
+  /* long texts a step smaller (by length, see quoteSize()), so the card never grows past the clock row */
+  .week li.quote.q1{font-size:clamp(15px,1.3vw,25px)}
+  .week li.quote.q2{font-size:clamp(14px,1.16vw,22px)}
+  .week li.quote.q3{font-size:clamp(13px,1.04vw,20px)}
+  .week li.quote.hadith.q1{font-size:clamp(14px,1.16vw,22px)}
+  .week li.quote.hadith.q2{font-size:clamp(13px,1.04vw,20px)}
+  .week li.quote.hadith.q3{font-size:clamp(12px,.94vw,18px)}
   .week li.quote .nar{font-size:.66em;color:#B9AE96}
   .week li.quote .nar .saw{font-size:1.45em}
   .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:#D6AF6B}
@@ -187,6 +194,7 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em;
   }
   .panel .sub b{color:#F0E6D0;font-weight:500}
+  .panel .sub.when{margin-top:.3vh;font-size:.86em;color:#A79C85}
 
   .p-prayer{text-align:right}
   .p-prayer .big{justify-content:flex-start}
@@ -758,7 +766,9 @@ function matchSlot(id, now, shown){
     .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
   const t12 = ar(fmt12(+p.hour % 24, +p.minute));
   const live = diff <= 0 && ev.intHomeScore != null && ev.intAwayScore != null;
-  const sub = diff > 0 ? `بعد ${shortRemaining(diff)} · ${t12}` : `<span class="live">مباشر</span> · ${liveStatus(ev, t12)}`;
+  // «بعد ٣ أيام» and under it the date and time, small: «السبت ٢٤ أكتوبر · ٩:١٦ م»
+  const dateLine = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'}).format(d).replace('،','') + ' · ' + t12;
+  const sub = diff > 0 ? `بعد ${shortRemaining(diff)}</div><div class="sub when">${dateLine}` : `<span class="live">مباشر</span> · ${liveStatus(ev, t12)}`;
   const mid = live ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
   return `<div class="mblock">`
        + `<div class="big"><span>${home}${mid}${away}</span></div>`
@@ -1060,16 +1070,18 @@ const VERSES = __VERSES__;   // assets/shared/verses.json
 // hadith: only those .github/tools/verify_hadith.py found in the six books, each shown in full as the book has it,
 // isnad and all: parts are ["n", narration] and ["q", the Prophet's words]; source is the book and its number
 const HADITH = __HADITH__;   // assets/shared/hadith.json, through src/build.py
+// the text's size steps down with its length (characters): up to 180 as it was, then three smaller steps
+const quoteSize = n => n > 420 ? ' q3' : n > 300 ? ' q2' : n > 180 ? ' q1' : '';
 function quoteOfDay(){
   const n = riyadhDayNumber(), half = Math.floor(n / 2);
   if(VERSES.length && n % 2 === 0){
     const v = VERSES[half % VERSES.length];
-    return {title:'آية اليوم', rows:[`<li class="quote"><span class="orn">﴿</span>${esc(v.text)}<span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
+    return {title:'آية اليوم', rows:[`<li class="quote${quoteSize(v.text.length)}"><span class="orn">﴿</span>${esc(v.text)}<span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
   }
   const h = HADITH[half % HADITH.length];
   const saw = s => s.replace(/ﷺ/g, '<span class="saw">ﷺ</span>').replace(/[﴿﴾]/g, m => `<span class="orn">${m}</span>`);
   const body = h.parts.map(([k, t]) => k === 'q' ? `«${saw(esc(t))}»` : `<span class="nar">${saw(esc(t))}</span>`).join(' ');
-  return {title:'حديث اليوم', rows:[`<li class="quote hadith">${body}</li>`, `<li class="src">${esc(h.source)}</li>`]};
+  return {title:'حديث اليوم', rows:[`<li class="quote hadith${quoteSize(h.parts.reduce((n, [, t]) => n + t.length, 0))}">${body}</li>`, `<li class="src">${esc(h.source)}</li>`]};
 }
 
 const WX_CODES = {
@@ -1223,7 +1235,7 @@ function applyBackground(force){
 }
 
 // Last painted panels, shown at once on the next start while fresh data loads.
-const SNAP_KEY = 'snap3:' + location.hash;   // bump when the panels' markup changes
+const SNAP_KEY = 'snap4:' + location.hash;   // bump when the panels' markup changes
 const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
 function saveSnap(){
   try{ localStorage.setItem(SNAP_KEY, JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''))); }catch(e){}

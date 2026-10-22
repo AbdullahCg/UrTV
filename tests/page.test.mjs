@@ -234,6 +234,27 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   await ctx.close();
 }
 
+// ---- an upcoming match shows «بعد …» and under it its date and time (Riyadh), small
+{
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await ctx.route(/^https?:/, r => r.abort());
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#teams=136013&panel=matches');
+  await p.waitForTimeout(800);
+  // 2026-10-24 18:16 UTC = Saturday 9:16 pm in Riyadh
+  const r = await p.evaluate(() => {
+    MATCHES['136013'] = {idEvent:'d1', strHomeTeam:'Al-Hilal', strAwayTeam:'Al-Nassr', strTimestamp:'2026-10-24T18:16:00Z', strStatus:'NS'};
+    const real = Date.now; Date.now = () => Date.parse('2026-10-21T18:16:00Z');
+    renderMatches(); Date.now = real;
+    const sub = [...document.querySelectorAll('#match-row .sub')];
+    const when = document.querySelector('#match-row .sub.when');
+    return { subs: sub.map(x => x.textContent.trim()), small: when && parseFloat(getComputedStyle(when).fontSize) < parseFloat(getComputedStyle(sub[0]).fontSize) };
+  });
+  check('upcoming match: «بعد ٣ أيام» then «السبت ٢٤ أكتوبر · ٩:١٦ م» in smaller text',
+    r.subs.length === 2 && r.subs[0] === 'بعد ٣ أيام' && r.subs[1] === 'السبت ٢٤ أكتوبر · ٩:١٦ م' && r.small, JSON.stringify(r));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);
