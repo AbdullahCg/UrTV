@@ -23,6 +23,17 @@ FONTS = {
 REPO = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/"
 
 
+TAFSIR_MAX = 130   # characters kept of «التفسير الميسر»; the card shows at most three lines of it
+
+
+def tafsir_for_screen(text):
+    """The tafsir cut at a word to TAFSIR_MAX characters, «…» after it if cut ('' when there is none)."""
+    t = " ".join((text or "").split())
+    if len(t) <= TAFSIR_MAX:
+        return t
+    return t[:TAFSIR_MAX].rsplit(" ", 1)[0].rstrip(" ،,:؛.") + "…"
+
+
 def verses_for_screen():
     """assets/shared/verses.json as fetched by .github/tools/fetch_verses.py. The text shown is the `uthmani` one, the
     KFGQPC text the Uthmanic Hafs font is made for, kept exactly as fetched (waqf signs included, the font draws them;
@@ -38,7 +49,10 @@ def verses_for_screen():
         # NFC first: the API writes آ as ا + madda, which stripping the harakat would turn into ا (ال عمران)
         name = re.sub("[\u064B-\u065F\u0670\u06D6-\u06ED]", "", unicodedata.normalize("NFC", v["surah"]))
         name = name.replace("\u0671", "ا")   # ٱ: no glyph in Thmanyah
-        out.append({"text": " ".join(v["uthmani"].replace("\u06DE", "").split()), "surah": name, "ayah": v["ayah"]})
+        e = {"text": " ".join(v["uthmani"].replace("\u06DE", "").split()), "surah": name, "ayah": v["ayah"]}
+        if v.get("tafsir"):
+            e["tafsir"] = tafsir_for_screen(v["tafsir"])
+        out.append(e)
     return out
 
 

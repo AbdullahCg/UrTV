@@ -5,7 +5,8 @@ name: Fetch verse texts
 #   text     api.alquran.cloud, edition quran-simple (Tanzil)
 #   uthmani  the KFGQPC Uthmani Hafs 3.0 text, the one the font assets/fonts/UthmanicHafs-v30.woff2 is made for
 #            (npm package @quran.ws/text 0.1.0, checked by SHA-256)
-#   Copy the two fields into assets/shared/verses.json.
+#   tafsir   «التفسير الميسر» (King Fahd Glorious Quran Printing Complex), api.alquran.cloud edition ar.muyassar;
+#            shown under the verse only with #tafsir=1. Copy the three fields into assets/shared/verses.json.
 on:
   workflow_dispatch:
   push:
@@ -28,5 +29,5 @@ jobs:
           git checkout --orphan data-verses
           git rm -rfq --cached .
           git add -f verses   # the folder is in .gitignore for local runs
-          git commit -qm "Verse texts and Uthmani text (api.alquran.cloud, KFGQPC)"
+          git commit -qm "Verse texts, Uthmani text and tafsir (api.alquran.cloud, KFGQPC)"
           git push -f origin data-verses

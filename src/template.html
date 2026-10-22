@@ -132,6 +132,9 @@
   /* the Uthmanic Hafs face is small for its size and its marks stack high: larger, with more leading */
   .week li.quote .qt{font-family:'UthmanicHafs','Thmanyah',serif;font-size:1.32em}
   .week li.quote.quran{line-height:1.95}
+  /* «التفسير الميسر» under the verse (#tafsir=1): small and dim, three lines at most (fitTafsir) */
+  .week li.tafsir{white-space:normal;display:block;border-bottom:none;padding:.5vh 0 0;line-height:1.65;
+    font-size:clamp(11px,.92vw,17px);color:#B9AE96}
   /* a full hadith: the isnad and the narration small and muted, the Prophet's words ﷺ at full size */
   .week li.quote.hadith{font-size:clamp(15px,1.3vw,25px);line-height:1.7}
   /* long texts a step smaller (by length, see quoteSize()), so the card never grows past the clock row */
@@ -464,6 +467,8 @@ const CONFIG = {
   // #cd=YYYY-MM-DD&cdname=...: the date and name for slot=countdown (a bad date = none)
   cd: (v => /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v + 'T00:00:00Z')) && new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v ? v : '')(_Q.get('cd') || ''),
   cdName: (_Q.get('cdname') || '').trim().slice(0, 40),
+  // «التفسير الميسر» under the verse of the day: #tafsir=1 (anything else = off)
+  tafsir: _Q.get('tafsir') === '1',
   // #widget=1: only the card, on a transparent page (the launcher's home screen shows it)
   widget: _Q.get('widget') === '1',
 };
@@ -1335,6 +1340,7 @@ function renderPanel(animate){
     rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
   }
   setHTML(ul, rows.join(''), animate);
+  if(CONFIG.tafsir) fitTafsir(ul);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
 }
@@ -1451,11 +1457,32 @@ const VERSES = __VERSES__;   // assets/shared/verses.json
 const HADITH = __HADITH__;   // assets/shared/hadith.json, through src/build.py
 // the text's size steps down with its length (characters): up to 180 as it was, then three smaller steps
 const quoteSize = n => n > 420 ? ' q3' : n > 300 ? ' q2' : n > 180 ? ' q1' : '';
+// the tafsir cut at a word, «…» after it, until it fits three lines (the build already limits its length); on a card
+// that is already full (a long verse on a small screen) fewer lines, none at all if not even one fits
+function fitTafsir(ul){
+  const el = ul.querySelector('li.tafsir');
+  if(!el) return;
+  const full = el.textContent.replace(/…$/, ''), words = full.split(' '), was = el.textContent !== full;
+  const card = ul.closest('.week'), bar = document.querySelector('.bottom');
+  const lines = () => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight));
+  const crowded = () => { const c = card.getBoundingClientRect(); return c.height > .42 * innerHeight || c.bottom > bar.getBoundingClientRect().top - 4; };
+  for(let max = 3; max > 0; max--){
+    let n = words.length;
+    el.textContent = full + (was ? '…' : '');
+    while(lines() > max && n > 1){
+      n--;
+      el.textContent = words.slice(0, n).join(' ').replace(/[\s،,:؛.]+$/, '') + '…';
+    }
+    if(!crowded()) return;
+  }
+  el.remove();
+}
 function quoteOfDay(){
   const n = riyadhDayNumber(), half = Math.floor(n / 2);
   if(VERSES.length && n % 2 === 0){
     const v = VERSES[half % VERSES.length];
-    return {title:'آية اليوم', rows:[`<li class="quote quran${v.text.length > 400 ? ' q4' : quoteSize(v.text.length)}"><span class="orn">﴿</span><span class="qt">${esc(v.text)}</span><span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
+    return {title:'آية اليوم', rows:[`<li class="quote quran${v.text.length > 400 ? ' q4' : quoteSize(v.text.length)}"><span class="orn">﴿</span><span class="qt">${esc(v.text)}</span><span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]
+      .concat(CONFIG.tafsir && v.tafsir ? [`<li class="tafsir">${esc(v.tafsir)}</li>`] : [])};
   }
   const h = HADITH[half % HADITH.length];
   const saw = s => s.replace(/ﷺ/g, '<span class="saw">ﷺ</span>').replace(/[﴿﴾]/g, m => `<span class="orn">${m}</span>`);

@@ -4,6 +4,8 @@
   text     api.alquran.cloud, edition quran-simple (Tanzil): plain script, kept for checks and as the fallback
   uthmani  the KFGQPC Uthmani Hafs text (release 3.0), the one text the font assets/fonts/UthmanicHafs-v30.woff2
            is made for, from the npm package @quran.ws/text (pinned, checked by hash). Never show it in another font.
+  tafsir   «التفسير الميسر» (King Fahd Complex), api.alquran.cloud edition ar.muyassar; the screen shows it
+           only with #tafsir=1
 
 Runs in CI (.github/workflows/verses.yml): api.alquran.cloud is unreachable from the dev container. The screen never
 holds Quran text typed by hand; it only shows what this script fetched, copied to assets/shared/verses.json.
@@ -76,6 +78,7 @@ REFS = [
     "55:9", "57:9", "60:8", "67:19",
 ]
 EDITION = "quran-simple"   # standard Arabic script with diacritics; renders in any Arabic font
+TAFSIR_EDITION = "ar.muyassar"   # التفسير الميسر, King Fahd Glorious Quran Printing Complex
 # the KFGQPC Uthmani Hafs 3.0 text (words, waqf signs, ayah boundaries) next to its font UthmanicHafs-v-3.0.ttf
 UTHMANI_TARBALL = "https://registry.npmjs.org/@quran.ws/text/-/text-0.1.0.tgz"
 UTHMANI_SHA256 = "31186b3ac554ea8d5db1dbc1f67ac5a6d3bd99a62091d04ff73f39be18bf2568"   # of package/data/hafs.json
@@ -146,8 +149,9 @@ def main():
     out = []
     for ref in REFS:
         d = get(f"https://api.alquran.cloud/v1/ayah/{ref}/{EDITION}")["data"]
+        tafsir = get(f"https://api.alquran.cloud/v1/ayah/{ref}/{TAFSIR_EDITION}")["data"]["text"]
         out.append({"ref": ref, "surah": d["surah"]["name"], "ayah": d["numberInSurah"], "text": d["text"],
-                    "uthmani": u.ref(ref)})
+                    "uthmani": u.ref(ref), "tafsir": " ".join(tafsir.split())})
         print(ref, d["surah"]["name"], len(d["text"].split()), "words")
     Path("verses").mkdir(exist_ok=True)
     Path("verses/verses.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -210,7 +210,7 @@ the windows (morning: Fajr to Dhuhr, evening: Asr to Maghrib).
 ## Credits
 
 Photos: Unsplash photographers, listed in [docs/PHOTO-CREDITS.md](docs/PHOTO-CREDITS.md). Fonts: Thmanyah, and
-Noto Naskh Arabic for ﷺ ﴿﴾ (OFL, `assets/fonts/`). Quran text: KFGQPC Uthmanic Hafs 3.0 font and text, King Fahd Glorious Quran Printing Complex (free to use and distribute unmodified, [notice](assets/fonts/UthmanicHafs-NOTICE.txt)).
+Noto Naskh Arabic for ﷺ ﴿﴾ (OFL, `assets/fonts/`). Quran text: KFGQPC Uthmanic Hafs 3.0 font and text, King Fahd Glorious Quran Printing Complex (free to use and distribute unmodified, [notice](assets/fonts/UthmanicHafs-NOTICE.txt)); «التفسير الميسر» (King Fahd Complex) via api.alquran.cloud.
 Quran recitations and live streams: [mp3quran.net](https://mp3quran.net) and [qurango.net](https://qurango.net);
 the Saudi Quran Radio stream is via [radiojar](https://www.radiojar.com/). Adhan recordings: the
 [Azaan of World Mosques](https://archive.org/details/azaan-of-world-mosques_202608) collection on Archive.org
