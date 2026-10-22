@@ -201,6 +201,8 @@
   .p-mid{text-align:center}
   .p-mid .big{display:block;text-align:center;line-height:1.06}
   .p-mid .num{font-size:1.3em;line-height:1}
+  .p-mid .txt{display:inline-block;max-width:100%;white-space:normal;font-size:.5em;line-height:1.3}
+  .panel .sub .note{font-size:.9em;color:#A79C85;margin-top:.2vh}
   .p-mid .unit{font-size:.46em;font-weight:500;color:#D6AF6B;letter-spacing:.02em;display:inline;vertical-align:.5em}
   .p-match{text-align:left}
   .p-match .big{justify-content:flex-end}
@@ -309,9 +311,9 @@
     </div>
 
     <div class="panel p-mid">
-      <div class="label" id="ramadan-label">رمضان ١٤٤٨</div>
-      <div class="big"><span class="num" id="ramadan-days">—</span></div>
-      <div class="sub" id="ramadan-sub">—</div>
+      <div class="label" id="occ-label">رمضان ١٤٤٨</div>
+      <div class="big"><span class="num" id="occ-days">—</span></div>
+      <div class="sub" id="occ-sub">—</div>
     </div>
 
     <div class="panel p-match">
@@ -482,7 +484,7 @@ async function loadPrayers(){
     try{ buildPrayers(computePrayers()); }catch(_){}
   }
   tickPrayer();
-  tickRamadan();   // Ramadan mode needs the prayer times
+  tickOccasion();   // Ramadan mode needs the prayer times
   if(CONFIG.panel === 'prayers') renderPanel(false);
 }
 
@@ -553,41 +555,59 @@ function tickPrayer(){
   elC.innerHTML = 'بعد <b>' + humanRemaining(Math.max(0, Math.round(leftM*60))) + '</b>';
 }
 
-let RAM_CACHE = {day:'', val:null};
-function ramadanStart(){
+// ---- «المناسبة القادمة»: the card in the middle of the bottom row follows the Hijri year ----
+// All the wording is here. hm/hd: the Hijri month and day it begins (Umm al-Qura); days: how long it lasts;
+// name: the label; year: the Hijri year follows the name; today: the big text on its days;
+// note: a small second line while counting down. Ramadan itself shows iftar and suhoor (see tickOccasion).
+const OCCASIONS = [
+  {hm:9,  hd:1,  days:30, name:'رمضان',             year:true, today:'رمضان مبارك'},
+  {hm:10, hd:1,  days:3,  name:'عيد الفطر',          today:'عيد مبارك'},
+  {hm:12, hd:1,  days:1,  name:'عشر ذي الحجة',       today:'اليوم أول أيام العشر'},
+  {hm:12, hd:9,  days:1,  name:'يوم عرفة',           today:'اليوم يوم عرفة'},
+  {hm:12, hd:10, days:4,  name:'عيد الأضحى',         today:'عيد مبارك'},
+  {hm:1,  hd:1,  days:1,  name:'رأس السنة الهجرية',  today:'اليوم رأس السنة الهجرية'},
+  {hm:1,  hd:10, days:1,  name:'عاشوراء',            today:'اليوم عاشوراء', note:'ويُستحب صيام التاسع'},
+];
+const OCC_TEXT = {unit:'يوم', expected:'متوقّع'};   // the moon decides the day, so the date is only expected
+
+// Today's occasion, or the next one with the days left and its day: one pass over the coming year, once a day.
+let OCC_CACHE = {day:'', val:null};
+function occasionNow(){
   const dayKey = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-  if(RAM_CACHE.day === dayKey) return RAM_CACHE.val;
-  const fmt = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,month:'numeric'});
-  let found = null;
-  for(let i=0;i<400;i++){
-    const d = new Date(Date.now()+i*86400000);
-    if(fmt.format(d) === '9'){
-      const p = riyadhParts(d);
-      const hy = +new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,year:'numeric'})
-        .format(d).replace(/[^0-9]/g,'');
-      found = {y:p.y, mo:p.mo, d:p.d, hy};
-      break;
+  if(OCC_CACHE.day === dayKey) return OCC_CACHE.val;
+  const fmt = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,year:'numeric',month:'numeric',day:'numeric'});
+  const hijri = d => fmt.formatToParts(d).reduce((a,x) => (a[x.type] = +x.value.replace(/[^0-9]/g,''), a), {});
+  const base = Date.now();
+  let val = null, found = {};
+  for(let i = 0; i < 400 && !val; i++){
+    const d = new Date(base + i*86400000), h = hijri(d);
+    if(i === 0){
+      const o = OCCASIONS.find(o => h.month === o.hm && h.day >= o.hd && h.day < o.hd + o.days);
+      if(o){ val = {o, today:true, hy:h.year}; break; }
     }
+    OCCASIONS.forEach(o => {
+      if(i > 0 && h.month === o.hm && h.day === o.hd && !found[o.name]){
+        const p = riyadhParts(d);
+        found[o.name] = {o, days:i, hy:h.year, y:p.y, mo:p.mo, d:p.d};
+      }
+    });
+    if(Object.keys(found).length === OCCASIONS.length) break;
   }
-  RAM_CACHE = {day: dayKey, val: found};
-  return found;
+  if(!val) val = Object.values(found).sort((a, b) => a.days - b.days)[0] || null;
+  OCC_CACHE = {day: dayKey, val};
+  return val;
 }
-function hijriYearNow(){
-  try{
-    return +new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,year:'numeric'})
-      .format(new Date()).replace(/[^0-9]/g,'');
-  }catch(e){ return 1448; }
-}
+
 function hijriMonthNow(){
   try{
     return +new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,month:'numeric'})
       .format(new Date()).replace(/[^0-9]/g,'');
   }catch(e){ return 0; }
 }
-function tickRamadan(){
-  const elL=document.getElementById('ramadan-label'),
-        elD=document.getElementById('ramadan-days'),
-        elS=document.getElementById('ramadan-sub');
+function tickOccasion(){
+  const elL=document.getElementById('occ-label'),
+        elD=document.getElementById('occ-days'),
+        elS=document.getElementById('occ-sub');
 
   // ---- Ramadan mode: iftar / suhoor instead of the countdown ----
   if(hijriMonthNow() === 9 && PRAYERS.length){
@@ -608,17 +628,20 @@ function tickRamadan(){
     return;
   }
 
-  // ---- countdown mode ----
-  const st = ramadanStart();
-  elL.textContent = 'رمضان ' + ar(st ? st.hy : hijriYearNow());
-  if(!st){ elD.textContent='—'; elS.textContent=''; return; }
-  const rp2 = riyadhParts();
-  const days = Math.max(0, Math.round(
-    (Date.UTC(st.y, st.mo-1, st.d) - Date.UTC(rp2.y, rp2.mo-1, rp2.d)) / 86400000));
-  elD.innerHTML = ar(days) + ' <span class="unit">يوم</span>';
-  elS.textContent = days === 0 ? 'رمضان مبارك'
-    : 'يبدأ ' + new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'})
-        .format(new Date(Date.UTC(st.y, st.mo-1, st.d, 12)));
+  // ---- the occasion's day, or the countdown to the next one ----
+  const oc = occasionNow();
+  if(!oc){ elL.textContent = ''; elD.textContent = '—'; elS.textContent = ''; return; }
+  const o = oc.o;
+  elL.textContent = o.name + (o.year ? ' ' + ar(oc.hy) : '');
+  if(oc.today){
+    elD.innerHTML = '<span class="txt">' + esc(o.today) + '</span>';
+    elS.textContent = '';
+    return;
+  }
+  elD.innerHTML = ar(oc.days) + ' <span class="unit">' + OCC_TEXT.unit + '</span>';
+  elS.innerHTML = esc(new Intl.DateTimeFormat(GREG,{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'})
+      .format(new Date(Date.UTC(oc.y, oc.mo-1, oc.d, 12))).replace('،','') + ' · ' + OCC_TEXT.expected)
+    + (o.note ? '<div class="note">' + esc(o.note) + '</div>' : '');
 }
 
 const TEAM_AR = __TEAMS_AR__;   // assets/shared/teams-ar.json
@@ -1265,7 +1288,7 @@ function boot(){
   applyBackground(true);
   loadPhotoIndex().then(() => applyBackground(true));
   setInterval(() => applyBackground(false), 60*1000);
-  tickClock(); tickDates(); tickRamadan();
+  tickClock(); tickDates(); tickOccasion();
   TICKERS.forEach(loadTicker);
   if(CONFIG.panel === 'none') document.querySelector('.week').style.display = 'none';
   else if(CONFIG.panel !== 'shows') renderPanel(false);   // its own data arrives with prayers, weather, matches
@@ -1273,7 +1296,7 @@ function boot(){
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickRamadan(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
   setInterval(() => renderMatches(false), 60000);
   setInterval(() => renderMatches(true), CONFIG.matchPageMs);
   setInterval(loadLive, 2*60000);
@@ -1291,7 +1314,7 @@ function boot(){
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
+    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickOccasion(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
   }, 60*1000);
 }
 

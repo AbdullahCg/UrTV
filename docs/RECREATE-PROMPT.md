@@ -58,6 +58,9 @@ All three are built identically — small gold label, big value, small sub-line 
 - **Ramadan** — never hard-code the date: walk forward day by day with
   `Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:'Asia/Riyadh',month:'numeric'})` until the month equals 9.
   Cache the answer per calendar day — that 400-day search must not run once per second.
+  The centre panel follows the next occasion the same way (OCCASIONS in the page: Ramadan, عيد الفطر, عشر ذي الحجة,
+  يوم عرفة, عيد الأضحى, رأس السنة الهجرية, عاشوراء): days left and the expected date («متوقّع»), «اليوم …» or
+  «عيد مبارك» on its days.
 - **Hijri date** — `Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura',{timeZone:'Asia/Riyadh',weekday:'long',day:'numeric',month:'long',year:'numeric'})`, strip a trailing `هـ` before appending your own. The Ramadan panel's year must also be derived, never a literal `١٤٤٨`.
 - **Markets** — Yahoo chart API:
   `https://query1.finance.yahoo.com/v8/finance/chart/{^TASI.SR|^GSPC}?interval=1d&range=5d`

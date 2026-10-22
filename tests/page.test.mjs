@@ -144,16 +144,55 @@ for (const [hash, latin] of [['', false], ['digits=hindi', false], ['digits=lati
   const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=prayers&' + hash);
   const r = await p.evaluate(() => {
     MATCHES['136013'] = {idEvent:'x1', strHomeTeam:'Al-Hilal', strAwayTeam:'Al-Nassr', strTimestamp:new Date(Date.now() + 3 * 86400000 + 36e5).toISOString(), strStatus:'NS'};
-    renderMatches(); tickDates(); tickRamadan();
+    renderMatches(); tickDates(); tickOccasion();
     const text = document.querySelector('.stage').innerText.replace('500', '');   // S&P 500 is a name
     return { lat: (text.match(/[0-9]/g) || []).length, east: (text.match(/[٠-٩]/g) || []).length,
              clock: document.getElementById('ck-h').textContent + ':' + document.getElementById('ck-m').textContent,
              hijri: document.getElementById('hijri').textContent, greg: document.getElementById('greg').textContent,
-             days: document.getElementById('ramadan-days').textContent };
+             days: document.getElementById('occ-days').textContent };
   });
   const ok = latin ? r.lat > 10 && r.east === 0 && /^\d+:\d+$/.test(r.clock) && /\d/.test(r.hijri) && /\d/.test(r.greg)
                    : r.east > 10 && r.lat === 0;
   check(`link #${hash || '(empty)'} → ${latin ? '0-9' : '٠-٩'} in clock, dates, countdown and matches`, !errors.length && ok, JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+
+// ---- «المناسبة القادمة»: each occasion counts down, then shows its own day (dates as Umm al-Qura gives them)
+{
+  const { p, ctx, errors } = await open('tv.html', 'panel=verse');
+  const at = iso => p.evaluate(iso => {
+    const T = Date.parse(iso), R = Date;
+    window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+    OCC_CACHE = { day: '', val: null }; tickOccasion();
+    const t = id => document.getElementById(id).textContent.replace(/\s+/g, ' ').trim();
+    return [t('occ-label'), t('occ-days'), t('occ-sub')];
+  }, iso + 'T12:00:00Z');
+  const cases = [
+    ['2026-10-22', 'رمضان ١٤٤٨', '١٠٩ يوم', '٨ فبراير'],
+    ['2027-03-09', 'عيد الفطر', 'عيد مبارك', ''],
+    ['2027-03-11', 'عيد الفطر', 'عيد مبارك', ''],
+    ['2027-03-12', 'عشر ذي الحجة', '٥٦ يوم', '٧ مايو'],
+    ['2027-05-07', 'عشر ذي الحجة', 'اليوم أول أيام العشر', ''],
+    ['2027-05-08', 'يوم عرفة', '٧ يوم', '١٥ مايو'],
+    ['2027-05-15', 'يوم عرفة', 'اليوم يوم عرفة', ''],
+    ['2027-05-16', 'عيد الأضحى', 'عيد مبارك', ''],
+    ['2027-05-19', 'عيد الأضحى', 'عيد مبارك', ''],
+    ['2027-05-20', 'رأس السنة الهجرية', '١٧ يوم', '٦ يونيو'],
+    ['2027-06-06', 'رأس السنة الهجرية', 'اليوم رأس السنة الهجرية', ''],
+    ['2027-06-07', 'عاشوراء', '٨ يوم', '١٥ يونيو'],
+    ['2027-06-15', 'عاشوراء', 'اليوم عاشوراء', ''],
+    ['2027-06-16', 'رمضان ١٤٤٩', '٢٢٦ يوم', '٢٨ يناير'],
+  ];
+  for (const [day, label, big, date] of cases) {
+    const r = await at(day);
+    const ok = r[0] === label && r[1] === big && (date ? r[2].includes(date) && r[2].includes('متوقّع') : r[2] === '');
+    check(`occasion on ${day}: ${label} · ${big}`, !errors.length && ok, JSON.stringify(r) + errors.join('; '));
+  }
+  const r = await at('2027-06-07');
+  check('عاشوراء counts down with «ويُستحب صيام التاسع»', r[2].includes('ويُستحب صيام التاسع'), r[2]);
+  await p.evaluate(() => buildPrayers({ Fajr: '04:30', Dhuhr: '11:50', Asr: '15:10', Maghrib: '17:45', Isha: '19:15' }));
+  const ram = await at('2027-02-20');
+  check('during Ramadan the card still shows iftar / suhoor', ram[0] === 'الإفطار' || ram[0] === 'الإمساك', JSON.stringify(ram));
   await ctx.close();
 }
 
