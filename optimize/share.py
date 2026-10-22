@@ -140,7 +140,16 @@ OFF_BY_DESIGN = {"com.google.android.apps.tv.launcherx", "com.google.android.tvl
                  "com.google.android.tungsten.setupwraith", "com.tcl.keycustomfunctionservice"}
 
 
-def packages(lines):   # what our lists turned off, what they left on, and what the home screen hides
+def off_before():   # packages already disabled in the backup taken before setup: the TV keeps them off itself
+    try:
+        text = (RUN / "backup.txt").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return set()
+    sect = re.search(r"^== disabled packages.*?\n(.*?)(?=^== |\Z)", text, flags=re.M | re.S)
+    return set(re.findall(r"^package:(\S+)", sect.group(1), flags=re.M)) if sect else set()
+
+
+def packages(lines, before=None):   # what our lists turned off, what they left on, and what the home screen hides
     state = {}   # (state, list) -> packages
     for l in lines:
         m = re.match(r"- pkg (off|on|absent): (\S+) \((\S+)\)", l)
@@ -154,7 +163,8 @@ def packages(lines):   # what our lists turned off, what they left on, and what 
             out.append(f"{lst}: {len(off)} off, {len(on)} still on, {absent} not on this TV")
             out += [f"  off: {', '.join(off)}"] if off else []
             out += [f"  on: {', '.join(on)}"] if on else []
-    protected = [p for p in state.get(("off", "keep"), []) if p not in OFF_BY_DESIGN]
+    before = off_before() if before is None else before   # off before UrTV touched the TV: not ours to flag
+    protected = [p for p in state.get(("off", "keep"), []) if p not in OFF_BY_DESIGN and p not in before]
     if protected:
         out.append(f"!! protected but off: {', '.join(protected)}")
     out += hidden(lines)
