@@ -87,6 +87,13 @@ find a working Python themselves, past the Microsoft Store shortcut); if `bash` 
 here exactly as written and add no quotes, `;` or `|` of your own: PowerShell runs those itself before Git Bash
 sees them (that is why every check has its own script).
 
+**Codex: the network from the first try.** Its sandbox blocks the internet and the home network, so a command that
+needs them fails there first and wastes minutes (a `git clone` that sits with no progress, then a retry). Run
+`git clone`, `git pull` and every Git Bash command **outside the sandbox from the first try**: request escalated
+permissions straight away, with the justification below. If a request gets no answer within a minute, or is
+refused twice, don't wait or look for another way: tell me in one line which command needs approval and why, and
+ask me to approve it myself (or to allow it for the rest of the task).
+
 **Codex on Windows:** its sandbox can never start Git Bash (`0xC0000022`, `NtCreateDirectoryObject`: a known Codex
 bug, openai/codex#54449). So run every Git Bash command **outside the sandbox**: request escalated permissions for
 it, with this justification: "Git Bash cannot start inside the Codex Windows sandbox (openai/codex#54449); this runs
@@ -106,8 +113,8 @@ same command again: the scripts find the new Python without a new terminal. Don'
 On a Mac with only the system Python 3.9 and no Homebrew, `uv python install 3.12` needs no admin password (get uv
 with `curl -LsSf https://astral.sh/uv/install.sh | sh`); the scripts find uv's Python by themselves.
 ```
-git clone https://github.com/tshi-dev/UrTV     # on Windows into a short folder such as C:/UrTV (a deep one breaks Python and git: «Filename too long»; or run `git config --global core.longpaths true` first)
-cd UrTV
+git clone --depth 1 https://github.com/tshi-dev/UrTV     # only the latest version: much faster. On Windows into a short folder: git clone --depth 1 https://github.com/tshi-dev/UrTV C:/UrTV (a deep one breaks Python and git: «Filename too long»)
+cd UrTV                                # on Windows: cd C:/UrTV
 git pull                               # always the latest (a command of its own, not joined with the others)
 optimize/find-tv.sh --check            # Windows: always through Git Bash (below), never plain `python`
 ```
@@ -124,7 +131,7 @@ optimize/find-tv.sh --check            # Windows: always through Git Bash (below
 Signs you are in such a place, if you want to know why: your address is not 192.168.x, 10.x or 172.16–31.x; the
 network interfaces are only `lo` and `tap0`; `echo > /dev/tcp/<router>/80` says `Network is unreachable`; or every
 address "answers" (a proxy). If `git clone` stops halfway (on Windows it can leave an empty folder, «No commits
-yet»), delete the folder and clone again.
+yet»), or an old UrTV folder is there without a working `.git`, delete that folder and clone again with `--depth 1`.
 
 ## Rules (protective layer: these win over everything else here)
 
