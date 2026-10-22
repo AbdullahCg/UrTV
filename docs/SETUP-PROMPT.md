@@ -325,16 +325,19 @@ Only after everything above, undo included, and nowhere earlier: your last messa
 > أندرويد، وكم أخذت كل خطوة ووش اللي تعطّل، والذاكرة قبل وبعد. ما فيه أي شي شخصي: لا مدينة ولا أندية ولا
 > تطبيقات ولا عناوين. وإذا عندك كلمة تبغى توصله (عجبك؟ شي ضايقك؟)، اكتبها مع ردك.
 
-If I say yes, run it with: your name and model as the agent; my words if I wrote any (as I wrote them, minus
+If I say yes, write the report first and send nothing: your name and model as the agent; my words if I wrote any (as I wrote them, minus
 anything personal); and your own notes: what failed or was slow, how long it cost and what fixed it, in two to five
 plain lines, with no names, addresses or paths:
 ```
-optimize/share.sh --agent "<you and your model>" --owner "<my words, or leave it out>" "<your notes>"
+optimize/share.sh --preview --agent "<you and your model>" --owner "<my words, or leave it out>" "<your notes>"
 ```
 This is the one command here that needs quotes: the agent name and the notes are several words (no apostrophes
 in them). On Windows, inside the Git Bash `-lc "…"` string use single quotes for each:
-`-lc "cd <this folder> && optimize/share.sh --agent '<you and your model>' --owner '<my words>' '<your notes>'"`.
-It sends the summary to the author by itself (anonymously, no account) and prints `Sent to the author`: show me the
-text and tell me it went. If it couldn't send it, it opens a QR code on this computer's screen instead
+`-lc "cd <this folder> && optimize/share.sh --preview --agent '<you and your model>' --owner '<my words>' '<your notes>'"`.
+`--preview` prints exactly what would be sent and sends nothing. Show me that whole text, ask me «أرسله؟», and only
+if I say yes run `optimize/share.sh --send` (it sends the file as it is; no notes, no other words). If I want
+something changed or removed, run `--preview` again with the change and show me the new text; never send a text I
+haven't seen. `--send` sends the summary to the author (anonymously, no account) and prints `Sent to the author`:
+tell me it went. If it couldn't send it, it opens a QR code on this computer's screen instead
 (`optimize/run/share-qr.png`; if it didn't open, open it for me): tell me to scan it with my phone's camera, and the
 page that opens has a button that sends it. Never run it if I say no.

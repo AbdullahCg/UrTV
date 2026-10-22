@@ -6,7 +6,11 @@ UrTV's version and the apps', how long each step took and where it stopped, the 
 memory before and after, the checks, the agent's notes and the owner's own words if they want to add any.
 Nothing personal: no city, clubs, favourites or apps of theirs, no names, network addresses or file paths.
 
-    optimize/share.sh --agent "Codex (gpt-…)" --owner "the owner's words, if any" "the agent's notes"
+    optimize/share.sh --preview --agent "Codex (gpt-…)" --owner "the owner's words, if any" "the agent's notes"
+    optimize/share.sh --send
+
+--preview writes optimize/run/share.md and prints exactly what would be sent; nothing leaves the computer.
+--send sends that file as it is. Without either, it writes and sends in one go (older instructions).
 """
 import argparse
 import datetime
@@ -200,7 +204,18 @@ def main():
     a.add_argument("--agent", default="", help="which agent ran the setup, and its model")
     a.add_argument("--owner", default="", help="the owner's own words for the author, if they gave any")
     a.add_argument("notes", nargs="*", help="the agent's notes: what failed or was slow, and what fixed it")
+    mode = a.add_mutually_exclusive_group()
+    mode.add_argument("--preview", action="store_true", help="write the report and print it; send nothing")
+    mode.add_argument("--send", action="store_true", help="send the report --preview wrote")
     args = a.parse_args()
+    if args.send:
+        if args.notes or args.agent or args.owner:
+            sys.exit("!! --send sends the file as --preview wrote it: give the notes to --preview.")
+        if not OUT.exists():
+            sys.exit(f"!! Nothing to send: {OUT.relative_to(RUN.parent.parent)} is not there yet. "
+                     "Run optimize/share.sh --preview \"<notes>\" first, show the owner the text, then --send.")
+        deliver(scrub(OUT.read_text(encoding="utf-8")))
+        return
     notes = " ".join(args.notes).strip()
     summary = RUN / "summary.md"
     parts = [
@@ -227,6 +242,13 @@ def main():
     OUT.write_text(text, encoding="utf-8")
     print(text)
     print(f"Saved in {OUT.relative_to(RUN.parent.parent)}.")
+    if args.preview:
+        print("NOT sent. This is exactly what optimize/share.sh --send would send.")
+        return
+    deliver(text)
+
+
+def deliver(text):
     if send(text):
         print("Sent to the author. Thank you!")
         return
