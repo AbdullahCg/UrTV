@@ -700,6 +700,131 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- the bottom-left slot: #slot= (matches weather fasting countdown none), wired like #digits=
+const FAKE_NOW = iso => `(() => { const T = Date.parse('${iso}'), R = Date;
+  window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } }; })()`;
+const FORECAST_5 = `FORECAST = [0,1,2,3,4].map(i => ({date:'2026-10-2' + (2 + i), code:[0,2,3,95,1][i], hi:38 - i, lo:20}));`;
+const slotText = p => p.evaluate(() => ({ label: document.getElementById('slot-label').textContent,
+  row: document.getElementById('match-row').innerText.replace(/\s+/g, ' ').trim() }));
+for (const [hash, want] of [['', 'matches'], ['slot=matches', 'matches'], ['slot=weather', 'weather'], ['slot=fasting', 'fasting'],
+                            ['slot=countdown', 'countdown'], ['slot=none', 'none'], ['slot=bogus', 'matches'], ['slot=', 'matches']]) {
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&' + hash);
+  const got = await p.evaluate(() => CONFIG.slot);
+  check(`link #${hash || '(empty)'} → CONFIG.slot ${want}`, !errors.length && got === want, got + errors.join('; '));
+  await ctx.close();
+}
+{   // matches stay the default; with no team followed the slot shows the weather
+  let r = await open('tv.html', 'teams=136013');
+  check('slot matches with a team: «المباريات»', (await slotText(r.p)).label === 'المباريات');
+  await r.ctx.close();
+  r = await open('tv.html', 'teams=');
+  await r.p.evaluate(FORECAST_5 + FAKE_NOW('2026-10-22T09:00:00Z') + '; renderSlot();');
+  const t = await slotText(r.p);
+  check('no team followed: the slot shows the weather, not «لا شيء هذا الأسبوع»', t.label === 'الطقس' && !t.row.includes('لا شيء') && t.row.includes('٣٧°'), JSON.stringify(t));
+  await r.ctx.close();
+}
+{   // weather: the next three days from the forecast the page has; a missing forecast keeps what was shown
+  const { p, ctx, errors } = await open('tv.html', 'slot=weather');
+  await p.evaluate(FORECAST_5 + FAKE_NOW('2026-10-22T09:00:00Z') + '; renderSlot();');
+  const t = await slotText(p);
+  check('weather slot: label and the next three days with their weather words',
+    t.label === 'الطقس' && t.row === 'الجمعة ٣٧° غائم جزئياً السبت ٣٦° غائم الأحد ٣٥° عواصف رعدية', JSON.stringify(t));
+  await p.evaluate(() => { FORECAST = []; renderSlot(); });
+  check('weather slot: forecast missing, the last text stays', (await slotText(p)).row === t.row);
+  const fit = await p.evaluate(() => { const r = document.getElementById('match-row').getBoundingClientRect(), c = document.querySelector('.p-match').getBoundingClientRect();
+    return r.left >= c.left - 1 && r.right <= c.right + 1 && !document.getElementById('match-row').textContent.includes('…'); });
+  check('weather slot fits its panel', fit && !errors.length, errors.join('; '));
+  await ctx.close();
+}
+{   // fasting: a whole Hijri year of fake dates; never a forbidden day, always the earliest recommended one
+  const { p, ctx, errors } = await open('tv.html', 'slot=fasting');
+  const r = await p.evaluate(() => {
+    const H = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { timeZone: 'UTC', month: 'numeric', day: 'numeric' });
+    const hij = d => H.formatToParts(d).reduce((a, x) => (a[x.type] = +x.value.replace(/[^0-9]/g, ''), a), {});
+    const forbidden = h => (h.month === 10 && h.day === 1) || (h.month === 12 && h.day >= 10 && h.day <= 13);
+    const rec = (h, wd) => !forbidden(h) && (h.month === 9 || (h.month === 12 && h.day === 9) || (h.month === 1 && (h.day === 9 || h.day === 10))
+      || (h.day >= 13 && h.day <= 15) || wd === 1 || wd === 4 || (h.month === 10 && h.day >= 2));
+    const bad = [], seen = new Set(), keys = new Set();
+    let n = 0;
+    for (let i = 0; i < 400; i++) {
+      const noon = Date.UTC(2026, 9, 22, 12) + i * 86400000, h0 = hij(new Date(noon));
+      const f = fastingNext(new Date(noon - 3 * 3600000));   // noon in Riyadh
+      n++;
+      let want = 0;
+      while (!rec(hij(new Date(noon + want * 86400000)), new Date(noon + want * 86400000).getUTCDay())) want++;
+      const dh = hij(new Date(noon + f.days * 86400000));
+      if (forbidden(dh)) bad.push('forbidden ' + i);
+      if (f.days !== want) bad.push(`day ${i}: ${f.days} not ${want}`);
+      if (forbidden(h0)) { seen.add(h0.month + '/' + h0.day); if (f.days === 0) bad.push('today forbidden ' + i); }
+      keys.add(f.key);
+      // after the cut-off today is behind us, except Ramadan, which stays
+      const late = fastingNext(new Date(noon + 4 * 3600000));   // 19:00 in Riyadh
+      if (late.days === 0 && late.key !== 'ramadan') bad.push('late today ' + i);
+    }
+    return { n, bad: bad.slice(0, 5), seen: [...seen].sort(), keys: [...keys].sort() };
+  });
+  check(`fasting: ${r.n} days, never a forbidden day, always the earliest recommended`, !errors.length && !r.bad.length, JSON.stringify(r));
+  check('fasting: all five forbidden days came up as «today» and were skipped', r.seen.join() === '10/1,12/10,12/11,12/12,12/13', r.seen.join());
+  check('fasting: every kind of day was suggested at some point', r.keys.join() === 'arafah,ashura,mon,ramadan,shawwal,tasua,thu,white', r.keys.join());
+  const at = async iso => { await p.evaluate(FAKE_NOW(iso) + '; renderSlot();'); return slotText(p); };
+  const cases = [
+    ['2027-05-15T09:00:00Z', 'يوم عرفة اليوم'],                  // 9 Dhul-Hijjah
+    ['2027-05-14T09:00:00Z', 'يوم عرفة غدًا السبت'],
+    ['2027-05-16T09:00:00Z', 'الأيام البيض بعد ٤ أيام'],         // Eid and Tashreeq skipped: 14 Dhul-Hijjah
+    ['2027-02-10T09:00:00Z', 'صيام رمضان اليوم ٣ من رمضان'],
+    ['2027-02-10T17:00:00Z', 'صيام رمضان اليوم ٣ من رمضان'],
+    ['2027-03-09T09:00:00Z', 'ست من شوال غدًا الأربعاء'],        // Eid al-Fitr: tomorrow, the six of Shawwal
+    ['2026-10-22T09:00:00Z', 'صيام الخميس اليوم'],
+    ['2026-10-22T17:00:00Z', 'الأيام البيض بعد يومين'],
+  ];
+  for (const [iso, want] of cases) { const t = await at(iso); check(`fasting at ${iso}: ${want}`, t.label === 'الصيام' && t.row === want, JSON.stringify(t)); }
+  await ctx.close();
+}
+{   // countdown: days to the date, «اليوم» on it, the weather once it has passed; the name is escaped
+  const name = encodeURIComponent('رحلة <b>الصيف</b>');
+  const { p, ctx, errors } = await open('tv.html', `slot=countdown&cd=2026-12-01&cdname=${name}`);
+  const at = async iso => { await p.evaluate(FORECAST_5 + FAKE_NOW(iso) + '; renderSlot();'); return slotText(p); };
+  let t = await at('2026-10-22T09:00:00Z');
+  check('countdown: «٤٠ يوم» and the name, escaped', t.label === 'عدّ تنازلي' && t.row === '٤٠ يوم رحلة <b>الصيف</b>', JSON.stringify(t));
+  check('countdown: no element made from the name', await p.evaluate(() => !document.querySelector('#match-row b')));
+  t = await at('2026-11-30T21:30:00Z');   // 00:30 on the 1st in Riyadh
+  check('countdown: «اليوم» on the day', t.row.startsWith('اليوم'), JSON.stringify(t));
+  t = await at('2026-12-01T22:00:00Z');   // the 2nd in Riyadh
+  check('countdown: after the date, the weather instead', t.label === 'الطقس', JSON.stringify(t));
+  check('countdown: no script errors', !errors.length, errors.join('; '));
+  await ctx.close();
+  for (const [h, why] of [['cd=2026-13-45', 'a bad date'], ['cd=nonsense', 'text'], ['', 'no date']]) {
+    const r = await open('tv.html', 'slot=countdown&' + h);
+    const got = await r.p.evaluate(() => [CONFIG.cd, slotNow()]);
+    check(`countdown with ${why}: the weather`, got[0] === '' && got[1] === 'weather', got.join());
+    await r.ctx.close();
+  }
+}
+// none: the left panel is gone and the other two share the row, at three sizes
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', 'slot=none', { width, height });
+  const r = await p.evaluate(() => {
+    const b = document.querySelector('.bottom').getBoundingClientRect(), pr = document.querySelector('.p-prayer').getBoundingClientRect(),
+          mid = document.querySelector('.p-mid').getBoundingClientRect();
+    return { hidden: getComputedStyle(document.querySelector('.p-match')).display === 'none',
+             inside: pr.right <= b.right + 1 && mid.left >= b.left - 1, apart: mid.right <= pr.left + 1,
+             used: (pr.right - mid.left) / b.width };
+  });
+  check(`slot none at ${width}px: left panel hidden, the two others share the row`, !errors.length && r.hidden && r.inside && r.apart && r.used > .95, JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+// the matches timers and requests belong to the matches slot (and to the card beside the clock)
+for (const [hash, asks] of [['teams=136013', true], ['teams=136013&slot=weather', false], ['teams=136013&slot=none', false], ['teams=', false], ['teams=136013&slot=weather&panel=matches', true]]) {
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  let sports = 0;
+  await ctx.route(/^https?:/, r => { if (/thesportsdb/.test(r.request().url())) sports++; return r.abort(); });
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#' + hash);
+  await p.waitForTimeout(800);
+  check(`link #${hash}: matches data ${asks ? 'asked' : 'not asked'}`, (sports > 0) === asks, String(sports));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

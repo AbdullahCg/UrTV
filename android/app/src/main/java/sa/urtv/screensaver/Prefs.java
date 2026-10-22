@@ -81,6 +81,9 @@ final class Prefs {
 
     // how the markets are shown (#mkstyle=; arrows is what it always showed)
     static final String[][] MK_STYLES = {{"arrows", "الاتجاه فقط ▲▼"}, {"prices", "السعر والنسبة"}};
+    // what the bottom-left slot shows (sent to the page as #slot=; matches is what it always showed)
+    static final String[][] SLOTS = {{"matches", "المباريات"}, {"weather", "الطقس"}, {"fasting", "الصيام"},
+        {"countdown", "عدّ تنازلي"}, {"none", "بدون"}};
 
     // minutes of idle before Android starts the screensaver (the TV's own screen_off_timeout; not stored here)
     static final String[] IDLE_MINUTES = {"1", "2", "5", "10", "15", "30"};
@@ -204,6 +207,19 @@ final class Prefs {
         return CARD_STYLES[0][1];
     }
 
+    String slot() { return sp.getString("slot", "matches"); }
+    void setSlot(String v) { sp.edit().putString("slot", v).apply(); }
+
+    static String slotLabel(String v) {
+        for (String s : SLOTS) if (s[0].equals(v)) return s[1];
+        return SLOTS[0][1];
+    }
+
+    /** the countdown's date (YYYY-MM-DD, "" = none) and its name; sent to the page as #cd= and #cdname= */
+    String countdownDate() { return sp.getString("cd", ""); }
+    String countdownName() { return sp.getString("cdName", ""); }
+    void setCountdown(String date, String name) { sp.edit().putString("cd", date).putString("cdName", name).apply(); }
+
     String photoMinutes() { return sp.getString("photoMinutes", "30"); }
     void setPhotoMinutes(String v) { sp.edit().putString("photoMinutes", v).apply(); }
 
@@ -245,6 +261,9 @@ final class Prefs {
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()
             + "&stocks=" + join(stocks(), ",")
+            + "&slot=" + slot()
+            + "&cd=" + countdownDate()
+            + "&cdname=" + Uri.encode(countdownName())
             + openTasksParam();
     }
 

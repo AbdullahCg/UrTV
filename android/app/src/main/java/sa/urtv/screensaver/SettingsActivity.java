@@ -100,6 +100,11 @@ public class SettingsActivity extends Activity {
         header("العرض");
         row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
             new Runnable() { public void run() { pickDigits(); } });
+        row("الخانة اليسرى", Prefs.slotLabel(prefs.slot()), R.drawable.ic_eye,
+            new Runnable() { public void run() { pickSlot(); } });
+        if ("countdown".equals(prefs.slot()) || !prefs.countdownDate().isEmpty())
+            row("العدّ التنازلي", countdownLabel(), R.drawable.ic_eye,
+                new Runnable() { public void run() { manageCountdown(); } });
 
         header("الأسواق (أعلى اليسار)");
         row("الأسواق (" + arabicNum(prefs.markets().size()) + "/" + arabicNum(Prefs.MAX_MARKETS) + ")", marketsLabel(),
@@ -494,6 +499,38 @@ public class SettingsActivity extends Activity {
             .show();
     }
 
+    private void pickSlot() {
+        String[] labels = new String[Prefs.SLOTS.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.SLOTS[i][1];
+            if (Prefs.SLOTS[i][0].equals(prefs.slot())) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الخانة اليسرى")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setSlot(Prefs.SLOTS[i][0]); d.dismiss(); render(); })
+            .show();
+    }
+
+    private String countdownLabel() {
+        if (prefs.countdownDate().isEmpty()) return "لم يُحدَّد";
+        String name = prefs.countdownName();
+        return arabicDigits(prefs.countdownDate()) + (name.isEmpty() ? "" : " · " + name);
+    }
+
+    /** The date is set from the computer (optimize/saver.sh countdown); here it can be cleared. */
+    private void manageCountdown() {
+        if (prefs.countdownDate().isEmpty()) {
+            new AlertDialog.Builder(this, DIALOG_THEME).setTitle("العدّ التنازلي")
+                .setMessage("لم يُحدَّد تاريخ. يحدده المساعد على الكمبيوتر.")
+                .setPositiveButton("حسنًا", null).show();
+            return;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("العدّ التنازلي")
+            .setMessage(countdownLabel())
+            .setPositiveButton("مسح", (d, w) -> { prefs.setCountdown("", ""); render(); })
+            .setNegativeButton("إلغاء", null).show();
+    }
+
     private void pickDigits() {
         String[] labels = new String[Prefs.DIGITS.length];
         int sel = 0;
@@ -602,6 +639,12 @@ public class SettingsActivity extends Activity {
         List<String> names = new ArrayList<>();
         for (String t : prefs.teams()) names.add(t.split("\\|", 2)[1]);
         return names.isEmpty() ? "لا شيء" : Prefs.join(names, "، ");
+    }
+
+    private static String arabicDigits(String s) {
+        StringBuilder b = new StringBuilder();
+        for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
+        return b.toString();
     }
 
     private static String arabicNum(int n) {

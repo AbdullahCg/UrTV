@@ -322,6 +322,10 @@
   .stage{transition:transform 3s ease}
   .sc{color:#E0BA74;letter-spacing:.02em}
 
+  /* #slot=none: the left panel is gone and the other two share the row */
+  html.slot-none .p-match{display:none}
+  html.slot-none .bottom{grid-template-columns:1fr .9fr}
+
   @media (max-aspect-ratio:5/4){
     .top{flex-direction:column-reverse;gap:1.4vh}
     .bottom{grid-template-columns:1fr 1fr}
@@ -389,7 +393,7 @@
     </div>
 
     <div class="panel p-match">
-      <div class="label">المباريات</div>
+      <div class="label" id="slot-label">المباريات</div>
       <div class="mrow" id="match-row">
         <div class="none-week">لا شيء هذا الأسبوع</div>
       </div>
@@ -453,6 +457,11 @@ const CONFIG = {
   mkStyle: _Q.get('mkstyle') === 'prices' ? 'prices' : 'arrows',
   // the stocks card's watchlist: #stocks=2222,1120,AAPL,NVDA (up to 8; 4 digits = a Tadawul code, letters = a US ticker)
   stocks: _list('stocks').map(x => x.toUpperCase()).filter((x, i, a) => /^(\d{4}|[A-Z][A-Z.\-]{0,5})$/.test(x) && a.indexOf(x) === i).slice(0, 8),
+  // the bottom-left slot: #slot=matches|weather|fasting|countdown|none (anything else = matches)
+  slot: (v => ['weather','fasting','countdown','none'].includes(v) ? v : 'matches')(_Q.get('slot')),
+  // #cd=YYYY-MM-DD&cdname=...: the date and name for slot=countdown (a bad date = none)
+  cd: (v => /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v + 'T00:00:00Z')) && new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v ? v : '')(_Q.get('cd') || ''),
+  cdName: (_Q.get('cdname') || '').trim().slice(0, 40),
   // #widget=1: only the card, on a transparent page (the launcher's home screen shows it)
   widget: _Q.get('widget') === '1',
 };
@@ -924,6 +933,7 @@ async function loadLive(){
 // Every followed team with something to show, two at a time; the page turns every 15 s.
 let MATCH_PAGE = 0;
 function renderMatches(turn){
+  if(!SLOT_MATCHES) return;
   const now = Date.now(), shown = new Set();
   const slots = CONFIG.teamIds.map(id => matchSlot(id, now, shown)).filter(Boolean);
   const row = document.getElementById('match-row');
@@ -1012,6 +1022,106 @@ const _nf = {};
 function num(v, dec){
   const k = dec + NU;
   return (_nf[k] || (_nf[k] = new Intl.NumberFormat('ar-SA-u-nu-' + NU, {minimumFractionDigits:dec, maximumFractionDigits:dec}))).format(v);
+}
+
+// ---- the bottom-left slot: matches, weather, fasting, a countdown, or nothing (#slot=) ----
+// Matches are the default; with no team followed the slot shows the weather instead of an empty line.
+// «markets» will come here later: one more entry in SLOT_LABEL and one more branch in slotHTML().
+const SLOT_MATCHES = CONFIG.slot === 'matches' && CONFIG.teamIds.length > 0;
+const NEEDS_MATCHES = SLOT_MATCHES || CONFIG.panel === 'matches';   // the slot or the card beside the clock
+const SLOT_LABEL = {matches:'المباريات', weather:'الطقس', fasting:'الصيام', countdown:'عدّ تنازلي'};
+
+// All the fasting wording is here. FAST_NAMES: the big text per day; the small line below says when.
+const FAST_NAMES = {
+  ramadan:'صيام رمضان', arafah:'يوم عرفة', tasua:'تاسوعاء', ashura:'عاشوراء', white:'الأيام البيض',
+  mon:'صيام الإثنين', thu:'صيام الخميس', shawwal:'ست من شوال',
+};
+const FAST_WHEN = {
+  today:'اليوم', tomorrow:'غدًا', in2:'بعد يومين',
+  few:n => 'بعد ' + ar(n) + ' أيام', many:n => 'بعد ' + ar(n) + ' يومًا',
+  ramadanDay:n => 'اليوم ' + ar(n) + ' من رمضان',
+};
+const FAST_TODAY_UNTIL = 18;   // from this hour (Riyadh) today's fast is behind us: look from tomorrow on
+
+// What is recommended on a Hijri day (month hm, day hd, weekday wd, 0 = Sunday), best reason first.
+// Always [] on the days fasting is forbidden: the two Eids and the three days of Tashreeq.
+function fastReasons(hm, hd, wd){
+  if((hm === 10 && hd === 1) || (hm === 12 && hd >= 10 && hd <= 13)) return [];
+  const out = [];
+  if(hm === 9) return ['ramadan'];
+  if(hm === 12 && hd === 9) out.push('arafah');
+  if(hm === 1 && hd === 9) out.push('tasua');
+  if(hm === 1 && hd === 10) out.push('ashura');
+  if(hd >= 13 && hd <= 15) out.push('white');
+  if(wd === 1) out.push('mon');
+  if(wd === 4) out.push('thu');
+  if(hm === 10 && hd >= 2) out.push('shawwal');
+  return out;
+}
+const FAST_HIJRI = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {timeZone:'UTC', month:'numeric', day:'numeric'});
+// The next day to fast from `now`: {key, days (0 = today), day (Hijri), wd, date (UTC noon)}, or null.
+function fastingNext(now){
+  const p = riyadhParts(now), base = Date.UTC(p.y, p.mo - 1, p.d, 12);
+  for(let i = 0; i < 12; i++){
+    const date = new Date(base + i*86400000);
+    const h = FAST_HIJRI.formatToParts(date).reduce((a, x) => (a[x.type] = +x.value.replace(/[^0-9]/g, ''), a), {});
+    const why = fastReasons(h.month, h.day, date.getUTCDay());
+    if(!why.length || (i === 0 && p.h >= FAST_TODAY_UNTIL && why[0] !== 'ramadan')) continue;
+    return {key:why[0], days:i, day:h.day, wd:date.getUTCDay(), date};
+  }
+  return null;
+}
+
+// days from today (Riyadh) to the countdown's date, or null: none set, or it has passed
+function countdownDays(){
+  if(!CONFIG.cd) return null;
+  const p = riyadhParts(), n = (Date.parse(CONFIG.cd + 'T00:00:00Z') - Date.UTC(p.y, p.mo - 1, p.d)) / 86400000;
+  return n >= 0 ? n : null;
+}
+// what the slot shows now: matches with no team, and a countdown that has passed, show the weather
+function slotNow(){
+  if(CONFIG.slot === 'none') return 'none';
+  if(CONFIG.slot === 'countdown' && countdownDays() !== null) return 'countdown';
+  return CONFIG.slot === 'fasting' ? 'fasting' : SLOT_MATCHES ? 'matches' : 'weather';
+}
+const slotBlock = (big, sub, when) => `<div class="mblock"><div class="big"><span>${big}</span></div>`
+  + (sub ? `<div class="sub${when ? ' when' : ''}">${sub}</div>` : '') + '</div>';
+const dayName = d => new Intl.DateTimeFormat(GREG, {timeZone:'UTC', weekday:'long'}).format(d);
+
+// the HTML for a slot; null = nothing to say, keep what was shown last
+function slotHTML(s){
+  if(s === 'weather'){
+    const today = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(new Date());
+    const days = FORECAST.filter(d => d.date > today).slice(0, 3);   // the next three days (a saved forecast may be old)
+    if(!days.length) return null;
+    return days.map(d => slotBlock(dayName(new Date(d.date + 'T12:00:00Z')) + ' <span class="num">' + ar(Math.round(d.hi)) + '°</span>',
+      esc(WX_CODES[d.code] || ''), true)).join('');
+  }
+  if(s === 'fasting'){
+    const f = fastingNext(new Date());
+    if(!f) return null;
+    const when = f.key === 'ramadan' && f.days === 0 ? FAST_WHEN.ramadanDay(f.day)
+      : f.days === 0 ? FAST_WHEN.today
+      : f.days === 1 ? FAST_WHEN.tomorrow + ' ' + dayName(f.date)
+      : f.days === 2 ? FAST_WHEN.in2
+      : f.days <= 10 ? FAST_WHEN.few(f.days) : FAST_WHEN.many(f.days);
+    return slotBlock(FAST_NAMES[f.key], when);
+  }
+  if(s === 'countdown'){
+    const n = countdownDays();
+    const name = CONFIG.cdName ? esc(CONFIG.cdName)
+      : new Intl.DateTimeFormat(GREG, {timeZone:'UTC', day:'numeric', month:'long'}).format(new Date(CONFIG.cd + 'T12:00:00Z'));
+    return slotBlock(n === 0 ? 'اليوم' : '<span class="num">' + ar(n) + '</span> <span class="unit">يوم</span>', name);
+  }
+  return null;
+}
+function renderSlot(){
+  const s = slotNow();
+  if(s === 'none') return;
+  setText(document.getElementById('slot-label'), SLOT_LABEL[s]);
+  if(s === 'matches'){ renderMatches(); return; }
+  const row = document.getElementById('match-row'), h = slotHTML(s);
+  if(h !== null && setHTML(row, h)) fitMatches(row);
 }
 
 // never invent a direction: unknown hides the marker
@@ -1413,6 +1523,7 @@ async function loadWeather(){
       hi:dl.temperature_2m_max?.[i], lo:dl.temperature_2m_min?.[i]})).filter(x => x.hi != null && x.lo != null);
     try{ localStorage.setItem('forecast:' + location.hash, JSON.stringify(FORECAST)); }catch(e){}
     if(CONFIG.panel === 'forecast') renderPanel(false);
+    if(slotNow() === 'weather') renderSlot();
   }catch(e){ return; }   // keep the last reading; with none only the city shows
 
   // dust overrides the condition word: PM10 in µg/m³
@@ -1613,7 +1724,7 @@ function applyBackground(force){
 }
 
 // Last painted panels, shown at once on the next start while fresh data loads.
-const SNAP_KEY = 'snap4:' + location.hash;   // bump when the panels' markup changes
+const SNAP_KEY = 'snap5:' + location.hash;   // bump when the panels' markup changes
 const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
 let SNAP_LAST = null;   // what is stored now: the panels rarely change, so most saves have nothing to write
 function saveSnap(){
@@ -1632,6 +1743,8 @@ function restoreSnap(){
 function boot(){
   if(CONFIG.widget){ bootWidget(); return; }
   if(document.fonts) document.fonts.ready.then(() => fitMatches(document.getElementById('match-row')));   // widths change once the fonts are in
+  if(CONFIG.slot === 'none') document.documentElement.classList.add('slot-none');
+  if(!SLOT_MATCHES) document.getElementById('match-row').textContent = '';   // not «لا شيء هذا الأسبوع»: that is the matches slot's
   if(CONFIG.cardStyle !== 'current') document.documentElement.classList.add('cs-' + CONFIG.cardStyle);   // the launcher's card keeps its look
   buildMarkets();
   restoreSnap();
@@ -1646,21 +1759,23 @@ function boot(){
   applyBackground(true);
   loadPhotoIndex().then(() => applyBackground(true));
   setInterval(() => applyBackground(false), 60*1000);
-  tickClock(); tickDates(); tickOccasion();
+  tickClock(); tickDates(); tickOccasion(); renderSlot();
   TICKERS.forEach(loadTicker);
   if(CONFIG.panel === 'stocks') loadStocks();
   if(CONFIG.panel === 'none') document.querySelector('.week').style.display = 'none';
   else if(CONFIG.panel !== 'shows') renderPanel(false);   // its own data arrives with prayers, weather, matches
-  loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather();
+  if(NEEDS_MATCHES) loadMatches();
+  loadPrayers(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather();
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
-  setInterval(() => renderMatches(false), 60000);
-  setInterval(() => renderMatches(true), CONFIG.matchPageMs);
-  setInterval(loadLive, 2*60000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
+  if(SLOT_MATCHES){   // the matches timers run only while the slot shows matches
+    setInterval(() => renderMatches(false), 60000);
+    setInterval(() => renderMatches(true), CONFIG.matchPageMs);
+  }
+  if(NEEDS_MATCHES){ setInterval(loadLive, 2*60000); setInterval(loadMatches, 30*60*1000); }
   setInterval(loadPrayers, 6*3600*1000);
-  setInterval(loadMatches, 30*60*1000);
   setInterval(()=>{ TICKERS.forEach(loadTicker); if(CONFIG.panel === 'stocks') loadStocks(); }, 15*60*1000);
   if(CONFIG.panel === 'shows') setInterval(loadWeek, 6*3600*1000);
   setInterval(loadWeather, 30*60*1000);
@@ -1675,7 +1790,7 @@ function boot(){
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickOccasion(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
+    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickOccasion(); loadPrayers(); if(NEEDS_MATCHES) loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
     else if(CONFIG.panel === 'adhkar' || CONFIG.panel === 'stocks') renderPanel(false);   // a window may have opened; a market opened or closed
   }, 60*1000);
 }

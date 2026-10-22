@@ -5,9 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * The screensaver's settings from ADB, for agents (people use SettingsActivity). Only the shell can send
@@ -21,10 +24,13 @@ import java.util.List;
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3]
  *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices] [--es stocks 2222,1120,AAPL]
+ *       [--es slot matches|weather|fasting|countdown|none] [--es countdown 2026-12-01|clear --es cdname 'رحلة الصيف']
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.TASKS
  *       --es op list | add --es text 'نص' | done --ei n 1 | del --ei n 1 | clear
  *
+ * slot = what the bottom-left slot shows (Prefs.SLOTS). countdown = the date (YYYY-MM-DD) slot=countdown counts down to, or
+ * "clear"; cdname = its name (up to 40 characters).
  * cardstyle = the look of the card beside the clock (Prefs.CARD_STYLES; current is the plain card).
  * markets = up to four of Prefs.MARKETS at the top left, in order; mkstyle = arrows only (as always) or the price and the day's change.
  * stocks = the watchlist of the stocks card (panel stocks): up to Prefs.MAX_STOCKS Tadawul codes (4 digits) or US tickers.
@@ -145,6 +151,14 @@ public class SaverReceiver extends BroadcastReceiver {
             if (stocks.isEmpty() || stocks.size() > Prefs.MAX_STOCKS)
                 return "error: stocks is 1 to " + Prefs.MAX_STOCKS + " codes or tickers";
         }
+        String slot = i.getStringExtra("slot");
+        if (slot != null && !isChoice(Prefs.SLOTS, slot))
+            return "error: slot is one of " + choices(Prefs.SLOTS);
+        String cd = i.getStringExtra("countdown"), cdName = i.getStringExtra("cdname");
+        if (cd != null && !"clear".equals(cd) && !isDate(cd))
+            return "error: countdown is a date like 2026-12-01, or clear";
+        if (cdName != null && cd == null) return "error: cdname goes with countdown DATE";
+        if (cdName != null && cdName.length() > 40) return "error: cdname is at most 40 characters";
         String idle = i.getStringExtra("idle");
         if (idle != null) {
             if (!Arrays.asList(Prefs.IDLE_MINUTES).contains(idle))
@@ -177,6 +191,11 @@ public class SaverReceiver extends BroadcastReceiver {
         if (mkStyle != null) p.setMkStyle(mkStyle);
         if (markets != null) p.setMarkets(markets);
         if (stocks != null) p.setStocks(stocks);
+        if (slot != null) p.setSlot(slot);
+        if (cd != null) {
+            if ("clear".equals(cd)) p.setCountdown("", "");
+            else p.setCountdown(cd, cdName == null ? "" : cdName.trim());
+        }
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
         return "saved\n" + describe(c, p);
@@ -227,6 +246,8 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\ncardstyle: " + p.cardStyle()
             + "\nmarkets: " + Prefs.join(p.markets(), ",") + "\nmkstyle: " + p.mkStyle()
             + "\nstocks: " + Prefs.join(p.stocks(), ",")
+            + "\nslot: " + p.slot()
+            + "\ncountdown: " + (p.countdownDate().isEmpty() ? "none" : p.countdownDate() + " " + p.countdownName())
             + "\nidle: " + idle(Prefs.idleMs(c))
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
             + "\nautoupdate: " + p.autoUpdate();
@@ -236,6 +257,15 @@ public class SaverReceiver extends BroadcastReceiver {
     private static String idle(long ms) {
         if (ms <= 0) return "unknown";
         return ms % 60000 == 0 ? String.valueOf(ms / 60000) : (ms / 1000) + "s";
+    }
+
+    /** a real calendar date written YYYY-MM-DD */
+    private static boolean isDate(String v) {
+        if (!v.matches("\\d{4}-\\d{2}-\\d{2}")) return false;
+        SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        f.setLenient(false);
+        ParsePosition pos = new ParsePosition(0);
+        return f.parse(v, pos) != null && pos.getIndex() == v.length();
     }
 
     private static boolean isChoice(String[][] all, String v) {

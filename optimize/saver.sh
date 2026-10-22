@@ -24,6 +24,9 @@
 #   optimize/saver.sh stocks 2222 1120 AAPL        watchlist of the stocks card (card stocks): up to 8 Tadawul codes (4 digits) or US tickers
 #   optimize/saver.sh tasks list                   «المهام» kept on the TV; N = the number list shows
 #   optimize/saver.sh tasks add 'نص'               (up to 12, 60 characters each)  |  done N  |  del N  |  clear
+#   optimize/saver.sh slot fasting                 the bottom-left slot: matches (default; the weather when no team is followed)
+#                                                  weather fasting countdown none
+#   optimize/saver.sh countdown 2026-12-01 'رحلة الصيف'    the date and name slot=countdown counts down to ("clear" removes it)
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
@@ -71,6 +74,12 @@ case "${1:-}" in
     shift
     [ $# -gt 0 ] || { echo "usage: optimize/saver.sh stocks 2222 1120 AAPL"; exit 1; }
     send SET "--es stocks $(quote "$(IFS=,; echo "$*")")" ;;
+  slot)      send SET "--es slot $(quote "${2:?usage: optimize/saver.sh slot fasting}")" ;;
+  countdown)
+    [ $# -ge 2 ] && [ $# -le 3 ] || { echo "usage: optimize/saver.sh countdown 2026-12-01 'name' | clear"; exit 1; }
+    extra="--es countdown $(quote "$2")"
+    [ $# -eq 3 ] && extra="$extra --es cdname $(quote "$3")"
+    send SET "$extra" ;;
   digits)    send SET "--es digits $(quote "${2:?usage: optimize/saver.sh digits latin}")" ;;
   idle)
     # the app may change the TV's timer only if the owner allowed it; the shell always may
@@ -96,5 +105,5 @@ case "${1:-}" in
       *) echo "usage: optimize/saver.sh tasks list | add 'نص' | done N | del N | clear"; exit 1 ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,28p' "$0"; exit 1 ;;
+  *) sed -n '2,30p' "$0"; exit 1 ;;
 esac
