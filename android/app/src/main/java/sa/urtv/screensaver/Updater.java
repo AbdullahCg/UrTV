@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +27,29 @@ final class Updater {
     private Updater() {}
 
     static File pageFile(Context c) { return new File(c.getFilesDir(), "web/tv.html"); }
+
+    private static final AtomicBoolean DUE_RUNNING = new AtomicBoolean();
+
+    /**
+     * Called when the screensaver starts: if auto-update is on and the last check is 6 hours old or more, checks on a
+     * background thread (one at a time). Does nothing otherwise, so the TV asks the network only when it is used.
+     */
+    static void checkIfDue(Context c) {
+        final Context app = c.getApplicationContext();
+        Prefs prefs = new Prefs(app);
+        if (!prefs.autoUpdate()) return;
+        if (System.currentTimeMillis() - prefs.raw().getLong("lastCheck", 0) < INTERVAL_MS) return;
+        if (!DUE_RUNNING.compareAndSet(false, true)) return;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    check(app, false);
+                } finally {
+                    DUE_RUNNING.set(false);
+                }
+            }
+        }).start();
+    }
 
     /** Blocking; call off the main thread. Returns an Arabic status line for the settings screen. */
     static synchronized String check(Context c, boolean force) {

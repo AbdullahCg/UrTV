@@ -24,8 +24,10 @@ Field readings put the screensaver at 120–250 MB of free RAM while it runs, mo
   panels only when they differ, and asks for live scores only inside a followed match's window. Nothing animates
   once the photo has settled.
 - The WebView is taken out of its window and destroyed when the dream ends; nothing static keeps it alive.
-- The page and version check stays a persisted job every 6 hours: it also wakes the app after a reboot, which some
-  TCL sets need for the first screensaver to start.
+- The page and version check runs only when the screensaver starts, and only if the last one is 6 hours old or
+  more (on a background thread, one at a time); an idle TV makes no network calls for it. The persisted 6-hour job
+  stays, but it only starts the app's process and finishes at once: it also wakes the app after a reboot, which
+  some TCL sets need for the first screensaver to start.
 - The home screen's card (if turned on) is paused, its timers too, when an app is in front, and destroyed with the
   activity.
   App tiles are kept at the size they are shown, in a cache of 6 MB at most.

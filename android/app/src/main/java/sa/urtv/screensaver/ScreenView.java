@@ -42,6 +42,7 @@ final class ScreenView {
         if (android.os.Build.VERSION.SDK_INT >= 23) s.setOffscreenPreRaster(true);   // draw before it is shown
         w.loadUrl(new Prefs(c).dashboardUrl(c));
         UpdateJob.schedule(c);
+        Updater.checkIfDue(c);   // the page and version check, at most every 6 hours, here and not on a timer
         return w;
     }
 

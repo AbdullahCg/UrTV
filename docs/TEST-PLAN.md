@@ -114,7 +114,10 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 |---|---|---|
 | F1 | Press A17 twice in a row | First «تم التحديث», second «الصفحة محدثة» (the page is cached and unchanged) |
 | F2 | Ask the developer to push a visible change (or note the latest commit), then A17 | Toast «تم التحديث»; preview shows the change |
-| F3 | `adb shell dumpsys jobscheduler \| grep -A3 urtv` | A periodic, persisted job listed |
+| F3 | `adb shell dumpsys jobscheduler \| grep -A3 urtv` | A periodic, persisted job listed (it only starts the app; it does no network work) |
+| F4 | Idle TV, network traffic watched (router or `adb shell dumpsys netstats`): leave it 7 hours without the screensaver starting | No request to GitHub from the app; the 6-hour job runs and ends at once |
+| F5 | With the last check 6 hours old or more, start the screensaver (preview or the idle timer), watching the network; then start it again | One request to GitHub at the first start, none at the second; a start 6 hours after the first checks again |
+| F6 | Turn A16 to متوقف, wait out 6 hours, start the screensaver | No page request; A17 still works |
 
 ## 7. Power cycle (TCL)
 

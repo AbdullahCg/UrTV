@@ -186,8 +186,7 @@ one done, «حذف» removes it) and its «🎤 تكلّم» button uses the TV'
 «احذف …», always confirmed on screen first (no recognizer: the button is hidden). The home app reaches the list
 through the screensaver's ConfigProvider (`/tasks`), writes guarded by the signature permission `WRITE_TASKS`.
 *Where a sync would plug in (not built):* Microsoft To Do or Todoist would read and write the same list through
-`Prefs.tasks()/addTask()/doneTask()/deleteTask()`; the calls belong in the screensaver app's `UpdateJob` (it
-already runs off the main thread), with the owner's own app registration kept out of the repository.
+`Prefs.tasks()/addTask()/doneTask()/deleteTask()`; the calls belong on a background thread like the one `Updater.checkIfDue` starts, with the owner's own app registration kept out of the repository.
 `slot`: what the bottom-left slot shows: `matches` (default; the weather when no team is
 followed), `weather` (the next three days), `fasting` (the next recommended voluntary fast, from the Umm al-Qura calendar),
 `countdown` (days to `cd=YYYY-MM-DD`, named `cdname`; the weather once it has passed), `markets` (the chosen markets with price and change) or `none` (the slot is hidden).
@@ -204,7 +203,7 @@ Sunan narration needs Al-Albani's Sahih/Hasan, a Quranic dhikr is checked agains
 only the entries `.github/tools/apply_adhkar_report.py` marked `checked`, and the verse or hadith of the day outside
 the windows (morning: Fajr to Dhuhr, evening: Asr to Maghrib).
 
-**The Android apps** update the screen page from this repo every 6 hours (so it must stay public), start fast
+**The Android apps** check this repo for a new screen page when the screensaver starts, at most every 6 hours (so it must stay public), start fast
 (the page shows once the clock, saved panels and photo are ready), and come back after a power cut.
 
 ## Credits
