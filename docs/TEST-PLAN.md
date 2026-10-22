@@ -175,12 +175,16 @@ in «كل التطبيقات». Full reference: [TILAWAH.md](TILAWAH.md).
 | W5 | Play, press Home, wait for the screensaver | Audio continues; the media play/pause key controls it; «تلاوة» shows «متابعة التلاوة» again |
 | W6 | OK on «إذاعة القرآن الكريم - السعودية» | Live player, long title fits, audio plays, no error (this also proves the scoped radiojar cleartext redirect) |
 | W7 | OK on a prayer row (e.g. المغرب) | That adhan plays now through the player screen («الأذان» + the muezzin's name); the previous/next buttons are gone and Left/Right do nothing; Back leaves it playing |
-| W8 | OK on «الأذان التلقائي» | It switches to «متوقف» and back to «مفعّل»; the state survives a reboot |
-| W9 | OK on «المؤذن» | 21 muezzins by name (الحرم المكي، الأقصى، عبد الباسط…), the chosen one in gold with its city; OK picks one and plays 12 seconds of it |
+| W8 | The «الأذان» tab, untouched after a fresh install | «الأذان التلقائي» reads «متوقف» (off by default); OK switches it to «مفعّل» and back, and the state survives a reboot |
+| W9 | OK on «المؤذن» | 21 recordings by name (الحرم المكي، المسجد الأقصى، عبدالملك الملا…), the chosen one in gold with its city; OK picks one and plays 12 seconds of it; the list scrolls and the selected row keeps its gold frame at the bottom |
 | W10 | Play a surah, then `optimize/music.sh adhan now 3` | The surah pauses, the adhan plays, then the surah resumes at the same position (status: `source=adhan` during it, `adhan_last` updated) |
 | W11 | `optimize/music.sh adhan voice 7` then `adhan now` | Voice 7 plays; `optimize/music.sh status` shows `voice=7` |
 | W12 | Set the TV clock a few minutes before a prayer time, wait for the alarm; then reboot the TV and check `optimize/music.sh status` | The adhan plays by itself at the exact minute with no app on screen; after the reboot `adhan_next` is a future timestamp (the alarm was put back) |
-| W15 | `optimize/music.sh status`, `surah sudais 1`, `pause`, `radio 0`, `sleep 1`, `stop` | Status line has `playing`, `source`, names, `pos`, `dur`, `sleep`, `adhan`, `voice`, `adhan_next`, `error`; each command acts on the TV |
+| W13 | Note the TV's volume, play a prayer adhan manually, then end it (OK on the player) | The adhan plays clearly at 30% whatever the TV was on; the TV's volume is back to what it was afterwards (check with the TV's volume bar) |
+| W14 | OK on «صوت الأذان» a few times, then `optimize/music.sh adhan now` | The value cycles ٣٠٪ → ٤٠٪ … → ١٠٠٪ → ١٠٪ and the adhan plays at the chosen level; put it back to ٣٠٪ afterwards |
+| W15 | Put the TV in standby (power key) a minute before a prayer time, leave it off through the prayer, then wake it | Nothing plays at the prayer time and nothing plays when the TV wakes: no catch-up of a missed adhan |
+| W16 | Start an adhan manually, then press the power key (screen off) | The adhan stops (a paused surah resumes only if it was playing before); nothing keeps playing to a dark screen |
+| W17 | `optimize/music.sh status`, `surah sudais 1`, `pause`, `radio 0`, `sleep 1`, `stop` | Status line has `playing`, `source`, names, `pos`, `dur`, `sleep`, `adhan`, `voice`, `adhan_next`, `error`; each command acts on the TV |
 
 ---
 

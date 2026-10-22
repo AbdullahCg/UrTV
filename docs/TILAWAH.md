@@ -82,18 +82,27 @@ right and the left arrow to the left.
   always recomputed from Maghrib so Ramadan stays right.
 - **The city** is the one picked in the screensaver (its `ConfigProvider`: `lat`, `lon`, `tz`);
   without the screensaver, `config.xml`'s `latitude`, `longitude` and `timezone` are used.
+- **The switch is off by default.** «الأذان التلقائي» turns it on; the choice is remembered.
 - **The alarm** is one exact `AlarmManager` alarm for the next of the five prayers. It is put back
   when the adhan has played, after a reboot, after a clock or timezone change, and after an update.
-  If the TV was off at the prayer time and comes back within twenty minutes, the adhan still plays.
   The same adhan never plays twice.
+- **Only while the TV is on.** An alarm that arrives in standby is skipped, not played late: there is
+  no catch-up after a reboot or a missed prayer, and an adhan that is playing stops when the screen
+  goes off.
+- **Its own volume.** The adhan plays at 30% of the TV's maximum (`صوت الأذان` in the adhan tab cycles
+  10–100%), and the volume the TV had comes back when the adhan ends.
 - **During an adhan** a playing surah (or station) pauses, the adhan plays, and the surah resumes
   where it stopped. «متابعة التلاوة» keeps pointing at the surah, never at the adhan.
-- **The recordings** are twenty-one named adhans from assabile.com, one per muezzin (the table of
-  names and URLs is in `Adhan.java`). Each one is kept in `getCacheDir()/adhan/adhan-N.mp3` the first
-  time it is needed — the chosen one first, the rest in the background while the screen opens — so an
-  adhan plays with the connection down. A stream that drops falls back to the saved copy.
-- The switch and the muezzin live in the app's preferences (`tilawah`); the alarm needs
-  `SCHEDULE_EXACT_ALARM` (Android 12+; the app falls back to an inexact alarm if it is refused).
+- **The recordings** are twenty-one adhans (muezzins and mosques) from the «Azaan of World Mosques»
+  collection on Archive.org, released under the **Public Domain Mark 1.0**
+  (<https://archive.org/details/azaan-of-world-mosques_202608>) — free to redistribute, no attribution
+  required; the source is credited in the app's adhan screen and here. The table of names and URLs is
+  in `Adhan.java`. Each one is kept in `getCacheDir()/adhan/adhan-N.mp3` the first time it is needed
+  — the chosen one first, the rest in the background while the screen opens — so an adhan plays with
+  the connection down. A stream that drops falls back to the saved copy.
+- The switch, the muezzin and the volume live in the app's preferences (`tilawah`); the alarm needs
+  `SCHEDULE_EXACT_ALARM` and the volume needs `MODIFY_AUDIO_SETTINGS` (both are ordinary permissions;
+  the app falls back to an inexact alarm if exact alarms are refused).
 
 ## Control it over ADB
 
@@ -155,7 +164,7 @@ scope and the manifest.
 ## Network and privacy
 
 - Runtime requests are the audio streams and their redirects, the adhan recordings
-  (`assabile.com`) and one Aladhan call a day (`api.aladhan.com`, method 4). There is no account,
+  (`archive.org`), and one Aladhan call a day (`api.aladhan.com`, method 4). There is no account,
   upload, analytics or ad SDK.
 - `res/xml/network_security_config.xml` sets `cleartextTrafficPermitted="false"` globally. The Saudi
   Quran Radio (`stream.radiojar.com`) redirects to its CDN over `http://n0X.radiojar.com`; cleartext

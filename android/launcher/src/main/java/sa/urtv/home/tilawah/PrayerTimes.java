@@ -107,22 +107,6 @@ final class PrayerTimes {
         return null;
     }
 
-    /** The prayer that most recently passed (yesterday included), for the catch-up after a reboot. */
-    static Next last(Context c) {
-        long now = System.currentTimeMillis();
-        Place place = Place.get(c);
-        Calendar day = Calendar.getInstance(TimeZone.getTimeZone(place.tz), Locale.US);
-        for (int d = 0; d < 2; d++) {
-            PrayerTimes t = d == 0 ? today(c) : of(day, place);
-            for (int i = PRAYERS.length - 1; i >= 0; i--) {
-                int p = PRAYERS[i];
-                if (t.at[p] <= now) return new Next(p, t.at[p], t.clock[p]);
-            }
-            day.add(Calendar.DAY_OF_MONTH, -1);
-        }
-        return null;
-    }
-
     /** "بعد ساعتين و١٥ دقيقة" — the time left, in the project's Arabic. */
     static String remaining(long millis) {
         long minutes = Math.max(0, (millis + 30_000) / 60_000);

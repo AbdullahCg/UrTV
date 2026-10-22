@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
     private static final int TAB_RECITERS = 0, TAB_STATIONS = 1, TAB_ADHAN = 2;
 
     private static final int KIND_RESUME = 0, KIND_RECITER = 1, KIND_STATION = 2,
-            KIND_PRAYER = 3, KIND_ADHAN_TOGGLE = 4, KIND_VOICE = 5;
+            KIND_PRAYER = 3, KIND_ADHAN_TOGGLE = 4, KIND_VOICE = 5, KIND_VOLUME = 6;
 
     private Catalog cat;
     private Prefs prefs;
@@ -94,6 +94,10 @@ public class MainActivity extends Activity {
                 focusList(list.getSelectedItemPosition());
             } else if (row.kind == KIND_VOICE) {
                 startActivity(new Intent(this, AdhanActivity.class));
+            } else if (row.kind == KIND_VOLUME) {
+                prefs.setAdhanVolume(prefs.adhanVolume() >= 100 ? 10 : prefs.adhanVolume() + 10);
+                adapter.rebuild();
+                focusList(list.getSelectedItemPosition());
             }
         });
 
@@ -247,6 +251,15 @@ public class MainActivity extends Activity {
         startActivity(new Intent(this, PlayerActivity.class));
     }
 
+    /** ٣٠٪: the adhan volume in the Arabic-Indic digits the rest of the screen uses. */
+    private static String percent(int value) {
+        StringBuilder b = new StringBuilder();
+        for (char c : String.valueOf(value).toCharArray()) {
+            b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
+        }
+        return b + "٪";
+    }
+
     private static final class Row {
         final boolean header;
         final int kind, index;
@@ -305,6 +318,8 @@ public class MainActivity extends Activity {
                 }
                 rows.add(new Row(false, KIND_ADHAN_TOGGLE, getString(R.string.adhan_auto), toggle, -1));
                 rows.add(new Row(false, KIND_VOICE, getString(R.string.adhan_voice), Adhan.label(prefs.voice()), -1));
+                rows.add(new Row(false, KIND_VOLUME, getString(R.string.adhan_volume),
+                        percent(prefs.adhanVolume()), -1));
             }
             notifyDataSetChanged();
         }

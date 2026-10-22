@@ -113,7 +113,7 @@ remote keys and the ADB controls.
 <td width="50%"><img src="docs/screenshots/03-adhan-times.jpg" alt="Today's prayer times at Umm al-Qura" width="100%"><br><b>The «مواقيت أم القرى» times</b><br>Today's five times, the next one in gold with the time left.</td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/05-muezzins.jpg" alt="The 21 muezzins by name" width="100%"><br><b>The «٢١ مؤذنًا»</b><br>Twenty-one named recordings; the chosen one in gold with its city.</td>
+<td width="50%"><img src="docs/screenshots/05-muezzins.jpg" alt="The 21 adhan recordings by name" width="100%"><br><b>The «٢١ أذانًا»</b><br>Twenty-one recordings — muezzins and mosques; the chosen one in gold with its city.</td>
 <td width="50%"><img src="docs/screenshots/07-surah-grid.jpg" alt="The 114 surahs, right to left" width="100%"><br><b>The «١١٤ سورة» grid</b><br>The surahs of a reciter, six columns, right to left.</td>
 </tr>
 <tr>
@@ -189,6 +189,8 @@ Arabic text of the six Sunni books, and only those found are shown, with the boo
 Photos: Unsplash photographers, listed in [docs/PHOTO-CREDITS.md](docs/PHOTO-CREDITS.md). Fonts: Thmanyah, and
 Noto Naskh Arabic for ﷺ ﴿﴾ (OFL, `assets/fonts/`).
 Quran recitations and live streams: [mp3quran.net](https://mp3quran.net) and [qurango.net](https://qurango.net);
-the Saudi Quran Radio stream is via [radiojar](https://www.radiojar.com/).
+the Saudi Quran Radio stream is via [radiojar](https://www.radiojar.com/). Adhan recordings: the
+[Azaan of World Mosques](https://archive.org/details/azaan-of-world-mosques_202608) collection on Archive.org
+(Public Domain Mark 1.0).
 Home screen adapted from [mihirgupta0900/tv-home](https://github.com/mihirgupta0900/tv-home) (MIT,
 `android/launcher/LICENSE-tv-home`). Package ratings from [UAD-ng](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation).

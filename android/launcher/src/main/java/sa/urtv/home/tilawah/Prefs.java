@@ -26,14 +26,18 @@ final class Prefs {
 
     // ---- the adhan ----
 
-    /** On until the user turns it off; there is a switch row for it in «تلاوة». */
-    boolean adhanOn() { return sp.getBoolean("adhan_on", true); }
+    /** Off until the user turns it on; there is a switch row for it in «تلاوة». */
+    boolean adhanOn() { return sp.getBoolean("adhan_on", false); }
     void setAdhanOn(boolean on) { sp.edit().putBoolean("adhan_on", on).apply(); }
+
+    /** The adhan's own volume, in percent; the TV's volume comes back after it. */
+    int adhanVolume() { int v = sp.getInt("adhan_volume", 30); return v < 10 || v > 100 ? 30 : v; }
+    void setAdhanVolume(int percent) { sp.edit().putInt("adhan_volume", percent).apply(); }
 
     int voice() { int v = sp.getInt("adhan_voice", 1); return v < 1 || v > Adhan.VOICES ? 1 : v; }
     void setVoice(int voice) { sp.edit().putInt("adhan_voice", voice).apply(); }
 
-    /** The last adhan that played, so an alarm and a catch-up never play it twice. */
+    /** The last adhan that played, so the same one never plays twice. */
     long lastAdhan() { return sp.getLong("adhan_at", 0); }
     void setLastAdhan(long at) { sp.edit().putLong("adhan_at", at).apply(); }
 }

@@ -200,9 +200,17 @@ check("Aladhan is the online source, method 4", "api.aladhan.com" in prayers and
 
 adhan = text(TILAWAH / "Adhan.java")
 check("21 adhan voices", "VOICES = 21" in adhan)
-check("the recordings come from assabile", "media.assabile.com" in adhan)
-check("every voice is named after a muezzin",
-      "فاروق حضراوي" in adhan and "عبد الباسط عبد الصمد" in adhan and "الحرم المكي" in adhan)
+check("the recordings come from the free Archive.org collection",
+      "archive.org/download/azaan-of-world-mosques_202608/" in adhan)
+check("the licence is named", "Public Domain Mark 1.0" in adhan and "SOURCE" in adhan)
+check("no assabile recording is left", "assabile" not in adhan)
+names = re.findall(r'"([^"]*)",', adhan.split("PLACES = {")[0].split("NAMES = {")[1])
+places = re.findall(r'"([^"]*)",', adhan.split("URLS = {")[0].split("PLACES = {")[1])
+urls = re.findall(r'"(https?://[^"]*)",', adhan.split("URLS = {")[1])
+check("twenty-one names, places and URLs",
+      len(names) == len(places) == len(urls) == 21, (len(names), len(places), len(urls)))
+check("every voice is named", "عبدالملك الملا" in adhan and "عبدالرحمن خاشقجي" in adhan
+      and "الحرم المكي" in adhan and "المسجد الأقصى" in adhan)
 check("the adhan is cached on the TV", "getCacheDir()" in adhan)
 
 main = text(TILAWAH / "MainActivity.java")
@@ -246,6 +254,18 @@ check("the alarm is exact and survives idle",
       "setExactAndAllowWhileIdle" in text(TILAWAH / "AdhanScheduler.java"))
 check("device location comes from the screensaver",
       "sa.urtv.screensaver.config" in text(TILAWAH / "Place.java"))
+
+prefs_src = text(TILAWAH / "Prefs.java")
+check("the adhan is off until it is switched on", 'getBoolean("adhan_on", false)' in prefs_src)
+check("the adhan has its own volume, 30% by default", 'getInt("adhan_volume", 30)' in prefs_src)
+check("the volume permission is declared", "MODIFY_AUDIO_SETTINGS" in manifest)
+check("the adhan sets the volume and puts it back",
+      "setStreamVolume" in service_src and "adhanVolumeBack" in service_src)
+adhan_receiver_src = text(TILAWAH / "AdhanReceiver.java")
+check("the adhan only starts while the screen is on", "isInteractive" in adhan_receiver_src)
+check("no adhan is made up after a reboot or a missed prayer",
+      "CATCH_UP" not in adhan_receiver_src and "catchUp" not in adhan_receiver_src)
+check("the adhan stops when the screen goes off", "ACTION_SCREEN_OFF" in service_src)
 
 workflow = text(ROOT / ".github/workflows/android.yml")
 check("CI no longer builds a listening APK", "urtv-listening" not in workflow)

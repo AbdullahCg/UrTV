@@ -5,8 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.media.AudioManager;
 import android.media.MediaMetadata;
@@ -83,9 +85,17 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     private boolean resumeAfterAdhan;
     private int adhanVoice = 1;
     private boolean adhanFromCache;
+    /** the TV's own volume, put back when the adhan ends (-1: nothing to put back) */
+    private int savedVolume = -1;
     private int pausedSource = Prefs.SOURCE_NONE, pausedReciter = -1, pausedSurah = 1, pausedStation = -1, pausedPosition;
     private final Runnable previewStop = new Runnable() {
         @Override public void run() { if (source == Prefs.SOURCE_ADHAN) finishAdhan(); }
+    };
+    /** nothing plays to a dark screen: the adhan stops when the TV goes to standby */
+    private final BroadcastReceiver screenOff = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (source == Prefs.SOURCE_ADHAN) finishAdhan();
+        }
     };
     private final Runnable tick = new Runnable() {
         @Override public void run() {
@@ -171,6 +181,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
             @Override public void onSeekTo(long pos) { seekTo((int) pos); }
         });
         session.setActive(true);
+        registerReceiver(screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF));
         handler.post(tick);
     }
 
@@ -209,6 +220,8 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     @Override public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        try { unregisterReceiver(screenOff); } catch (IllegalArgumentException ignored) {}
+        adhanVolumeBack();
         releasePlayer();
         abandonFocus();
         if (session != null) { session.release(); session = null; }
@@ -259,8 +272,9 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     private void playAdhan(int voice, String name, int previewSeconds) {
         handler.removeCallbacks(previewStop);
-        // a second adhan on top of the first (alarm + catch-up): ignore it
+        // a second adhan on top of the first (the alarm and a preview): ignore it
         if (source == Prefs.SOURCE_ADHAN && playing) return;
+        adhanVolumeUp();
         resumeAfterAdhan = prepareAdhanPause();
         source = Prefs.SOURCE_ADHAN;
         adhanVoice = voice;
@@ -300,6 +314,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     /** The adhan is over: put the surah back where it was, or stop. */
     private void finishAdhan() {
         handler.removeCallbacks(previewStop);
+        adhanVolumeBack();
         boolean resume = resumeAfterAdhan;
         resumeAfterAdhan = false;
         adhanName = null;
@@ -310,6 +325,24 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         } else {
             stopPlayback();
         }
+    }
+
+    /**
+     * The adhan has its own volume (30% by default): the TV's volume is remembered and put back
+     * when the adhan ends, so a quiet TV is loud for the adhan alone and quiet again after.
+     */
+    private void adhanVolumeUp() {
+        if (audio == null || savedVolume >= 0) return;
+        int max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        savedVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+        int want = Math.round(max * prefs.adhanVolume() / 100f);
+        audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.max(1, Math.min(max, want)), 0);
+    }
+
+    private void adhanVolumeBack() {
+        if (savedVolume < 0) return;
+        if (audio != null) audio.setStreamVolume(AudioManager.STREAM_MUSIC, savedVolume, 0);
+        savedVolume = -1;
     }
 
     private void startUrl(String url) {
@@ -482,6 +515,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     void stopPlayback() {
         if (source != Prefs.SOURCE_ADHAN) save();
+        adhanVolumeBack();
         resumeAfterAdhan = false;
         handler.removeCallbacks(previewStop);
         releasePlayer();
