@@ -33,17 +33,19 @@ Package `sa.urtv.home` · classes `sa.urtv.home.tilawah` · label «تلاوة»
   Up from the first row goes back to the tabs. «القرّاء» holds «متابعة التلاوة» when a surah is
   paused, then the forty reciters; «الإذاعات» holds the eleven live stations (and the resume row when
   a station was playing); «الأذان» holds today's five times (the next one in gold with the time left,
-  OK plays that adhan now), «الأذان التلقائي» (OK switches it on or off) and «المؤذن» (OK opens the 21
-  recordings). The selected row has a solid dark card, a thick gold frame and a gold chevron at the
-  end, so it is visible from the couch.
+  OK plays that adhan now), «الأذان التلقائي» (OK switches it on or off), «المؤذن» (OK opens the 21
+  recordings) and «صوت الأذان» (OK sets it, 10 % to 100 %, thirty by default). The selected row has a
+  solid dark card, a thick gold frame and a gold chevron at the end, so it is visible from the couch.
 - **Surah grid**: the 114 surahs in reading order, right to left; OK opens the player.
 - **Player**: title, reciter/station, progress, and a transport row. The transport controls stay
   left-to-right (previous, play/pause, next) with universal icons; the rest of the screen is RTL.
   During an adhan it shows «الأذان» and the muezzin's name, hides the previous/next buttons, and
   Left/Right do nothing: an adhan is not seekable.
-- **The muezzins**: twenty-one named recordings — الحرم المكي، الحرم المدني، المسجد الأقصى، علي بن
-  أحمد ملا، فاروق حضراوي، عبد الباسط عبد الصمد، المنشاوي، الحصري، العفاسي and others. The chosen one
-  is in gold with its city under the name; OK picks it and plays twelve seconds of it.
+- **The muezzins**: twenty-one recordings from the public-domain «Azaan of World Mosques» collection —
+  seven muezzins of Makkah (عبدالملك الملا، عبدالرحمن خاشقجي، عبدالعزيز بخاري and others), ناجي قزاز
+  of Jerusalem, and the mosques and cities: الحرم المكي، المسجد الأقصى، القاهرة، عجمان، أم القيوين،
+  عُمان، تونس، ماليزيا، المالديف. The chosen one is in gold with its city under the name; OK picks it
+  and plays twelve seconds of it.
 
 | Key | Action |
 |---|---|

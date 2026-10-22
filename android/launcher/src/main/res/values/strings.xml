@@ -41,5 +41,5 @@
     <string name="adhan_voices">اختر المؤذن</string>
     <string name="adhan_volume">صوت الأذان</string>
     <string name="adhan_chosen">%1$s  •  الصوت المختار</string>
-    <string name="adhan_hint">OK يجرّب ١٢ ثانية ويحفظ الاختيار  •  التسجيلات: Archive.org، ملكية عامة  •  رجوع</string>
+    <string name="adhan_hint">OK يجرّب ١٢ ثانية ويحفظ الاختيار  •  التسجيلات: أرشيف الإنترنت، ملكية عامة  •  رجوع</string>
 </resources>
