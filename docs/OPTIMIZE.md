@@ -23,9 +23,11 @@ Field readings put the screensaver at 120–250 MB of free RAM while it runs, mo
 - The page writes to the screen only when the text changed (the clock once a minute, not 60 times), saves its
   panels only when they differ, and asks for live scores only inside a followed match's window. Nothing animates
   once the photo has settled.
-- The WebView is destroyed when the dream ends, without pre-drawing the page; nothing static keeps it alive.
-- The page and version check runs when the screensaver starts and 6 hours have passed, not from a periodic job.
-- The home screen's card (if turned on) is paused when an app is in front and destroyed with the activity.
+- The WebView is taken out of its window and destroyed when the dream ends; nothing static keeps it alive.
+- The page and version check stays a persisted job every 6 hours: it also wakes the app after a reboot, which some
+  TCL sets need for the first screensaver to start.
+- The home screen's card (if turned on) is paused, its timers too, when an app is in front, and destroyed with the
+  activity.
   App tiles are kept at the size they are shown, in a cache of 6 MB at most.
 - `optimize/measure.sh` prints the two apps' memory (TOTAL PSS) under its table, to compare releases.
 

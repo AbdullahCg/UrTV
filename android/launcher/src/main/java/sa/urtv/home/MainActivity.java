@@ -960,7 +960,7 @@ public class MainActivity extends Activity {
 
     /** The art redrawn at the size a tile shows it (never enlarged); a banner fills the 16:9 card, an icon fits inside it. */
     private Drawable fitted(Drawable d, boolean banner) {
-        int w = getResources().getDisplayMetrics().widthPixels / MIN_DOCK, h = w * 9 / 16;
+        int w = Math.round(getResources().getDisplayMetrics().widthPixels / (float) MIN_DOCK * 1.12f), h = w * 9 / 16;   // the focused tile grows 12%
         int iw = d.getIntrinsicWidth(), ih = d.getIntrinsicHeight();
         if (iw <= 0 || ih <= 0) return d;
         float f = banner ? Math.max(w / (float) iw, h / (float) ih) : Math.min(h / (float) iw, h / (float) ih);
