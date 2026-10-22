@@ -249,6 +249,7 @@
   .p-match{text-align:left}
   .p-match .big{justify-content:flex-end}
   .p-match .sub{white-space:normal;line-height:1.4;max-width:100%;font-size:clamp(11px,.88vw,17px)}
+  .p-match .sub.when{font-size:clamp(10px,.78vw,15px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* under «بعد …», a step smaller, one line */
 
   .mrow{display:flex;flex-direction:row;gap:1.6vw;align-items:flex-end;justify-content:flex-end;min-width:0}
   .mblock{text-align:left;flex:0 1 auto;min-width:0;max-width:100%}
@@ -259,6 +260,10 @@
   .mrow.flip .mblock + .mblock{animation-delay:.08s}
   .mblock .big > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
     padding-bottom:.3em;margin-bottom:-.3em}  /* room for the dots under ي, ج… */
+  /* a name too long for the row: its first word over the rest, centred (see fitMatches) */
+  .mblock .big > span.stack{display:inline-flex;align-items:center;gap:.3em;padding-bottom:.2em;margin-bottom:0}
+  .mblock .tm.two{display:inline-flex;flex-direction:column;align-items:center;line-height:1.05;text-align:center}
+  .mblock .tm.two i{font-style:normal}
   .none-week{font-size:clamp(26px,2.5vw,54px);font-weight:700;font-family:'ThmanyahDisplay','Thmanyah',serif;color:#A79C85}
 
   /* A new photo settles in over a minute, then holds still: an endless drift kept the TV redrawing
@@ -829,7 +834,7 @@ function matchSlot(id, now, shown){
     shown.add(done.idEvent);
     const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(toDate(done));
     return `<div class="mblock">`
-      + `<div class="big"><span>${esc(teamAr(done.strHomeTeam, done.idHomeTeam))} <span class="sc">${ar(+done.intHomeScore)} - ${ar(+done.intAwayScore)}</span> ${esc(teamAr(done.strAwayTeam, done.idAwayTeam))}</span></div>`
+      + `<div class="big"><span><span class="tm">${esc(teamAr(done.strHomeTeam, done.idHomeTeam))}</span> <span class="sc">${ar(+done.intHomeScore)} - ${ar(+done.intAwayScore)}</span> <span class="tm">${esc(teamAr(done.strAwayTeam, done.idAwayTeam))}</span></span></div>`
       + `<div class="sub">النتيجة النهائية · ${day}</div></div>`;
   }
   const ev = MATCHES[id];
@@ -847,7 +852,7 @@ function matchSlot(id, now, shown){
   const sub = diff > 0 ? `بعد ${shortRemaining(diff)}</div><div class="sub when">${dateLine}` : `<span class="live">مباشر</span> · ${liveStatus(ev, t12)}`;
   const mid = live ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
   return `<div class="mblock">`
-       + `<div class="big"><span>${home}${mid}${away}</span></div>`
+       + `<div class="big"><span><span class="tm">${home}</span>${mid}<span class="tm">${away}</span></span></div>`
        + `<div class="sub">${sub}</div>`
        + `</div>`;
 }
@@ -892,30 +897,27 @@ function renderMatches(turn){
   if(turn && pages > 1){ row.classList.remove('flip'); void row.offsetWidth; row.classList.add('flip'); }
 }
 
-// Two games side by side leave little room: «مانشستر سيتي» came out «مانشستر سـ…». Each line steps down in size
-// until it fits; still too long, the long club names take their usual short form; the ellipsis stays a last resort.
-const TEAM_SHORT = {
-  'مانشستر سيتي':'السيتي', 'مانشستر يونايتد':'اليونايتد', 'ريال مدريد':'الريال', 'أتلتيكو مدريد':'أتلتيكو',
-  'باريس سان جيرمان':'باريس', 'بايرن ميونخ':'بايرن', 'بوروسيا دورتموند':'دورتموند', 'بوروسيا مونشنغلادباخ':'مونشنغلادباخ',
-  'باير ليفركوزن':'ليفركوزن', 'آينتراخت فرانكفورت':'فرانكفورت', 'نوتنغهام فورست':'فورست', 'كريستال بالاس':'بالاس',
-  'وولفرهامبتون':'وولفز', 'سبورتينغ لشبونة':'سبورتينغ', 'لوس أنجلوس جالاكسي':'جالاكسي', 'البنك الأهلي المصري':'البنك الأهلي',
-};
+// Two games side by side leave little room: «مانشستر سيتي» came out «مانشستر سـ…». A name that doesn't fit goes on
+// two lines, its first word over the rest, centred (the longest name first, only as many as needed); a single long
+// word that still doesn't fit steps the row down in size; the ellipsis stays a last resort. One size for the row.
 const FIT_STEPS = [1, .92, .85, .78, .72];
 function fitMatches(row){
   const spans = [...row.querySelectorAll('.mblock .big > span')];
-  const fitsAt = (sp, k) => { sp.style.fontSize = k === 1 ? '' : k + 'em'; return sp.scrollWidth <= sp.clientWidth + 1; };
-  const best = (sp, floor) => FIT_STEPS.find(k => k >= floor && fitsAt(sp, k)) || 0;
-  // each line: full names down to .85, then the short names (if any) down to .72; then one size for the row
-  const ks = spans.map(sp => {
-    let k = best(sp, .85);
-    if(!k){
-      const short = sp.innerHTML.replace(/[^<>]+(?=<|$)/g, t => Object.keys(TEAM_SHORT).reduce((a, n) => a.split(n).join(TEAM_SHORT[n]), t));
-      if(short !== sp.innerHTML) sp.innerHTML = short;
-      k = best(sp, 0) || FIT_STEPS[FIT_STEPS.length - 1];
+  const fits = sp => sp.scrollWidth <= sp.clientWidth + 1;
+  spans.forEach(sp => {
+    sp.style.fontSize = '';
+    if(fits(sp)) return;
+    const names = [...sp.querySelectorAll('.tm')].filter(t => / /.test(t.textContent.trim()))
+      .sort((a, b) => b.textContent.length - a.textContent.length);
+    for(const t of names){
+      const w = t.textContent.trim().split(/\s+/);
+      t.innerHTML = `<i>${esc(w[0])}</i><i>${esc(w.slice(1).join(' '))}</i>`;
+      t.classList.add('two'); sp.classList.add('stack');
+      if(fits(sp)) break;
     }
-    return k;
   });
-  const k = Math.min(1, ...ks);
+  const best = sp => FIT_STEPS.find(k => { sp.style.fontSize = k === 1 ? '' : k + 'em'; return fits(sp); }) || FIT_STEPS[FIT_STEPS.length - 1];
+  const k = Math.min(1, ...spans.map(best));
   spans.forEach(sp => { sp.style.fontSize = k === 1 ? '' : k + 'em'; });
 }
 
