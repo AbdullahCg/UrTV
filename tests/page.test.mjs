@@ -350,6 +350,56 @@ for (const style of ['dark1', 'glass1', 'dark3', 'glass3', 'current']) {
     !errors.length && settling && made === want && gone && (!want || (geo && geo.w > 50 && geo.h > 20 && geo.fits)), JSON.stringify({ settling, made, gone, geo }) + errors.join('; '));
   await ctx.close();
 }
+// ---- «المهام»: the open tasks as the app sends them (one per line, URL-encoded), escaped, fitting, paged
+const TASKS = ['اشتري خبز وحليب من البقالة', '<b onclick=alert(1)>x</b> & "قهوة" \'سكر\'',
+  'اتصل بالمهندس عبدالرحمن بخصوص موعد تركيب المكيّف الجديد في غرفة الضيوف قبل الجمعة',
+  'موعد المستشفى الساعة 5:30', 'تجديد الاشتراك', 'ادفع فاتورة الكهرباء', 'اشتري هدية', 'أرسل التقرير'];
+const tasksHash = list => 'panel=tasks&tasks=' + encodeURIComponent(list.join('\n'));
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', tasksHash(TASKS), { width, height });
+  const r = await p.evaluate(() => {
+    const ul = document.getElementById('week-list'), card = document.querySelector('.week');
+    const bar = document.querySelector('.bottom').getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
+    const top = document.querySelector('.top').getBoundingClientRect();
+    const dot = (cs => ({ backgroundColor: cs.backgroundColor, borderRadius: cs.borderRadius }))(getComputedStyle(ul.querySelector('li'), '::before'));
+    const rows = () => [...ul.querySelectorAll('li')].map(li => li.textContent);
+    const page1 = rows();
+    LIST_PAGE++; renderPanel(false);
+    const c = card.getBoundingClientRect();
+    return { hd: document.getElementById('week-hd').textContent, page1, page2: rows(), html: ul.innerHTML,
+             injected: !!ul.querySelector('b, [onclick]'), dotBg: dot.backgroundColor, dotRadius: dot.borderRadius,
+             tooWide: [...ul.querySelectorAll('li')].filter(li => li.scrollWidth > li.clientWidth + 1).length,
+             fits: c.top >= top.bottom && c.bottom <= bar.top - 4 && c.right <= clock.left - 4 && c.height <= 0.42 * innerHeight };
+  });
+  const tag = `${width}x${height}`;
+  check(`card tasks ${tag}: title, five rows a page, text kept`, !errors.length && r.hd === 'المهام' && r.page1.length === 5
+    && r.page1[0] === TASKS[0] && r.page1[1] === TASKS[1] && r.page1[2] === TASKS[2].slice(0, 60), JSON.stringify(r.page1) + errors.join('; '));
+  check(`card tasks ${tag}: special characters escaped, none run as HTML`, !r.injected && r.html.includes('&lt;b onclick'), r.html.slice(0, 200));
+  check(`card tasks ${tag}: gold dot on every row`, r.dotBg === 'rgb(220, 184, 111)' && r.dotRadius !== '0px', r.dotBg + ' ' + r.dotRadius);
+  check(`card tasks ${tag}: next page shows the rest`, r.page2.length === 5 && r.page2[2] === TASKS[7] && r.page2[3] === TASKS[0], JSON.stringify(r.page2));
+  check(`card tasks ${tag}: clear of the clock and the bottom bar`, r.fits);
+  await ctx.close();
+}
+for (const [hash, rows, text] of [['panel=tasks', 1, 'لا مهام اليوم'], ['panel=tasks&tasks=', 1, 'لا مهام اليوم'],
+                                  [tasksHash(['واحد', '', '  اثنان  ']), 2, 'واحد']]) {
+  const { p, ctx, errors } = await open('tv.html', hash);
+  const r = await p.evaluate(() => [document.querySelectorAll('#week-list li').length, document.querySelector('#week-list li').textContent]);
+  check(`card tasks, ${hash.length > 20 ? 'blank lines dropped' : 'nothing to do'}: ${rows} row`, !errors.length && r[0] === rows && r[1] === text, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const long = Array.from({ length: 30 }, (_, i) => 'مهمة رقم ' + i + ' ' + 'ن'.repeat(80));
+  const { p, ctx, errors } = await open('tv.html', tasksHash(long));
+  const r = await p.evaluate(() => [CONFIG.tasks.length, Math.max(...CONFIG.tasks.map(t => t.length))]);
+  check('card tasks: at most 12 of 60 characters', !errors.length && r[0] === 12 && r[1] <= 60, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await open('tv.html', tasksHash(TASKS) + '&widget=1', { width: 461, height: 250 });
+  const n = await p.evaluate(() => document.querySelectorAll('#week-list li').length);
+  check('launcher card tasks: the rows are there', !errors.length && n === 5, n + errors.join('; '));
+  await ctx.close();
+}
 
 // ---- old settings links and «لا شيء»
 for (const [hash, panel, shown] of [['', 'verse', true], ['week=0', 'none', false], ['week=1', 'verse', true],

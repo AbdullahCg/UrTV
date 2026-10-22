@@ -148,7 +148,7 @@ urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137
 ```
 
 `teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
-`forecast`, `matches`, `verse`, `wisdom`, `adhkar`, `stocks` or `none`. `stocks`: the watchlist of the stocks card, up to 8
+`forecast`, `matches`, `verse`, `wisdom`, `adhkar`, `stocks`, `tasks` or `none`. `stocks`: the watchlist of the stocks card, up to 8
 (`2222,1120,AAPL,NVDA`: 4 digits is a Tadawul code, letters a US ticker). Also `genres`, `langs`, `shows`, `minrating` for the episodes card,
 `digits`: `hindi` (١٢٣, the default) or `latin` (123), and `cardstyle`: the card's look, `current` (default), `dark1`,
 `glass1`, `dark3` or `glass3`. `markets`: up to 4 of `tasi`, `aramco`, `spx`, `btc`, `gold`, `silver` (per gram, in riyals),

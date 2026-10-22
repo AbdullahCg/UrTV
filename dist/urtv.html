@@ -114,6 +114,8 @@
   .week ul.flip li:nth-child(4){animation-delay:.18s}
   .week ul.flip li:nth-child(5){animation-delay:.24s}
   @keyframes weekIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .week li.task::before{content:'';flex:0 0 auto;width:.4em;height:.4em;border-radius:50%;background:var(--gold);align-self:center}
+  .week li.task span{max-width:100%;min-width:0}
   .week li.past{color:#8F8670}
   .week li.next{color:#FFE9B8}
   .week li.next .dt{color:#E0BA74}
@@ -420,9 +422,11 @@ const CONFIG = {
             : [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137'])
     .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)).slice(0, 10),
   sportsKey: '123',
-  // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | adhkar | stocks | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','stocks','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','stocks','tasks','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
+  // #tasks=: the open tasks, one per line (the app drops done ones), at most 12 of 60 characters
+  tasks: (_Q.get('tasks') || '').split('\n').map(x=>x.trim().slice(0, 60)).filter(Boolean).slice(0, 12),
   matchesPerPage: 2,
   matchPageMs: 15000,
   // minutes from adhan to iqama (Ministry of Islamic Affairs defaults); Friday Dhuhr has none
@@ -1169,7 +1173,7 @@ function renderWeekPage(animate){
 let FORECAST = [];
 try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
 let LIST_PAGE = 0;
-const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:'مباريات فرقك'};
+const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:'مباريات فرقك', tasks:'المهام'};
 
 function renderPanel(animate){
   const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
@@ -1179,6 +1183,7 @@ function renderPanel(animate){
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
   else if(P === 'matches') rows = matchRows();
+  else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
   else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
   else if(P === 'wisdom'){ const q = wisdomOfDay(); setText(hd, q.title); rows = q.rows; }
   else if(P === 'adhkar'){
@@ -1190,10 +1195,10 @@ function renderPanel(animate){
   if(PANEL_TITLE[P]) setText(hd, PANEL_TITLE[P]);
   if(!rows.length){
     ul.classList.remove('flip');
-    setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : 'لا تتوفر بيانات الآن'}</li>`);
+    setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : P === 'tasks' ? 'لا مهام اليوم' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
   }
-  if((P === 'matches' || P === 'stocks') && rows.length > WEEK_ROWS){        // page through, like the shows
+  if((P === 'matches' || P === 'stocks' || P === 'tasks') && rows.length > WEEK_ROWS){        // page through, like the shows
     const start = (LIST_PAGE * WEEK_ROWS) % rows.length;
     rows = Array.from({length: WEEK_ROWS}, (_, i) => rows[(start + i) % rows.length]);
   }
@@ -1663,6 +1668,7 @@ function boot(){
     if(CONFIG.panel === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
     if(CONFIG.panel === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
     if(CONFIG.panel === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
+    if(CONFIG.panel === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);
   setInterval(applyNight, 60*1000);
   setInterval(pixelShift, 4*60*1000);
@@ -1693,6 +1699,7 @@ function bootWidget(){
     if(P === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
     if(P === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
     if(P === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
+    if(P === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);
   let lastDay = riyadhDayNumber();
   setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers') loadPrayers(); renderPanel(false); } else if(P === 'adhkar' || P === 'stocks') renderPanel(false); }, 60*1000);
