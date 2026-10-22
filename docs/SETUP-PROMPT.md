@@ -256,6 +256,7 @@ optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال
                                                   # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
 optimize/saver.sh card <one of: verse, wisdom, adhkar, stocks, tasks, shows, prayers, forecast, matches, none>   # beside the clock (verse unless I said otherwise)
 optimize/saver.sh home-card none                  # home screen: no card
+# «المهام» (only if I ask): optimize/saver.sh tasks add 'نص' | list | done N | del N | clear, and card tasks
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
 optimize/dock.sh hidden                           # apps the home screen leaves out, and why
 optimize/saver.sh photos <5, 10, 15, 30 or 60>   # ONLY if I asked how often the photo changes (default 30 minutes: leave it)

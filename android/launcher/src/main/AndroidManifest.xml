@@ -30,6 +30,10 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />
         </intent>
+        <!-- «المهام»: is there a speech recognizer on this TV? -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
         <package android:name="com.tcl.tv" />
         <package android:name="com.tcl.suspension" />
         <package android:name="sa.urtv.screensaver" />
@@ -68,6 +72,14 @@
             android:name=".DockActivity"
             android:exported="true"
             android:label="ترتيب المفضلة"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
+        <!-- «المهام»: the tasks kept by the screensaver app, with a mic (speech recognizer) -->
+        <activity
+            android:name=".TasksActivity"
+            android:exported="true"
+            android:label="المهام"
             android:screenOrientation="landscape"
             android:theme="@android:style/Theme.Material.NoActionBar" />
 

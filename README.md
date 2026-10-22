@@ -91,7 +91,7 @@ screen: [docs/RECREATE-PROMPT.md](docs/RECREATE-PROMPT.md).
 | | | |
 |---|---|---|
 | **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, a stock watchlist, or a verse/hadith of the day, over Saudi landscapes | `urtv-screensaver.apk` |
-| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; optional card from the screensaver (off by default) | `urtv-home.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; «المهام» (tasks, by voice too), optional card from the screensaver (off by default) | `urtv-home.apk` |
 | **Two free apps** | [TV Bro](https://github.com/truefedex/tv-bro), a web browser for the TV, and [SmartTube](https://github.com/yuliskov/SmartTube), YouTube without ads, from their own releases (skip with `SKIP_EXTRAS=1`) | `optimize/install.sh extras` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), closed apps frozen, Play Store kept from running in the background, faster animations | `optimize/` |
 
@@ -108,7 +108,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 |---|---|
 | `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
-| `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `update` |
+| `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `tasks`, `update` |
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
 | `optimize/keep.sh` | turn back on anything protected (AirPlay, casting, voice, updates…) that something turned off |
@@ -154,6 +154,17 @@ urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137
 `glass1`, `dark3` or `glass3`. `markets`: up to 4 of `tasi`, `aramco`, `spx`, `btc`, `gold`, `silver` (per gram, in riyals),
 `xrp`, in order (default `tasi,spx,btc`); `mkstyle`: `arrows` (a ▲/▼ only, the default) or `prices` (the price, the day's change and
 the time of the last update).
+`tasks`: the open «المهام», one per line, URL-encoded.
+
+**«المهام»** are kept on the TV, no account: up to 12 of 60 characters in the screensaver app's settings, nothing
+shown until one is added or the card is picked. Add them with `optimize/saver.sh tasks add 'نص'` (also `list`,
+`done N`, `del N`, `clear`; N is the number `list` shows), or in the home app: the «المهام» pill lists them (OK marks
+one done, «حذف» removes it) and its «🎤 تكلّم» button uses the TV's speech recognizer: «أضف مهمة …», «خلصت …»,
+«احذف …», always confirmed on screen first (no recognizer: the button is hidden). The home app reaches the list
+through the screensaver's ConfigProvider (`/tasks`), writes guarded by the signature permission `WRITE_TASKS`.
+*Where a sync would plug in (not built):* Microsoft To Do or Todoist would read and write the same list through
+`Prefs.tasks()/addTask()/doneTask()/deleteTask()`; the calls belong in the screensaver app's `UpdateJob` (it
+already runs off the main thread), with the owner's own app registration kept out of the repository.
 
 **Data** (free, no keys): Aladhan (prayer times, Umm al-Qura), Open-Meteo (weather), Yahoo and CoinGecko (markets),
 TVMaze (episodes), TheSportsDB (matches). Everything fails soft: offline, the clock, dates, prayer and Ramadan

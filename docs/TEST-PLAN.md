@@ -139,6 +139,9 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | L8 | Long-press OK on any app → «ترتيب المفضلة…» (also: screensaver settings → «ترتيب التطبيقات المفضلة») | List of favourites, numbered, first one focused |
 | L9 | OK on the 3rd app, ▲ twice, OK; then Back | It turns gold, moves to the top, drops; home row shows it first |
 | L10 | «إزالة» beside an app (▶/◀ to reach it); then «+» on an app under «إضافة تطبيق» | Removed / added at the end; never below 5 or above 10 (a message says so) |
+| L12 | `optimize/saver.sh tasks add 'اشتري خبز'`, then press Home and the «المهام» pill | The pill is there; the list shows «اشتري خبز» with a gold dot; OK on it → «تم: اشتري خبز», it turns to ✓ |
+| L13 | In «المهام» press «تكلّم» and say «أضف مهمة موعد الطبيب» (a TV with a speech recognizer) | «أضيف «موعد الطبيب»؟» with نعم / لا; «لا» changes nothing, «نعم» adds it. Then «خلصت الطبيب» and «احذف الطبيب» each ask first |
+| L14 | Same on a TV with no recognizer | No «تكلّم» button; «الإدخال الصوتي غير متاح في هذا التلفزيون» once; OK and «حذف» still work |
 | L5 | `optimize/dock.sh apps`, then `optimize/dock.sh set <3 packages from that list>`, then `optimize/dock.sh show` | Home screen redraws at once with those three first, topped up to 5; `show` lists them |
 | L6 | `optimize/dock.sh set com.not.installed` | `error: none of these apps are on this TV's home screen`; row unchanged |
 | L7 | `optimize/dock.sh reset` | Row back to the defaults |
@@ -165,6 +168,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | T14 | `optimize/saver.sh cardstyle glass1`, then `optimize/saver.sh show`; then `optimize/saver.sh cardstyle shiny` | `saved`, `show` lists `cardstyle: glass1`; the second prints `error: cardstyle is one of current dark1 glass1 dark3 glass3` and changes nothing; put it back with `cardstyle current` |
 | T15 | `optimize/saver.sh markets tasi,gold,btc` and `optimize/saver.sh mkstyle prices`, then `optimize/saver.sh show`; then `optimize/saver.sh markets tasi,tasi` and `optimize/saver.sh markets foo` | `saved`, `show` lists `markets: tasi,gold,btc` and `mkstyle: prices`; the last two print `error:` and change nothing; put it back with `markets tasi,spx,btc` and `mkstyle arrows` |
 | T16 | `optimize/saver.sh stocks 2222 1120 AAPL`, then `optimize/saver.sh show`; then `optimize/saver.sh stocks 2222 2222` and `optimize/saver.sh stocks 12345` | `saved`, `show` lists `stocks: 2222,1120,AAPL`; the last two print `error:` and change nothing |
+| T17 | `optimize/saver.sh tasks add 'اختبار'`, `tasks list`, `tasks done 1`, `tasks del 1`, `tasks del 9`, `tasks clear` | `saved` and the numbered list; `1. [done] اختبار`; `no tasks`; then `error: no task number 9 …` |
 
 ---
 
