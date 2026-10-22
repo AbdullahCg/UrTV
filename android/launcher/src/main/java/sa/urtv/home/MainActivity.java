@@ -17,6 +17,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvContract;
@@ -28,6 +29,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.util.LruCache;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -77,6 +79,13 @@ public class MainActivity extends Activity {
     }
 
     private final Map<String, Integer> colorCache = new HashMap<>();
+    // Banners and icons come from the apps at their own size (often 640x360 or more); the tiles are ~1/5 of the
+    // screen wide, so they are kept at that size, and the cache holds a few MB at most (sized in KB).
+    private final LruCache<String, Drawable> artCache = new LruCache<String, Drawable>(6 * 1024) {
+        @Override protected int sizeOf(String k, Drawable d) {
+            return d instanceof BitmapDrawable ? ((BitmapDrawable) d).getBitmap().getByteCount() / 1024 : 256;
+        }
+    };
     private final List<View> dockCards = new ArrayList<>();
     private final List<View> gridCards = new ArrayList<>();
     private final List<View> pills = new ArrayList<>();
@@ -363,7 +372,7 @@ public class MainActivity extends Activity {
     private void buildApps() {
         PackageManager pm = getPackageManager();
         android.content.pm.ChangedPackages changed = pm.getChangedPackages(packageSeq);
-        if (changed != null) packageSeq = changed.getSequenceNumber();
+        if (changed != null) { packageSeq = changed.getSequenceNumber(); artCache.evictAll(); }   // an app may have a new icon
         Map<String, App> byPkg = new HashMap<>();
         for (ResolveInfo ri : Dock.catalogue(this)) {
             ActivityInfo ai = ri.activityInfo;
@@ -372,10 +381,18 @@ public class MainActivity extends Activity {
             a.label = String.valueOf(ri.loadLabel(pm));
             a.component = new ComponentName(ai.packageName, ai.name);
             a.category = Dock.isTv(ri) ? Intent.CATEGORY_LEANBACK_LAUNCHER : Intent.CATEGORY_LAUNCHER;
-            Drawable banner = ai.loadBanner(pm);
-            if (banner == null) banner = ai.applicationInfo.loadBanner(pm);
+            Drawable banner = artCache.get("b:" + a.pkg);
+            if (banner == null) {
+                banner = ai.loadBanner(pm);
+                if (banner == null) banner = ai.applicationInfo.loadBanner(pm);
+                if (banner != null) artCache.put("b:" + a.pkg, banner = fitted(banner, true));
+            }
             a.isBanner = banner != null;
-            a.art = banner != null ? banner : ri.loadIcon(pm);
+            if (banner != null) a.art = banner;
+            else {
+                a.art = artCache.get("i:" + a.pkg);
+                if (a.art == null) artCache.put("i:" + a.pkg, a.art = fitted(ri.loadIcon(pm), false));
+            }
             a.color = sampleColor(a.pkg, a.art);
             byPkg.put(a.pkg, a);
         }
@@ -939,6 +956,26 @@ public class MainActivity extends Activity {
     private void scheduleWallpaper(long delay) {
         handler.removeCallbacks(rotateWallpaper);
         handler.postDelayed(rotateWallpaper, Math.max(1000, delay));
+    }
+
+    /** The art redrawn at the size a tile shows it (never enlarged); a banner fills the 16:9 card, an icon fits inside it. */
+    private Drawable fitted(Drawable d, boolean banner) {
+        int w = getResources().getDisplayMetrics().widthPixels / MIN_DOCK, h = w * 9 / 16;
+        int iw = d.getIntrinsicWidth(), ih = d.getIntrinsicHeight();
+        if (iw <= 0 || ih <= 0) return d;
+        float f = banner ? Math.max(w / (float) iw, h / (float) ih) : Math.min(h / (float) iw, h / (float) ih);
+        if (f >= 1f) return d;
+        try {
+            int bw = banner ? w : Math.max(1, Math.round(iw * f)), bh = banner ? h : Math.max(1, Math.round(ih * f));
+            Bitmap bm = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
+            Canvas c = new Canvas(bm);
+            int dw = Math.round(iw * f), dh = Math.round(ih * f);
+            d.setBounds((bw - dw) / 2, (bh - dh) / 2, (bw - dw) / 2 + dw, (bh - dh) / 2 + dh);
+            d.draw(c);
+            return new BitmapDrawable(getResources(), bm);
+        } catch (RuntimeException | OutOfMemoryError e) {
+            return d;
+        }
     }
 
     /** Average the banner's vivid pixels, then push saturation so the glow reads as a colour. */
