@@ -1423,12 +1423,16 @@ function applyBackground(force){
 // Last painted panels, shown at once on the next start while fresh data loads.
 const SNAP_KEY = 'snap4:' + location.hash;   // bump when the panels' markup changes
 const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
+let SNAP_LAST = null;   // what is stored now: the panels rarely change, so most saves have nothing to write
 function saveSnap(){
-  try{ localStorage.setItem(SNAP_KEY, JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''))); }catch(e){}
+  const s = JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''));
+  if(s === SNAP_LAST) return;
+  try{ localStorage.setItem(SNAP_KEY, s); SNAP_LAST = s; }catch(e){}
 }
 function restoreSnap(){
   try{
-    const v = JSON.parse(localStorage.getItem(SNAP_KEY) || 'null');
+    SNAP_LAST = localStorage.getItem(SNAP_KEY);
+    const v = JSON.parse(SNAP_LAST || 'null');
     if(v) SNAP_SEL.forEach((q, i) => { const el = document.querySelector(q); if(el && v[i]) el.innerHTML = v[i]; });
   }catch(e){}
 }
