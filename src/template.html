@@ -441,6 +441,10 @@ function fmt12(h, mi){
   return `${ar(h12)}:${ar(pad(mi))} ${h < 12 ? 'ص' : 'م'}`;
 }
 
+// An identical write still restyles and repaints, so the timers below write only what changed.
+function setText(el, v){ if(el.textContent !== v) el.textContent = v; }
+function setHTML(el, h, force){ if(force || el.__h !== h){ el.__h = h; el.innerHTML = h; return true; } return false; }
+
 function tickClock(){
   const p = riyadhParts();
   const h12 = p.h % 12 === 0 ? 12 : p.h % 12;
@@ -451,7 +455,7 @@ function tickClock(){
   tickClock.last = key;
   document.getElementById('ck-h').innerHTML = digits(ar(h12));
   document.getElementById('ck-m').innerHTML = digits(ar(pad(p.mi)));
-  document.getElementById('ck-ap').textContent = p.h < 12 ? 'ص' : 'م';
+  setText(document.getElementById('ck-ap'), p.h < 12 ? 'ص' : 'م');
 }
 
 function tickDates(){
@@ -461,12 +465,12 @@ function tickDates(){
       timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
     }).format(now);
     h = h.replace(/\s*هـ\s*$/,'').replace(/،\s*$/,'');
-    document.getElementById('hijri').textContent = h + ' هـ';
+    setText(document.getElementById('hijri'), h + ' هـ');
   }catch(e){}
   try{
-    document.getElementById('greg').textContent = new Intl.DateTimeFormat(GREG,{
+    setText(document.getElementById('greg'), new Intl.DateTimeFormat(GREG,{
       timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
-    }).format(now);
+    }).format(now));
   }catch(e){}
 }
 
@@ -586,23 +590,23 @@ function tickPrayer(){
   });
   if(cur){
     const left = (cur.h*60 + cur.mi + CONFIG.iqama[cur.key]) - mins;
-    panel.classList.add('now');
-    elL.textContent = 'حان الآن';
-    elN.textContent = prayerName(cur);
-    elT.textContent = fmt12(cur.h, cur.mi);
-    elC.innerHTML = 'الإقامة بعد <b>' + humanRemaining(Math.max(60, Math.ceil(left)*60)) + '</b>';
+    if(!panel.classList.contains('now')) panel.classList.add('now');
+    setText(elL, 'حان الآن');
+    setText(elN, prayerName(cur));
+    setText(elT, fmt12(cur.h, cur.mi));
+    setHTML(elC, 'الإقامة بعد <b>' + humanRemaining(Math.max(60, Math.ceil(left)*60)) + '</b>');
     return;
   }
 
-  panel.classList.remove('now');
-  elL.textContent = 'الصلاة القادمة';
+  if(panel.classList.contains('now')) panel.classList.remove('now');
+  setText(elL, 'الصلاة القادمة');
   let next = PRAYERS.find(x => (x.h*60+x.mi) > mins);
   const leftM = next ? (next.h*60 + next.mi) - mins
                      : (PRAYERS[0].h*60 + PRAYERS[0].mi) + 1440 - mins;
   if(!next) next = PRAYERS[0];
-  elN.textContent = prayerName(next);
-  elT.textContent = fmt12(next.h, next.mi);
-  elC.innerHTML = 'بعد <b>' + humanRemaining(Math.max(0, Math.round(leftM*60))) + '</b>';
+  setText(elN, prayerName(next));
+  setText(elT, fmt12(next.h, next.mi));
+  setHTML(elC, 'بعد <b>' + humanRemaining(Math.max(0, Math.round(leftM*60))) + '</b>');
 }
 
 // ---- «المناسبة القادمة»: the card in the middle of the bottom row follows the Hijri year ----
@@ -671,27 +675,27 @@ function tickOccasion(){
     else if(mins < maghribM){ label = 'الإفطار'; targetM = maghribM; }
     else { label = 'الإمساك'; targetM = fajrM + 1440; }
     const th = Math.floor((targetM % 1440) / 60), tm = targetM % 60;
-    elL.textContent = label;
-    elD.innerHTML = ar(th%12===0?12:th%12) + ':' + ar(String(tm).padStart(2,'0'))
-                  + ' <span class="unit">' + (th < 12 ? 'ص' : 'م') + '</span>';
-    elS.innerHTML = 'بعد <b>' + humanRemaining(Math.max(0, Math.round((targetM - mins)*60))) + '</b>';
+    setText(elL, label);
+    setHTML(elD, ar(th%12===0?12:th%12) + ':' + ar(String(tm).padStart(2,'0'))
+                  + ' <span class="unit">' + (th < 12 ? 'ص' : 'م') + '</span>');
+    setHTML(elS, 'بعد <b>' + humanRemaining(Math.max(0, Math.round((targetM - mins)*60))) + '</b>');
     return;
   }
 
   // ---- the occasion's day, or the countdown to the next one ----
   const oc = occasionNow();
-  if(!oc){ elL.textContent = ''; elD.textContent = '—'; elS.textContent = ''; return; }
+  if(!oc){ setText(elL, ''); setText(elD, '—'); setText(elS, ''); return; }
   const o = oc.o;
-  elL.textContent = o.name + (o.year ? ' ' + ar(oc.hy) : '');
+  setText(elL, o.name + (o.year ? ' ' + ar(oc.hy) : ''));
   if(oc.today){
-    elD.innerHTML = '<span class="txt">' + esc(o.today) + '</span>';
-    elS.textContent = '';
+    setHTML(elD, '<span class="txt">' + esc(o.today) + '</span>');
+    setText(elS, '');
     return;
   }
-  elD.innerHTML = ar(oc.days) + ' <span class="unit">' + OCC_TEXT.unit + '</span>';
-  elS.innerHTML = esc(new Intl.DateTimeFormat(GREG,{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'})
+  setHTML(elD, ar(oc.days) + ' <span class="unit">' + OCC_TEXT.unit + '</span>');
+  setHTML(elS, esc(new Intl.DateTimeFormat(GREG,{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'})
       .format(new Date(Date.UTC(oc.y, oc.mo-1, oc.d, 12))).replace('،','') + ' · ' + OCC_TEXT.expected)
-    + (o.note ? '<div class="note">' + esc(o.note) + '</div>' : '');
+    + (o.note ? '<div class="note">' + esc(o.note) + '</div>' : ''));
 }
 
 const TEAM_AR = __TEAMS_AR__;   // assets/shared/teams-ar.json
@@ -884,12 +888,11 @@ function renderMatches(turn){
   const now = Date.now(), shown = new Set();
   const slots = CONFIG.teamIds.map(id => matchSlot(id, now, shown)).filter(Boolean);
   const row = document.getElementById('match-row');
-  if(!slots.length){ if(!MATCHES_LOADED && row.firstElementChild) return; row.innerHTML = '<div class="none-week">لا شيء هذا الأسبوع</div>'; return; }
+  if(!slots.length){ if(!MATCHES_LOADED && row.firstElementChild) return; setHTML(row, '<div class="none-week">لا شيء هذا الأسبوع</div>'); return; }
   const per = CONFIG.matchesPerPage, pages = Math.ceil(slots.length / per);
   if(turn) MATCH_PAGE++;
   MATCH_PAGE %= pages;
-  row.innerHTML = slots.slice(MATCH_PAGE * per, MATCH_PAGE * per + per).join('');
-  fitMatches(row);
+  if(setHTML(row, slots.slice(MATCH_PAGE * per, MATCH_PAGE * per + per).join(''), turn && pages > 1)) fitMatches(row);   // fitted again only when rewritten
   if(turn && pages > 1){ row.classList.remove('flip'); void row.offsetWidth; row.classList.add('flip'); }
 }
 
@@ -948,10 +951,11 @@ const TICKERS = [
 // never invent a direction: unknown hides the marker
 function paintDir(t, up){
   const chEl = document.getElementById(t.chg);
-  if(up === null || up === undefined){ chEl.style.display='none'; chEl.hidden = true; chEl.textContent=''; return; }
+  if(up === null || up === undefined){ chEl.style.display='none'; chEl.hidden = true; setText(chEl, ''); return; }
   chEl.hidden = false; chEl.style.display='';
-  chEl.textContent = up ? '▲' : '▼';
-  chEl.className = 'delta ' + (up ? 'up' : 'down');
+  setText(chEl, up ? '▲' : '▼');
+  const cls = 'delta ' + (up ? 'up' : 'down');
+  if(chEl.className !== cls) chEl.className = cls;
 }
 
 async function fetchT(url, ms){
@@ -1067,7 +1071,7 @@ function renderWeekPage(animate){
   const ul = document.getElementById('week-list');
   if(!WEEK_POOL.length){
     ul.classList.remove('flip');
-    ul.innerHTML = '<li class="empty">لا جديد هذا الأسبوع</li>';
+    setHTML(ul, '<li class="empty">لا جديد هذا الأسبوع</li>');
     return;
   }
   const start = (WEEK_PAGE * WEEK_ROWS) % WEEK_POOL.length;
@@ -1075,13 +1079,13 @@ function renderWeekPage(animate){
   for(let i = 0; i < Math.min(WEEK_ROWS, WEEK_POOL.length); i++){
     rows.push(WEEK_POOL[(start + i) % WEEK_POOL.length]);
   }
-  ul.innerHTML = rows.map(o=>{
+  setHTML(ul, rows.map(o=>{
     const dt = o.date ? new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date(o.date+'T12:00:00Z')) : '';
     return `<li><span>${esc(o.name)}</span>`
          + (o.ep?`<span class="ep">${ar(o.ep)}</span>`:'')
          + (o.rating ? `<span class="rt">${ar(o.rating.toFixed(1)).replace('.', LATIN ? '.' : '٫')}</span>` : '')
          + (dt?`<span class="dt">${dt}</span>`:'') + '</li>';
-  }).join('');
+  }).join(''), animate);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
 }
@@ -1100,18 +1104,18 @@ function renderPanel(animate){
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
   else if(P === 'matches') rows = matchRows();
-  else if(P === 'verse'){ const q = quoteOfDay(); hd.textContent = q.title; rows = q.rows; }
-  if(PANEL_TITLE[P]) hd.textContent = PANEL_TITLE[P];
+  else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
+  if(PANEL_TITLE[P]) setText(hd, PANEL_TITLE[P]);
   if(!rows.length){
     ul.classList.remove('flip');
-    ul.innerHTML = `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : 'لا تتوفر بيانات الآن'}</li>`;
+    setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
   }
   if(P === 'matches' && rows.length > WEEK_ROWS){        // page through, like the shows
     const start = (LIST_PAGE * WEEK_ROWS) % rows.length;
     rows = Array.from({length: WEEK_ROWS}, (_, i) => rows[(start + i) % rows.length]);
   }
-  ul.innerHTML = rows.join('');
+  setHTML(ul, rows.join(''), animate);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
 }
@@ -1201,13 +1205,13 @@ async function loadWeather(){
                          + `&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=5`, 12000);
     if(!r.ok) throw 0;
     const j = await r.json();
-    document.getElementById('wx-temp').textContent = ar(Math.round(j.current.temperature_2m)) + '°';
+    setText(document.getElementById('wx-temp'), ar(Math.round(j.current.temperature_2m)) + '°');
     const d = document.getElementById('wx-desc');
-    d.textContent = WX_CODES[j.current.weather_code] || '';
+    setText(d, WX_CODES[j.current.weather_code] || '');
     d.classList.remove('dust');
     const hi = j.daily?.temperature_2m_max?.[0], lo = j.daily?.temperature_2m_min?.[0];
-    document.getElementById('wx-range').textContent =
-      (hi != null && lo != null) ? `${ar(Math.round(hi))}° / ${ar(Math.round(lo))}°` : '';
+    setText(document.getElementById('wx-range'),
+      (hi != null && lo != null) ? `${ar(Math.round(hi))}° / ${ar(Math.round(lo))}°` : '');
     const dl = j.daily || {};
     FORECAST = (dl.time || []).map((t, i) => ({date:t, code:dl.weather_code?.[i],
       hi:dl.temperature_2m_max?.[i], lo:dl.temperature_2m_min?.[i]})).filter(x => x.hi != null && x.lo != null);
@@ -1223,7 +1227,7 @@ async function loadWeather(){
     const pm = Math.max(c.pm10 || 0, c.dust || 0);
     if(pm >= 150){
       const d = document.getElementById('wx-desc');
-      d.textContent = pm >= 400 ? 'غبار كثيف' : 'غبار';
+      setText(d, pm >= 400 ? 'غبار كثيف' : 'غبار');
       d.classList.add('dust');
     }
   }catch(e){}
@@ -1239,7 +1243,8 @@ function applyNight(){
   else if(h >= 21)          o = MAX * (h - 21) / 2;
   else if(h < 7)            o = MAX * (7 - h) / 2;
   const el = document.getElementById('dimmer');
-  if(el) el.style.opacity = Math.max(0, Math.min(MAX, o)).toFixed(2);
+  const v = Math.max(0, Math.min(MAX, o)).toFixed(2);
+  if(el && el.style.opacity !== v) el.style.opacity = v;
 }
 
 // gentle pixel shift so static text never burns into the panel
