@@ -129,6 +129,12 @@ public class SettingsActivity extends Activity {
             R.drawable.ic_star, new Runnable() { public void run() { pickRating(); } });
         }
 
+        if ("stocks".equals(prefs.panel()) || "stocks".equals(prefs.homePanel())) {   // only matters for the stocks card
+        header("الأسهم");
+        row("قائمة الأسهم (" + arabicNum(prefs.stocks().size()) + "/" + arabicNum(Prefs.MAX_STOCKS) + ")", stocksLabel(),
+            R.drawable.ic_star, new Runnable() { public void run() { askStocks(); } });
+        }
+
         header("التوقيت");
         row("تبديل الصورة كل", minutesLabel(Integer.parseInt(prefs.photoMinutes())), R.drawable.ic_sync,
             new Runnable() { public void run() { pickPhotoMinutes(); } });
@@ -432,6 +438,36 @@ public class SettingsActivity extends Activity {
                 render();
             })
             .setNegativeButton("إلغاء", null).show();
+    }
+
+    private String stocksLabel() { return Prefs.join(prefs.stocks(), "، "); }
+
+    /** Codes (2222 = أرامكو) and US tickers (AAPL), separated by spaces or commas. */
+    private void askStocks() {
+        final EditText in = new EditText(this);
+        in.setHint("مثال: 2222 1120 AAPL NVDA");
+        in.setText(Prefs.join(prefs.stocks(), " "));
+        in.setSingleLine(true);
+        in.setInputType(InputType.TYPE_CLASS_TEXT);
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("قائمة الأسهم (رمز تداول من ٤ أرقام أو رمز أمريكي، حتى " + arabicNum(Prefs.MAX_STOCKS) + ")")
+            .setView(in)
+            .setPositiveButton("حفظ", (d, w) -> {
+                List<String> v = new ArrayList<>();
+                for (String s : in.getText().toString().split("[\\s,،]+")) {
+                    s = s.trim().toUpperCase(java.util.Locale.ROOT);
+                    if (s.isEmpty()) continue;
+                    if (!s.matches(Prefs.STOCK_PATTERN)) { toast("رمز غير صالح: " + s); return; }
+                    if (!v.contains(s)) v.add(s);
+                }
+                if (v.isEmpty() || v.size() > Prefs.MAX_STOCKS) {
+                    toast("أدخل من رمز إلى " + arabicNum(Prefs.MAX_STOCKS) + " رموز");
+                    return;
+                }
+                prefs.setStocks(v);
+                render();
+            })
+            .setNegativeButton("إلغاء", null).show();
+        in.requestFocus();
     }
 
     private void pickMkStyle() {

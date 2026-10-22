@@ -566,6 +566,90 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- «الأسهم»: the watchlist card (mocked chart answers; markets open or closed by the Riyadh clock)
+const stockChart = (price, prevClose, closes) => JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: price, chartPreviousClose: prevClose },
+  indicators: { quote: [{ close: closes }] } }] } });
+const day = (a, b, n = 20) => Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
+const STK = { '2222.SR': stockChart(26.3, 26.0, day(26, 26.3)), '1120.SR': stockChart(91.5, 92.0, day(92, 91.5)), 'AAPL': stockChart(250.25, 248, day(248, 250.25)),
+              '9999.SR': stockChart(10, 10, day(10, 10)), 'NVDA': stockChart(180, 182, day(182, 180)), '1180.SR': stockChart(40, 39, day(39, 40)),
+              '7010.SR': stockChart(41, 40, day(40, 41)), '2010.SR': stockChart(60, 61, day(61, 60)), 'MSFT': stockChart(420, 418, day(418, 420)) };
+const stockNet = (state, seen = []) => r => {
+  const m = r.request().url().match(/chart\/([^?]+)\?(.*)$/);
+  if (!m) return false;
+  const sym = decodeURIComponent(m[1]); seen.push(sym + '?' + m[2]);
+  if (state.off || !STK[sym]) { r.abort(); return true; }
+  r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: STK[sym] }); return true;
+};
+const at = iso => `{ const t = Date.parse('${iso}'); Date.now = () => t; }`;   // a fixed moment, set in the page
+const stkRows = p => p.evaluate(() => ({ hd: document.getElementById('week-hd').textContent.trim(),
+  rows: [...document.querySelectorAll('#week-list li.stk')].map(li => ({ nm: li.querySelector('.nm').firstChild.textContent, px: (li.querySelector('.px') || {}).textContent,
+    chg: (li.querySelector('.chg') || {}).textContent, up: !!li.querySelector('.chg.up'), pts: li.querySelector('svg polyline') ? li.querySelector('svg polyline').getAttribute('points').split(' ').length : 0,
+    closed: !!li.querySelector('.cl') })) }));
+{
+  const state = {}, seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'panel=stocks&stocks=2222,1120,AAPL,9999,nvda,2222', { net: stockNet(state, seen) });
+  await p.evaluate(at('2026-10-22T08:00:00Z'));          // Thursday 11:00 in Riyadh: Tadawul open, the US not yet
+  await p.waitForTimeout(800);
+  await p.evaluate('renderPanel(false)');
+  let r = await stkRows(p);
+  check('stocks: no errors, header «الأسهم»', !errors.length && r.hd === 'الأسهم', r.hd + errors.join('; '));
+  check('stocks: Arabic names for Saudi codes, the ticker for US ones, an unknown code as a number',
+    r.rows.map(x => x.nm).join() === 'أرامكو,الراجحي,AAPL,٩٩٩٩,NVDA', JSON.stringify(r.rows));
+  check('stocks: price, change with the arrow and its colour', r.rows[0].px === '٢٦٫٣٠' && r.rows[0].chg === '▲ ١٫١٥٪' && r.rows[0].up
+    && r.rows[1].px === '٩١٫٥٠' && r.rows[1].chg === '▼ ٠٫٥٤٪' && !r.rows[1].up && r.rows[2].px === '٢٥٠٫٢٥', JSON.stringify(r.rows));
+  check('stocks: a day line from the intraday closes', r.rows[0].pts === 20 && r.rows[1].pts === 20, JSON.stringify(r.rows.map(x => x.pts)));
+  check('stocks: asked as 15-minute bars of one day; codes get .SR', seen.some(s => s === '2222.SR?interval=15m&range=1d') && seen.some(s => s.startsWith('AAPL?')) && !seen.some(s => s.startsWith('2222?')), seen.join(' '));
+  check('stocks: market open for Tadawul, US row marked closed (the header says nothing)', r.hd === 'الأسهم' && r.rows[2].closed && !r.rows[0].closed, JSON.stringify(r.rows.map(x => x.closed)));
+  await p.evaluate(at('2026-10-23T09:00:00Z'));          // Friday noon: both closed
+  await p.evaluate('renderPanel(false)');
+  r = await stkRows(p);
+  check('stocks: «السوق مغلق» in the header when every market is closed, last close still shown', r.hd === 'الأسهم' + 'السوق مغلق' && r.rows[0].px === '٢٦٫٣٠' && !r.rows.some(x => x.closed), JSON.stringify(r));
+  await p.evaluate(at('2026-10-20T15:00:00Z'));          // Tuesday 18:00: the US open, Tadawul closed
+  await p.evaluate('renderPanel(false)');
+  r = await stkRows(p);
+  check('stocks: US open, Tadawul rows marked closed', r.hd === 'الأسهم' && r.rows[0].closed && !r.rows[2].closed, JSON.stringify(r));
+  const before = await p.evaluate(() => document.getElementById('week-list').innerHTML);
+  state.off = true;                                      // offline: the last values stay
+  await p.evaluate('loadStocks()');
+  await p.waitForTimeout(600);
+  check('stocks: offline keeps the last values on screen', await p.evaluate(() => document.getElementById('week-list').innerHTML) === before);
+  check('stocks: no Latin digits in the card', !/[0-9]/.test(await p.evaluate(() => document.getElementById('week-list').textContent)));
+  await ctx.close();
+}
+for (const [market, mk] of [['open', 'panel=stocks&stocks=2222'], ['closed', 'panel=verse&stocks=2222']]) {
+  const seen = [];
+  const { ctx } = await open('tv.html', mk, { net: stockNet({}, seen) });
+  await new Promise(r => setTimeout(r, 600));
+  check(`stocks: the chart of the watchlist is fetched only while the card shows stocks (${mk.slice(0, 11)})`, seen.some(s => s.startsWith('2222.SR')) === (market === 'open'), seen.join(' '));
+  await ctx.close();
+}
+{
+  const { p, ctx } = await open('tv.html', 'panel=stocks&stocks=2222,2222,abc123,aapl,TOOLONGTICK,12345,1120,brk.b,7010,2010,1180,NVDA,MSFT,9999,2350', { net: stockNet({}) });
+  const list = await p.evaluate(() => CONFIG.stocks.join());
+  check('stocks: hash list — codes and tickers only, no duplicates, at most 8', list === '2222,AAPL,1120,BRK.B,7010,2010,1180,NVDA', list);
+  await ctx.close();
+}
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const style of ['', 'dark1', 'glass1', 'dark3', 'glass3']) {
+    const { p, ctx, errors } = await open('tv.html', 'panel=stocks&stocks=2222,1120,1180,7010,2010,AAPL,NVDA,MSFT' + (style ? '&cardstyle=' + style : ''), { width, height, net: stockNet({}) });
+    await p.evaluate(at('2026-10-22T08:00:00Z'));
+    await p.waitForTimeout(900);
+    const r = await p.evaluate(() => {
+      const card = document.querySelector('.week'), c = card.getBoundingClientRect(), top = document.querySelector('.top').getBoundingClientRect(),
+            bar = document.querySelector('.bottom').getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
+      const rows = [...card.querySelectorAll('li.stk')], lc = card.getBoundingClientRect();
+      const clipped = rows.filter(li => [...li.children].some(e => e.scrollWidth > e.clientWidth + 1 && e.classList.contains('nm'))
+        || li.getBoundingClientRect().right > lc.right || li.getBoundingClientRect().left < lc.left).length;
+      LIST_PAGE = 1; renderPanel(false);
+      const page2 = [...card.querySelectorAll('li.stk .nm')].map(e => e.firstChild.textContent).join();
+      return { n: rows.length, clipped, fit: c.top >= top.bottom && c.bottom <= bar.top - 4 && c.right <= clock.left - 4 && c.left >= 0 && c.height <= 0.5 * innerHeight, page2, h: c.height / innerHeight };
+    });
+    check(`stocks ${width}x${height} ${style || 'current'}: 5 rows a page, fits the card, no name cut, next page turns`,
+      !errors.length && r.n === 5 && !r.clipped && r.fit && r.page2 === 'AAPL,NVDA,MSFT,أرامكو,الراجحي', JSON.stringify(r) + errors.join('; '));
+    await ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

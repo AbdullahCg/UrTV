@@ -141,6 +141,15 @@
   .week .hd::after{order:1}
   .week .hd svg{flex:0 0 auto;width:1.5em;height:1.5em;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
   .week .hd .until{order:2;font-size:.9em;font-weight:400;letter-spacing:0;color:#9C9279;white-space:nowrap}
+  .week li.stk{align-items:center;gap:.8em}
+  .week li.stk .nm{flex:1 1 auto;min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em}
+  .week li.stk .cl{font-size:.64em;color:#9C9279;margin-inline-start:.6em}
+  .week li.stk svg{flex:0 0 auto;width:4.4em;height:1.1em;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+  .week li.stk svg polyline{vector-effect:non-scaling-stroke}
+  .week li.stk .px{flex:0 0 auto;min-width:3.6em;text-align:left;font-variant-numeric:tabular-nums;direction:ltr}
+  .week li.stk .chg{flex:0 0 auto;min-width:4.9em;text-align:left;font-size:.74em;font-variant-numeric:tabular-nums}
+  .week li.stk .up{color:#79D6A0}
+  .week li.stk .down{color:#EE8B70}
   .week li.adf{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:.8em;align-items:center;
     border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:#D6AF6B}
   .week li.adf .s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-bottom:.3em;margin-bottom:-.3em}
@@ -411,8 +420,8 @@ const CONFIG = {
             : [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137'])
     .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)).slice(0, 10),
   sportsKey: '123',
-  // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | adhkar | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | adhkar | stocks | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','stocks','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   matchesPerPage: 2,
   matchPageMs: 15000,
@@ -438,6 +447,8 @@ const CONFIG = {
   markets: (l => l.length ? l : ['tasi','spx','btc'])(
     _list('markets').filter((k, i, a) => ['tasi','aramco','spx','btc','gold','silver','xrp'].includes(k) && a.indexOf(k) === i).slice(0, 4)),
   mkStyle: _Q.get('mkstyle') === 'prices' ? 'prices' : 'arrows',
+  // the stocks card's watchlist: #stocks=2222,1120,AAPL,NVDA (up to 8; 4 digits = a Tadawul code, letters = a US ticker)
+  stocks: _list('stocks').map(x => x.toUpperCase()).filter((x, i, a) => /^(\d{4}|[A-Z][A-Z.\-]{0,5})$/.test(x) && a.indexOf(x) === i).slice(0, 8),
   // #widget=1: only the card, on a transparent page (the launcher's home screen shows it)
   widget: _Q.get('widget') === '1',
 };
@@ -1028,8 +1039,8 @@ async function fetchT(url, ms){
 }
 
 // Yahoo has no CORS headers: try it directly (works inside the app), then through public CORS gateways
-async function yahooChart(sym){
-  const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+async function yahooChart(sym, q = 'interval=1d&range=5d'){
+  const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?${q}`;
   const routes = [
     [direct, 7000, j => j],
     ['https://api.allorigins.win/get?url=' + encodeURIComponent(direct), 15000, w => JSON.parse(w.contents)],
@@ -1175,13 +1186,14 @@ function renderPanel(animate){
     if(q.hd) setHTML(hd, q.hd); else { setText(hd, q.title); hd.__h = null; }
     rows = q.rows;
   }
+  else if(P === 'stocks'){ const q = stocksCard(); setHTML(hd, q.hd); rows = q.rows; }
   if(PANEL_TITLE[P]) setText(hd, PANEL_TITLE[P]);
   if(!rows.length){
     ul.classList.remove('flip');
     setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
   }
-  if(P === 'matches' && rows.length > WEEK_ROWS){        // page through, like the shows
+  if((P === 'matches' || P === 'stocks') && rows.length > WEEK_ROWS){        // page through, like the shows
     const start = (LIST_PAGE * WEEK_ROWS) % rows.length;
     rows = Array.from({length: WEEK_ROWS}, (_, i) => rows[(start + i) % rows.length]);
   }
@@ -1239,6 +1251,62 @@ function matchRows(){
           + ' ' + fmt12(+p.hour % 24, +p.minute);
       return `<li><span>${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}${mid}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span><span class="dt">${when}</span></li>`;
     });
+}
+
+// ---- «الأسهم»: the watchlist card. A Tadawul code (4 digits) is asked of Yahoo as CODE.SR, letters are a US ticker.
+const TADAWUL = {   // Arabic short names of the 30 largest companies; any other code shows as the number
+  '2222':'أرامكو', '1120':'الراجحي', '1180':'الأهلي', '2010':'سابك', '7010':'stc', '1211':'معادن', '2082':'أكوا',
+  '5110':'كهرباء السعودية', '1150':'الإنماء', '1060':'ساب', '1010':'بنك الرياض', '1050':'السعودي الفرنسي', '1140':'البلاد',
+  '1020':'الجزيرة', '1080':'العربي', '2280':'المراعي', '2380':'بترورابغ', '2310':'سبكيم', '2020':'سافكو', '2290':'ينساب',
+  '2350':'كيان', '4013':'الحبيب', '4190':'جرير', '7020':'موبايلي', '7030':'زين', '7203':'علم', '4030':'البحري',
+  '1810':'سيرا', '8010':'التعاونية', '4300':'دار الأركان',
+};
+const isSA = k => /^\d/.test(k);
+const stockName = k => isSA(k) ? (TADAWUL[k] || ar(k)) : k;
+// Riyadh is UTC+3 all year. Tadawul Sun-Thu 10:00-15:00; the US Mon-Fri 16:30-23:00 (approximate; holidays are ignored)
+function marketOpen(sa, ms = Date.now()){
+  const d = new Date(ms + 3*3600000), day = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes();
+  return sa ? day <= 4 && m >= 600 && m < 900 : day >= 1 && day <= 5 && m >= 990 && m < 1380;
+}
+let STOCKS = {};   // code -> {p: price, v: previous close or null, c: the day's closes}
+try{ STOCKS = JSON.parse(localStorage.getItem('stocks:' + location.hash) || '{}') || {}; }catch(e){}
+async function loadStocks(){
+  let got = 0;
+  for(const k of CONFIG.stocks){
+    try{
+      const res = (await yahooChart(isSA(k) ? k + '.SR' : k, 'interval=15m&range=1d')).chart.result[0];
+      const price = res.meta.regularMarketPrice;
+      if(typeof price !== 'number') continue;
+      let c = ((res.indicators.quote[0] || {}).close || []).filter(x => typeof x === 'number');
+      if(c.length > 30){ const n = Math.ceil(c.length / 30); c = c.filter((x, i) => i % n === 0 || i === c.length - 1); }
+      STOCKS[k] = {p: price, v: res.meta.chartPreviousClose || res.meta.previousClose || null, c};
+      got++;
+    }catch(e){}
+  }
+  if(!got) return;                   // offline: keep what is shown
+  try{ localStorage.setItem('stocks:' + location.hash, JSON.stringify(STOCKS)); }catch(e){}
+  if(CONFIG.panel === 'stocks') renderPanel(false);
+}
+// a small line of the day's closes, 60 x 16, drawn only when the card's markup changes
+function spark(c, up){
+  if(c.length < 2) return '<svg viewBox="0 0 60 16" preserveAspectRatio="none"></svg>';
+  const lo = Math.min(...c), hi = Math.max(...c), span = hi - lo || 1;
+  const pts = c.map((y, i) => (i * 60 / (c.length - 1)).toFixed(1) + ',' + (15 - (y - lo) / span * 14).toFixed(1)).join(' ');
+  return `<svg viewBox="0 0 60 16" preserveAspectRatio="none" class="${up ? 'up' : 'down'}"><polyline points="${pts}"/></svg>`;
+}
+function stocksCard(){
+  const shown = CONFIG.stocks.filter(k => STOCKS[k]);
+  const allClosed = shown.length && shown.every(k => !marketOpen(isSA(k)));
+  const mixed = shown.some(k => marketOpen(isSA(k)));
+  const rows = shown.map(k => {
+    const d = STOCKS[k], v = d.v, pct = v ? (d.p - v) / v * 100 : null;
+    const up = pct !== null ? pct >= 0 : d.c.length > 1 ? d.c[d.c.length - 1] >= d.c[0] : null;
+    const cls = up === null ? '' : up ? 'up' : 'down';
+    return `<li class="stk"><span class="nm">${esc(stockName(k))}${mixed && !marketOpen(isSA(k)) ? '<span class="cl">مغلق</span>' : ''}</span>`
+      + (up === null ? '' : spark(d.c, up)) + `<span class="px">${num(d.p, 2)}</span>`
+      + (pct === null ? '' : `<span class="chg ${cls}">${pct >= 0 ? '▲' : '▼'} ${num(Math.abs(pct), 2)}${LATIN ? '%' : '٪'}</span>`) + '</li>';
+  });
+  return {hd: '<span>الأسهم</span>' + (allClosed ? '<span class="until">السوق مغلق</span>' : ''), rows};
 }
 
 // verse one day, hadith the next. Verse texts come from the Quran API via CI (.github/tools/fetch_verses.py), never typed.
@@ -1575,6 +1643,7 @@ function boot(){
   setInterval(() => applyBackground(false), 60*1000);
   tickClock(); tickDates(); tickOccasion();
   TICKERS.forEach(loadTicker);
+  if(CONFIG.panel === 'stocks') loadStocks();
   if(CONFIG.panel === 'none') document.querySelector('.week').style.display = 'none';
   else if(CONFIG.panel !== 'shows') renderPanel(false);   // its own data arrives with prayers, weather, matches
   loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather();
@@ -1587,12 +1656,13 @@ function boot(){
   setInterval(loadLive, 2*60000);
   setInterval(loadPrayers, 6*3600*1000);
   setInterval(loadMatches, 30*60*1000);
-  setInterval(()=>TICKERS.forEach(loadTicker), 15*60*1000);
+  setInterval(()=>{ TICKERS.forEach(loadTicker); if(CONFIG.panel === 'stocks') loadStocks(); }, 15*60*1000);
   if(CONFIG.panel === 'shows') setInterval(loadWeek, 6*3600*1000);
   setInterval(loadWeather, 30*60*1000);
   setInterval(()=>{
     if(CONFIG.panel === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
     if(CONFIG.panel === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
+    if(CONFIG.panel === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);
   setInterval(applyNight, 60*1000);
   setInterval(pixelShift, 4*60*1000);
@@ -1600,7 +1670,7 @@ function boot(){
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
     if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickOccasion(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
-    else if(CONFIG.panel === 'adhkar') renderPanel(false);   // a window may have opened
+    else if(CONFIG.panel === 'adhkar' || CONFIG.panel === 'stocks') renderPanel(false);   // a window may have opened; a market opened or closed
   }, 60*1000);
 }
 
@@ -1618,12 +1688,14 @@ function bootWidget(){
   if(P === 'prayers'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
   if(P === 'forecast'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
   if(P === 'matches'){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
+  if(P === 'stocks'){ loadStocks(); setInterval(loadStocks, 15*60*1000); }
   setInterval(() => {
     if(P === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
     if(P === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > WEEK_ROWS); }
+    if(P === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);
   let lastDay = riyadhDayNumber();
-  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers') loadPrayers(); renderPanel(false); } else if(P === 'adhkar') renderPanel(false); }, 60*1000);
+  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers') loadPrayers(); renderPanel(false); } else if(P === 'adhkar' || P === 'stocks') renderPanel(false); }, 60*1000);
   reveal();
 }
 

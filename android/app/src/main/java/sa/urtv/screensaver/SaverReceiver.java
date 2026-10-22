@@ -20,11 +20,12 @@ import java.util.List;
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3]
- *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices]
+ *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices] [--es stocks 2222,1120,AAPL]
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *
  * cardstyle = the look of the card beside the clock (Prefs.CARD_STYLES; current is the plain card).
  * markets = up to four of Prefs.MARKETS at the top left, in order; mkstyle = arrows only (as always) or the price and the day's change.
+ * stocks = the watchlist of the stocks card (panel stocks): up to Prefs.MAX_STOCKS Tadawul codes (4 digits) or US tickers.
  * digits = hindi (١٢٣, as always) or latin (123). photos = minutes between background photos (Prefs.PHOTO_MINUTES). idle = minutes before the TV starts the
  * screensaver (Prefs.IDLE_MINUTES): this is the system's screen_off_timeout, which a receiver (it runs as this
  * app, not as the shell) may write only when the app holds WRITE_SETTINGS; otherwise it says so and
@@ -126,6 +127,19 @@ public class SaverReceiver extends BroadcastReceiver {
             if (markets.isEmpty() || markets.size() > Prefs.MAX_MARKETS || new java.util.HashSet<>(markets).size() != markets.size())
                 return "error: markets is 1 to " + Prefs.MAX_MARKETS + " different ones of " + names(Prefs.MARKETS);
         }
+        List<String> stocks = null;
+        if (i.getStringExtra("stocks") != null) {
+            stocks = new ArrayList<>();
+            for (String s : i.getStringExtra("stocks").split(",")) {
+                s = s.trim().toUpperCase(java.util.Locale.ROOT);
+                if (s.isEmpty()) continue;
+                if (!s.matches(Prefs.STOCK_PATTERN) || stocks.contains(s))
+                    return "error: stocks are 4-digit Tadawul codes or US tickers, each once, e.g. 2222,1120,AAPL";
+                stocks.add(s);
+            }
+            if (stocks.isEmpty() || stocks.size() > Prefs.MAX_STOCKS)
+                return "error: stocks is 1 to " + Prefs.MAX_STOCKS + " codes or tickers";
+        }
         String idle = i.getStringExtra("idle");
         if (idle != null) {
             if (!Arrays.asList(Prefs.IDLE_MINUTES).contains(idle))
@@ -157,6 +171,7 @@ public class SaverReceiver extends BroadcastReceiver {
         if (cardStyle != null) p.setCardStyle(cardStyle);
         if (mkStyle != null) p.setMkStyle(mkStyle);
         if (markets != null) p.setMarkets(markets);
+        if (stocks != null) p.setStocks(stocks);
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
         return "saved\n" + describe(c, p);
@@ -172,6 +187,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\ndigits: " + p.digits()
             + "\ncardstyle: " + p.cardStyle()
             + "\nmarkets: " + Prefs.join(p.markets(), ",") + "\nmkstyle: " + p.mkStyle()
+            + "\nstocks: " + Prefs.join(p.stocks(), ",")
             + "\nidle: " + idle(Prefs.idleMs(c))
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
             + "\nautoupdate: " + p.autoUpdate();

@@ -6,7 +6,7 @@
 #   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 10; more are left out and listed)
-#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast matches verse wisdom adhkar none
+#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast matches verse wisdom adhkar stocks none
 #   optimize/saver.sh home-card none               on the home screen (launcher): same choices, none = off
 #   optimize/saver.sh genres Drama,Comedy          episodes card: Drama Comedy Action Crime Thriller Mystery
 #                                                  Science-Fiction Fantasy Adventure Romance Family History Horror
@@ -21,6 +21,7 @@
 #   optimize/saver.sh digits latin                 numbers: hindi = ١٢٣ (default), latin = 123
 #   optimize/saver.sh markets tasi,gold,btc        top left, up to 4 in order: tasi aramco spx btc gold silver xrp (default tasi,spx,btc)
 #   optimize/saver.sh mkstyle prices               markets: arrows (▲▼ only, default) or prices (price and day's change)
+#   optimize/saver.sh stocks 2222 1120 AAPL        watchlist of the stocks card (card stocks): up to 8 Tadawul codes (4 digits) or US tickers
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
@@ -64,6 +65,10 @@ case "${1:-}" in
   cardstyle) send SET "--es cardstyle $(quote "${2:?usage: optimize/saver.sh cardstyle glass1}")" ;;
   markets)   send SET "--es markets $(quote "${2:?usage: optimize/saver.sh markets tasi,gold,btc}")" ;;
   mkstyle)   send SET "--es mkstyle $(quote "${2:?usage: optimize/saver.sh mkstyle prices}")" ;;
+  stocks)
+    shift
+    [ $# -gt 0 ] || { echo "usage: optimize/saver.sh stocks 2222 1120 AAPL"; exit 1; }
+    send SET "--es stocks $(quote "$(IFS=,; echo "$*")")" ;;
   digits)    send SET "--es digits $(quote "${2:?usage: optimize/saver.sh digits latin}")" ;;
   idle)
     # the app may change the TV's timer only if the owner allowed it; the shell always may
@@ -77,5 +82,5 @@ case "${1:-}" in
       *) echo "$out" ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,24p' "$0"; exit 1 ;;
+  *) sed -n '2,26p' "$0"; exit 1 ;;
 esac

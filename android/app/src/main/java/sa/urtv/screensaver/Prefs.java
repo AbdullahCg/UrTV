@@ -133,7 +133,7 @@ final class Prefs {
     static final String[][] PANELS = {
         {"shows", "جديد المسلسلات"}, {"prayers", "مواقيت الصلاة اليوم"}, {"forecast", "طقس الأيام القادمة"},
         {"matches", "مباريات فرقك القادمة"}, {"verse", "آية أو حديث اليوم"}, {"wisdom", "حكمة اليوم"},
-        {"adhkar", "أذكار الصباح والمساء"}, {"none", "لا شيء"},
+        {"adhkar", "أذكار الصباح والمساء"}, {"stocks", "الأسهم"}, {"none", "لا شيء"},
     };
 
     /** Older builds had an on/off switch for the card; off becomes "none", otherwise the verse card. */
@@ -165,6 +165,17 @@ final class Prefs {
         for (String[] d : DIGITS) if (d[0].equals(v)) return d[1];
         return DIGITS[0][1];
     }
+
+    // the stocks card's watchlist (sent as #stocks=): 4-digit Tadawul codes and US tickers, up to MAX_STOCKS
+    static final int MAX_STOCKS = 8;
+    static final String DEFAULT_STOCKS = "2222,1120,7010,2010";
+    static final String STOCK_PATTERN = "\\d{4}|[A-Za-z][A-Za-z.\\-]{0,5}";
+
+    List<String> stocks() {
+        List<String> v = list("stocks");
+        return v.isEmpty() ? java.util.Arrays.asList(DEFAULT_STOCKS.split(",")) : v;
+    }
+    void setStocks(List<String> v) { setList("stocks", v); }
 
     /** Chosen markets in order, the keys of MARKETS. */
     List<String> markets() {
@@ -228,7 +239,8 @@ final class Prefs {
             + "&digits=" + digits()
             + "&cardstyle=" + cardStyle()
             + "&markets=" + join(markets(), ",")
-            + "&mkstyle=" + mkStyle();
+            + "&mkstyle=" + mkStyle()
+            + "&stocks=" + join(stocks(), ",");
     }
 
     /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */

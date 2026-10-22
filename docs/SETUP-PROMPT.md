@@ -254,7 +254,7 @@ itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1
 optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon>)
 optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال): one call per club, Saudi clubs first;
                                                   # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
-optimize/saver.sh card <one of: verse, wisdom, adhkar, shows, prayers, forecast, matches, none>   # beside the clock (verse unless I said otherwise)
+optimize/saver.sh card <one of: verse, wisdom, adhkar, stocks, shows, prayers, forecast, matches, none>   # beside the clock (verse unless I said otherwise)
 optimize/saver.sh home-card none                  # home screen: no card
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
 optimize/dock.sh hidden                           # apps the home screen leaves out, and why
@@ -264,6 +264,7 @@ optimize/saver.sh cardstyle <current, dark1, glass1, dark3 or glass3>   # ONLY i
 optimize/saver.sh digits <hindi or latin>        # ONLY if I asked for 123 instead of ١٢٣ (default hindi: leave it)
 optimize/saver.sh markets <up to 4 of tasi, aramco, spx, btc, gold, silver, xrp, comma-separated>   # ONLY if I asked for other markets at the top left (default tasi,spx,btc: leave it)
 optimize/saver.sh mkstyle <arrows or prices>      # ONLY if I asked to see the prices, not just arrows (default arrows: leave it)
+optimize/saver.sh stocks <Tadawul codes and US tickers, e.g. 2222 1120 AAPL>   # ONLY with card stocks: my watchlist, up to 8 (default 2222 1120 7010 2010: leave it)
 optimize/saver.sh update
 optimize/saver.sh show                            # read both back to me
 optimize/dock.sh show
