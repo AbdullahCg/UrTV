@@ -167,7 +167,7 @@ through the screensaver's ConfigProvider (`/tasks`), writes guarded by the signa
 already runs off the main thread), with the owner's own app registration kept out of the repository.
 `slot`: what the bottom-left slot shows: `matches` (default; the weather when no team is
 followed), `weather` (the next three days), `fasting` (the next recommended voluntary fast, from the Umm al-Qura calendar),
-`countdown` (days to `cd=YYYY-MM-DD`, named `cdname`; the weather once it has passed) or `none` (the slot is hidden).
+`countdown` (days to `cd=YYYY-MM-DD`, named `cdname`; the weather once it has passed), `markets` (the chosen markets with price and change) or `none` (the slot is hidden).
 
 **Data** (free, no keys): Aladhan (prayer times, Umm al-Qura), Open-Meteo (weather), Yahoo and CoinGecko (markets),
 TVMaze (episodes), TheSportsDB (matches). Everything fails soft: offline, the clock, dates, prayer and Ramadan

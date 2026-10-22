@@ -847,6 +847,19 @@ for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 5
   await ctx.close();
 }
 
+
+// ---- slot=markets: the chosen markets with price and change in the bottom-left slot (arrows-only top left)
+{
+  const { p, ctx, errors } = await open('tv.html', 'slot=markets&markets=tasi,gold,btc', { net: marketNet({}) });
+  await p.waitForTimeout(900);
+  const r = await p.evaluate(() => ({ label: document.getElementById('slot-label').textContent,
+    rows: [...document.querySelectorAll('#match-row .mblock')].map(b => b.innerText.replace(/\s+/g, ' ').trim()) }));
+  check('slot markets: label, three markets with price and change', !errors.length && r.label === 'الأسواق' && r.rows.length === 3
+    && r.rows[0].includes('تاسي') && r.rows[0].includes('١١٬٥٠٠') && r.rows[0].includes('▲') && r.rows[1].includes('الذهب') && r.rows[2].includes('▼'),
+    JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

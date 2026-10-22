@@ -83,7 +83,7 @@ final class Prefs {
     static final String[][] MK_STYLES = {{"arrows", "الاتجاه فقط ▲▼"}, {"prices", "السعر والنسبة"}};
     // what the bottom-left slot shows (sent to the page as #slot=; matches is what it always showed)
     static final String[][] SLOTS = {{"matches", "المباريات"}, {"weather", "الطقس"}, {"fasting", "الصيام"},
-        {"countdown", "عدّ تنازلي"}, {"none", "بدون"}};
+        {"countdown", "عدّ تنازلي"}, {"markets", "الأسواق"}, {"none", "بدون"}};
 
     // minutes of idle before Android starts the screensaver (the TV's own screen_off_timeout; not stored here)
     static final String[] IDLE_MINUTES = {"1", "2", "5", "10", "15", "30"};

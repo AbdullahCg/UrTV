@@ -459,7 +459,7 @@ const CONFIG = {
   // the stocks card's watchlist: #stocks=2222,1120,AAPL,NVDA (up to 8; 4 digits = a Tadawul code, letters = a US ticker)
   stocks: _list('stocks').map(x => x.toUpperCase()).filter((x, i, a) => /^(\d{4}|[A-Z][A-Z.\-]{0,5})$/.test(x) && a.indexOf(x) === i).slice(0, 8),
   // the bottom-left slot: #slot=matches|weather|fasting|countdown|none (anything else = matches)
-  slot: (v => ['weather','fasting','countdown','none'].includes(v) ? v : 'matches')(_Q.get('slot')),
+  slot: (v => ['weather','fasting','countdown','markets','none'].includes(v) ? v : 'matches')(_Q.get('slot')),
   // #cd=YYYY-MM-DD&cdname=...: the date and name for slot=countdown (a bad date = none)
   cd: (v => /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v + 'T00:00:00Z')) && new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v ? v : '')(_Q.get('cd') || ''),
   cdName: (_Q.get('cdname') || '').trim().slice(0, 40),
@@ -1038,7 +1038,7 @@ function num(v, dec){
 // «markets» will come here later: one more entry in SLOT_LABEL and one more branch in slotHTML().
 const SLOT_MATCHES = CONFIG.slot === 'matches' && CONFIG.teamIds.length > 0;
 const NEEDS_MATCHES = SLOT_MATCHES || CONFIG.panel === 'matches';   // the slot or the card beside the clock
-const SLOT_LABEL = {matches:'المباريات', weather:'الطقس', fasting:'الصيام', countdown:'عدّ تنازلي'};
+const SLOT_LABEL = {matches:'المباريات', weather:'الطقس', fasting:'الصيام', countdown:'عدّ تنازلي', markets:'الأسواق'};
 
 // All the fasting wording is here. FAST_NAMES: the big text per day; the small line below says when.
 const FAST_NAMES = {
@@ -1091,6 +1091,7 @@ function countdownDays(){
 function slotNow(){
   if(CONFIG.slot === 'none') return 'none';
   if(CONFIG.slot === 'countdown' && countdownDays() !== null) return 'countdown';
+  if(CONFIG.slot === 'markets') return 'markets';
   return CONFIG.slot === 'fasting' ? 'fasting' : SLOT_MATCHES ? 'matches' : 'weather';
 }
 const slotBlock = (big, sub, when) => `<div class="mblock"><div class="big"><span>${big}</span></div>`
@@ -1115,6 +1116,13 @@ function slotHTML(s){
       : f.days === 2 ? FAST_WHEN.in2
       : f.days <= 10 ? FAST_WHEN.few(f.days) : FAST_WHEN.many(f.days);
     return slotBlock(FAST_NAMES[f.key], when);
+  }
+  if(s === 'markets'){   // the chosen markets with price and change, whatever the top-left shows; nothing known yet = keep
+    const known = TICKERS.filter(t => MK_LAST[t.key]).slice(0, 3);
+    if(!known.length) return null;
+    return known.map(t => { const v = MK_LAST[t.key];
+      return slotBlock(esc(t.name) + (v.price ? ' <span class="num">' + num(v.price, t.dec) + '</span>' : ''),
+        v.pct === null ? '' : `<span class="${v.pct >= 0 ? 'up' : 'down'}">${v.pct >= 0 ? '▲' : '▼'} ${num(Math.abs(v.pct), 2)}${LATIN ? '%' : '٪'}</span>`); }).join('');
   }
   if(s === 'countdown'){
     const n = countdownDays();
@@ -1144,9 +1152,11 @@ function paintDir(t, up, label){
 }
 
 // price (in the market's own unit, or null) and the day's change in percent (or null); only what is known is shown
+const MK_LAST = {};   // the last known price and change per market, for the bottom-left slot
 function paintMarket(t, price, pct){
   const okP = typeof price === 'number' && isFinite(price) && price > 0;
   const okC = typeof pct === 'number' && isFinite(pct);
+  if(okP || okC){ MK_LAST[t.key] = {price: okP ? price : null, pct: okC ? pct : null}; if(CONFIG.slot === 'markets') renderSlot(); }
   if(!PRICES){ paintDir(t, okC ? pct >= 0 : null); return; }
   const px = document.getElementById(t.px);
   if(okP){ px.hidden = false; setText(px, num(price, t.dec)); } else { px.hidden = true; setText(px, ''); }

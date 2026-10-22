@@ -266,7 +266,7 @@ optimize/saver.sh digits <hindi or latin>        # ONLY if I asked for 123 inste
 optimize/saver.sh markets <up to 4 of tasi, aramco, spx, btc, gold, silver, xrp, comma-separated>   # ONLY if I asked for other markets at the top left (default tasi,spx,btc: leave it)
 optimize/saver.sh mkstyle <arrows or prices>      # ONLY if I asked to see the prices, not just arrows (default arrows: leave it)
 optimize/saver.sh stocks <Tadawul codes and US tickers, e.g. 2222 1120 AAPL>   # ONLY with card stocks: my watchlist, up to 8 (default 2222 1120 7010 2010: leave it)
-optimize/saver.sh slot <matches, weather, fasting, countdown or none>   # ONLY if I asked what the bottom-left slot shows (default matches: leave it; with no team it shows the weather by itself)
+optimize/saver.sh slot <matches, weather, fasting, countdown, markets or none>   # ONLY if I asked what the bottom-left slot shows (default matches: leave it; with no team it shows the weather by itself)
 optimize/saver.sh countdown <YYYY-MM-DD> '<name>'   # ONLY if I asked for a countdown (also: slot countdown); "countdown clear" removes it
 optimize/saver.sh update
 optimize/saver.sh show                            # read both back to me

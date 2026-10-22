@@ -25,7 +25,7 @@
 #   optimize/saver.sh tasks list                   «المهام» kept on the TV; N = the number list shows
 #   optimize/saver.sh tasks add 'نص'               (up to 12, 60 characters each)  |  done N  |  del N  |  clear
 #   optimize/saver.sh slot fasting                 the bottom-left slot: matches (default; the weather when no team is followed)
-#                                                  weather fasting countdown none
+#                                                  weather fasting countdown markets none
 #   optimize/saver.sh countdown 2026-12-01 'رحلة الصيف'    the date and name slot=countdown counts down to ("clear" removes it)
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
