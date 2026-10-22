@@ -14,6 +14,13 @@ app's preview of the same page and `measure.sh` writes «not measured»). Times 
 | Skyworth SWTV-20AE-PRO | 11 | works (tvlauncher off) | no | 5555, an occasional timeout that retries by itself | – | 14 min |
 | Skyworth SWTV-24AE-4K | 14 | works | no | port 5555 closed: pair once through Wireless debugging, then `adb tcpip 5555`; the port disappears after every reboot | reconnect after each restart; APK uploads slow | 39 min |
 | Xiaomi MiTV-MOOR2 | 11 | works | no | 5555 | screenshots may fail | 17 min |
+| Sony BRAVIA 4K UR3 (BRAVIA_UR3) | 10 | works, first time | yes | turn on USB debugging and network debugging first | SmartTube upload over Wi-Fi is slow but completes | 14 min |
+| Xiaomi Mi Box S (MIBOX4), stock Android TV home | 9 | works | not reported | 5555 | – | not reported |
+| Chromecast with Google TV (sabrina) | 14 | not reported | not reported | no Network debugging, only Wireless debugging: `adb pair`, then `adb tcpip 5555`; every restart turns it off and closes 5555 | pair and run `adb tcpip 5555` again after each restart | not reported |
+| SCBC R4 | 11 | works | not reported | 5555 | the TV's IP changed mid-setup: rediscovery (`optimize/find-tv.sh`) fixed it | not reported |
+| TCL BeyondTV / Smart TV Pro (BeyondTV, BeyondTV4) | 11 | works | not reported | 5555 | – | not reported |
+| Skyworth, Google TV (model not given) | 14 | not reported | not reported | port 5555 closed: pair through Wireless debugging; the port disappears after every reboot | reconnect after each restart | not reported |
+| Jawwy TV 2.0 (JAWWY-TV-2.0) | 12 | works | not reported | 5555 | – | not reported |
 
 ## On the computer
 
