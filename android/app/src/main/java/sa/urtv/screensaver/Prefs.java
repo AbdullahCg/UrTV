@@ -211,7 +211,7 @@ final class Prefs {
     void setSlot(String v) { sp.edit().putString("slot", v).apply(); }
 
     static String slotLabel(String v) {
-        for (String s : SLOTS) if (s[0].equals(v)) return s[1];
+        for (String[] s : SLOTS) if (s[0].equals(v)) return s[1];
         return SLOTS[0][1];
     }
 
