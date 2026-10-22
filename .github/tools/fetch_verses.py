@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
-"""Fetch the text of the "verse of the day" list from api.alquran.cloud (Tanzil text) -> verses/verses.json.
+"""Fetch the text of the "verse of the day" list -> verses/verses.json. Per verse:
 
-Runs in CI (.github/workflows/verses.yml): the API is unreachable from the dev container. The screen never
+  text     api.alquran.cloud, edition quran-simple (Tanzil): plain script, kept for checks and as the fallback
+  uthmani  the KFGQPC Uthmani Hafs text (release 3.0), the one text the font assets/fonts/UthmanicHafs-v30.woff2
+           is made for, from the npm package @quran.ws/text (pinned, checked by hash). Never show it in another font.
+
+Runs in CI (.github/workflows/verses.yml): api.alquran.cloud is unreachable from the dev container. The screen never
 holds Quran text typed by hand; it only shows what this script fetched, copied to assets/shared/verses.json.
+
+  python3 fetch_verses.py --uthmani   no API needed: add `uthmani` to assets/shared/verses.json and to the
+                                      Quranic entries of assets/shared/adhkar.json, in place
 """
+import hashlib
+import io
 import json
+import sys
+import tarfile
 import time
 import urllib.request
 from pathlib import Path
@@ -65,6 +76,10 @@ REFS = [
     "55:9", "57:9", "60:8", "67:19",
 ]
 EDITION = "quran-simple"   # standard Arabic script with diacritics; renders in any Arabic font
+# the KFGQPC Uthmani Hafs 3.0 text (words, waqf signs, ayah boundaries) next to its font UthmanicHafs-v-3.0.ttf
+UTHMANI_TARBALL = "https://registry.npmjs.org/@quran.ws/text/-/text-0.1.0.tgz"
+UTHMANI_SHA256 = "31186b3ac554ea8d5db1dbc1f67ac5a6d3bd99a62091d04ff73f39be18bf2568"   # of package/data/hafs.json
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def get(url):
@@ -79,15 +94,64 @@ def get(url):
     raise err
 
 
+class Uthmani:
+    """Ayahs of the KFGQPC Hafs 3.0 text: words joined by spaces, each waqf sign glued to its word as the Mushaf
+    prints it (the data keeps them apart). A range 112:1-4 joins its ayahs with the font's ayah-end mark and number."""
+
+    def __init__(self):
+        with urllib.request.urlopen(urllib.request.Request(UTHMANI_TARBALL, headers={"User-Agent": "urtv"}), timeout=60) as r:
+            raw = r.read()
+        with tarfile.open(fileobj=io.BytesIO(raw)) as t:
+            blob = t.extractfile("package/data/hafs.json").read()
+        if hashlib.sha256(blob).hexdigest() != UTHMANI_SHA256:
+            raise SystemExit("hafs.json is not the pinned release: refusing to use it")
+        d = json.loads(blob)
+        self.words, self.starts, self.surahs = d["words"], d["ayah_starts"], d["surahs"]
+        self.after, self.before = {}, {}
+        for pos, t in d["marks"]:
+            m = d["mark_types"][t]
+            (self.after if m["side"] == "after" else self.before).setdefault(pos, []).append(m["sign"])
+
+    def ayah(self, surah, n):
+        k = self.surahs[surah - 1]["first_ayah"] + n - 1
+        end = self.starts[k + 1] if k + 1 < len(self.starts) else len(self.words)
+        out = []
+        for p in range(self.starts[k], end):
+            out.append("".join(s + " " for s in self.before.get(p, [])) + self.words[p] + "".join(self.after.get(p, [])))
+        return " ".join(out)
+
+    def ref(self, ref):
+        s, _, rng = ref.partition(":")
+        a, _, b = rng.partition("-")
+        first, last = int(a), int(b or a)
+        marks = last > first
+        mark = lambda n: " \u06DD" + "".join("٠١٢٣٤٥٦٧٨٩"[int(c)] for c in str(n))
+        return " ".join(self.ayah(int(s), n) + (mark(n) if marks else "") for n in range(first, last + 1))
+
+
+def add_uthmani():
+    u = Uthmani()
+    for name, key in (("verses", "ref"), ("adhkar", "quran")):
+        path = ROOT / "assets/shared" / f"{name}.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for v in data:
+            if v.get(key):
+                v["uthmani"] = u.ref(v[key])
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(path.relative_to(ROOT), sum("uthmani" in v for v in data), "with uthmani")
+
+
 def main():
+    u = Uthmani()
     out = []
     for ref in REFS:
         d = get(f"https://api.alquran.cloud/v1/ayah/{ref}/{EDITION}")["data"]
-        out.append({"ref": ref, "surah": d["surah"]["name"], "ayah": d["numberInSurah"], "text": d["text"]})
+        out.append({"ref": ref, "surah": d["surah"]["name"], "ayah": d["numberInSurah"], "text": d["text"],
+                    "uthmani": u.ref(ref)})
         print(ref, d["surah"]["name"], len(d["text"].split()), "words")
     Path("verses").mkdir(exist_ok=True)
     Path("verses/verses.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 if __name__ == "__main__":
-    main()
+    add_uthmani() if "--uthmani" in sys.argv else main()

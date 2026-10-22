@@ -221,28 +221,52 @@ for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 5
   await ctx.close();
 }
 
-// ---- every verse and hadith fits the card: each day's text drawn, clear of the clock and the bottom bar
+// ---- every verse and hadith fits the card: each day's text drawn, clear of the clock and the bottom bar,
+// in every card style
 for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
-  const { p, ctx, errors } = await open('tv.html', 'panel=verse', { width, height });
-  const r = await p.evaluate(() => {
-    const day = riyadhDayNumber(), card = document.querySelector('.week'), bad = [];
-    const days = 2 * Math.max(VERSES.length, HADITH.length);   // a verse on even days, a hadith on odd: all of both
-    let tallest = 0;
-    for (let k = 0; k < days; k++) {
-      window.riyadhDayNumber = () => day + k;
-      renderPanel(false);
-      const c = card.getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
-      const bar = document.querySelector('.bottom').getBoundingClientRect();
-      tallest = Math.max(tallest, c.height);
-      const top = document.querySelector('.top').getBoundingClientRect();
-      // a card beside the clock, not a page: clear of the top line, the clock and the bottom bar, at most 42% high
-      if (c.top < top.bottom || c.bottom > bar.top - 4 || c.right > clock.left - 4 || c.height > 0.42 * innerHeight)
-        bad.push(`${Math.round(c.top)}-${Math.round(c.bottom)}/${Math.round(bar.top)} ` + card.querySelector('.quote').textContent.slice(0, 40));
-    }
-    return { days, bad, tallest: Math.round(tallest) };
+  for (const hash of ['panel=verse', 'panel=verse&cardstyle=dark1', 'panel=verse&cardstyle=glass1', 'panel=verse&cardstyle=dark3',
+                      'panel=verse&cardstyle=glass3']) {
+    const { p, ctx, errors } = await open('tv.html', hash, { width, height });
+    const r = await p.evaluate(() => {
+      const day = riyadhDayNumber(), card = document.querySelector('.week'), bad = [];
+      const days = 2 * Math.max(VERSES.length, HADITH.length);   // a verse on even days, a hadith on odd: all of both
+      let tallest = 0;
+      for (let k = 0; k < days; k++) {
+        window.riyadhDayNumber = () => day + k;
+        renderPanel(false);
+        const c = card.getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
+        const bar = document.querySelector('.bottom').getBoundingClientRect();
+        tallest = Math.max(tallest, c.height);
+        const top = document.querySelector('.top').getBoundingClientRect();
+        // a card beside the clock, not a page: clear of the top line, the clock and the bottom bar, at most 42% high
+        if (c.top < top.bottom || c.bottom > bar.top - 4 || c.right > clock.left - 4 || c.height > 0.42 * innerHeight)
+          bad.push(`${Math.round(c.top)}-${Math.round(c.bottom)}/${Math.round(bar.top)} ` + card.querySelector('.quote').textContent.slice(0, 40));
+      }
+      return { days, bad, tallest: Math.round(tallest) };
+    });
+    check(`every verse and hadith fits the card at ${width}x${height} #${hash} (${r.days} days, tallest ${r.tallest}px)`,
+      !errors.length && !r.bad.length, `${r.bad.length} spill: ` + r.bad.slice(0, 3).join(' | ') + errors.join('; '));
+    await ctx.close();
+  }
+}
+
+// ---- the Quran text is set in the Uthmanic Hafs font (verse of the day, Quranic adhkar), hadith and the rest are not
+{
+  const { p, ctx, errors } = await open('tv.html', 'panel=verse');
+  const r = await p.evaluate(async () => {
+    const day = riyadhDayNumber(), fam = () => getComputedStyle(document.querySelector('#week-list .qt, #week-list li.quote')).fontFamily;
+    window.riyadhDayNumber = () => day - (day % 2);   // a verse day
+    renderPanel(false);
+    const verse = { fam: getComputedStyle(document.querySelector('#week-list .qt')).fontFamily, orn: getComputedStyle(document.querySelector('#week-list .orn')).fontFamily };
+    await document.fonts.load('20px UthmanicHafs', VERSES[0].text);
+    window.riyadhDayNumber = () => day - (day % 2) + 1;   // a hadith day
+    renderPanel(false);
+    return { verse, hadithQt: !!document.querySelector('#week-list .qt'), loaded: document.fonts.check('20px UthmanicHafs', VERSES[0].text),
+             status: [...document.fonts].filter(f => f.family.includes('UthmanicHafs')).map(f => f.status) };
   });
-  check(`every verse and hadith fits the card at ${width}x${height} (${r.days} days, tallest ${r.tallest}px)`,
-    !errors.length && !r.bad.length, `${r.bad.length} spill: ` + r.bad.slice(0, 3).join(' | ') + errors.join('; '));
+  check('the verse text is in UthmanicHafs, the brackets stay NotoMarks, the font loads, a hadith has none of it',
+    !errors.length && /^"?UthmanicHafs/.test(r.verse.fam) && /NotoMarks/.test(r.verse.orn) && r.loaded && r.status.includes('loaded') && !r.hadithQt,
+    JSON.stringify(r) + errors.join('; '));
   await ctx.close();
 }
 

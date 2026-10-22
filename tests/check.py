@@ -132,10 +132,24 @@ check("every hadith on screen has the Prophet's words and fits the card",
       all(any(k == "q" for k, _ in h["parts"]) and sum(len(t.split()) for _, t in h["parts"]) <= HADITH_MAX_WORDS for h in hadith))
 font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
 marks = set(TTFont(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2").getBestCmap())
-text = "".join(v["text"] + v["surah"] for v in verses) + "".join(t for h in hadith for _, t in h["parts"]) \
-    + "".join(h["source"] for h in hadith) + "".join(w["text"] + w["source"] for w in wisdom) + "".join(d["text"] + d["source"] for d in adhkar)
+text = "".join(v["surah"] for v in verses) + "".join(t for h in hadith for _, t in h["parts"]) \
+    + "".join(h["source"] for h in hadith) + "".join(w["text"] + w["source"] for w in wisdom) \
+    + "".join(d["source"] + ("" if d.get("quran") else d["text"]) for d in adhkar)
 missing = sorted({c for c in text if not c.isspace() and ord(c) not in font and c not in "ﷺ﴿﴾"})   # those: NotoMarks
 check("verse/hadith text: every character in Thmanyah", not missing, missing)
+# the Quran text (verses, Quranic adhkar) is the KFGQPC Uthmani text, drawn by its own font, whole and unmodified
+hafs = TTFont(ROOT / "assets/fonts/UthmanicHafs-v30.woff2")
+quran = "".join(v["text"] for v in verses) + "".join(d["text"] for d in adhkar if d.get("quran"))
+missing = sorted({c for c in quran if not c.isspace() and ord(c) not in hafs.getBestCmap()})
+check("Quran text: every character in the Uthmanic Hafs font", not missing, missing)
+check("Quran font: the whole KFGQPC 3.0 font, licence in its name table (not subset, see UthmanicHafs-NOTICE.txt)",
+      hafs["name"].getDebugName(5) == "Version 3.0" and "KFGQPC" in str(hafs["name"].getDebugName(13)) and len(hafs.getBestCmap()) > 250,
+      (hafs["name"].getDebugName(5), len(hafs.getBestCmap())))
+raw_verses = json.loads((ROOT / "assets/shared/verses.json").read_text(encoding="utf-8"))
+check("Quran text: every verse has its KFGQPC Uthmani text and the page shows exactly that",
+      all(v.get("uthmani") for v in raw_verses) and [v["text"] for v in verses] == [" ".join(v["uthmani"].replace("\u06DE", "").split()) for v in raw_verses],
+      [v["ref"] for v in raw_verses if not v.get("uthmani")])
+check("Quranic adhkar carry their Uthmani text", all(d.get("uthmani") for d in adhkar_raw if d.get("quran")))
 check("NotoMarks has ﷺ ﴿ ﴾", {0xFDFA, 0xFD3E, 0xFD3F} <= marks)
 team_ar = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
 names = "".join(v for v in (team_ar.values() if isinstance(team_ar, dict) else []) if isinstance(v, str))

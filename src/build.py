@@ -17,36 +17,28 @@ FONTS = {
     "__F_REGULAR__": "Thmanyah-Regular.woff2",
     "__F_MEDIUM__": "Thmanyah-Medium.woff2",
     "__F_DISPLAY__": "ThmanyahDisplay-Bold.woff2",
+    "__F_HAFS__": "UthmanicHafs-v30.woff2",   # the whole font, unmodified: its licence forbids changing it (see UthmanicHafs-NOTICE.txt)
 }
 # tv.html points here for fonts and bundled photos; the app answers from its assets, a browser from GitHub.
 REPO = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/"
 
 
-BASMALA = "بسم الله الرحمن الرحيم"   # compared without harakat: the API orders them its own way
-
-
-def plain(s):
-    return re.sub("[\u064B-\u065F\u0670]", "", s)
-
-
 def verses_for_screen():
-    """assets/shared/verses.json as fetched from the Quran API (.github/tools/fetch_verses.py), made fit for the font:
-    the pause marks and ۞ are left out (Thmanyah has no glyph for them); letters and harakat stay as fetched.
-    The API puts the basmala in front of the first verse of a surah; it is not part of that verse, so it goes
-    (Al-Fatiha's first verse is the basmala itself). Surah names are shown plain, without harakat."""
+    """assets/shared/verses.json as fetched by .github/tools/fetch_verses.py. The text shown is the `uthmani` one, the
+    KFGQPC text the Uthmanic Hafs font is made for, kept exactly as fetched (waqf signs included, the font draws them;
+    its code points are not normalised or re-ordered) except the ۞ hizb sign the data puts in front of a word. A verse without it is left out: this font gets no other text.
+    The basmala is not part of that text. Surah names are shown plain, without harakat, in Thmanyah."""
     path = ROOT / "assets/shared/verses.json"
     if not path.is_file():
         return []
     out = []
     for v in json.loads(path.read_text(encoding="utf-8")):
-        text = " ".join(re.sub("[\u06D6-\u06DE\u06E9]", "", v["text"]).split())   # pause marks, ۞ and ۩
-        words = text.split()
-        if v["ayah"] == 1 and not v["ref"].startswith("1:") and plain(" ".join(words[:4])) == BASMALA:
-            text = " ".join(words[4:])
+        if not v.get("uthmani"):
+            continue
         # NFC first: the API writes آ as ا + madda, which stripping the harakat would turn into ا (ال عمران)
         name = re.sub("[\u064B-\u065F\u0670\u06D6-\u06ED]", "", unicodedata.normalize("NFC", v["surah"]))
         name = name.replace("\u0671", "ا")   # ٱ: no glyph in Thmanyah
-        out.append({"text": text, "surah": name, "ayah": v["ayah"]})
+        out.append({"text": " ".join(v["uthmani"].replace("\u06DE", "").split()), "surah": name, "ayah": v["ayah"]})
     return out
 
 
@@ -219,13 +211,18 @@ ADHKAR_MAX_WORDS = 70   # a longer dhikr does not fit the card beside the clock
 
 def adhkar_for_screen():
     """assets/shared/adhkar.json -> only the adhkar .github/tools/verify_adhkar.py found (and apply_adhkar_report.py marked
-    `checked`) in the six books or the Quran, in file order. A Quranic one is made fit for the font like verses_for_screen."""
+    `checked`) in the six books or the Quran, in file order. A Quranic one is shown in the Uthmanic Hafs font with its `uthmani` text, as in verses_for_screen."""
     path = ROOT / "assets/shared/adhkar.json"
     out = []
     for d in json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []:
         if not d.get("checked") or d["when"] not in ("morning", "evening", "both"):
             continue
-        text = " ".join(re.sub("[\u06D6-\u06DE\u06E9]", "", d["text"]).replace("\u0671", "\u0627").split())
+        if d.get("quran"):
+            if not d.get("uthmani"):
+                continue
+            text = " ".join(d["uthmani"].split())
+        else:
+            text = " ".join(re.sub("[\u06D6-\u06DE\u06E9]", "", d["text"]).replace("\u0671", "\u0627").split())
         if len(text.split()) > ADHKAR_MAX_WORDS:
             continue
         e = {"when": d["when"], "text": text, "count": d["count"], "source": d["source"]}

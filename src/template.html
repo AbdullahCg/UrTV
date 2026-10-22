@@ -10,6 +10,8 @@
   @font-face{font-family:'Thmanyah';font-weight:500;font-style:normal;font-display:block;src:url("__F_MEDIUM__") format("woff2")}
   /* ﷺ and ﴿﴾ only (2 KB subset of Noto Naskh Arabic, OFL): Thmanyah has no glyph for them */
   @font-face{font-family:'NotoMarks';font-style:normal;font-weight:400;src:url("__F_MARKS__") format("woff2")}
+  /* the Quran text only (verse of the day, Quranic adhkar), with the KFGQPC Uthmani text made for it: assets/fonts/UthmanicHafs-NOTICE.txt */
+  @font-face{font-family:'UthmanicHafs';font-weight:400;font-style:normal;font-display:block;src:url("__F_HAFS__") format("woff2")}
   @font-face{font-family:'ThmanyahDisplay';font-weight:700;font-style:normal;font-display:block;src:url("__F_DISPLAY__") format("woff2")}
 
   :root{
@@ -127,6 +129,9 @@
     font-size:1.05em;padding:0 .15em}
   /* ﷺ is not in Thmanyah either: NotoMarks, in gold like the verse brackets so it reads as ornament */
   .week li.quote .saw{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:#D6AF6B;font-size:1.6em;line-height:1;vertical-align:-.1em}
+  /* the Uthmanic Hafs face is small for its size and its marks stack high: larger, with more leading */
+  .week li.quote .qt{font-family:'UthmanicHafs','Thmanyah',serif;font-size:1.32em}
+  .week li.quote.quran{line-height:1.95}
   /* a full hadith: the isnad and the narration small and muted, the Prophet's words ﷺ at full size */
   .week li.quote.hadith{font-size:clamp(15px,1.3vw,25px);line-height:1.7}
   /* long texts a step smaller (by length, see quoteSize()), so the card never grows past the clock row */
@@ -1450,7 +1455,7 @@ function quoteOfDay(){
   const n = riyadhDayNumber(), half = Math.floor(n / 2);
   if(VERSES.length && n % 2 === 0){
     const v = VERSES[half % VERSES.length];
-    return {title:'آية اليوم', rows:[`<li class="quote${quoteSize(v.text.length)}"><span class="orn">﴿</span>${esc(v.text)}<span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
+    return {title:'آية اليوم', rows:[`<li class="quote quran${v.text.length > 400 ? ' q4' : quoteSize(v.text.length)}"><span class="orn">﴿</span><span class="qt">${esc(v.text)}</span><span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]};
   }
   const h = HADITH[half % HADITH.length];
   const saw = s => s.replace(/ﷺ/g, '<span class="saw">ﷺ</span>').replace(/[﴿﴾]/g, m => `<span class="orn">${m}</span>`);
@@ -1500,12 +1505,12 @@ function adhkarCard(){
   ADHKAR_N = list.length;
   if(!ADHKAR_T) ADHKAR_T = setTimeout(adhkarNext, Math.min(60, 20 + .1 * d.text.length) * 1000);
   const dots = Math.min(list.length, 12), on = Math.floor(i * dots / list.length);
-  const text = d.quran ? `<span class="orn">﴿</span>${esc(d.text)}<span class="orn">﴾</span>` : esc(d.text);
+  const text = d.quran ? `<span class="orn">﴿</span><span class="qt">${esc(d.text)}</span><span class="orn">﴾</span>` : esc(d.text);
   const title = mode === 'morning' ? 'أذكار الصباح' : 'أذكار المساء';
   return {
     title,
     hd: `${ADHKAR_ICON[mode]}<span>${title}</span><span class="until">${mode === 'morning' ? 'حتى الظهر' : 'حتى المغرب'}</span>`,
-    rows: [`<li class="quote${d.text.length > 560 ? ' q4' : quoteSize(d.text.length)}">${text}</li>`,   // harakat make a dhikr long: one more step
+    rows: [`<li class="quote${d.quran ? ' quran' : ''}${d.text.length > 560 ? ' q4' : quoteSize(d.text.length)}">${text}</li>`,   // harakat make a dhikr long: one more step
            `<li class="adf"><span class="s">${esc(ar(d.source))}</span><span class="c">${ADHKAR_COUNT[d.count] || ar(d.count) + ' مرة'}</span>`
            + `<span class="d">${Array.from({length: dots}, (_, k) => k === on ? '<i class="on"></i>' : '<i></i>').join('')}</span></li>`],
   };
