@@ -130,6 +130,7 @@
   .week li.quote.q1{font-size:clamp(15px,1.3vw,25px)}
   .week li.quote.q2{font-size:clamp(14px,1.16vw,22px)}
   .week li.quote.q3{font-size:clamp(13px,1.04vw,20px)}
+  .week li.quote.q4{font-size:clamp(11px,.88vw,17px)}   /* the adhkar card's longest, the end of al-Baqara with harakat */
   .week li.quote.hadith.q1{font-size:clamp(14px,1.16vw,22px)}
   .week li.quote.hadith.q2{font-size:clamp(13px,1.04vw,20px)}
   .week li.quote.hadith.q3{font-size:clamp(12px,.94vw,18px)}
@@ -1258,7 +1259,7 @@ function adhkarCard(){
   return {
     title,
     hd: `${ADHKAR_ICON[mode]}<span>${title}</span><span class="until">${mode === 'morning' ? 'حتى الظهر' : 'حتى المغرب'}</span>`,
-    rows: [`<li class="quote${quoteSize(d.text.length)}">${text}</li>`,
+    rows: [`<li class="quote${d.text.length > 560 ? ' q4' : quoteSize(d.text.length)}">${text}</li>`,   // harakat make a dhikr long: one more step
            `<li class="adf"><span class="s">${esc(ar(d.source))}</span><span class="c">${ADHKAR_COUNT[d.count] || ar(d.count) + ' مرة'}</span>`
            + `<span class="d">${Array.from({length: dots}, (_, k) => k === on ? '<i class="on"></i>' : '<i></i>').join('')}</span></li>`],
   };
