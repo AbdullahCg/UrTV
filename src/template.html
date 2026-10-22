@@ -868,10 +868,12 @@ function liveStatus(ev, t12){
 // while a picked team is playing, refresh that event every 2 minutes
 async function loadLive(){
   const now = Date.now();
+  let asked = false;
   await Promise.all(Object.entries(MATCHES).map(async ([id, ev])=>{
     if(!ev || !ev.idEvent) return;
     const k = toDate(ev).getTime();
     if(now < k - 5*60000 || now > k + 2.5*3600000) return;
+    asked = true;
     try{
       const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/lookupevent.php?id=${ev.idEvent}`, 10000);
       const j = await r.json();
@@ -879,7 +881,7 @@ async function loadLive(){
       if(fresh && fresh.idEvent === ev.idEvent){ MATCHES[id] = Object.assign({}, ev, fresh); keepResult(id, MATCHES[id]); }
     }catch(e){}
   }));
-  renderMatches();
+  if(asked) renderMatches();   // outside a match window nothing was asked, nothing changed
 }
 
 // Every followed team with something to show, two at a time; the page turns every 15 s.
