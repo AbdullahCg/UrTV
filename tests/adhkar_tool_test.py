@@ -28,14 +28,17 @@ def grades(*rows):
     return {"hadiths": [{"hadithnumber": n, "grades": [{"name": "Al-Albani", "grade": g}]} for n, g in rows]}
 
 
-SUBHAN = "قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ قَالَ سُبْحَانَ اللَّهِ وَبِحَمْدِهِ مِائَةَ مَرَّةٍ ‏\"‏ ‏.‏"
+SUBHAN = "قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ قَالَ حِينَ يُصْبِحُ وَحِينَ يُمْسِي سُبْحَانَ اللَّهِ وَبِحَمْدِهِ مِائَةَ مَرَّةٍ ‏\"‏ ‏.‏"
 FAKE = {
-    "ara-bukhari": book((1, "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ")),
+    "ara-bukhari": book((1, "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ"),
+                        (6306, "سَيِّدُ الاِسْتِغْفَارِ أَنْ تَقُولَ اللَّهُمَّ أَنْتَ رَبِّي لاَ إِلَهَ إِلاَّ أَنْتَ خَلَقْتَنِي وَأَنَا عَبْدُكَ وَأَبُوءُ لَكَ بِذَنْبِي فَاغْفِرْ لِي مَنْ قَالَهَا حِينَ يُمْسِي"),
+                        (6307, "كَلاَمٌ لاَ عَلاَقَةَ لَهُ")),
     "ara-muslim": book((2692, SUBHAN)),
-    "ara-abudawud": book((5088, "قَالَ ‏\"‏ بِسْمِ اللَّهِ الَّذِي لاَ يَضُرُّ مَعَ اسْمِهِ شَىْءٌ فِي الأَرْضِ ‏\"‏"),
-                         (5090, "اللَّهُمَّ عَافِنِي فِي بَدَنِي ثَلاَثًا"), (5091, "كَلِمَةٌ لَيْسَ لَهَا غَيْرُ هَذَا الْحَدِيثِ لِلتَّجْرِبَةِ")),
+    "ara-abudawud": book((5088, "قَالَ ‏\"‏ مَنْ قَالَ إِذَا أَصْبَحَ بِسْمِ اللَّهِ الَّذِي لاَ يَضُرُّ مَعَ اسْمِهِ شَىْءٌ فِي الأَرْضِ ‏\"‏"),
+                         (5090, "اللَّهُمَّ عَافِنِي فِي بَدَنِي ثَلاَثًا"), (5091, "فِي الصَّبَاحِ كَلِمَةٌ لَيْسَ لَهَا غَيْرُ هَذَا الْحَدِيثِ لِلتَّجْرِبَةِ"),
+                         (5072, "رَضِيتُ بِاللَّهِ رَبًّا وَبِالإِسْلاَمِ دِينًا إِذَا سَمِعْتَ الْمُؤَذِّنَ")),
     "ara-tirmidhi": book(), "ara-nasai": book(), "ara-ibnmajah": book(),
-    "eng-abudawud": grades((5088, "Sahih"), (5090, "Daif"), (5091, "Sahih")),
+    "eng-abudawud": grades((5088, "Sahih"), (5090, "Daif"), (5091, "Sahih"), (5072, "Sahih")),
     "eng-tirmidhi": grades(), "eng-nasai": grades(), "eng-ibnmajah": grades(),
 }
 SURAH = {"data": {"name": "سُورَةُ الإِخۡلَاصِ", "ayahs": [
@@ -57,6 +60,9 @@ entries = [
     {"when": "both", "text": "اللهم عافني في بدني", "count": 3, "source": "سنن أبي داود · 5090"},   # Al-Albani: Daif
     {"when": "both", "text": "ليس في الكتب", "count": 1, "source": "صحيح مسلم · 1"},
     {"when": "morning", "text": "ليس هنا", "alt": ["كلمة ليس لها غير هذا الحديث للتجربة"], "count": 1, "source": "صحيح مسلم · 1"},
+    {"when": "both", "text": "رضيت بالله ربا وبالإسلام دينا", "count": 3, "source": "سنن أبي داود · 5072"},   # sahih, but about the adhan
+    {"when": "both", "text": "اللهم أنت ربي لا إله إلا أنت خلقتني وأنا عبدك وأبوء بذنبي فاغفر لي", "count": 1,
+     "source": "صحيح البخاري · 6306"},   # «لك» missing before بذنبي
     {"when": "both", "text": "قل هو الله أحد الله الصمد لم يلد ولم يولد ولم يكن له كفوا أحد", "count": 3,
      "source": "سورة الإخلاص · 1–4", "quran": "112:1-4"},
     {"when": "both", "text": "قل هو الله أحد الله الصمد ولم يكن له كفوا أحد", "count": 3, "source": "x", "quran": "112:1-4"},   # not the ayahs
@@ -76,9 +82,17 @@ with tempfile.TemporaryDirectory() as tmp:
     check("a text in no book is not", pick[3] is None and not rep[3]["found"])
     check("the other wording is tried when the first is not found", pick[4] and "للتجربه" in va.vh.norm(pick[4]["text"]), pick[4])
     check("a Quranic dhikr: the ayahs' text without the basmala, the surah and range as the source",
-          pick[5] and pick[5]["source"] == "سورة الإخلاص · 1–4" and not pick[5]["text"].startswith("بِسْمِ")
-          and pick[5]["text"].startswith("قُلْ هُوَ اللَّهُ أَحَدٌ"), pick[5])
-    check("words that are not the ayahs in a row are not", pick[6] is None, pick[6])
+          pick[7] and pick[7]["source"] == "سورة الإخلاص · 1–4" and not pick[7]["text"].startswith("بِسْمِ")
+          and pick[7]["text"].startswith("قُلْ هُوَ اللَّهُ أَحَدٌ"), pick[7])
+    check("words that are not the ayahs in a row are not", pick[8] is None, pick[8])
+    check("a narration that is not about the morning or evening is not picked, though Al-Albani grades it Sahih",
+          pick[5] is None and rep[5]["found"] and rep[5]["found"][0]["accepted"] and not rep[5]["found"][0]["context"], rep[5])
+    close = rep[6].get("closest") or []
+    top = close[0] if close else {}
+    check("a dhikr not found gets the nearest narration in the named book, its exact words and its number",
+          not rep[6]["found"] and top.get("book") == "صحيح البخاري" and top.get("number") == 6306 and top.get("named")
+          and "وَأَبُوءُ لَكَ بِذَنْبِي" in top.get("match", "") and top.get("score", 0) > 0.8, close[:1])
+    check("a dhikr that is found carries no closest list", "closest" not in rep[0] and "closest" in rep[3])
     ap.DATA = Path("assets/shared/adhkar.json")
     sys.argv = ["apply", "hadith/adhkar-report.json"]
     ap.main()

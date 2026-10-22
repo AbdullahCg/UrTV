@@ -3,7 +3,10 @@ Copyright (c) 2010 King Fahd Glorious Quran Printing Complex (KFGQPC), Al-Madina
 Publisher: https://fonts.qurancomplex.gov.sa/
 
 Used for the Quran text only («آية اليوم» and the Quranic adhkar), together with the text made for it:
-the KFGQPC Uthmani Hafs 3.0 text (assets/shared/verses.json and adhkar.json, field "uthmani").
+the KFGQPC / QPC Hafs text (assets/shared/verses.json and adhkar.json, field "uthmani"), compared in CI
+(.github/tools/verify_uthmani.py) code point for code point with the `text_qpc_hafs` field of the Quran.com
+API v4 for all 500 verses and the Quranic adhkar. The ayah-end sign is kept as U+06DD and the number, the
+form this font draws as the ornament (the API gives a no-break space and the digits, which draw as plain digits).
 Never show this text in another font, nor another Quran text in this font.
 
 Source of this copy: the font file UthmanicHafs-v-3.0.ttf shipped in the npm package @quran.ws/text 0.1.0

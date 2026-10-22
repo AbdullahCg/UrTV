@@ -11,9 +11,18 @@ says yes: Bukhari and Muslim, or a Sunan narration Al-Albani grades Sahih, Hasan
 the one the entry's own `source` names comes first (a short phrase such as «سبحان الله وبحمده» is in many hadith),
 then the usual order of the books. The text to show is cut from the book's own narration, harakat and all.
 
+A hadith dhikr is also kept only if the narration itself is about the morning or the evening (CONTEXT: it mentions
+أصبح، أمسى، الصباح، المساء، يصبح، يمسي، الصبح …): a phrase found only in a narration about something else
+(«رضيت بالله ربا» in the one about the adhan) is not a morning or evening dhikr, whoever graded it.
+
+A dhikr found in none of the books gets `closest` in the report: the nearest narrations in the book and number it
+names (and the numbers beside it) and in the other books, each with the stretch that matches best and the whole
+narration, harakat and all, so the exact wording can be taken from the book (never from memory).
+
 A Quranic dhikr is searched in the text of its surah from api.alquran.cloud (the source fetch_verses.py uses), the
 ayahs of the range joined. The text to show is the API's, as fetch_verses.py would give it.
 """
+import difflib
 import json
 import re
 from pathlib import Path
@@ -25,6 +34,9 @@ BASMALA = "بسم الله الرحمن الرحيم"
 MARKS = re.compile("[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]")   # as verify_hadith.norm
 DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 ORDER = list(vh.BOOKS.values())
+# the narration is about the morning or the evening (letters only, as vh.norm gives them)
+CONTEXT = re.compile("صبح|صباح|مساء|امسي|امسا|مسيت|يمسي|تمسي|ممسي")
+NEARBY = 6   # numbers either side of the cited one that `closest` lists
 
 
 def norm_map(s):
@@ -74,6 +86,67 @@ def number_of(h):
     return out
 
 
+def words_at(flat):
+    """[(start, end)] of each word of `flat`."""
+    out, i = [], 0
+    for w in flat.split(" "):
+        out.append((i, i + len(w)))
+        i += len(w) + 1
+    return out
+
+
+def best_span(key_words, raw):
+    """(matched words / words wanted, the stretch of `raw` holding them, harakat and all) for the best stretch."""
+    flat, idx = norm_map(raw)
+    words = flat.split(" ")
+    blocks = [b for b in difflib.SequenceMatcher(None, key_words, words, autojunk=False).get_matching_blocks() if b.size]
+    if not blocks:
+        return 0.0, ""
+    # the stretch from the first to the last matched word, but only through blocks that sit close together
+    run = max(blocks, key=lambda b: b.size)
+    lo, hi = run.b, run.b + run.size
+    for b in blocks:
+        if lo - 12 <= b.b < lo or hi <= b.b < hi + 12:
+            lo, hi = min(lo, b.b), max(hi, b.b + b.size)
+    spans = words_at(flat)
+    start, end = idx[spans[lo][0]], idx[spans[hi - 1][1] - 1] + 1
+    while end < len(raw) and MARKS.match(raw[end]):
+        end += 1
+    score = sum(b.size for b in blocks) / len(key_words)
+    return score, " ".join(re.sub('[‎‏"]', " ", raw[start:end]).split())
+
+
+def closest(d, books, raw, grade_of, per_book=2):
+    """The narrations nearest to a dhikr that was not found: those beside the cited number, the best of the cited
+    book and the best of every other book, each as {book, number, score, nearby, grade, match, text}."""
+    book, num = claimed(d["source"])
+    key_words = vh.norm(d["text"]).split()
+    scored = []
+    for ed, rows in books.items():
+        name = vh.BOOKS[ed]
+        for n, t in rows:
+            near = name == book and num is not None and any(abs(x - num) <= NEARBY for x in number_of(raw[ed][n]))
+            if not near and len(set(key_words) & set(t.split())) < len(set(key_words)) * 0.4:
+                continue
+            score, match = best_span(key_words, raw[ed][n]["text"])
+            scored.append({"book": name, "edition": ed, "number": n, "score": round(score, 3), "nearby": near,
+                           "named": name == book and num in number_of(raw[ed][n]), "match": match})
+    keep, taken = [], {}
+    for c in sorted(scored, key=lambda c: -c["score"]):
+        if c["nearby"] or taken.get(c["book"], 0) < per_book:
+            taken[c["book"]] = taken.get(c["book"], 0) + (0 if c["nearby"] else 1)
+            keep.append(c)
+    out = []
+    for c in keep[:40]:
+        h = raw[c["edition"]][c["number"]]
+        arabic = h.get("arabicnumber")
+        out.append({"book": c["book"], "number": c["number"], "arabicnumber": arabic, "score": c["score"],
+                    "nearby": c["nearby"], "named": c["named"], "accepted": vh.albani_accepts(c["book"], grade_of(c["edition"], c["number"])),
+                    "grades": grade_of(c["edition"], c["number"]), "context": bool(CONTEXT.search(vh.norm(h["text"]))),
+                    "match": c["match"], "text": h["text"][:2500]})
+    return out
+
+
 def check_hadith(d, books, raw, grade_of):
     book, num = claimed(d["source"])
     for text in [d["text"]] + d.get("alt", []):
@@ -85,8 +158,9 @@ def check_hadith(d, books, raw, grade_of):
                     name = vh.BOOKS[ed]
                     found.append({"book": name, "edition": ed, "number": n, "arabicnumber": raw[ed][n].get("arabicnumber"),
                                   "accepted": vh.albani_accepts(name, grade_of(ed, n)),
+                                  "context": bool(CONTEXT.search(vh.norm(raw[ed][n].get("text") or ""))),
                                   "named": name == book and num in number_of(raw[ed][n])})
-        good = [f for f in found if f["accepted"]]
+        good = [f for f in found if f["accepted"] and f["context"]]
         if good:
             f = min(good, key=lambda f: (not f["named"], ORDER.index(f["book"]), len(raw[f["edition"]][f["number"]]["text"])))
             shown = cut(raw[f["edition"]][f["number"]]["text"], key)
@@ -141,7 +215,10 @@ def main():
     report = []
     for d in wanted:
         found, pick = check_quran(d, surahs) if d.get("quran") else check_hadith(d, books, raw, grade_of)
-        report.append({"text": d["text"], "found": found, "pick": pick})
+        entry = {"text": d["text"], "found": found, "pick": pick}
+        if not pick and not d.get("quran"):
+            entry["closest"] = closest(d, books, raw, grade_of)
+        report.append(entry)
         print("OK " if pick else "NOT FOUND/ACCEPTED", d["text"][:50], [(f["book"], f["number"]) for f in found][:5])
     Path("hadith").mkdir(exist_ok=True)
     Path("hadith/adhkar-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")

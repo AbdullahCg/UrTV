@@ -2,25 +2,25 @@
 """Fetch the text of the "verse of the day" list -> verses/verses.json. Per verse:
 
   text     api.alquran.cloud, edition quran-simple (Tanzil): plain script, kept for checks and as the fallback
-  uthmani  the KFGQPC Uthmani Hafs text (release 3.0), the one text the font assets/fonts/UthmanicHafs-v30.woff2
-           is made for, from the npm package @quran.ws/text (pinned, checked by hash). Never show it in another font.
+  uthmani  the KFGQPC / QPC Hafs text (`text_qpc_hafs` of the Quran.com API v4, Tarteel's QUL script), the text the font
+           assets/fonts/UthmanicHafs-v30.woff2 is made for; verify_uthmani.py compares it with the source in CI.
+           Never show it in another font.
   tafsir   «التفسير الميسر» (King Fahd Complex), api.alquran.cloud edition ar.muyassar; the screen shows it
            only with #tafsir=1
 
 Runs in CI (.github/workflows/verses.yml): api.alquran.cloud is unreachable from the dev container. The screen never
 holds Quran text typed by hand; it only shows what this script fetched, copied to assets/shared/verses.json.
 
-  python3 fetch_verses.py --uthmani   no API needed: add `uthmani` to assets/shared/verses.json and to the
-                                      Quranic entries of assets/shared/adhkar.json, in place
+  python3 fetch_verses.py --uthmani   add `uthmani` (QPC Hafs) to assets/shared/verses.json and to the Quranic
+                                      entries of assets/shared/adhkar.json, in place
 """
-import hashlib
-import io
 import json
 import sys
-import tarfile
 import time
 import urllib.request
 from pathlib import Path
+
+import verify_uthmani as vu
 
 # surah:ayah. Short verses of remembrance, patience, gratitude and hope that fit the card.
 REFS = [
@@ -79,9 +79,6 @@ REFS = [
 ]
 EDITION = "quran-simple"   # standard Arabic script with diacritics; renders in any Arabic font
 TAFSIR_EDITION = "ar.muyassar"   # التفسير الميسر, King Fahd Glorious Quran Printing Complex
-# the KFGQPC Uthmani Hafs 3.0 text (words, waqf signs, ayah boundaries) next to its font UthmanicHafs-v-3.0.ttf
-UTHMANI_TARBALL = "https://registry.npmjs.org/@quran.ws/text/-/text-0.1.0.tgz"
-UTHMANI_SHA256 = "31186b3ac554ea8d5db1dbc1f67ac5a6d3bd99a62091d04ff73f39be18bf2568"   # of package/data/hafs.json
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -98,38 +95,17 @@ def get(url):
 
 
 class Uthmani:
-    """Ayahs of the KFGQPC Hafs 3.0 text: words joined by spaces, each waqf sign glued to its word as the Mushaf
-    prints it (the data keeps them apart). A range 112:1-4 joins its ayahs with the font's ayah-end mark and number."""
+    """The QPC Hafs text by verse key, from the source verify_uthmani.py checks against. A range 112:1-4 joins its
+    ayahs with the ayah-end sign and number (U+06DD and digits), the form the font draws as the ornament."""
 
     def __init__(self):
-        with urllib.request.urlopen(urllib.request.Request(UTHMANI_TARBALL, headers={"User-Agent": "urtv"}), timeout=60) as r:
-            raw = r.read()
-        with tarfile.open(fileobj=io.BytesIO(raw)) as t:
-            blob = t.extractfile("package/data/hafs.json").read()
-        if hashlib.sha256(blob).hexdigest() != UTHMANI_SHA256:
-            raise SystemExit("hafs.json is not the pinned release: refusing to use it")
-        d = json.loads(blob)
-        self.words, self.starts, self.surahs = d["words"], d["ayah_starts"], d["surahs"]
-        self.after, self.before = {}, {}
-        for pos, t in d["marks"]:
-            m = d["mark_types"][t]
-            (self.after if m["side"] == "after" else self.before).setdefault(pos, []).append(m["sign"])
-
-    def ayah(self, surah, n):
-        k = self.surahs[surah - 1]["first_ayah"] + n - 1
-        end = self.starts[k + 1] if k + 1 < len(self.starts) else len(self.words)
-        out = []
-        for p in range(self.starts[k], end):
-            out.append("".join(s + " " for s in self.before.get(p, [])) + self.words[p] + "".join(self.after.get(p, [])))
-        return " ".join(out)
+        probes = []
+        name, self.src = vu.fetch_source(probes)
+        if not self.src:
+            raise SystemExit("no QPC Hafs source reachable: " + json.dumps(probes, ensure_ascii=False)[:500])
 
     def ref(self, ref):
-        s, _, rng = ref.partition(":")
-        a, _, b = rng.partition("-")
-        first, last = int(a), int(b or a)
-        marks = last > first
-        mark = lambda n: " \u06DD" + "".join("٠١٢٣٤٥٦٧٨٩"[int(c)] for c in str(n))
-        return " ".join(self.ayah(int(s), n) + (mark(n) if marks else "") for n in range(first, last + 1))
+        return vu.expected(ref, self.src)
 
 
 def add_uthmani():

@@ -162,15 +162,27 @@ def font_check():
 
     ours = TTFont(str(woff))
     info["shipped_signature"], info["shipped_codepoints"] = signature(ours)
-    pages = ["https://fonts.qurancomplex.gov.sa/", "https://fonts.qurancomplex.gov.sa/wp02/",
-             "https://qurancomplex.gov.sa/techs/%d8%ae%d8%b7%d9%88%d8%b7-%d8%a7%d9%84%d9%85%d8%b5%d8%ad%d9%81/"]
-    links = []
-    for p in pages:
+    # the publisher's site: crawl two levels from its home for pages and files about the Hafs script
+    hrefs = lambda html: re.findall(r'href=["\']([^"\'#]+)["\']', html, re.I)
+    seen, links, queue = set(), [], [("https://fonts.qurancomplex.gov.sa/", 0)]
+    info["pages"] = []
+    while queue and len(seen) < 40:
+        page, depth = queue.pop(0)
+        if page in seen:
+            continue
+        seen.add(page)
         try:
-            html = get(p, raw=True).decode("utf-8", "replace")
-            links += [(p, l) for l in re.findall(r'href=["\']([^"\']+\.(?:zip|ttf|otf))["\']', html, re.I) if re.search("hafs", l, re.I)]
+            html = get(page, raw=True).decode("utf-8", "replace")
         except Exception as e:  # noqa: BLE001
-            info["tried"].append({"url": p, "error": repr(e)})
+            info["tried"].append({"url": page, "error": repr(e)})
+            continue
+        found = [urllib.parse.urljoin(page, h) for h in hrefs(html)]
+        info["pages"].append({"url": page, "links": [h for h in found if "qurancomplex" in h][:150]})
+        for h in found:
+            if re.search(r"\.(zip|ttf|otf)(\?|$)", h, re.I) and re.search("hafs|uthman", h, re.I):
+                links.append(("", h))
+            elif depth < 2 and "qurancomplex" in h and re.search("hafs|uthman|wp02|wp0|fonts", h, re.I) and not re.search(r"\.(png|jpe?g|css|js|svg|pdf|woff2?)(\?|$)", h, re.I):
+                queue.append((h, depth + 1))
     for base, l in links:
         url = urllib.parse.urljoin(base, l)
         try:

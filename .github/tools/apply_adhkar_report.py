@@ -2,7 +2,7 @@
 """Apply the CI adhkar check (data-hadith branch, hadith/adhkar-report.json) to assets/shared/adhkar.json.
 
 Keeps only the adhkar verify_adhkar.py found and accepted (Bukhari, Muslim, or a Sunan narration Al-Albani grades
-Sahih, Hasan or Hasan Sahih; or the Quran), marks them `checked` (the page shows nothing else), and sets their text
+Sahih, Hasan or Hasan Sahih; or the Quran) in a narration that is itself about the morning or the evening, marks them `checked` (the page shows nothing else), and sets their text
 and source line from that check: the book's own words with their harakat, «صحيح مسلم · 2723», or the surah and ayahs.
 A dhikr shown twice (the same words for the same time of day) is kept once.
 
@@ -19,14 +19,19 @@ DATA = Path(__file__).resolve().parents[2] / "assets/shared/adhkar.json"
 
 
 def main():
-    report = {r["text"]: r.get("pick") for r in json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))}
+    rows = {r["text"]: r for r in json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))}
+    report = {t: r.get("pick") for t, r in rows.items()}
     kept, dropped, seen = [], [], set()
     for d in json.loads(DATA.read_text(encoding="utf-8")):
         if d["text"] not in report:
             sys.exit(f"not in the report (run the check again): {d['text']}")
         pick = report[d["text"]]
         if not pick or not pick.get("text"):
-            dropped.append(d["text"])
+            found = rows[d["text"]].get("found") or []
+            why = ("not in the books" if not found else
+                   "found, but only in a narration that is not about the morning or evening" if any(f.get("accepted") and not f.get("context", True) for f in found)
+                   else "found, but not accepted (grade)")
+            dropped.append(f"{d['text'][:70]}  [{why}]")
             continue
         key = (d["when"], vh.norm(pick["text"]))
         if key in seen:
