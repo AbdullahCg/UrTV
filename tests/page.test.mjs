@@ -346,7 +346,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
 }
 
 
-// two games side by side on a small screen: a long club name goes on two lines, never «…» or a cut name
+// two games side by side on a small screen: a game that does not fit breaks between its teams, names whole
 for (const [width, height] of [[1920, 1080], [960, 540], [720, 405]]) {
   const { p, ctx } = await open('urtv.html', 'panel=verse', { width, height });
   const r = await p.evaluate(() => {
@@ -359,7 +359,7 @@ for (const [width, height] of [[1920, 1080], [960, 540], [720, 405]]) {
              fit: sp.every(s => s.scrollWidth <= s.clientWidth + 1),
              same: new Set(sp.map(s => getComputedStyle(s).fontSize)).size === 1 };
   });
-  check(`two matches at ${width}px: whole names fit (on two lines if needed), one size`, r.fit && r.same && r.whole, JSON.stringify(r));
+  check(`two matches at ${width}px: whole names fit (second team on the next line if needed), one size`, r.fit && r.same && r.whole, JSON.stringify(r));
   await ctx.close();
 }
 
