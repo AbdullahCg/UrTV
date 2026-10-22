@@ -34,7 +34,13 @@ case "$1" in
 esac
 case "$1" in
   *launcherx*) echo "package:com.google.android.apps.tv.launcherx" ;;
-  "pm install"*) echo Success ;;
+  "settings get global verifier_verify_adb_installs") cat "$T/verifier" 2>/dev/null || echo null ;;
+  "settings put global verifier_verify_adb_installs"*) log "put-${1##* }"; echo "${1##* }" > "$T/verifier" ;;
+  "settings delete global verifier_verify_adb_installs") log delete; rm -f "$T/verifier" ;;
+  "pm install"*)
+    if [ -n "$VERIFY" ] && { [ "$VERIFY" = always ] || [ "$(cat "$T/verifier" 2>/dev/null)" != 0 ]; }; then
+      log refused; echo "Failure [INSTALL_FAILED_VERIFICATION_FAILURE: Install not allowed]"
+    else log installed; echo Success; fi ;;
   "getprop ro.serialno")
     n=$(( $(cat "$T/polls" 2>/dev/null || echo 0) + 1 )); echo $n > "$T/polls"
     [ "$n" -le "$DOWN_POLLS" ] && exit 1
@@ -46,20 +52,37 @@ esac
 exit 0
 '''
 
-def run(name, fail_switches, first_drop, down_polls=0):
+STUB_CURL = r'''#!/bin/sh
+# fake curl; CURL_MODE=revoke: a Windows (Schannel) curl that fails until --ssl-revoke-best-effort is given
+[ "$1" = -V ] && { echo "curl 8.4.0 (x86_64-pc-win32) Schannel"; exit 0; }
+[ "$1" = --help ] && { echo "--ssl-revoke-best-effort"; exit 0; }
+ok=0; for a in "$@"; do [ "$a" = --ssl-revoke-best-effort ] && ok=1; done
+if [ "$CURL_MODE" = revoke ] && [ $ok = 0 ]; then
+  echo "curl: (35) schannel: next InitializeSecurityContext failed: CRYPT_E_NO_REVOCATION_CHECK" >&2; exit 35
+fi
+echo x >> "$T/curls"
+while [ $# -gt 0 ]; do [ "$1" = -o ] && : > "$2"; shift; done
+'''
+
+
+def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None, curl_mode=""):
     t = Path(tempfile.mkdtemp())
     tree, bin_ = t / "tree", t / "bin"
     (tree / "optimize" / "lists").mkdir(parents=True); bin_.mkdir()
     shutil.copy(ROOT / "optimize" / "install.sh", tree / "optimize")
     shutil.copy(ROOT / "optimize" / "deadman.sh", tree / "optimize")
     (tree / "optimize" / "lists" / "home-replaced.txt").write_text("# none\n")
-    for f, body in (("py", STUB_PY), ("curl", '#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = -o ] && : > "$2"; shift; done\n'),
+    for f, body in (("py", STUB_PY), ("curl", STUB_CURL),
                     ("sleep", "#!/bin/sh\nexit 0\n")):
         (bin_ / f).write_text(body); (bin_ / f).chmod(0o755)
-    env = dict(os.environ, PATH=f"{bin_}:{os.environ['PATH']}", PY=str(bin_ / "py"), T=str(t),
+    if verifier is not None:
+        (t / "verifier").write_text(verifier + "\n")
+    env = dict(os.environ, VERIFY=verify, CURL_MODE=curl_mode, PATH=f"{bin_}:{os.environ['PATH']}", PY=str(bin_ / "py"), T=str(t),
                FAIL_SWITCHES=str(fail_switches), FIRST_DROP=first_drop, DOWN_POLLS=str(down_polls))
     r = subprocess.run(["bash", str(tree / "optimize" / "install.sh"), "launcher"], env=env, capture_output=True, text=True)
     log = (t / "log").read_text().split() if (t / "log").exists() else []
+    if (t / "verifier").exists():
+        log.append("final-" + (t / "verifier").read_text().strip())
     shutil.rmtree(t)
     return r.returncode, r.stdout + r.stderr, log
 
@@ -75,6 +98,17 @@ cases = [
      lambda c, o, l: c == 1 and l.count("arm") == 2 and "!! The safety switch put the stock home back" in o),
     ("TV never answers: exits 1", run("e", 1, "stock", down_polls=99),
      lambda c, o, l: c == 1 and "did not come back within 6 minutes" in o and l.count("arm") == 1),
+    ("Play Protect refuses: check off for the install, old value back", run("f", 0, "", verify="once", verifier="1"),
+     lambda c, o, l: c == 0 and "Play Protect refused" in o and "(was: 1)" in o and l.count("refused") == 1
+     and l.count("installed") == 1 and l[l.index("put-0"):].count("put-1") == 1 and l[-1] == "final-1"),
+    ("Play Protect refuses, setting unset: deleted again", run("g", 0, "", verify="once"),
+     lambda c, o, l: c == 0 and "(was: null)" in o and "delete" in l and "final-0" not in l and "final-1" not in l),
+    ("Play Protect refuses twice: one retry, old value still restored", run("h", 0, "", verify="always", verifier="1"),
+     lambda c, o, l: c == 1 and l.count("refused") == 2 and "Install of urtv-home.apk failed" in o and l[-1] == "final-1"),
+    ("Windows revocation error: retried with --ssl-revoke-best-effort", run("j", 0, "", curl_mode="revoke"),
+     lambda c, o, l: c == 0 and "without that check" in o and "Play Protect" not in o),
+    ("no refusal: the setting is never touched", run("i", 0, "", verifier="1"),
+     lambda c, o, l: c == 0 and "put-0" not in l and "Play Protect" not in o),
 ]
 bad = [n for n, (c, o, l), ok in cases if not ok(c, o, l)]
 for n, (c, o, l), ok in cases:

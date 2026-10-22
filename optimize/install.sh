@@ -15,13 +15,55 @@ REL=https://github.com/tshi-dev/UrTV/releases/download/${APK_TAG:-apk-latest}   
 what="${1:?usage: optimize/install.sh saver|launcher|all|extras}"
 failed=0   # an extra that did not install: the rest are still tried, then run.sh must not count the step as done
 
+# curl with up to 3 tries. A Windows curl (Schannel) that can't reach the certificate revocation server fails every
+# download; on that error, and only if this curl has the flag, the next try skips just that check.
+curl_get() {
+  local i rc=0 errf extra=()
+  errf=$(mktemp)
+  for i in 1 2 3; do
+    rc=0; curl "${extra[@]+"${extra[@]}"}" "$@" 2> "$errf" || rc=$?
+    [ "$rc" = 0 ] && { rm -f "$errf"; return 0; }
+    [ "$rc" = 22 ] && break   # the server answered with an error (no such file): another try gives the same
+    if [ "${#extra[@]}" = 0 ] && grep -qiE 'revocation|CRYPT_E_' "$errf" \
+       && curl -V 2> /dev/null | grep -qi schannel && curl --help all 2> /dev/null | grep -q ssl-revoke-best-effort; then
+      echo "Windows could not check the certificate revocation list: trying again without that check." >&2
+      extra=(--ssl-revoke-best-effort)
+    fi
+    [ "$i" = 3 ] || sleep $((i * 2))
+  done
+  cat "$errf" >&2; rm -f "$errf"
+  return "$rc"
+}
+
+# Play Protect can refuse an ADB install (INSTALL_FAILED_VERIFICATION_FAILURE, seen on a TCL Android 14): its ADB
+# check is switched off for that install only, and put back as it was, whatever happens (see the EXIT trap).
+VERIFIER=verifier_verify_adb_installs
+verifier_old=; verifier_set=0
+restore_verifier() {
+  [ "$verifier_set" = 1 ] || return 0
+  verifier_set=0
+  if [ -z "$verifier_old" ] || [ "$verifier_old" = null ]; then
+    "$PY" -I optimize/tv.py "settings delete global $VERIFIER" > /dev/null 2>&1 || true
+  else
+    "$PY" -I optimize/tv.py "settings put global $VERIFIER $verifier_old" > /dev/null 2>&1 || true
+  fi
+}
+trap restore_verifier EXIT
+
 push_install() {   # $1 apk name, $2 package
-  if ! curl -fsSL -o "optimize/$1" "$REL/$1"; then
+  if ! curl_get -fsSL -o "optimize/$1" "$REL/$1"; then
     echo "!! Could not download $REL/$1 (tag ${APK_TAG:-apk-latest}): no such build, or no internet"; exit 1
   fi
   "$PY" -I optimize/tv.py --push-b64 "optimize/$1" "/data/local/tmp/$1"
   local out
   out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1")
+  if grep -q INSTALL_FAILED_VERIFICATION_FAILURE <<< "$out"; then
+    verifier_old=$("$PY" -I optimize/tv.py "settings get global $VERIFIER" | tr -d '\r\n' || true)
+    echo "Play Protect refused the install over ADB: its ADB check is off for this install only, and put back right after (was: ${verifier_old:-not set})."
+    verifier_set=1
+    "$PY" -I optimize/tv.py "settings put global $VERIFIER 0" > /dev/null || true
+    out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1")
+  fi
   if ! grep -q Success <<< "$out"; then
     # only a signing-key clash justifies removing the installed app (and its settings); anything else stops here
     if grep -qE 'UPDATE_INCOMPATIBLE|signatures do not match' <<< "$out"; then
@@ -35,13 +77,14 @@ push_install() {   # $1 apk name, $2 package
       echo "!! Install of $1 failed: $out"; exit 1
     fi
   fi
+  restore_verifier
   "$PY" -I optimize/tv.py "rm -f /data/local/tmp/$1"
 }
 
 from_github() {   # $1 owner/repo, $2 package, $3 asset pattern ({abi} = the TV's processor types, best first)
   local abis url name out code body
   abis=$("$PY" -I optimize/tv.py "getprop ro.product.cpu.abilist" | tr -d '\r')
-  body=$(curl -sSL -w '\n%{http_code}' "https://api.github.com/repos/$1/releases/latest") || body=$'\n000'
+  body=$(curl_get -sSL -w '\n%{http_code}' "https://api.github.com/repos/$1/releases/latest") || body=$'\n000'
   code=${body##*$'\n'}; body=${body%$'\n'*}
   if [ "$code" = 403 ] || [ "$code" = 429 ]; then
     echo "!! GitHub rate limit, try later: $1 skipped"; failed=1; return 0
@@ -59,7 +102,7 @@ for abi in [a for a in sys.argv[2].split(",") if a] + ["universal", ""]:
 ' "$3" "$abis" <<< "$body") || true
   if [ -z "$url" ]; then echo "!! No build of $1 for this TV ($abis): skipped"; return 0; fi
   name=$(basename "$url")
-  if ! curl -fsSL -o "optimize/$name" "$url"; then echo "!! Could not download $url"; failed=1; return 0; fi
+  if ! curl_get -fsSL -o "optimize/$name" "$url"; then echo "!! Could not download $url"; failed=1; return 0; fi
   "$PY" -I optimize/tv.py --push-b64 "optimize/$name" "/data/local/tmp/$name"
   out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$name")
   "$PY" -I optimize/tv.py "rm -f /data/local/tmp/$name" > /dev/null
