@@ -3,6 +3,7 @@ package sa.urtv.screensaver;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.provider.Settings;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,7 +18,13 @@ import java.util.List;
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.SET
  *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
+ *       [--es photos 30] [--es idle 10]
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
+ *
+ * photos = minutes between background photos (Prefs.PHOTO_MINUTES). idle = minutes before the TV starts the
+ * screensaver (Prefs.IDLE_MINUTES): this is the system's screen_off_timeout, which a receiver (it runs as this
+ * app, not as the shell) may write only when the app holds WRITE_SETTINGS; otherwise it says so and
+ * optimize/saver.sh sets it from the shell instead. Nothing changes unless the extra is given.
  *
  * The answer is in the "data" of am's output. Unknown values are refused with a message, nothing half-saved.
  */
@@ -28,7 +35,7 @@ public class SaverReceiver extends BroadcastReceiver {
         String action = String.valueOf(i.getAction());
         switch (action) {
             case "sa.urtv.screensaver.GET":
-                setResultData(describe(p));
+                setResultData(describe(c, p));
                 return;
             case "sa.urtv.screensaver.CITIES": {
                 StringBuilder b = new StringBuilder();
@@ -97,29 +104,57 @@ public class SaverReceiver extends BroadcastReceiver {
         String rating = i.getStringExtra("minrating");
         if (rating != null && !Arrays.asList(Prefs.MIN_RATINGS).contains(rating))
             return "error: minrating is one of " + Prefs.join(Arrays.asList(Prefs.MIN_RATINGS), " ");
+        String photos = i.getStringExtra("photos");
+        if (photos != null && !Arrays.asList(Prefs.PHOTO_MINUTES).contains(photos))
+            return "error: photos is one of " + Prefs.join(Arrays.asList(Prefs.PHOTO_MINUTES), " ");
+        String idle = i.getStringExtra("idle");
+        if (idle != null) {
+            if (!Arrays.asList(Prefs.IDLE_MINUTES).contains(idle))
+                return "error: idle is one of " + Prefs.join(Arrays.asList(Prefs.IDLE_MINUTES), " ");
+            if (!Prefs.canWriteSettings(c))
+                return "error: idle not allowed: this app may not change system settings on this TV"
+                    + " (the TV's own screensaver settings can, or the shell: settings put system screen_off_timeout)";
+        }
         List<String> genres = codes(i.getStringExtra("genres"), Prefs.GENRES);
         List<String> langs = codes(i.getStringExtra("langs"), Prefs.LANGS);
         if (genres != null && genres.contains(null)) return "error: genres are " + names(Prefs.GENRES);
         if (langs != null && langs.contains(null)) return "error: langs are " + names(Prefs.LANGS);
 
+        if (idle != null) {   // first: a refusal here leaves everything else unsaved
+            try {
+                Settings.System.putInt(c.getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT,
+                    Integer.parseInt(idle) * 60000);
+            } catch (SecurityException e) {
+                return "error: idle not allowed: the TV refused the change";
+            }
+        }
         if (city != null) p.setCity(city[0], city[1], city[2]);
         if (teams != null) p.setList("teams", teams);
         if (panel != null) p.setPanel(panel);
         if (home != null) p.setHomePanel(home);
         if (rating != null) p.setMinRating(rating);
+        if (photos != null) p.setPhotoMinutes(photos);
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
-        return "saved\n" + describe(p);
+        return "saved\n" + describe(c, p);
     }
 
-    private static String describe(Prefs p) {
+    private static String describe(Context c, Prefs p) {
         String[] city = p.city();
         return "city: " + city[0] + " (" + city[1] + ", " + city[2] + ")"
             + "\nteams: " + Prefs.join(p.teams(), ", ")
             + "\npanel: " + p.panel() + "\nhome_panel: " + p.homePanel()
             + "\nminrating: " + p.minRating()
+            + "\nphotos: " + p.photoMinutes()
+            + "\nidle: " + idle(Prefs.idleMs(c))
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
             + "\nautoupdate: " + p.autoUpdate();
+    }
+
+    /** minutes the TV waits before the screensaver, "unknown" when it does not say */
+    private static String idle(long ms) {
+        if (ms <= 0) return "unknown";
+        return ms % 60000 == 0 ? String.valueOf(ms / 60000) : (ms / 1000) + "s";
     }
 
     private static boolean isPanel(String v) {

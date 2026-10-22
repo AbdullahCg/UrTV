@@ -352,6 +352,8 @@ const CONFIG = {
     minRating: _num('minrating', 7),
   },
   weekWindowDays: 7,
+  // minutes between background photos: #photos=5|10|15|30|60 (anything else = 30)
+  photoMinutes: (m => [5,10,15,30,60].includes(m) ? m : 30)(_num('photos', 30)),
   // #widget=1: only the card, on a transparent page (the launcher's home screen shows it)
   widget: _Q.get('widget') === '1',
 };
@@ -1177,8 +1179,8 @@ function showBackground(url, b){
 }
 
 // Every 4 days a new random set of 5 hosted photos (same draw as the launcher: Park-Miller generator seeded
-// by the 4-day period), rotating every 30 minutes. Only the photo on screen is downloaded.
-const PHOTO_SET = 5, PHOTO_PERIOD_DAYS = 4, PHOTO_SLOT_MIN = 30;
+// by the 4-day period), rotating every CONFIG.photoMinutes (30 unless the owner changed it). Only the photo on screen is downloaded.
+const PHOTO_SET = 5, PHOTO_PERIOD_DAYS = 4;
 function riyadhDayNumber(){
   const p = riyadhParts();
   return Math.floor(Date.UTC(p.y, p.mo - 1, p.d) / 86400000);
@@ -1198,7 +1200,8 @@ let BG_SLOT = -1, PREFETCHED = false;
 function applyBackground(force){
   try {
     const p = riyadhParts();
-    const slot = riyadhDayNumber() * 48 + Math.floor((p.h * 60 + p.mi) / PHOTO_SLOT_MIN);
+    const slotMin = CONFIG.photoMinutes;   // divides 1440, so slots count on across midnight
+    const slot = riyadhDayNumber() * (1440 / slotMin) + Math.floor((p.h * 60 + p.mi) / slotMin);
     if(slot === BG_SLOT && !force) return;
     BG_SLOT = slot;
     const set = REMOTE_BGS.length ? photoSet(REMOTE_BGS.length).map(k => REMOTE_BGS[k]) : [];

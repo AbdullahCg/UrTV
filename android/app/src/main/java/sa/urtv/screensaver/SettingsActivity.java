@@ -65,6 +65,12 @@ public class SettingsActivity extends Activity {
         render();
     }
 
+    @Override
+    protected void onResume() {   // back in front (from the TV's settings, or opened again over itself): show what is set now
+        super.onResume();
+        render();
+    }
+
     private void render() {
         list.removeAllViews();
         TextView title = new TextView(this);
@@ -111,11 +117,16 @@ public class SettingsActivity extends Activity {
             R.drawable.ic_star, new Runnable() { public void run() { pickRating(); } });
         }
 
+        header("التوقيت");
+        row("تبديل الصورة كل", minutesLabel(Integer.parseInt(prefs.photoMinutes())), R.drawable.ic_sync,
+            new Runnable() { public void run() { pickPhotoMinutes(); } });
+        row("بدء شاشة التوقف بعد", idleLabel(), R.drawable.ic_screensaver,
+            new Runnable() { public void run() { pickIdle(); } });
+
         header("التطبيق");
         row("التحديث التلقائي للصفحة", prefs.autoUpdate() ? "يعمل · كل ٦ ساعات" : "متوقف", R.drawable.ic_sync, new Runnable() { public void run() {
             prefs.setAutoUpdate(!prefs.autoUpdate()); render(); } });
         row("تحديث الشاشة الآن", Updater.versionNote(this) + " " + "ينزّل أحدث نسخة من الشاشة. تحديث التطبيق نفسه يكون عبر مساعد الذكاء الاصطناعي، لأنه يضبط الشاشة الرئيسية وشاشة التوقف، وإعداداتك كلها تبقى.", R.drawable.ic_sync, new Runnable() { public void run() { updateNow(); } });
-        row("وقت تشغيل شاشة التوقف", "يفتح إعدادات التلفاز (قد تظهر بالإنجليزية)", R.drawable.ic_screensaver, new Runnable() { public void run() { openDreamSettings(); } });
     }
 
     // ---------- pickers ----------
@@ -382,6 +393,60 @@ public class SettingsActivity extends Activity {
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle("أقل تقييم")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setMinRating(Prefs.MIN_RATINGS[i]); d.dismiss(); render(); })
             .show();
+    }
+
+    private void pickPhotoMinutes() {
+        String[] labels = new String[Prefs.PHOTO_MINUTES.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = minutesLabel(Integer.parseInt(Prefs.PHOTO_MINUTES[i]));
+            if (Prefs.PHOTO_MINUTES[i].equals(prefs.photoMinutes())) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("تبديل الصورة كل")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setPhotoMinutes(Prefs.PHOTO_MINUTES[i]); d.dismiss(); render(); })
+            .show();
+    }
+
+    /** The TV's own idle delay. Writing it needs WRITE_SETTINGS, which TVs rarely grant: then its own screen opens. */
+    private void pickIdle() {
+        if (!Prefs.canWriteSettings(this)) {
+            toast("غيّرها من إعدادات التلفاز، أو بأمر من مساعدك");
+            openDreamSettings();
+            return;
+        }
+        String[] labels = new String[Prefs.IDLE_MINUTES.length];
+        int sel = -1;
+        long now = Prefs.idleMs(this);
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = minutesLabel(Integer.parseInt(Prefs.IDLE_MINUTES[i]));
+            if (Long.parseLong(Prefs.IDLE_MINUTES[i]) * 60000 == now) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("بدء شاشة التوقف بعد")
+            .setSingleChoiceItems(labels, sel, (d, i) -> {
+                try {
+                    Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT,
+                        Integer.parseInt(Prefs.IDLE_MINUTES[i]) * 60000);
+                } catch (SecurityException e) {
+                    toast("غيّرها من إعدادات التلفاز، أو بأمر من مساعدك");
+                }
+                d.dismiss();
+                render();
+            })
+            .show();
+    }
+
+    private String idleLabel() {
+        long ms = Prefs.idleMs(this);
+        if (ms <= 0) return "يحدده التلفاز";
+        if (ms % 60000 != 0) return arabicNum((int) (ms / 1000)) + " ثانية";
+        return minutesLabel((int) (ms / 60000));
+    }
+
+    /** دقيقة واحدة · دقيقتان · ٥ دقائق · ١٥ دقيقة */
+    private static String minutesLabel(int n) {
+        if (n == 1) return "دقيقة واحدة";
+        if (n == 2) return "دقيقتان";
+        return arabicNum(n) + (n <= 10 ? " دقائق" : " دقيقة");
     }
 
     private void updateNow() {

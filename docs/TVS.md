@@ -8,7 +8,7 @@ app's preview of the same page and `measure.sh` writes «not measured»). Times 
 
 | TV | Android | Home switch | Screensaver from ADB | ADB | Watch out for | Typical time |
 |---|---|---|---|---|---|---|
-| TCL Smart TV Pro G08 | 14 | works (launcherx + setupwraith off) | no, preview only | 5555; the first probe may hang, run it again | a Wi-Fi drop during the switch makes the safety switch restore the stock home: run `optimize/install.sh launcher` again | 11 min |
+| TCL Smart TV Pro G08 | 14 | works (launcherx + setupwraith off) | no, preview only | 5555; the first probe may hang, run it again | a Wi-Fi drop during the switch: the safety switch restores the stock home and `optimize/install.sh launcher` retries the switch by itself (once) | 11 min |
 | TCL Smart TV Pro G05, G07, BeyondTV4 | 11 | works | yes | 5555 | `com.tcl.smartalexa` ships off outside Alexa's regions, expected | 14 min |
 | TCL UnionTV | 9 | works | yes | 5555 | – | 15 min |
 | Skyworth SWTV-20AE-PRO | 11 | works (tvlauncher off) | no | 5555, an occasional timeout that retries by itself | – | 14 min |

@@ -3,6 +3,8 @@ package sa.urtv.screensaver;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -54,6 +56,22 @@ final class Prefs {
     };
 
     static final String[] MIN_RATINGS = {"0", "6", "6.5", "7", "7.5", "8"};
+
+    // minutes between background photos (sent to the page as #photos=; 30 is what it always did)
+    static final String[] PHOTO_MINUTES = {"5", "10", "15", "30", "60"};
+
+    // minutes of idle before Android starts the screensaver (the TV's own screen_off_timeout; not stored here)
+    static final String[] IDLE_MINUTES = {"1", "2", "5", "10", "15", "30"};
+
+    /** May this app change system settings (API 23+, and only if the owner allowed it for the app)? */
+    static boolean canWriteSettings(Context c) {
+        return Build.VERSION.SDK_INT >= 23 && Settings.System.canWrite(c);
+    }
+
+    /** The TV's idle delay in ms; readable without any permission. -1 when the TV does not say. */
+    static long idleMs(Context c) {
+        return Settings.System.getLong(c.getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+    }
 
     private final SharedPreferences sp;
 
@@ -121,6 +139,9 @@ final class Prefs {
     String minRating() { return sp.getString("minRating", "7"); }
     void setMinRating(String v) { sp.edit().putString("minRating", v).apply(); }
 
+    String photoMinutes() { return sp.getString("photoMinutes", "30"); }
+    void setPhotoMinutes(String v) { sp.edit().putString("photoMinutes", v).apply(); }
+
     boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
@@ -152,7 +173,8 @@ final class Prefs {
             + "&genres=" + Uri.encode(join(list("genres"), ","))
             + "&langs=" + Uri.encode(join(list("langs"), ","))
             + "&shows=" + join(ids, ",")
-            + "&minrating=" + minRating();
+            + "&minrating=" + minRating()
+            + "&photos=" + photoMinutes();
     }
 
     /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */

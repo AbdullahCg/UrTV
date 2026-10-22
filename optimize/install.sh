@@ -106,49 +106,80 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
   # exact alarms for the adhan (Android 12 and newer; older TVs need nothing)
   "$PY" -I optimize/tv.py "appops set sa.urtv.home SCHEDULE_EXACT_ALARM allow" || true
 
-  # 2. Arm the safety switch on the TV: it restores the stock home in 300 s unless we confirm (slow ADB needs time).
-  "$PY" -I optimize/tv.py --push-b64 optimize/deadman.sh /data/local/tmp/deadman.sh
-  printf '%s\n' \
-    "rm -f /data/local/tmp/home_ok" \
-    "nohup sh /data/local/tmp/deadman.sh $STOCK 300 > /dev/null 2>&1 &" \
-    | "$PY" -I optimize/tv.py --batch
-  echo "Safety switch armed: the stock home comes back by itself in 5 minutes unless the new home works."
+  # Steps 2-4 as one function, so an ADB drop in the middle (TCL G08: Wi-Fi fell during the batch) can be retried.
+  # "verify" as $1: only step 4 (the switch is armed already and the batch may have run).
+  # Returns 0: the new home is on screen and the switch is disarmed; 1: tv.py failed (connection lost);
+  # 2: Home did not open the new launcher; 3: the safety switch fired first.
+  switch_home() {
+    local top res ours=no _
+    if [ "${1:-}" != verify ]; then
+      # 2. Arm the safety switch on the TV: it restores the stock home in 300 s unless we confirm (slow ADB needs time).
+      "$PY" -I optimize/tv.py --push-b64 optimize/deadman.sh /data/local/tmp/deadman.sh || return 1
+      printf '%s\n' \
+        "rm -f /data/local/tmp/home_ok" \
+        "nohup sh /data/local/tmp/deadman.sh $STOCK 300 > /dev/null 2>&1 &" \
+        | "$PY" -I optimize/tv.py --batch || return 1
+      echo "Safety switch armed: the stock home comes back by itself in 5 minutes unless the new home works."
 
-  # 3. Switch: the HOME role (Android 10+; the classic set-home-activity for older sets and as a backup), then
-  #    the setup app off, then the stock home (this order avoided the black screen).
-  printf '%s\n' \
-    "cmd role add-role-holder --user 0 android.app.role.HOME sa.urtv.home" \
-    "cmd package set-home-activity --user 0 sa.urtv.home/.MainActivity" \
-    "pm disable-user --user 0 com.google.android.tungsten.setupwraith" \
-    "pm disable-user --user 0 ${STOCK%%/*}" \
-    "cmd package set-home-activity --user 0 sa.urtv.home/.MainActivity" \
-    "am force-stop com.android.tv.settings" \
-    "input keyevent KEYCODE_HOME" \
-    | "$PY" -I optimize/tv.py --batch
-  # 4. Verify Home really opens the new launcher (a few tries: a slow TV), then disarm the switch.
-  ours=no
-  for _ in 1 2 3; do
-    sleep 6
-    if "$PY" -I optimize/tv.py "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'" \
-         | grep -q sa.urtv.home; then ours=yes; break; fi
-    "$PY" -I optimize/tv.py "input keyevent KEYCODE_HOME" > /dev/null
-  done
-  if [ "$ours" = yes ]; then
-    "$PY" -I optimize/tv.py "touch /data/local/tmp/home_ok"
-    # the switch may have fired already if ADB was very slow: then the stock home is back, say so and stop
-    if ! "$PY" -I optimize/tv.py "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN" \
-         | grep -q sa.urtv.home; then
-      echo "!! The safety switch put the stock home back (ADB was too slow). Nothing is broken: run the same command again."
+      # 3. Switch: the HOME role (Android 10+; the classic set-home-activity for older sets and as a backup), then
+      #    the setup app off, then the stock home (this order avoided the black screen).
+      printf '%s\n' \
+        "cmd role add-role-holder --user 0 android.app.role.HOME sa.urtv.home" \
+        "cmd package set-home-activity --user 0 sa.urtv.home/.MainActivity" \
+        "pm disable-user --user 0 com.google.android.tungsten.setupwraith" \
+        "pm disable-user --user 0 ${STOCK%%/*}" \
+        "cmd package set-home-activity --user 0 sa.urtv.home/.MainActivity" \
+        "am force-stop com.android.tv.settings" \
+        "input keyevent KEYCODE_HOME" \
+        | "$PY" -I optimize/tv.py --batch || return 1
+    fi
+    # 4. Verify Home really opens the new launcher (a few tries: a slow TV), then disarm the switch.
+    for _ in 1 2 3; do
+      sleep 6
+      top=$("$PY" -I optimize/tv.py "dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'") || return 1
+      if grep -q sa.urtv.home <<< "$top"; then ours=yes; break; fi
+      "$PY" -I optimize/tv.py "input keyevent KEYCODE_HOME" > /dev/null || return 1
+    done
+    [ "$ours" = yes ] || return 2
+    "$PY" -I optimize/tv.py "touch /data/local/tmp/home_ok" || return 1
+    # the switch may have fired already if ADB was very slow: then the stock home is back
+    res=$("$PY" -I optimize/tv.py "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN") || return 1
+    grep -q sa.urtv.home <<< "$res" || return 3
+  }
+
+  rc=0; switch_home || rc=$?
+  if [ "$rc" = 1 ]; then   # ADB dropped: wait for the TV, see what Home is now, and go on or start the switch again
+    back=no
+    for _ in $(seq 36); do   # every 10 s, about 6 minutes
+      if "$PY" -I optimize/tv.py "getprop ro.serialno" > /dev/null 2>&1; then back=yes; break; fi
+      sleep 10
+    done
+    if [ "$back" = no ]; then
+      echo "!! The TV did not come back within 6 minutes. Check it is on and on Wi-Fi: the safety switch restores the stock home."
+      echo "   Then run the same command again."
       exit 1
     fi
-    # 5. Only now: the stock home's helpers are dead weight (restore.sh brings them back).
-    grep -vE '^\s*(#|$)' optimize/lists/home-replaced.txt | awk '{print "pm disable-user --user 0 " $1}' \
-      | "$PY" -I optimize/tv.py --batch > /dev/null || true
-    echo "Launcher is home. Press Home from inside an app to double-check."
-    echo "Undo everything: optimize/reset.sh"
-  else
-    echo "!! Home did not open the new launcher. Leave the TV alone: the stock home returns within 5 minutes."
-    echo "   Some TCL firmware pins Home to the stock launcher; on those sets keep the stock home."
-    exit 1
+    res=$("$PY" -I optimize/tv.py "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN" 2> /dev/null) || res=""
+    rc=0
+    if grep -q sa.urtv.home <<< "$res"; then
+      echo "ADB dropped during the switch; the TV is back and the new home is already set: checking it"
+      switch_home verify || rc=$?
+    else
+      echo "ADB dropped during the switch; the TV is back, trying the switch again"
+      switch_home || rc=$?   # arms the switch again first
+    fi
   fi
+  case "$rc" in
+    0) ;;
+    2) echo "!! Home did not open the new launcher. Leave the TV alone: the stock home returns within 5 minutes."
+       echo "   Some TCL firmware pins Home to the stock launcher; on those sets keep the stock home."
+       exit 1 ;;
+    *) echo "!! The safety switch put the stock home back (ADB was too slow). Nothing is broken: run the same command again."
+       exit 1 ;;
+  esac
+  # 5. Only now: the stock home's helpers are dead weight (restore.sh brings them back).
+  grep -vE '^\s*(#|$)' optimize/lists/home-replaced.txt | awk '{print "pm disable-user --user 0 " $1}' \
+    | "$PY" -I optimize/tv.py --batch > /dev/null || true
+  echo "Launcher is home. Press Home from inside an app to double-check."
+  echo "Undo everything: optimize/reset.sh"
 fi
