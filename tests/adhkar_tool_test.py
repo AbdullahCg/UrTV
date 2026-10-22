@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""The adhkar check (.github/tools/verify_adhkar.py, apply_adhkar_report.py) on small made-up books: no network."""
+import json
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / ".github/tools"))
+import verify_adhkar as va   # noqa: E402
+import apply_adhkar_report as ap   # noqa: E402
+
+fails = []
+
+
+def check(name, ok, detail=""):
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  [{detail}]"))
+    if not ok:
+        fails.append(name)
+
+
+def book(*rows):
+    return {"hadiths": [{"hadithnumber": n, "arabicnumber": n, "text": t} for n, t in rows]}
+
+
+def grades(*rows):
+    return {"hadiths": [{"hadithnumber": n, "grades": [{"name": "Al-Albani", "grade": g}]} for n, g in rows]}
+
+
+SUBHAN = "قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ قَالَ سُبْحَانَ اللَّهِ وَبِحَمْدِهِ مِائَةَ مَرَّةٍ ‏\"‏ ‏.‏"
+FAKE = {
+    "ara-bukhari": book((1, "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ")),
+    "ara-muslim": book((2692, SUBHAN)),
+    "ara-abudawud": book((5088, "قَالَ ‏\"‏ بِسْمِ اللَّهِ الَّذِي لاَ يَضُرُّ مَعَ اسْمِهِ شَىْءٌ فِي الأَرْضِ ‏\"‏"),
+                         (5090, "اللَّهُمَّ عَافِنِي فِي بَدَنِي ثَلاَثًا"), (5091, "كَلِمَةٌ لَيْسَ لَهَا غَيْرُ هَذَا الْحَدِيثِ لِلتَّجْرِبَةِ")),
+    "ara-tirmidhi": book(), "ara-nasai": book(), "ara-ibnmajah": book(),
+    "eng-abudawud": grades((5088, "Sahih"), (5090, "Daif"), (5091, "Sahih")),
+    "eng-tirmidhi": grades(), "eng-nasai": grades(), "eng-ibnmajah": grades(),
+}
+SURAH = {"data": {"name": "سُورَةُ الإِخۡلَاصِ", "ayahs": [
+    {"numberInSurah": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ قُلْ هُوَ اللَّهُ أَحَدٌ"},
+    {"numberInSurah": 2, "text": "اللَّهُ الصَّمَدُ"}, {"numberInSurah": 3, "text": "لَمْ يَلِدْ وَلَمْ يُولَدْ"},
+    {"numberInSurah": 4, "text": "وَلَمْ يَكُن لَّهُۥ كُفُوًا أَحَدٌ"}]}}
+
+
+def fake_get(url):
+    if "alquran" in url:
+        return SURAH
+    return FAKE[url.rsplit("/", 1)[1].replace(".min.json", "")]
+
+
+va.vh.get = fake_get
+entries = [
+    {"when": "both", "text": "سبحان الله وبحمده", "count": 100, "source": "صحيح مسلم · 2692"},
+    {"when": "both", "text": "بسم الله الذي لا يضر مع اسمه شيء", "count": 3, "source": "سنن أبي داود · 1"},
+    {"when": "both", "text": "اللهم عافني في بدني", "count": 3, "source": "سنن أبي داود · 5090"},   # Al-Albani: Daif
+    {"when": "both", "text": "ليس في الكتب", "count": 1, "source": "صحيح مسلم · 1"},
+    {"when": "morning", "text": "ليس هنا", "alt": ["كلمة ليس لها غير هذا الحديث للتجربة"], "count": 1, "source": "صحيح مسلم · 1"},
+    {"when": "both", "text": "قل هو الله أحد الله الصمد لم يلد ولم يولد ولم يكن له كفوا أحد", "count": 3,
+     "source": "سورة الإخلاص · 1–4", "quran": "112:1-4"},
+    {"when": "both", "text": "قل هو الله أحد الله الصمد ولم يكن له كفوا أحد", "count": 3, "source": "x", "quran": "112:1-4"},   # not the ayahs
+]
+with tempfile.TemporaryDirectory() as tmp:
+    os.chdir(tmp)
+    Path("assets/shared").mkdir(parents=True)
+    Path("assets/shared/adhkar.json").write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+    va.main()
+    rep = json.loads(Path("hadith/adhkar-report.json").read_text(encoding="utf-8"))
+    pick = [r["pick"] for r in rep]
+    check("a phrase in Muslim and Bukhari: the book the entry names", pick[0] and pick[0]["source"] == "صحيح مسلم · 2692", pick[0])
+    check("the cut text is the book's, harakat and all, without the narrator's quotes",
+          pick[0]["text"] == "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", pick[0]["text"])
+    check("a Sunan narration Al-Albani grades Sahih is kept, under the number found", pick[1] and pick[1]["source"] == "سنن أبي داود · 5088", pick[1])
+    check("a Sunan narration Al-Albani grades Daif is not", pick[2] is None and rep[2]["found"] and not rep[2]["found"][0]["accepted"], rep[2])
+    check("a text in no book is not", pick[3] is None and not rep[3]["found"])
+    check("the other wording is tried when the first is not found", pick[4] and "للتجربه" in va.vh.norm(pick[4]["text"]), pick[4])
+    check("a Quranic dhikr: the ayahs' text without the basmala, the surah and range as the source",
+          pick[5] and pick[5]["source"] == "سورة الإخلاص · 1–4" and not pick[5]["text"].startswith("بِسْمِ")
+          and pick[5]["text"].startswith("قُلْ هُوَ اللَّهُ أَحَدٌ"), pick[5])
+    check("words that are not the ayahs in a row are not", pick[6] is None, pick[6])
+    ap.DATA = Path("assets/shared/adhkar.json")
+    sys.argv = ["apply", "hadith/adhkar-report.json"]
+    ap.main()
+    kept = json.loads(ap.DATA.read_text(encoding="utf-8"))
+    check("apply keeps the four found, marks them checked and drops the rest",
+          len(kept) == 4 and all(k["checked"] for k in kept) and kept[0]["text"] == "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ"
+          and kept[3]["quran"] == "112:1-4", [k["source"] for k in kept])
+sys.exit(1 if fails else 0)

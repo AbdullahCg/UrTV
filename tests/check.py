@@ -76,6 +76,16 @@ wisdom = json.loads(re.search(r"const WISDOM = (\[.*?\]);", page, re.S).group(1)
 check("wisdom: at least 50 sayings, none twice, each short, each with a source",
       len(wisdom) >= 50 and len({w["text"] for w in wisdom}) == len(wisdom)
       and all(0 < len(w["text"]) <= 90 and w["source"] for w in wisdom), len(wisdom))
+adhkar = json.loads(re.search(r"const ADHKAR = (\[.*?\]);", page, re.S).group(1))
+adhkar_raw = json.loads((ROOT / "assets/shared/adhkar.json").read_text(encoding="utf-8"))
+BOOKS_OK = ("صحيح البخاري", "صحيح مسلم", "سنن أبي داود", "جامع الترمذي", "سنن النسائي", "سنن ابن ماجه", "سورة")
+check("adhkar data: when, text, count and a source in the six books or the Quran; no text twice",
+      all(d["when"] in ("morning", "evening", "both") and d["text"] and isinstance(d["count"], int) and d["count"] > 0
+          and d["source"].startswith(BOOKS_OK) and (not d.get("quran") or d["source"].startswith("سورة")) for d in adhkar_raw)
+      and len({(d["when"], d["text"]) for d in adhkar_raw}) == len(adhkar_raw), [d["text"][:30] for d in adhkar_raw])
+check("adhkar on screen are only those the CI check found (marked checked)",
+      len(adhkar) == len([d for d in adhkar_raw if d.get("checked")]) or any(len(d["text"].split()) > 70 for d in adhkar_raw if d.get("checked")), len(adhkar))
+check("adhkar on screen: counts the card can say in words", all(d["count"] in (1, 2, 3, 4, 7, 10, 33, 100) for d in adhkar), sorted({d["count"] for d in adhkar}))
 check("wisdom: only «مثل عربي» or a named classical book (nothing attributed to a person)",
       all(w["source"] in ("مثل عربي", "مجمع الأمثال للميداني") for w in wisdom), sorted({w["source"] for w in wisdom}))
 check("at least 500 verses and hadith together (a new one every day for over a year)", len(verses) + len(hadith) >= 500, len(verses) + len(hadith))
@@ -123,7 +133,7 @@ check("every hadith on screen has the Prophet's words and fits the card",
 font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
 marks = set(TTFont(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2").getBestCmap())
 text = "".join(v["text"] + v["surah"] for v in verses) + "".join(t for h in hadith for _, t in h["parts"]) \
-    + "".join(h["source"] for h in hadith) + "".join(w["text"] + w["source"] for w in wisdom)
+    + "".join(h["source"] for h in hadith) + "".join(w["text"] + w["source"] for w in wisdom) + "".join(d["text"] + d["source"] for d in adhkar)
 missing = sorted({c for c in text if not c.isspace() and ord(c) not in font and c not in "ﷺ﴿﴾"})   # those: NotoMarks
 check("verse/hadith text: every character in Thmanyah", not missing, missing)
 check("NotoMarks has ﷺ ﴿ ﴾", {0xFDFA, 0xFD3E, 0xFD3F} <= marks)

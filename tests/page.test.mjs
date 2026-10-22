@@ -122,6 +122,104 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 
+// ---- «أذكار الصباح والمساء»: morning from Fajr to Dhuhr, evening from Asr to Maghrib, else the verse card; one timer, only inside
+const ADHKAR_SAMPLE = [
+  { when: 'morning', text: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ', count: 1, source: 'صحيح مسلم · 2723' },
+  { when: 'both', text: 'بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ', count: 3, source: 'سنن أبي داود · 5088' },
+  { when: 'evening', text: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ', count: 7, source: 'صحيح مسلم · 2723' },
+  { when: 'both', text: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', count: 100, source: 'صحيح مسلم · 2692' },
+  { when: 'both', text: 'قُلْ هُوَ اللَّهُ أَحَدٌ', count: 3, source: 'سورة الإخلاص · 1–4', quran: true },
+];
+const LONG_DHIKR = { when: 'both', text: Array(68).fill('سُبْحَانَ اللَّهِ وَبِحَمْدِهِ').join(' ').split(' ').slice(0, 68).join(' '), count: 1, source: 'سنن أبي داود · 5074' };
+const atRiyadh = (p, hhmm) => p.evaluate(([hhmm, sample]) => {
+  const T = Date.parse('2026-10-22T' + hhmm + ':00+03:00'), R = Date;
+  window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+  ADHKAR.length = 0; ADHKAR.push(...sample);
+  buildPrayers({ Fajr: '04:40', Sunrise: '06:00', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:30', Isha: '19:00' });
+  clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_I = 0; ADHKAR_MODE = '';
+  renderPanel(false);
+  const hd = document.getElementById('week-hd');
+  return { hd: hd.textContent.replace(/\s+/g, ' ').trim(), icon: !!hd.querySelector('svg'), timer: ADHKAR_T !== 0,
+    text: document.querySelector('#week-list .quote')?.textContent, foot: document.querySelector('#week-list .adf')?.textContent || '',
+    dots: [...document.querySelectorAll('#week-list .adf .d i')].map(i => i.classList.contains('on') ? 1 : 0).join('') };
+}, [hhmm, ADHKAR_SAMPLE]);
+{
+  const { p, ctx, errors } = await open('tv.html', 'panel=adhkar');
+  const m = await atRiyadh(p, '06:00'), e = await atRiyadh(p, '16:00'), noon = await atRiyadh(p, '13:00'), night = await atRiyadh(p, '22:00');
+  const edge = [await atRiyadh(p, '04:39'), await atRiyadh(p, '04:40'), await atRiyadh(p, '11:39'), await atRiyadh(p, '11:40'),
+                await atRiyadh(p, '14:59'), await atRiyadh(p, '15:00'), await atRiyadh(p, '17:29'), await atRiyadh(p, '17:30')].map(r => /^أذكار/.test(r.hd));
+  check('adhkar morning (6:00): title, sun icon, «حتى الظهر», first dhikr, one timer',
+    m.hd === 'أذكار الصباححتى الظهر' && m.icon && m.timer && m.text.replace(/[\u064B-\u065F]/g, '').startsWith('أصبحنا') && m.dots === '1000', JSON.stringify(m));
+  check('adhkar evening (16:00): title, icon, «حتى المغرب», the evening ones only',
+    e.hd === 'أذكار المساءحتى المغرب' && e.icon && e.timer && e.text.replace(/[\u064B-\u065F]/g, '').startsWith('بسم') && e.dots === '1000', JSON.stringify(e));
+  check('adhkar outside the windows: the verse or hadith of the day, no footer, no timer',
+    [noon, night].every(r => /^(آية|حديث) اليوم$/.test(r.hd) && !r.icon && !r.timer && !r.foot && r.text), JSON.stringify([noon, night]));
+  check('adhkar windows: from Fajr up to Dhuhr, from Asr up to Maghrib', edge.join() === 'false,true,true,false,false,true,true,false', edge.join());
+  const r = await p.evaluate(() => {
+    const out = [], st = window.setTimeout, ms = [];
+    window.setTimeout = (f, t) => { ms.push(t); return st(f, t); };
+    const Dt = window.Date, T = Date.parse('2026-10-22T06:00:00+03:00');
+    window.Date = class extends Dt { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+    clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_I = 0; ADHKAR_MODE = ''; renderPanel(false);
+    for (let k = 0; k < 5; k++) {
+      const li = document.querySelectorAll('#week-list li'), ft = li[1].textContent.replace(/\s+/g, ' ');
+      out.push([li[0].textContent.replace(/[\u064B-\u065F﴿]/g, '').split(' ')[0], ft, [...li[1].querySelectorAll('.d i')].map(i => +i.classList.contains('on')).join(''),
+                document.querySelector('#week-list').classList.contains('flip')]);
+      adhkarNext();
+    }
+    window.setTimeout = st;
+    return { out, ms: ms.filter(t => t >= 20000) };
+  });
+  const feet = r.out.map(x => x[1]);
+  check('adhkar rotation: each dhikr in turn, count in words, dots follow, wraps to the first',
+    r.out.map(x => x[0]).join('|') === 'أصبحنا|بسم|سبحان|قل|أصبحنا'
+    && /مرة واحدة/.test(feet[0]) && /ثلاث مرات/.test(feet[1]) && /مئة مرة/.test(feet[2]) && /ثلاث مرات/.test(feet[3])
+    && r.out.map(x => x[2]).join() === '1000,0100,0010,0001,1000' && feet[0].includes('صحيح مسلم · ٢٧٢٣'), JSON.stringify(r.out));
+  check('adhkar timer: 20 s + 0.1 s per character, at most 60 s', r.ms.length === 6 &&
+    r.ms.every((t, i) => t === Math.min(60, 20 + .1 * [0, 1, 3, 4, 0, 1].map(k => ADHKAR_SAMPLE[k].text.length)[i]) * 1000), JSON.stringify(r.ms));
+  const w = await p.evaluate(() => {   // the window closes while a dhikr is on screen: the next turn shows the verse card and stops the timer
+    const T = Date.parse('2026-10-22T11:41:00+03:00'), Dt = window.Date;
+    window.Date = class extends Dt { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+    adhkarNext();
+    return [document.getElementById('week-hd').textContent, ADHKAR_T];
+  });
+  check('adhkar: when the window closes the card turns to the verse card and the timer stops', /^(آية|حديث) اليوم$/.test(w[0]) && w[1] === 0, JSON.stringify(w));
+  check('adhkar: no script errors', !errors.length, errors.join('; '));
+  await ctx.close();
+}
+{
+  const { p, ctx } = await open('tv.html', 'panel=adhkar&digits=latin');
+  const m = await atRiyadh(p, '06:00');
+  check('adhkar with digits=latin: the source in 0-9', m.foot.includes('2723') && !/[٠-٩]/.test(m.foot), m.foot);
+  await ctx.close();
+}
+// nothing overflows: the longest dhikr the build lets in, every screen size and every card style
+for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 540, ''], [1920, 1080, 'dark1'], [1920, 1080, 'glass1'],
+                                      [1920, 1080, 'dark3'], [1920, 1080, 'glass3'], [1280, 720, 'dark3'], [960, 540, 'glass3']]) {
+  const { p, ctx, errors } = await open('tv.html', 'panel=adhkar' + (style ? '&cardstyle=' + style : ''), { width, height });
+  const r = await p.evaluate(([sample, long]) => {
+    const T = Date.parse('2026-10-22T06:00:00+03:00'), R = Date;
+    window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+    ADHKAR.length = 0; ADHKAR.push(...sample, long);
+    buildPrayers({ Fajr: '04:40', Sunrise: '06:00', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:30', Isha: '19:00' });
+    clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_MODE = '';
+    const card = document.querySelector('.week'), bad = [];
+    const top = document.querySelector('.top').getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
+    const bar = document.querySelector('.bottom').getBoundingClientRect();
+    for (let i = 0; i < ADHKAR.length; i++) {
+      ADHKAR_I = i; clearTimeout(ADHKAR_T); ADHKAR_T = 0; renderPanel(false);
+      const c = card.getBoundingClientRect(), ft = card.querySelector('.adf'), f = ft.getBoundingClientRect();
+      const wide = [...card.querySelectorAll('.hd *, .adf *')].some(e => e.getBoundingClientRect().right > c.right + 1 || e.getBoundingClientRect().left < c.left - 1);
+      if (c.top < top.bottom || c.bottom > bar.top - 4 || c.right > clock.left - 4 || c.height > 0.42 * innerHeight || f.bottom > c.bottom + 1
+          || ft.scrollWidth > ft.clientWidth + 1 || wide) bad.push(i + ':' + Math.round(c.height) + '/' + Math.round(0.42 * innerHeight));
+    }
+    ADHKAR_T && clearTimeout(ADHKAR_T);
+    return { n: ADHKAR.length, bad };
+  }, [ADHKAR_SAMPLE, LONG_DHIKR]);
+  check(`adhkar card fits at ${width}x${height}${style ? ' ' + style : ''} (${r.n} dhikr, longest included)`, !errors.length && !r.bad.length, JSON.stringify(r.bad) + errors.join('; '));
+  await ctx.close();
+}
+
 // ---- every verse and hadith fits the card: each day's text drawn, clear of the clock and the bottom bar
 for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const { p, ctx, errors } = await open('tv.html', 'panel=verse', { width, height });

@@ -148,7 +148,7 @@ urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137
 ```
 
 `teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
-`forecast`, `matches`, `verse`, `wisdom` or `none`. Also `genres`, `langs`, `shows`, `minrating` for the episodes card,
+`forecast`, `matches`, `verse`, `wisdom`, `adhkar` or `none`. Also `genres`, `langs`, `shows`, `minrating` for the episodes card,
 `digits`: `hindi` (١٢٣, the default) or `latin` (123), and `cardstyle`: the card's look, `current` (default), `dark1`,
 `glass1`, `dark3` or `glass3`.
 
@@ -159,6 +159,10 @@ countdowns still work and the last good data stays on screen. A finished game's 
 **Verse and hadith texts are never typed by hand:** verses come from the Quran API via CI
 (`.github/tools/fetch_verses.py`); each hadith is checked by CI (`.github/tools/verify_hadith.py`) against the
 Arabic text of the six Sunni books, and only those found are shown, with the books as the source line.
+The morning and evening adhkar (`assets/shared/adhkar.json`) go the same way (`.github/tools/verify_adhkar.py`; a
+Sunan narration needs Al-Albani's Sahih/Hasan, a Quranic dhikr is checked against the Quran text); the card shows
+only the entries `.github/tools/apply_adhkar_report.py` marked `checked`, and the verse or hadith of the day outside
+the windows (morning: Fajr to Dhuhr, evening: Asr to Maghrib).
 
 **The Android apps** update the screen page from this repo every 6 hours (so it must stay public), start fast
 (the page shows once the clock, saved panels and photo are ready), and come back after a power cut.

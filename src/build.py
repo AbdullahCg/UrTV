@@ -214,6 +214,27 @@ def js_json(value):
     return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
 
 
+ADHKAR_MAX_WORDS = 70   # a longer dhikr does not fit the card beside the clock
+
+
+def adhkar_for_screen():
+    """assets/shared/adhkar.json -> only the adhkar .github/tools/verify_adhkar.py found (and apply_adhkar_report.py marked
+    `checked`) in the six books or the Quran, in file order. A Quranic one is made fit for the font like verses_for_screen."""
+    path = ROOT / "assets/shared/adhkar.json"
+    out = []
+    for d in json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []:
+        if not d.get("checked") or d["when"] not in ("morning", "evening", "both"):
+            continue
+        text = " ".join(re.sub("[\u06D6-\u06DE\u06E9]", "", d["text"]).replace("\u0671", "\u0627").split())
+        if len(text.split()) > ADHKAR_MAX_WORDS:
+            continue
+        e = {"when": d["when"], "text": text, "count": d["count"], "source": d["source"]}
+        if d.get("quran"):
+            e["quran"] = True
+        out.append(e)
+    return out
+
+
 def main():
     html = (ROOT / "src/template.html").read_text(encoding="utf-8")
     # 2 KB, so inlined in both pages
@@ -226,6 +247,7 @@ def main():
     html = html.replace("__TEAMS_BY_ID__", js_json(by_id))
     html = html.replace("__VERSES__", js_json(verses_for_screen()))
     html = html.replace("__HADITH__", js_json(hadith_for_screen()))   # checked by CI
+    html = html.replace("__ADHKAR__", js_json(adhkar_for_screen()))   # checked by CI
     html = html.replace("__WISDOM__", js_json(json.loads((ROOT / "assets/shared/wisdom.json").read_text(encoding="utf-8"))))
 
     bg_dir = ROOT / "assets/backgrounds"
