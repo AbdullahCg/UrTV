@@ -60,6 +60,9 @@ final class Prefs {
     // minutes between background photos (sent to the page as #photos=; 30 is what it always did)
     static final String[] PHOTO_MINUTES = {"5", "10", "15", "30", "60"};
 
+    // digits on the screen (sent to the page as #digits=; hindi is what it always showed)
+    static final String[][] DIGITS = {{"hindi", "هندية ١٢٣"}, {"latin", "عربية 123"}};
+
     // minutes of idle before Android starts the screensaver (the TV's own screen_off_timeout; not stored here)
     static final String[] IDLE_MINUTES = {"1", "2", "5", "10", "15", "30"};
 
@@ -139,6 +142,14 @@ final class Prefs {
     String minRating() { return sp.getString("minRating", "7"); }
     void setMinRating(String v) { sp.edit().putString("minRating", v).apply(); }
 
+    String digits() { return sp.getString("digits", "hindi"); }
+    void setDigits(String v) { sp.edit().putString("digits", v).apply(); }
+
+    static String digitsLabel(String v) {
+        for (String[] d : DIGITS) if (d[0].equals(v)) return d[1];
+        return DIGITS[0][1];
+    }
+
     String photoMinutes() { return sp.getString("photoMinutes", "30"); }
     void setPhotoMinutes(String v) { sp.edit().putString("photoMinutes", v).apply(); }
 
@@ -174,7 +185,8 @@ final class Prefs {
             + "&langs=" + Uri.encode(join(list("langs"), ","))
             + "&shows=" + join(ids, ",")
             + "&minrating=" + minRating()
-            + "&photos=" + photoMinutes();
+            + "&photos=" + photoMinutes()
+            + "&digits=" + digits();
     }
 
     /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */

@@ -362,13 +362,17 @@ const CONFIG = {
   weekWindowDays: 7,
   // minutes between background photos: #photos=5|10|15|30|60 (anything else = 30)
   photoMinutes: (m => [5,10,15,30,60].includes(m) ? m : 30)(_num('photos', 30)),
+  // digits everywhere: #digits=hindi (١٢٣, the default) or latin (123); anything else = hindi
+  digits: _Q.get('digits') === 'latin' ? 'latin' : 'hindi',
   // #widget=1: only the card, on a transparent page (the launcher's home screen shows it)
   widget: _Q.get('widget') === '1',
 };
 
-const GREG = 'ar-SA-u-ca-gregory-nu-arab';
+// every number on the screen goes through ar() or a formatter built on NU, so CONFIG.digits decides them all
+const LATIN = CONFIG.digits === 'latin', NU = LATIN ? 'latn' : 'arab';
+const GREG = 'ar-SA-u-ca-gregory-nu-' + NU;
 const AR = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
-const ar = s => String(s).replace(/[0-9]/g, d => AR[+d]);
+const ar = s => LATIN ? String(s) : String(s).replace(/[0-9]/g, d => AR[+d]);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = n => String(n).padStart(2,'0');
 
@@ -401,7 +405,7 @@ function tickClock(){
 function tickDates(){
   const now = new Date();
   try{
-    let h = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura',{
+    let h = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-' + NU,{
       timeZone: CONFIG.timezone, weekday:'long', day:'numeric', month:'long', year:'numeric'
     }).format(now);
     h = h.replace(/\s*هـ\s*$/,'').replace(/،\s*$/,'');
@@ -977,7 +981,7 @@ function renderWeekPage(animate){
     const dt = o.date ? new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'short'}).format(new Date(o.date+'T12:00:00Z')) : '';
     return `<li><span>${esc(o.name)}</span>`
          + (o.ep?`<span class="ep">${ar(o.ep)}</span>`:'')
-         + (o.rating ? `<span class="rt">${ar(o.rating.toFixed(1)).replace('.','٫')}</span>` : '')
+         + (o.rating ? `<span class="rt">${ar(o.rating.toFixed(1)).replace('.', LATIN ? '.' : '٫')}</span>` : '')
          + (dt?`<span class="dt">${dt}</span>`:'') + '</li>';
   }).join('');
   ul.classList.remove('flip');

@@ -46,6 +46,7 @@ Navigate with the remote, or `adb shell input keyevent DPAD_DOWN|DPAD_UP|DPAD_CE
 | A17b | تحديث الشاشة الآن → read the row text | Starts «الإصدار 3.N»; after A17, if a newer release exists, also «يوجد إصدار جديد» with the new number and «حدّث تلفزيوني» |
 | A18 | بدء شاشة التوقف بعد (TV without «Modify system settings» for the app, the usual case) | The row shows the TV's current delay (e.g. «١٠ دقائق»); pressing it shows the toast «غيّرها من إعدادات التلفاز، أو بأمر من مساعدك» and opens the TV's screensaver settings; the delay is unchanged |
 | A18b | بدء شاشة التوقف بعد, after `adb shell appops set sa.urtv.screensaver WRITE_SETTINGS allow` | Pressing it lists دقيقة واحدة, دقيقتان, ٥ دقائق, ١٠ دقائق, ١٥ دقيقة, ٣٠ دقيقة with the current one selected; pick ٥ دقائق → the row says «٥ دقائق» and `adb shell settings get system screen_off_timeout` prints `300000`; set it back afterwards |
+| A18c | الأرقام → عربية 123, then preview; then back to هندية ١٢٣ | With 123 the clock, both dates, prayer times, countdowns, weather, scores and the home screen card show 0-9; with ١٢٣ they show ٠-٩ as before; the row shows the choice |
 | A18c | تبديل الصورة كل | Row shows «٣٠ دقيقة» on a fresh install; the list has ٥ دقائق, ١٠ دقائق, ١٥ دقيقة, ٣٠ دقيقة, ٦٠ دقيقة; pick ٥ دقائق → the row shows it, and in the preview the photo changes at the next five-minute mark (hh:00, :05, …) |
 | A19 | Force-close and reopen: `adb shell am force-stop sa.urtv.screensaver` then A1 | All choices from A4–A15 kept |
 
@@ -156,6 +157,7 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | T10 | Put a `!!` line in `optimize/run/report.md` and run `optimize/run.sh` | It ends with «Done, with problems:» and that line, exit code 1; no «All steps done» |
 | T11 | `optimize/saver.sh photos 15`, then `optimize/saver.sh show`; then `optimize/saver.sh photos 7` | `saved`, `show` lists `photos: 15`; the second prints `error: photos is one of 5 10 15 30 60` and changes nothing; put it back with `photos 30` |
 | T12 | `optimize/saver.sh idle 10`, then `optimize/saver.sh show` and `optimize/venv/bin/python -I optimize/tv.py settings get system screen_off_timeout`; then `optimize/saver.sh idle 3` | `idle: 10` (set by the app, or «set from the shell» when the app may not), `show` lists `idle: 10`, the setting prints `600000`; `idle 3` prints `error: idle is one of 1 2 5 10 15 30`; put the TV's old value back afterwards |
+| T13 | `optimize/saver.sh digits latin`, then `optimize/saver.sh show`; then `optimize/saver.sh digits arabic` | `saved`, `show` lists `digits: latin`; the second prints `error: digits is one of hindi latin` and changes nothing; put it back with `digits hindi` |
 
 ---
 

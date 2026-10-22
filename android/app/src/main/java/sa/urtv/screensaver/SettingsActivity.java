@@ -97,6 +97,10 @@ public class SettingsActivity extends Activity {
         row("الفرق المتابعة (" + arabicNum(prefs.teams().size()) + "/" + arabicNum(Prefs.MAX_TEAMS) + ")", teamsLabel(),
             R.drawable.ic_trophy, new Runnable() { public void run() { manageTeams(); } });
 
+        header("الأرقام");
+        row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
+            new Runnable() { public void run() { pickDigits(); } });
+
         header("بجانب الساعة");
         row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(false); } });
 
@@ -392,6 +396,18 @@ public class SettingsActivity extends Activity {
         for (int i = 0; i < Prefs.MIN_RATINGS.length; i++) if (Prefs.MIN_RATINGS[i].equals(prefs.minRating())) sel = i;
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle("أقل تقييم")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setMinRating(Prefs.MIN_RATINGS[i]); d.dismiss(); render(); })
+            .show();
+    }
+
+    private void pickDigits() {
+        String[] labels = new String[Prefs.DIGITS.length];
+        int sel = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = Prefs.DIGITS[i][1];
+            if (Prefs.DIGITS[i][0].equals(prefs.digits())) sel = i;
+        }
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الأرقام")
+            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setDigits(Prefs.DIGITS[i][0]); d.dismiss(); render(); })
             .show();
     }
 

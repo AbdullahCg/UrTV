@@ -139,6 +139,24 @@ for (const [hash, want] of [['', 30], ['photos=5', 5], ['photos=60', 60], ['phot
   await ctx.close();
 }
 
+// ---- digits: #digits=latin shows 0-9 everywhere, anything else the Eastern ٠-٩ as before
+for (const [hash, latin] of [['', false], ['digits=hindi', false], ['digits=latin', true], ['digits=bogus', false]]) {
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=prayers&' + hash);
+  const r = await p.evaluate(() => {
+    MATCHES['136013'] = {idEvent:'x1', strHomeTeam:'Al-Hilal', strAwayTeam:'Al-Nassr', strTimestamp:new Date(Date.now() + 3 * 86400000 + 36e5).toISOString(), strStatus:'NS'};
+    renderMatches(); tickDates(); tickRamadan();
+    const text = document.querySelector('.stage').innerText.replace('500', '');   // S&P 500 is a name
+    return { lat: (text.match(/[0-9]/g) || []).length, east: (text.match(/[٠-٩]/g) || []).length,
+             clock: document.getElementById('ck-h').textContent + ':' + document.getElementById('ck-m').textContent,
+             hijri: document.getElementById('hijri').textContent, greg: document.getElementById('greg').textContent,
+             days: document.getElementById('ramadan-days').textContent };
+  });
+  const ok = latin ? r.lat > 10 && r.east === 0 && /^\d+:\d+$/.test(r.clock) && /\d/.test(r.hijri) && /\d/.test(r.greg)
+                   : r.east > 10 && r.lat === 0;
+  check(`link #${hash || '(empty)'} → ${latin ? '0-9' : '٠-٩'} in clock, dates, countdown and matches`, !errors.length && ok, JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+
 // ---- old settings links and «لا شيء»
 for (const [hash, panel, shown] of [['', 'verse', true], ['week=0', 'none', false], ['week=1', 'verse', true],
                                      ['panel=none', 'none', false], ['panel=bogus', 'verse', true]]) {

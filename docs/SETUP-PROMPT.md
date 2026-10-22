@@ -260,6 +260,7 @@ optimize/dock.sh apps                             # match my 6 apps to packages,
 optimize/dock.sh hidden                           # apps the home screen leaves out, and why
 optimize/saver.sh photos <5, 10, 15, 30 or 60>   # ONLY if I asked how often the photo changes (default 30 minutes: leave it)
 optimize/saver.sh idle <1, 2, 5, 10, 15 or 30>   # ONLY if I asked when the screensaver starts after the TV idles (the TV's own timer: leave it)
+optimize/saver.sh digits <hindi or latin>        # ONLY if I asked for 123 instead of ١٢٣ (default hindi: leave it)
 optimize/saver.sh update
 optimize/saver.sh show                            # read both back to me
 optimize/dock.sh show
