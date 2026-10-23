@@ -14,6 +14,7 @@ python3 tests/find_tv_test.py
 python3 tests/find_team_test.py
 python3 tests/team_search_test.py
 python3 tests/team_ids_test.py
+python3 tests/city_match_test.py
 python3 tests/adhkar_tool_test.py
 python3 tests/saver_tasks_test.py
 python3 tests/task_voice_test.py

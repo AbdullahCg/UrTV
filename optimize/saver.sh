@@ -2,7 +2,7 @@
 # شاشة تلفزيونك's settings, for agents: no remote, no menus.
 #   optimize/saver.sh show                         current settings
 #   optimize/saver.sh cities                       built-in Saudi cities by region
-#   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed)
+#   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed, or a short form of it: مكة; says if it fits several)
 #   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed)

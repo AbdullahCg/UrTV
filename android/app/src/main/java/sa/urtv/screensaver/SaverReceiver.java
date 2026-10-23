@@ -93,6 +93,15 @@ public class SaverReceiver extends BroadcastReceiver {
                 city = new String[] {name, lat, lon};
             } else {
                 for (Cities.Region r : Cities.REGIONS) for (String[] x : r.cities) if (x[0].equals(name)) city = x;
+                if (city == null) {   // a short form of a built-in name: «مكة» for «مكة المكرمة»
+                    List<String[]> hits = CityMatch.find(name);
+                    if (hits.size() == 1) city = hits.get(0);
+                    else if (hits.size() > 1) {
+                        List<String> names = new ArrayList<>();
+                        for (String[] h : hits) names.add(h[0]);
+                        return "error: «" + name + "» fits several cities: " + Prefs.join(names, "، ") + " — give one of them in full";
+                    }
+                }
                 if (city == null) return "error: city not in the built-in list; give --es lat and --es lon too (CITIES lists them)";
             }
         }
