@@ -11,6 +11,7 @@ python3 tests/install_retry_test.py
 python3 tests/run_lock_test.py
 python3 tests/reboot_test.py
 python3 tests/dock_names_test.py
+python3 tests/dock_sleep_test.py
 python3 tests/find_tv_test.py
 python3 tests/find_team_test.py
 python3 tests/team_search_test.py

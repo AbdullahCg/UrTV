@@ -10,7 +10,11 @@
 #   optimize/dock.sh names                 every app's name: package | shown | its own | from (agent, own, table)
 #   optimize/dock.sh name PKG 'الاسم' ...   give apps an Arabic name on this TV (pairs; '' = its usual name again)
 #   optimize/dock.sh names-clear           every app back to its usual name
-# The home screen redraws at once. Only ADB can do this (sa.urtv.home/.DockReceiver needs the shell's DUMP).
+#   optimize/dock.sh sleep 30              «مؤقت النوم» for the whole TV: 15 30 60 90, or any 1 to 600 minutes; then the TV goes to sleep
+#   optimize/dock.sh sleep                 how the timer stands: minutes left, and what its end will do
+#   optimize/dock.sh sleep cancel          stop it
+#   optimize/dock.sh sleep-setup           turn on the sleep service (an accessibility service, once) so the end turns the screen off
+# The home screen redraws at once; the sleep timer's pill too. Only ADB can do this (sa.urtv.home/.DockReceiver needs the shell's DUMP).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
@@ -34,6 +38,24 @@ case "${1:-}:$#" in
     [ $# -gt 0 ] || { echo "usage: optimize/dock.sh set PKG1 PKG2 ..."; exit 1; }
     for p in "$@"; do [[ "$p" =~ ^[A-Za-z0-9_.]+$ ]] || { echo "not a package name: $p"; exit 1; }; done
     send SET_DOCK "--es apps $(IFS=,; echo "$*")" ;;
+  sleep:1) send SLEEP_TV ;;
+  sleep:2)
+    case "$2" in
+      cancel) minutes=0 ;;
+      ""|*[!0-9]*) echo "usage: optimize/dock.sh sleep [MINUTES | cancel]"; exit 1 ;;
+      *) minutes=$2; [ "$minutes" -le 600 ] || { echo "minutes: 1 to 600"; exit 1; } ;;
+    esac
+    send SLEEP_TV "--ei minutes $minutes" ;;
+  sleep-setup:1)
+    svc="sa.urtv.home/sa.urtv.home.SleepService"
+    now=$("$PY" -I optimize/tv.py "settings get secure enabled_accessibility_services" | tail -n 1 | tr -d '\r')
+    case "$now" in
+      *"$svc"*) echo "the sleep service was already on" ;;
+      null|"") "$PY" -I optimize/tv.py "settings put secure enabled_accessibility_services $svc" >/dev/null ;;
+      *) "$PY" -I optimize/tv.py "settings put secure enabled_accessibility_services $now:$svc" >/dev/null ;;
+    esac
+    "$PY" -I optimize/tv.py "settings put secure accessibility_enabled 1" >/dev/null
+    echo "the sleep service is on: the end of «مؤقت النوم» turns the screen off" ;;
   names:1) send NAMES ;;
   names-clear:1) send CLEAR_NAMES ;;
   name:*)
@@ -47,5 +69,5 @@ case "${1:-}:$#" in
       shift 2
     done
     send SET_NAMES "--es names '$pairs'" ;;
-  *) sed -n '2,13p' "$0"; exit 1 ;;
+  *) sed -n '2,17p' "$0"; exit 1 ;;
 esac

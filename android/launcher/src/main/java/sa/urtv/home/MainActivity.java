@@ -114,6 +114,7 @@ public class MainActivity extends Activity {
     private int packageSeq;
     private PopupWindow inputsPopup;
     private HomeCard homeCard;
+    private TextView sleepPill;   // «مؤقت النوم», with the minutes left while it runs
     private TextView adhanBar;   // «الأذان بعد ٨ دقائق», over the top edge
     private View clockBlock, bottomBlock;   // the greeting, clock and date; the app title and the dock under it
 
@@ -122,6 +123,10 @@ public class MainActivity extends Activity {
             updateClock();
             updateWifi();
         }
+    };
+    // the sleep timer started, ended or was cancelled (here, or from the computer): the pill follows at once
+    private final BroadcastReceiver sleepChanged = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) { updateSleepPill(); }
     };
     private final BroadcastReceiver packages = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { buildApps(); }
@@ -153,6 +158,7 @@ public class MainActivity extends Activity {
         pf.addDataScheme("package");
         registerReceiver(packages, pf);
         registerReceiver(dockChanged, new IntentFilter(Dock.CHANGED));
+        registerReceiver(sleepChanged, new IntentFilter(SleepTimer.CHANGED));
     }
 
     @Override
@@ -193,6 +199,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         unregisterReceiver(packages);
         unregisterReceiver(dockChanged);
+        unregisterReceiver(sleepChanged);
         homeCard.destroy();
         super.onDestroy();
     }
@@ -383,7 +390,9 @@ public class MainActivity extends Activity {
         // the «تلاوة» pill: the Quran and the radio are part of this app, so it opens them right here
         TextView tilawah = pill("تلاوة", R.drawable.ic_listen);
         tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
-        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings));
+        sleepPill = pill("مؤقت النوم", R.drawable.ic_sleep);
+        sleepPill.setOnClickListener(v -> showSleep(v));
+        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings, sleepPill));
         if (isInstalled(SAVER_PKG)) { row.add(tasks); row.add(saver); }
         if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
         for (TextView p : row) {
@@ -771,6 +780,48 @@ public class MainActivity extends Activity {
         rows.get(0).requestFocus();
     }
 
+    /** «مؤقت النوم»: 15, 30, 60, 90 minutes, or cancel; at the end the TV goes to sleep (SleepTimer says how). */
+    private void showSleep(View anchor) {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(8), dp(8), dp(8), dp(8));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(16));
+        bg.setColor(0xF02A2A2E);
+        bg.setStroke(dp(1), 0x26FFFFFF);
+        list.setBackground(bg);
+        PopupWindow pw = new PopupWindow(list, dp(220), -2, true);
+        List<TextView> rows = new ArrayList<>();
+        for (int m : SleepTimer.MINUTES) rows.add(inputRow(arabicDigits(String.valueOf(m)) + " دقيقة", () -> SleepTimer.start(this, m)));
+        if (SleepTimer.minutesLeft(this) > 0) rows.add(inputRow("إلغاء", () -> SleepTimer.start(this, 0)));
+        if (!SleepService.enabled()) {   // without it the end only stops the sound and brings the screensaver: say so, and where to turn it on
+            rows.add(inputRow("لإطفاء الشاشة: فعّل «تلفزيونك: إطفاء الشاشة»", () -> launch(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))));
+        }
+        for (TextView r : rows) {
+            r.setOnClickListener(v -> { pw.dismiss(); ((Runnable) v.getTag()).run(); });
+            list.addView(r, new LinearLayout.LayoutParams(-1, dp(36)));
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            TextView r = rows.get(i);
+            r.setNextFocusUpId(rows.get(Math.max(0, i - 1)).getId());
+            r.setNextFocusDownId(rows.get(Math.min(rows.size() - 1, i + 1)).getId());
+            r.setNextFocusLeftId(r.getId());
+            r.setNextFocusRightId(r.getId());
+        }
+        pw.setOutsideTouchable(true);
+        pw.setElevation(dp(16));
+        pw.setOnDismissListener(() -> anchor.requestFocus());
+        pw.showAsDropDown(anchor, 0, dp(8), Gravity.START);
+        rows.get(0).requestFocus();
+    }
+
+    /** The pill says how long is left while the timer runs: «مؤقت النوم · ٢٣ د». */
+    private void updateSleepPill() {
+        if (sleepPill == null) return;
+        int left = SleepTimer.minutesLeft(this);
+        sleepPill.setText(left == 0 ? "مؤقت النوم" : "مؤقت النوم · " + arabicDigits(String.valueOf(left)) + " د");
+    }
+
     private String inputLabel(TvInputInfo t) {
         CharSequence c = t.loadCustomLabel(this);
         if (c == null || c.length() == 0) c = t.loadLabel(this);
@@ -814,6 +865,7 @@ public class MainActivity extends Activity {
         String greg = new SimpleDateFormat("d MMMM", new Locale("ar")).format(now.getTime());
         date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  ·  " + greg));
         updateAdhanBar();
+        updateSleepPill();
     }
 
     /** Once a minute with the clock: the bar before the adhan shows in the last 10 minutes, and until the iqama. */

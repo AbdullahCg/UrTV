@@ -111,6 +111,20 @@
             </intent-filter>
         </receiver>
 
+        <!-- «مؤقت النوم»: the alarm at the end of the timer (ours only), and the accessibility service that turns the
+             screen off then. It listens to nothing: see SleepService. The person (or optimize/dock.sh sleep-setup) turns it on. -->
+        <receiver android:name=".SleepReceiver" android:exported="false" />
+        <service
+            android:name=".SleepService"
+            android:exported="true"
+            android:label="@string/sleep_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/sleep_service" />
+        </service>
+
         <!-- the «تلاوة» screens: the Quran recitations and the radio, inside the home screen (the «تلاوة» pill).
              Not exported and with no launcher category on purpose: it must not show up among the apps. -->
 
