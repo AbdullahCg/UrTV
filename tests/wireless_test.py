@@ -18,6 +18,7 @@ spec = importlib.util.spec_from_file_location("find_tv", ROOT / "optimize/find-t
 ft = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ft)
 ft.HOST_FILE = os.path.join(tmp, "tv_host")
+real_load_state = w.load_state
 
 failed = 0
 def check(name, ok, detail=""):
@@ -306,6 +307,27 @@ rc, out = scan_with(lambda h, p, t: False, mdns_hits=(["192.168.0.60"], [{"insta
 check("scan: nothing on 5555 but a wireless-debugging TV announces itself -> pair", rc == 1 and "pair" in out and "Wireless debugging" in out, out)
 rc, out = scan_with(lambda h, p, t: h == "192.168.0.40" and p == 5555)
 check("scan: 5555 open is saved as before", rc == 0 and "Saved 192.168.0.40" in out, out)
+
+# ---- find-tv.sh --closed: after the person turned debugging off
+w.load_state = real_load_state
+w.save_state({"host": "192.168.1.20", "port": 41234, "mode": "tls", "paired": True})
+def closed(open_ports, announced=False, host="192.168.1.20"):
+    out = io.StringIO()
+    with redirect_stdout(out):
+        rc = ft.closed_cmd(host, lambda h, p: (h, p) in open_ports, lambda svc, t: [{"instance": TV1, "host": host, "port": 1}] if announced else [])
+    return rc, out.getvalue()
+rc, out = closed({("192.168.1.20", 8009)})
+check("--closed: nothing on 5555 or the remembered port, the TV awake: OK", rc == 0 and out.startswith("OK: ADB is closed"), out)
+rc, out = closed({("192.168.1.20", 8009), ("192.168.1.20", 5555)})
+check("--closed: 5555 still open: says so and what to turn off", rc == 1 and "port 5555" in out and "Network debugging" in out, out)
+rc, out = closed({("192.168.1.20", 41234)})
+check("--closed: the remembered Wireless-debugging port still open: not closed", rc == 1 and "port 41234" in out, out)
+rc, out = closed({("192.168.1.20", 8009)}, announced=True)
+check("--closed: Wireless debugging still announced by mDNS: not closed", rc == 1 and "announced" in out, out)
+rc, out = closed(set())
+check("--closed: the TV answers nothing at all: cannot tell (not «closed»)", rc == 2 and "Can't tell" in out and "OK" not in out, out)
+rc, out = closed({("192.168.1.99", 8009)}, host="192.168.1.99")
+check("--closed: another address than the remembered TV: its own 5555 only", rc == 0, out)
 
 print("\nall wireless checks passed" if not failed else f"\n{failed} failed")
 sys.exit(1 if failed else 0)

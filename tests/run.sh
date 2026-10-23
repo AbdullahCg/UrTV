@@ -21,6 +21,7 @@ python3 tests/dock_sleep_test.py
 python3 tests/find_tv_test.py
 python3 tests/wireless_test.py
 python3 tests/precheck_test.py
+python3 tests/autostart_test.py
 python3 tests/find_team_test.py
 python3 tests/team_search_test.py
 python3 tests/team_ids_test.py

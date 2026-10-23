@@ -5,6 +5,7 @@ optimize/setup.sh, with whatever `python3` or `python` the computer has.
   optimize/find-tv.sh --check   (or: python optimize/find-tv.py --check)   can this terminal reach the home network?
   optimize/find-tv.sh                                                     scan for TVs with ADB (5555) and Cast (8008); saves the first to optimize/.tv_host
   optimize/find-tv.sh pair [IP:port code]                                 Android 11+ «Wireless debugging»: pair with the code shown on the TV, connect, remember it
+  optimize/find-tv.sh --closed                                            after the person turned debugging off on the TV: is the port really closed?
   optimize/find-tv.sh connect IP:port                                     connect to the TV's «IP address & Port» of Wireless debugging (after a restart changed it)
 
 ADB needs a direct TCP connection to the TV. An agent whose commands run in a cloud container, a sandbox or a
@@ -368,7 +369,38 @@ def connects(host, port, timeout=1.0):
         return False
 
 
+def closed_cmd(host=None, knock=None, browse_fn=None):
+    """After the person turned debugging off on the TV (for privacy): nothing may answer on ADB's ports any more. Looks at 5555, at the
+    port of Wireless debugging we remembered, and at the mDNS announcement of a Wireless-debugging TV at that address. When the TV
+    answers nothing at all (asleep, off) it cannot tell. The idea (confirm the port is closed afterwards) is from CleanYourTV's README
+    (github.com/Gathin23/cleanyourtv, MIT)."""
+    knock = knock or (lambda h, p: connects(h, p, 3.0))
+    st = wireless.load_state()
+    if host is None:
+        host = os.environ.get("TV_HOST") or (open(HOST_FILE).read().strip() if os.path.exists(HOST_FILE) else st.get("host", ""))
+    if not host:
+        print("Don't know your TV's IP: run optimize/find-tv.sh first (it is saved there), or set TV_HOST.")
+        return 2
+    ports = [5555] + ([int(st["port"])] if st.get("host") == host and st.get("port") else [])
+    open_ports = [p for p in ports if knock(host, p)]
+    browse_fn = browse_fn or (lambda svc, t: wireless.browse(svc, t, wireless.UdpTransport(local_ip())))
+    announced = [h for h in browse_fn(wireless.SERVICE_CONNECT, 3.0) if h["host"] == host]
+    if open_ports or announced:
+        what = [f"port {p}" for p in open_ports] + (["Wireless debugging (announced on the Wi-Fi)"] if announced else [])
+        print("!! ADB still answers on this TV: " + ", ".join(what) + ". On the TV: Settings → System → Developer options → turn off "
+              "USB debugging, Network debugging and Wireless debugging; then run this again.")
+        return 1
+    if not any(knock(host, p) for p in (8008, 8009, 8443, 9000)):   # Cast ports: is the TV awake and on the network at all?
+        print("?? Can't tell: the TV does not answer on any port (asleep or off?). Wake it, then run this again.")
+        return 2
+    print("OK: ADB is closed on this TV (nothing answers on 5555 or on Wireless debugging). To use the tools again later, the person turns "
+          "USB debugging (and Network debugging) back on in Developer options.")
+    return 0
+
+
 def main(argv):
+    if argv[:1] == ["--closed"]:
+        return closed_cmd()
     if argv[:1] == ["pair"]:
         return pair_cmd(argv[1:])
     if argv[:1] == ["connect"]:

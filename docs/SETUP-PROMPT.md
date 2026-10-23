@@ -237,6 +237,8 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `!! The safety switch put the stock home back` | ADB was slower than the 5-minute switch | nothing is broken: the same command again |
 | `!! This device is not an Android TV` (`run.sh: stopped at precheck`) | no `android.software.leanback`: a phone, a tablet or a box that is not Android TV | nothing was changed; give me the Arabic message in the line, and stop |
 | `!! WebView: system WebView is 66` (or any number below 80) | the screensaver page needs WebView/Chrome 80+ (`?.`, `??`) and would not run | tell me in Arabic to update «Android System WebView» from the Play Store (`optimize/precheck.sh webview-store` opens its page); then `optimize/precheck.sh` again. The setup and the report go on, the line stays until it is fixed |
+| `The setup wizard of this TV owns its saved Wi-Fi network: left on` or `!! The setup wizard of this TV answers Home and owns its saved Wi-Fi network` | disabling `com.google.android.tungsten.setupwraith` can delete the Wi-Fi network saved during the first-run wizard (two TCL sets lost their password; CleanYourTV documents it). `install.sh` turns the wizard off only when it really answers Home and the network is not its own | the first line: nothing to do. The `!!` line: nothing was changed; tell me what it says in Arabic (forget the network in Settings → Network and join it again), then the same command. `optimize/restore.sh` and the safety switch always turn the wizard back on |
+| `!! Auto-start (TCL): not allowed for sa.urtv.home(ignore)` | TCL firmware starts apps at boot only if they hold its auto-start op; ours need it (adhan alarms after a restart, the sleep service) | `optimize/autostart.sh` again; the report shows `Auto-start (TCL): … allow` after the restart. Not a TCL: «Auto-start: not a TCL», nothing to do |
 | `!! Home did not open the new launcher` | slow ADB, or firmware that pins its own home (a Fire TV often refuses another home) | leave the TV 5 minutes; `optimize/run.sh` once more; if again, `SKIP_LAUNCHER=1 optimize/run.sh` |
 | the TV has no home at all (black screen, Home does nothing) | our home app is gone while the stock home is off | `optimize/restore.sh` (no list: only the home screen), then `optimize/install.sh launcher`; more in `docs/OPTIMIZE.md`, «Home screen problems» |
 | `!! The stock home is not on screen` (reset) | the stock home was slow to start | ask me to press Home, then `optimize/reset.sh` again |
@@ -401,6 +403,14 @@ optimize/run.sh status                            # every step ✓, and «report
   on. (`optimize/keep.sh unkeep <package>` if I change my mind.) Never turn an app on by hand with your own `pm` commands.
 - When I'm at the TV, to try voice from the remote and casting (AirPlay or Cast) from a phone once, and to tell
   you if either doesn't work (`optimize/keep.sh` turns them back on).
+- **Network debugging after the setup (once; default: leave it on).** Ask me in Arabic, in one line: «للخصوصية تقدر
+  تقفل تصحيح الأخطاء. البيانات تتحدّث بدونه، لكن تحديث التطبيقات وأي تغيير من الكمبيوتر يحتاجه، فتفتحه وقتها.
+  تبي تقفله؟» The page's data and content update by themselves without ADB; a new version of the apps (design and developer
+  updates) and any change of settings from the computer need it. If I say no or say nothing: leave it on and go on. If I say
+  yes: I turn it off myself on the TV (Settings → System → Developer options → USB debugging, Network debugging and
+  Wireless debugging off; never you: turning ADB off locks the tools out), then `optimize/find-tv.sh --closed` confirms
+  the port is closed (`OK: ADB is closed`; `!! ADB still answers` says what is still on; `?? Can't tell` means the TV is
+  asleep). To change anything later I turn it back on and you start from `optimize/find-tv.sh`.
 - In one line, what I can still ask you to change any time: the favourites, the card on the home screen, the
   screensaver delay, and the optional TCL extras (the TCL tab and channels, game bar, T-Cast…).
 - How to undo, again: the folder's full path and the exact command to paste there

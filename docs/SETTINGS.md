@@ -87,6 +87,8 @@ something about the screensaver, the home screen or the TV, find it in the table
 | something protected went off (AirPlay, casting, voice, updates) | `optimize/keep.sh` |
 | what the setup turned off, by name («تنبيهات TCL»…) | `optimize/keep.sh off` (also in `report.md`, under «Turned off by the setup») |
 | «I want this one back» (an app the cleanup turned off) | `optimize/keep.sh restore <package> …` (the package ids are in `keep.sh off`): turns it on and remembers it in `~/.urtv/kept.txt`, so a later `optimize/run.sh again` leaves it on; `optimize/keep.sh unkeep <package> …` turns it off again. The home screen's own helpers are refused (`optimize/restore.sh` is for those) |
+| TCL: the adhan alarms or the sleep timer stop after a restart | `optimize/autostart.sh` (allows auto-start for our two apps on a TCL and writes it to disk; `autostart.sh check` reads it; the setup does it already) |
+| the person turned debugging off on the TV, is it really closed? | `optimize/find-tv.sh --closed` (`OK: ADB is closed`, `!! ADB still answers …` or `?? Can't tell` when the TV sleeps). The apps' data and content update without ADB; a new version of the apps and any change of settings from the computer need it, so it is turned on again then |
 | a TV system update brought the old home back, or apps back on | `optimize/run.sh again` (settings stay) |
 | undo everything, back as it came | `optimize/reset.sh` (the TV's own screensaver comes back with its settings) |
 | restart the TV | `optimize/venv/bin/python -I optimize/tv.py --reboot` (never a plain `reboot`) |

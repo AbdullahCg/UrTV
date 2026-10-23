@@ -19,7 +19,7 @@ def tree(slow=False, fail=""):
     shutil.copy(ROOT / "optimize" / "run.sh", t / "optimize")
     (t / "optimize" / "lists" / "tcl-safe.txt").write_text("# none\n")
     (t / "bin" / "py").write_text(STUB_PY); (t / "bin" / "py").chmod(0o755)
-    for step in ("precheck", "backup", "keep", "measure", "disable", "tweaks", "install", "dock"):
+    for step in ("precheck", "autostart", "backup", "keep", "measure", "disable", "tweaks", "install", "dock"):
         body = "#!/usr/bin/env bash\n"
         if step == "backup": body += "echo x > optimize/backup-1.txt\n"
         if step == "measure": body += "echo '| ok |' >> optimize/run/summary.md\n"
