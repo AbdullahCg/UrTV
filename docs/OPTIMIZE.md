@@ -43,6 +43,10 @@ puts a TV back as it came, including older versions of these apps. The ADB clien
 reconnects by itself, uploads APKs in verified pieces that resume after a drop, and restarts the TV only through
 `tv.py --reboot` (sent once, so a retry can never restart it twice; the TV counts as back only from a new boot, by the
 kernel's boot id or the uptime, so one that is slow to shut down is not reported back too soon).
+It also remembers which TV the setup started on (serial, make and model, in `optimize/run/tv-id.json`, which stays on this
+computer): a command that changes the TV first checks, once per connection, that the device answering is that one, and
+stops with a `!!` line naming both models if not (two devices on one Wi-Fi, a box and the TV). The same TV on a new
+address passes; `tv.py --new-tv` is the deliberate switch.
 
 ## What must stay on
 

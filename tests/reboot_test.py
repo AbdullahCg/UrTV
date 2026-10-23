@@ -23,6 +23,8 @@ class Dev:
             tvstate["sent"] += 1
             tvstate["sent_at"] = clock["t"]
             return ""
+        if cmd.startswith('echo "serial='):   # who is answering: the same TV before and after the restart
+            return "serial=ABC123\nbootserial=\nmanufacturer=TCL\nmodel=55P735\n"
         new = st in ("booting", "new")
         if cmd == "getprop sys.boot_completed":
             return "1\n" if st in ("old", "new") else "0\n"
@@ -40,6 +42,8 @@ sys.modules["adb_shell.adb_device"].AdbDeviceTcp = Dev
 sys.modules["adb_shell.auth.keygen"].keygen = lambda p: None
 sys.modules["adb_shell.auth.sign_pythonrsa"].PythonRSASigner = lambda a, b: None
 os.environ["TV_HOST"] = "1.2.3.4"
+import tempfile
+os.environ["URTV_RUN_DIR"] = tempfile.mkdtemp()   # where the TV's identity is remembered
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "optimize"))
 import tv
 tv.signer = lambda: None

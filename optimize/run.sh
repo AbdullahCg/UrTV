@@ -8,6 +8,7 @@
 #                              becomes summary-<n>.md so the new run's before/after starts clean)
 #   SKIP_LAUNCHER=1 optimize/run.sh   keep the TV's own home screen (firmware that won't let another app be Home)
 #   SKIP_EXTRAS=1 optimize/run.sh     without TV Bro and SmartTube
+#   (a different TV than the one the setup started on is refused; for a new TV: optimize/venv/bin/python -I optimize/tv.py --new-tv)
 # Before: optimize/setup.sh and optimize/find-tv.sh. Optional packages the household gave up go in
 # optimize/lists/mine.txt (one per line, picked from lists/tcl-optional.txt) before running.
 # Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md, steps.log (times), run.log.
@@ -89,6 +90,10 @@ if [ "${1:-}" = status ]; then
 fi
 
 exec > >(tee -a "$RUN/run.log") 2>&1   # everything it says, for optimize/share.sh: its !! lines and dropped connections
+
+# Is this the TV the setup started on? Two devices can answer on one Wi-Fi (a box and the TV). The first TV seen is
+# remembered in $RUN/tv-id.json; another one stops here, before the backup (which would overwrite the first TV's).
+tv --check
 
 check_list() {   # never disable what UAD-ng rates Unsafe; show everything that is not "Recommended"
   local out

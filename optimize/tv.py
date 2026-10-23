@@ -10,12 +10,19 @@
     tv.py --bg NAME 'cmd'                    a long command, run in the background on the TV and polled (no 60 s silence)
     tv.py --reboot                           restart the TV (sent once, never retried) and wait until it is back from a new boot
     tv.py --wait                             wait until the TV answers again (after a reboot), up to 5 min
+    tv.py --check                            is the device answering the TV the setup started on? (saves it if none yet)
+    tv.py --new-tv                           the device answering now is the TV to work on from here (replaces the saved one)
+
+The TV the setup started on is remembered (serial, make and model) in optimize/run/tv-id.json, local only. Every command
+that changes the TV checks, once per connection, that the device answering is that TV, and stops with a !! line if not.
+Read-only ones (getprop, dumpsys, pm list, settings get, --probe, --pull, --shot) don't need it.
 
 Built for slow or flaky Wi-Fi: connecting and every command are retried, a dropped connection is
 reopened, and an interrupted upload resumes where it stopped.
 """
 import base64
 import hashlib
+import json
 import os
 import re
 import sys
@@ -42,6 +49,100 @@ if not HOST:
 PORT = int(os.environ.get("TV_PORT", "5555"))
 KEY = os.path.join(HERE, "adbkey", "adbkey")
 TRIES = int(os.environ.get("TV_TRIES", "4"))
+ID_FILE = os.path.join(os.environ.get("URTV_RUN_DIR") or os.path.join(HERE, "run"), "tv-id.json")
+
+# One round trip: who is answering. The serial is ro.serialno, else ro.boot.serialno.
+IDENT_CMD = ('echo "serial=$(getprop ro.serialno)"; echo "bootserial=$(getprop ro.boot.serialno)"; '
+             'echo "manufacturer=$(getprop ro.product.manufacturer)"; echo "model=$(getprop ro.product.model)"')
+
+
+def parse_identity(out):
+    got = dict(l.split("=", 1) for l in out.replace("\r", "").splitlines() if "=" in l)
+    serial = (got.get("serial", "").strip() or got.get("bootserial", "").strip())
+    if serial.lower() in ("unknown", "null"):
+        serial = ""
+    return {"serial": serial, "manufacturer": got.get("manufacturer", "").strip(), "model": got.get("model", "").strip()}
+
+
+def tv_name(ident):
+    return " ".join(x for x in (ident.get("manufacturer"), ident.get("model")) if x) or "a device that does not say what it is"
+
+
+def same_tv(saved, now):
+    """Same device? Two serials that both exist must match; and the make and model, where both are known, must match
+    (some cheap boxes all carry one placeholder serial). No serial on one side: the make and model decide."""
+    if saved.get("serial") and now.get("serial") and saved["serial"].lower() != now["serial"].lower():
+        return False
+    for k in ("manufacturer", "model"):
+        if saved.get(k) and now.get(k) and saved[k].lower() != now[k].lower():
+            return False
+    return True
+
+
+def load_identity():
+    try:
+        with open(ID_FILE, encoding="utf-8") as f:
+            ident = json.load(f)
+        return ident if isinstance(ident, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def save_identity(ident):
+    try:
+        os.makedirs(os.path.dirname(ID_FILE), exist_ok=True)
+        tmp = ID_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(ident, f)
+        os.replace(tmp, ID_FILE)
+    except OSError as e:
+        print(f"   (could not remember which TV this is: {e})", file=sys.stderr)
+
+
+def check_identity(out):
+    """The device that answered `out` must be the TV the setup started on; the first one seen is saved. Stops with a !!
+    line that names both models (never a serial: this line can end up in run.log) when it is not."""
+    now = parse_identity(out)
+    saved = load_identity()
+    if saved is None:
+        save_identity(now)
+        return
+    if not same_tv(saved, now):
+        was, is_now = tv_name(saved), tv_name(now)
+        if was.lower() == is_now.lower():
+            is_now += " (another one of the same model)"
+        sys.exit(f"!! This is not the TV the setup started on: that was a {was}, and a {is_now} answers now. Nothing was "
+                 "changed. If two devices are on this Wi-Fi, run optimize/find-tv.sh and pick the TV (or set TV_HOST), then "
+                 "the same command again. If this really is a new TV: optimize/venv/bin/python -I optimize/tv.py --new-tv, "
+                 "then optimize/run.sh.")
+
+
+# Commands that only read. Anything else (installs, pm enable/disable, settings put, am, content, input, rm, ...) is
+# treated as changing the TV and checked first. When in doubt a command counts as changing: that costs one getprop.
+READ_ONLY = ("getprop", "dumpsys", "pm list", "pm path", "pm query-services", "pm resolve-activity", "settings get", "cat",
+             "ls", "ps", "top", "df", "du", "grep", "egrep", "wc", "md5sum", "head", "tail", "echo", "printf", "date", "id",
+             "uname", "test", "[", "[[", "true", "sleep", "cmd package resolve-activity", "cmd package query-services",
+             "cmd package list", "device_config get", "appops get", "wm size", "wm density")
+SHELL_WORDS = ("for", "do", "done", "if", "then", "else", "elif", "fi", "while", "{", "}", "!")
+
+
+def is_read_only(cmd):
+    # single quotes hold text only; a double-quoted string that runs a command ($( or `) is looked into
+    cmd = re.sub(r"'[^']*'", "''", cmd)
+    cmd = re.sub(r'"[^"$`]*"', '""', cmd)
+    cmd = re.sub(r"\d*>+\s*(/dev/null|&\d)", " ", cmd)
+    if ">" in cmd:                       # writes a file
+        return False
+    for seg in re.split(r"[;&|\n()`]+|\$\(", cmd):
+        seg = re.sub(r"^(\s|\"|'|\w+=)*", "", seg)
+        while seg.split(None, 1)[:1] and seg.split(None, 1)[0] in SHELL_WORDS + ("for",):
+            first, _, rest = seg.partition(" ")
+            seg = "" if first == "for" else rest   # «for x in a b» only names words
+        if not seg.strip():
+            continue
+        if not any(seg == r or seg.startswith(r + " ") for r in READ_ONLY):
+            return False
+    return True
 
 
 def signer():
@@ -54,13 +155,23 @@ def signer():
 class TV:
     """One connection, reopened on failure; every call retried with a growing pause."""
 
-    def __init__(self):
+    def __init__(self, guard=False):
         self.dev = None
+        self.guard = guard   # this run changes the TV: every new connection first checks it is the right one
 
     def _open(self):
         self.close()
         dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=60.0)
         dev.connect(rsa_keys=[signer()], auth_timeout_s=120)
+        if self.guard:
+            try:
+                check_identity(dev.shell(IDENT_CMD, read_timeout_s=30) or "")
+            except BaseException:   # a refusal (SystemExit) or a dropped connection: this one is not used
+                try:
+                    dev.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                raise
         self.dev = dev
 
     def close(self):
@@ -270,6 +381,10 @@ def main():
         except Exception as e:  # noqa: BLE001  (nothing was sent: safe to run again)
             sys.exit(f"!! Can't reach the TV to restart it ({type(e).__name__}: {e}). Nothing was sent; run it again.")
         try:
+            check_identity(dev.shell(IDENT_CMD, read_timeout_s=30) or "")   # the right TV, or nothing is sent
+        except Exception as e:  # noqa: BLE001  (nothing was sent: safe to run again)
+            sys.exit(f"!! Can't tell which TV this is, so it was not restarted ({type(e).__name__}: {e}). Nothing was sent; run it again.")
+        try:
             before = boot_marker(dev)   # which boot this is, to know the TV really came back from a new one
         except Exception:  # noqa: BLE001
             before = None
@@ -281,16 +396,36 @@ def main():
         time.sleep(45)
         wait_for_tv(before=before, restart=True)
         return
-    tv = TV()
+    if a == ["--check"]:
+        TV(guard=True).shell("true")
+        return
+    if a == ["--new-tv"]:
+        tv = TV()
+        ident = parse_identity(tv.shell(IDENT_CMD))
+        save_identity(ident)
+        print(f"Working on this TV from now on: {tv_name(ident)}")
+        tv.close()
+        return
+    batch = [l.strip() for l in sys.stdin] if a[:1] == ["--batch"] else []
+    batch = [l for l in batch if l and not l.startswith("#")]
+    if a[:1] == ["--batch"]:
+        changes = not all(is_read_only(l) for l in batch)
+    elif a[:1] in (["--pull"], ["--shot"]):
+        changes = False
+    elif a[:1] in (["--bg"], ["--push-b64"]):
+        changes = True
+    else:
+        changes = bool(a) and a != ["--probe"] and not is_read_only(" ".join(tv_path(x) for x in a))
+    tv = TV(guard=changes)
     if not a or a == ["--probe"]:
         for p in ("ro.product.manufacturer", "ro.product.brand", "ro.product.model", "ro.product.device",
                   "ro.build.version.release", "ro.build.version.sdk", "ro.build.display.id"):
             print(f"{p} = {tv.shell(f'getprop {p}').strip()}")
+        if load_identity() is None:   # the first TV seen is the one the setup is for
+            save_identity(parse_identity(tv.shell(IDENT_CMD)))
     elif a[0] == "--batch":
-        for line in sys.stdin:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                print(f"$ {line}\n{tv.shell(line).rstrip()}")
+        for line in batch:
+            print(f"$ {line}\n{tv.shell(line).rstrip()}")
     elif a[0] == "--pull":
         tv.call("pull", tv_path(a[1]), a[2])
     elif a[0] == "--bg":   # prints the command's own output; the exit code stays on the TV side
