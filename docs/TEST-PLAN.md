@@ -213,7 +213,7 @@ in «كل التطبيقات». Full reference: [TILAWAH.md](TILAWAH.md).
 
 | ID | Action | Expected |
 |---|---|---|
-| Y1 | `optimize/saver.sh yearstrip on`, `optimize/shot.sh screensaver` | Under «بتوقيت الرياض» a slim strip of 365 dots in 8 rows (from the right, top row first), today white and glowing, the passed days gold, and «اليوم ٢٩٦ من ٣٦٥ · ٨١٪» under it; the clock has not moved and the strip is no wider than it; at 10:00–12:59 it still clears the bottom row or is not there |
+| Y1 | `optimize/saver.sh yearstrip on`, `optimize/shot.sh screensaver` | Under «بتوقيت الرياض» a slim strip of 365 dots in 7 rows of 53 (from the right, top row first), today white and glowing, the passed days gold, and no text under it; the clock has not moved and the strip is no wider than it; at 10:00–12:59 it still clears the bottom row or is not there |
 | Y2 | `optimize/saver.sh yearstrip off`, then the settings row «شريط السنة تحت الساعة» on and off | Off (the default): nothing under the clock; the row toggles it and the screen follows |
 | Y3 | `optimize/saver.sh home-card matches` with a game this week (the wide card), look at the home screen | Each game is one line: clubs, then the date in the middle, then «بعد …» on the far left; a game whose names need the whole line has its date under it; crests stay; the screensaver's own matches card still has two lines |
 | Y4 | Make a short clip (with a reciter's adhan you own) and `optimize/music.sh adhan add clip.mp3` | «prepared … KB», «added …: it is the adhan now»; `optimize/music.sh adhan` shows `voice=own` and `own=… KB`; a file over 5 minutes is cut at 5:00 and it says so; with no ffmpeg it says what to install |

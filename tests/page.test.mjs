@@ -2601,7 +2601,7 @@ for (const [cards, W] of [['tasks', 1920], ['tasks,prayerrow,hourly', 1920], ['p
   await on.ctx.close(); await off.ctx.close();
 }
 
-// ---- the slim year strip under the clock (#yearstrip=1): 8 rows of 46, day N lit up to N-1, today's dot, no wider than the clock,
+// ---- the slim year strip under the clock (#yearstrip=1): 7 rows of 53, day N lit up to N-1, today's dot, no words, no wider than the clock,
 // the clock never moves for it, clear of the card and the bottom row; hidden when the room under the clock is too small
 const STRIP_BOX = p => p.evaluate(() => {
   const r = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
@@ -2612,7 +2612,7 @@ const STRIP_BOX = p => p.evaluate(() => {
     on: s.querySelectorAll('.on').length, now: s.querySelectorAll('.now').length, off: s.querySelectorAll('.off').length, rows,
     cx: [...s.querySelectorAll('svg > circle')].filter(c => !c.classList.contains('halo')).map(c => +c.getAttribute('cx')),
     cy: [...s.querySelectorAll('svg > circle')].filter(c => !c.classList.contains('halo')).map(c => +c.getAttribute('cy')),
-    text: (s.querySelector('.yt') || {}).textContent, dotPx: s.querySelector('svg').getBoundingClientRect().width / 46 * 4 / 6,
+    text: s.innerText.trim(), lines: s.querySelectorAll('.yt').length, dotPx: s.querySelector('svg').getBoundingClientRect().width / 53 * 4 / 6,
     nowCx: +(s.querySelector('.now') || { getAttribute: () => -1 }).getAttribute('cx') };
 });
 const overlap = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
@@ -2624,11 +2624,11 @@ for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
     await on.p.waitForTimeout(100);
     const a = await STRIP_BOX(on.p), clock0 = await off.p.evaluate(() => { const b = document.querySelector('.clock').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
     const tag = `yearstrip ${w}x${h} ${name}`;
-    check(`${tag}: shown, 296 days of 365: 8 rows of 46, ${295} lit, today once, ${365 - 296} to come`,
-      !on.errors.length && !a.hidden && a.rows === 8 && a.on === 295 && a.now === 1 && a.off === 69 && a.on + a.now + a.off === 365, JSON.stringify(a) + on.errors.join('; '));
-    check(`${tag}: from the right, top row first (day 1 at the top right, day 296 in row 7, 20th from the right)`,
-      a.cx[0] === 45 * 6 + 3 && a.cy[0] === 3 && a.nowCx === (45 - 19) * 6 + 3 && a.cy[295] === 6 * 6 + 3, JSON.stringify([a.cx[0], a.cy[0], a.nowCx, a.cy[295]]));
-    check(`${tag}: «اليوم ٢٩٦ من ٣٦٥ · ٨١٪»`, a.text === 'اليوم ٢٩٦ من ٣٦٥ · ٨١٪', a.text);
+    check(`${tag}: shown, 296 days of 365: 7 rows of 53, ${295} lit, today once, ${365 - 296} to come`,
+      !on.errors.length && !a.hidden && a.rows === 7 && a.on === 295 && a.now === 1 && a.off === 69 && a.on + a.now + a.off === 365, JSON.stringify(a) + on.errors.join('; '));
+    check(`${tag}: from the right, top row first (day 1 at the top right, day 296 in row 6, 31st from the right, day 365 in row 7)`,
+      a.cx[0] === 52 * 6 + 3 && a.cy[0] === 3 && a.nowCx === (52 - 30) * 6 + 3 && a.cy[295] === 5 * 6 + 3 && a.cy[364] === 6 * 6 + 3, JSON.stringify([a.cx[0], a.cy[0], a.nowCx, a.cy[295], a.cy[364]]));
+    check(`${tag}: no words under the strip (the dots say the day; the year card keeps its line)`, a.text === '' && a.lines === 0, a.text);
     check(`${tag}: no wider than the clock, centred under it, dots ${Math.round(4 * w / 960)} px wide (±)`,
       a.strip.w <= a.clock.w + 1 && Math.abs((a.strip.l + a.strip.r) / 2 - (a.clock.l + a.clock.r) / 2) < 3 && Math.abs(a.dotPx - 4 * w / 960) < 1.2, JSON.stringify([a.strip, a.clock, a.dotPx]));
     check(`${tag}: under the clock, clear of the card and of the bottom row`,
@@ -2643,8 +2643,8 @@ for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
 {   // leap year, Latin digits, the day turning over, a room too small for it, the widget
   const o = await open('tv.html', 'yearstrip=1&digits=latin', { now: '2028-12-31T09:00:00Z' });
   const a = await STRIP_BOX(o.p);
-  check('yearstrip: a leap year has 366 dots (365 lit, today last), «day 366 of 366 · 100%» with digits=latin',
-    a.on + a.now + a.off === 366 && a.on === 365 && a.now === 1 && a.text === 'اليوم 366 من 366 · 100%', JSON.stringify([a.on, a.now, a.off, a.text]));
+  check('yearstrip: a leap year has 366 dots in 7 rows (365 lit, today last), no words, with digits=latin',
+    a.on + a.now + a.off === 366 && a.on === 365 && a.now === 1 && a.text === '' && a.rows === 7, JSON.stringify([a.on, a.now, a.off, a.text]));
   await o.ctx.close();
 }
 {
@@ -2664,7 +2664,7 @@ for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const before = await STRIP_BOX(o.p);
   await o.p.clock.setFixedTime('2026-10-23T21:00:30Z'); await o.p.evaluate(() => { tickClock.last = null; tickClock(); });
   const after = await STRIP_BOX(o.p);
-  check('yearstrip: after Riyadh midnight the strip says day 297 (296 before)', before.text === 'اليوم ٢٩٦ من ٣٦٥ · ٨١٪' && after.text === 'اليوم ٢٩٧ من ٣٦٥ · ٨١٪' && after.on === 296, before.text + ' / ' + after.text);
+  check('yearstrip: after Riyadh midnight today moves on to day 297 (296 lit now, 295 before)', before.on === 295 && before.now === 1 && after.on === 296 && after.now === 1, JSON.stringify([before.on, after.on]));
   await o.ctx.close();
 }
 

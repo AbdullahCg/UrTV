@@ -305,17 +305,16 @@
   .mid{display:grid;grid-template-columns:1fr minmax(0,auto);align-items:center;gap:4.5vw}   /* the clock keeps its width; the card takes what is left */
   .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:center;position:relative}
   /* the slim year strip hangs under the clock's own block, out of the layout: the clock never moves for it (it hides when
-     the room under the clock is too small, see fitYearStrip()). 4 px dots with 2 px gaps at 960 wide, 8 and 4 at 1920 */
+     the room under the clock is too small, see fitYearStrip()). 4 px dots with 2 px gaps at 960 wide, 8 and 4 at 1920. No words
+     under it: the dots say the day; the big year card keeps its «اليوم ٢٩٦ من ٣٦٥» line */
   .ystrip{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:1.3vh;
-    display:flex;flex-direction:column;align-items:center;gap:.5vh;--yp:calc(100vw/160)}
+    display:flex;flex-direction:column;align-items:center;--yp:calc(100vw/160)}
   .ystrip[hidden]{display:none}
-  .ystrip svg{display:block;width:calc(46*var(--yp));height:calc(8*var(--yp));overflow:visible}
+  .ystrip svg{display:block;width:calc(53*var(--yp));height:calc(7*var(--yp));overflow:visible}
   .ystrip .on{fill:rgb(var(--gold-rgb))}
   .ystrip .off{fill:rgb(var(--gold-rgb));fill-opacity:.16}
   .ystrip .halo{fill:#FFFDF6}
   .ystrip .now{fill:#FFFDF6;filter:drop-shadow(0 0 3px rgba(255,236,190,.9))}
-  .ystrip .yt{font-size:clamp(10px,.8vw,16px);font-weight:300;color:#B9AE96;line-height:1.3;white-space:nowrap}
-  .ystrip .yt b{font-weight:500;color:var(--gold-3)}
   html.widget .ystrip{display:none}
   /* the launcher's «المهام» card is live (OK opens the list, the mic ready): a small mic mark in its corner, and a ring while it has the
      focus. The ring is inside the card: the WebView's box would cut an outline off at its edge. Nothing here changes the card's size. */
@@ -2083,16 +2082,16 @@ function yearCard(card){
        + `<div class="yt">${text}</div></li>`;
 }
 
-// ---- the slim year strip under the clock (#yearstrip=1): 365/366 dots in 8 rows of 46, from the right, top row first;
-// the passed days light up toward gold, today glows, the rest stay faint. Drawn again only when the day changes;
+// ---- the slim year strip under the clock (#yearstrip=1): 365/366 dots in 7 rows of 53, from the right, top row first;
+// the passed days light up toward gold, today glows, the rest stay faint. No text line. Drawn again only when the day changes;
 // fitYearStrip() runs after every clock redraw: no wider than the clock, hidden when the room under it is too small.
 function renderYearStrip(){
   const el = document.getElementById('ystrip');
   if(!el || !CONFIG.yearStrip || CONFIG.widget) return;
-  const {y, total, day, text} = yearFacts(), key = y + ':' + day + ':' + LATIN;
+  const {y, total, day} = yearFacts(), key = y + ':' + day + ':' + LATIN;
   if(el.dataset.key !== key){
     el.dataset.key = key;
-    const COLS = 46, ROWS = 8, PITCH = 6, R = 2;   // the viewBox is 4 px dots and 2 px gaps; CSS scales it with the screen
+    const COLS = 53, ROWS = 7, PITCH = 6, R = 2;   // the viewBox is 4 px dots and 2 px gaps; CSS scales it with the screen
     let g = '';
     for(let n = 1; n <= total; n++){
       const c = (n - 1) % COLS, r = Math.floor((n - 1) / COLS);
@@ -2101,7 +2100,7 @@ function renderYearStrip(){
       else if(n === day) g += `<circle class="halo" cx="${cx}" cy="${cy}" r="${R * 1.9}" fill-opacity=".25"/><circle class="now" cx="${cx}" cy="${cy}" r="${R * 1.1}"/>`;
       else g += `<circle class="off" cx="${cx}" cy="${cy}" r="${R}"/>`;
     }
-    el.innerHTML = `<svg viewBox="0 0 ${COLS * PITCH} ${ROWS * PITCH}" role="img" aria-label="${ar(day)} / ${ar(total)}">${g}</svg><div class="yt">${text}</div>`;
+    el.innerHTML = `<svg viewBox="0 0 ${COLS * PITCH} ${ROWS * PITCH}" role="img" aria-label="${ar(day)} / ${ar(total)}">${g}</svg>`;
   }
   fitYearStrip();
 }
@@ -2111,8 +2110,8 @@ function fitYearStrip(){
   el.hidden = false; el.style.removeProperty('--yp');
   const clock = document.querySelector('.clock').getBoundingClientRect(), wrap = document.querySelector('.clockwrap').getBoundingClientRect();
   const bottom = document.querySelector('.bottom').getBoundingClientRect();
-  let pitch = el.querySelector('svg').getBoundingClientRect().width / 46;   // 6 px at 960 wide
-  if(pitch * 46 > clock.width) { pitch = clock.width / 46; el.style.setProperty('--yp', pitch + 'px'); }
+  let pitch = el.querySelector('svg').getBoundingClientRect().width / 53;   // 6 px at 960 wide
+  if(pitch * 53 > clock.width) { pitch = clock.width / 53; el.style.setProperty('--yp', pitch + 'px'); }
   const h = el.getBoundingClientRect().height, room = bottom.top - wrap.bottom - 4;
   if(pitch < 3 || h + parseFloat(getComputedStyle(el).marginTop) > room) el.hidden = true;
 }
