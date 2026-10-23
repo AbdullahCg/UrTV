@@ -177,6 +177,20 @@
   .week li.adf .d{justify-self:end;display:flex;gap:.4em}
   .week li.adf .d i{width:.48em;height:.48em;border-radius:50%;background:rgba(var(--gold-rgb),.26)}
   .week li.adf .d i.on{background:var(--gold-3)}
+  /* «السنة»: one dot a day in a single SVG; the days gone rise from dim to gold, today is the brightest with a halo */
+  .week li.yr{display:block;white-space:normal;border-bottom:none;padding:.3vh 0 0;text-align:center}
+  .week li.yr .yn{font-size:1.3em;font-weight:500;color:var(--gold-hi);line-height:1.1;font-variant-numeric:tabular-nums}
+  .week li.yr svg{display:block;width:100%;height:auto;margin:.6vh 0 .5vh}
+  .week li.yr .on{fill:rgb(var(--gold-rgb))}
+  .week li.yr .off{fill:rgb(var(--gold-rgb));fill-opacity:.14}
+  .week li.yr .now{fill:var(--gold-hi)}
+  .week li.yr .halo{fill:rgb(var(--gold-rgb))}
+  .week li.yr .yt{font-size:.74em;color:#B9AE96;line-height:1.4}
+  .week li.yr .yt b{font-weight:500;color:var(--gold-3)}
+  @media (prefers-reduced-motion:no-preference){
+    .week li.yr.fill .r{animation:yrIn .7s ease both;animation-delay:calc(var(--i) * 70ms)}
+    @keyframes yrIn{from{opacity:0}to{opacity:1}}
+  }
   .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
 
   /* ===== card styles (#cardstyle=; the default keeps the plain card above) =====
@@ -453,7 +467,7 @@ const CONFIG = {
   events: _list('events').filter(k => ['f1','ufc','boxing'].includes(k)),
   eventWindowDays: 14,
   // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','stocks','tasks','none'].includes(p) ? p : 'verse')
+  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','stocks','tasks','year','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   // #tasks=: the open tasks, one per line (the app drops done ones), at most 12 of 60 characters
   tasks: (_Q.get('tasks') || '').split('\n').map(x=>x.trim().slice(0, 60)).filter(Boolean).slice(0, 12),
@@ -1500,7 +1514,7 @@ function renderWeekPage(animate){
 let FORECAST = [];
 try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
 let LIST_PAGE = 0;
-const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:'مباريات فرقك', tasks:'المهام'};
+const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:'مباريات فرقك', tasks:'المهام', year:'السنة'};
 
 function renderPanel(animate){
   const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
@@ -1510,6 +1524,7 @@ function renderPanel(animate){
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
   else if(P === 'matches') rows = matchRows();
+  else if(P === 'year') rows = [yearCard()];
   else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
   else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
   else if(P === 'wisdom'){ const q = wisdomOfDay(); setText(hd, q.title); rows = q.rows; }
@@ -1534,6 +1549,33 @@ function renderPanel(animate){
   if(CONFIG.tafsir) fitTafsir(ul);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
+}
+
+// ---- «السنة»: a dot for every day of this Gregorian year (Riyadh time). Drawn again only when the day changes.
+let YEAR_SHOWN = false;
+function yearCard(){
+  const p = riyadhParts(new Date(Date.now())), y = p.y;
+  const total = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
+  const day = Math.round((Date.UTC(y, p.mo - 1, p.d) - Date.UTC(y, 0, 1)) / 864e5) + 1;
+  const COLS = 36, ROWS = Math.ceil(total / COLS), PITCH = 10, R = 3.2;
+  const rows = [];
+  for(let r = 0; r < ROWS; r++){
+    let g = '';
+    for(let c = 0; c < COLS; c++){
+      const n = r * COLS + c + 1;
+      if(n > total) break;
+      const cx = (COLS - 1 - c) * PITCH + PITCH / 2, cy = r * PITCH + PITCH / 2;   // right to left, like the page
+      if(n < day) g += `<circle class="on" cx="${cx}" cy="${cy}" r="${R}" fill-opacity="${(.28 + .72 * n / day).toFixed(2)}"/>`;
+      else if(n === day) g += `<circle class="halo" cx="${cx}" cy="${cy}" r="${R * 3}" fill-opacity=".12"/><circle class="halo" cx="${cx}" cy="${cy}" r="${R * 1.9}" fill-opacity=".28"/><circle class="now" cx="${cx}" cy="${cy}" r="${R * 1.15}"/>`;
+      else g += `<circle class="off" cx="${cx}" cy="${cy}" r="${R}"/>`;
+    }
+    rows.push(`<g class="r" style="--i:${r}">${g}</g>`);
+  }
+  const pct = Math.round(100 * day / total), anim = !YEAR_SHOWN;
+  YEAR_SHOWN = true;
+  const svg = `<svg viewBox="-10 -10 ${COLS * PITCH + 20} ${ROWS * PITCH + 20}" role="img" aria-label="${ar(day)} / ${ar(total)}">${rows.join('')}</svg>`;
+  return `<li class="yr${anim ? ' fill' : ''}"><div class="yn">${ar(y)}</div>${svg}`
+       + `<div class="yt">اليوم <b>${ar(day)}</b> من ${ar(total)} · ${ar(pct)}${LATIN ? '%' : '٪'}</div></li>`;
 }
 
 function prayerRows(){
