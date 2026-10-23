@@ -255,7 +255,11 @@
   html.cs-glass1 .week::after{background:radial-gradient(60% 40% at 85% 0%,rgba(255,255,255,.22),transparent 70%);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.08),inset 1px 0 0 rgba(255,255,255,.12)}
 
-  /* framed: an inner gold frame with a diamond on its top and bottom edge, the header centred */
+  /* framed: an inner gold frame with a diamond on its top and bottom edge, the header centred. The diamond is a square turned
+     45°, centred on the frame line, so it reaches (inset + 0.71 × its side) into the card: 15 px at 540, 20 px at 1080, under
+     the card's padding (17 / 26 px) with the text after it. The padding itself stays as the other styles': at 960×540 the
+     longest verses, four games and the year's dots need the room (on a TV the title sat under the top diamond and the last
+     line over the bottom one, with bigger diamonds) */
   html.cs-dark3 .week,html.cs-glass3 .week{padding:calc(1.7vh + 8px) calc(1.4vw + 8px)}
   /* the launcher's box is short: the header must clear the diamond on the top edge whatever its height (vh is the box's) */
   html.widget.cs-dark3 .week,html.widget.cs-glass3 .week{padding:calc(24px*var(--z,1)) calc(1.4vw + 8px) calc(18px*var(--z,1))}
@@ -263,12 +267,12 @@
   html.widget.cs-dark3 .week .dia,html.widget.cs-glass3 .week .dia{width:calc(18px*var(--z,1));height:calc(18px*var(--z,1))}
   html.widget.cs-dark3 .week .dia.t,html.widget.cs-glass3 .week .dia.t{top:calc(12px*var(--z,1))}
   html.widget.cs-dark3 .week .dia.b,html.widget.cs-glass3 .week .dia.b{bottom:calc(12px*var(--z,1))}
-  html.cs-dark3 .week .frm,html.cs-glass3 .week .frm{display:block;position:absolute;inset:12px;z-index:0;pointer-events:none;
+  html.cs-dark3 .week .frm,html.cs-glass3 .week .frm{display:block;position:absolute;inset:calc(5px + .4vh);z-index:0;pointer-events:none;
     border:1px solid rgba(var(--gold-rgb),.55);border-radius:14px}
-  html.cs-dark3 .week .dia,html.cs-glass3 .week .dia{display:block;position:absolute;left:50%;width:18px;height:18px;z-index:0;
+  html.cs-dark3 .week .dia,html.cs-glass3 .week .dia{display:block;position:absolute;left:50%;width:calc(8px + .6vh);height:calc(8px + .6vh);z-index:0;
     pointer-events:none;border:1px solid rgba(var(--gold-rgb),.75)}
-  html.cs-dark3 .week .dia.t,html.cs-glass3 .week .dia.t{top:12px;transform:translate(-50%,-50%) rotate(45deg)}
-  html.cs-dark3 .week .dia.b,html.cs-glass3 .week .dia.b{bottom:12px;transform:translate(-50%,50%) rotate(45deg)}
+  html.cs-dark3 .week .dia.t,html.cs-glass3 .week .dia.t{top:calc(5px + .4vh);transform:translate(-50%,-50%) rotate(45deg)}
+  html.cs-dark3 .week .dia.b,html.cs-glass3 .week .dia.b{bottom:calc(5px + .4vh);transform:translate(-50%,50%) rotate(45deg)}
   html.cs-dark3 .week .hd,html.cs-glass3 .week .hd{justify-content:center}
   html.cs-dark3 .week .hd::after,html.cs-glass3 .week .hd::after{display:none}
 

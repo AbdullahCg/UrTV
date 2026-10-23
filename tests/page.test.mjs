@@ -1135,6 +1135,30 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 
+// ---- the framed styles (dark3, glass3): the two diamonds on the frame never sit on the text, whatever the card and the size
+for (const [width, height] of [[1920, 1080], [960, 540]]) for (const st of ['dark3', 'glass3']) {
+  const bad = [], errs = [];
+  for (const panel of ['verse', 'matches', 'year', 'prayers', 'hourly', 'prayerrow', 'today', 'stocks', 'tasks', 'wisdom', 'adhkar', 'shows']) {
+    const { p, ctx, errors } = await open('tv.html', `teams=136013&stocks=2222&panel=${panel}&cardstyle=${st}`, { width, height, now: '2026-10-23T10:00:00Z' });
+    errs.push(...errors);
+    const hit = await p.evaluate(() => {
+      const dias = [...document.querySelectorAll('.week .dia')].map(d => d.getBoundingClientRect());
+      const rg = document.createRange(), out = [];
+      const walk = document.createTreeWalker(document.querySelector('.week'), NodeFilter.SHOW_TEXT);
+      for (let n; (n = walk.nextNode());) {
+        if (!n.textContent.trim()) continue;
+        rg.selectNodeContents(n);
+        for (const r of rg.getClientRects()) for (const d of dias)
+          if (r.left < d.right && r.right > d.left && r.top < d.bottom && r.bottom > d.top) out.push(n.textContent.trim().slice(0, 20));
+      }
+      return [...new Set(out)];
+    });
+    if (hit.length) bad.push(`${panel}: ${hit.join(', ')}`);
+    await ctx.close();
+  }
+  check(`${st} at ${width}x${height}: the diamonds touch no text on any card; no script errors`, !bad.length && !errs.length, bad.join(' | ') + ' ' + errs.join('; '));
+}
+
 // ---- club crests on the launcher's matches card (widget mode only), with the badge host mocked
 // a 120 px round badge as a PNG, so the page has a picture to shrink
 const badgePng = (() => {
@@ -2043,7 +2067,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const b = await barAt(w.p, '2026-10-22', '17:37', '10');
   check('adhan bar: not in the launcher\'s card page (the home screen has its own)', !w.errors.length && b.hidden, JSON.stringify(b));
   await w.ctx.close();
-  const e = await open('tv.html', 'panel=verse');
+  const e = await open('tv.html', 'panel=verse', { now: '2026-10-23T10:00:00Z' });   // a fixed time far from any prayer: the real clock may sit in an iqama window
   check('adhan bar: hidden until the times are known, no errors', !e.errors.length && await e.p.evaluate(() => { tickPrayer(); return document.getElementById('adbar').hidden; }));
   await e.ctx.close();
 }
