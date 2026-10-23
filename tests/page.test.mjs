@@ -1198,6 +1198,81 @@ for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]
   }
 }
 
+// ---- «طقس الساعات القادمة»: the next six hours beside the clock and on the launcher's card, one request with the forecast
+{
+  const hourlyAnswer = () => {   // Open-Meteo's answer for Riyadh (UTC+3): 48 hours from this hour, mixed weather, a sunset at 18:00
+    const t0 = Math.floor((Date.now() + 3 * 36e5) / 36e5) * 36e5, hr = { time: [], temperature_2m: [], weather_code: [] };
+    const codes = [0, 1, 2, 3, 45, 61, 71, 95, 0, 2];
+    for (let k = 0; k < 48; k++) { hr.time.push(new Date(t0 + k * 36e5).toISOString().slice(0, 16)); hr.temperature_2m.push(31.4 - k * .6); hr.weather_code.push(codes[k % codes.length]); }
+    const days = [0, 1, 2, 3, 4].map(i => new Date(t0 + i * 864e5).toISOString().slice(0, 10));
+    return JSON.stringify({ current: { temperature_2m: 31, weather_code: 0 }, hourly: hr,
+      daily: { time: days, temperature_2m_max: days.map(() => 37), temperature_2m_min: days.map(() => 24), weather_code: days.map(() => 0),
+               sunrise: days.map(d => d + 'T05:50'), sunset: days.map(d => d + 'T18:00') } });
+  };
+  const weatherNet = asked => r => {
+    const u = r.request().url();
+    if (!/api\.open-meteo\.com\/v1\/forecast/.test(u)) return false;
+    asked.push(u);
+    if (asked.off) { r.abort(); return true; }   // the network is gone
+    r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: hourlyAnswer() });
+    return true;
+  };
+  for (const [file, hash, width, height, label] of [['tv.html', 'panel=hourly', 1920, 1080, 'beside the clock'], ['tv.html', 'panel=hourly', 1280, 720, 'beside the clock'],
+      ['tv.html', 'panel=hourly', 960, 540, 'beside the clock'], ['urtv.html', 'panel=hourly', 1920, 1080, 'screensaver page'],
+      ['tv.html', 'panel=hourly&widget=1', 461, 250, 'launcher card'], ['tv.html', 'panel=hourly&widget=1', 1920, 1080, 'launcher card'],
+      ['tv.html', 'panel=hourly&widget=1', 960, 540, 'launcher card']]) {
+    for (const digits of ['hindi', 'latin']) {
+      const asked = [];
+      const { p, ctx, errors } = await open(file, hash + '&digits=' + digits, { width, height, net: weatherNet(asked) });
+      await p.waitForTimeout(400);
+      const r = await p.evaluate(() => {
+        const cells = [...document.querySelectorAll('#week-list .hc')], card = document.querySelector('.week').getBoundingClientRect();
+        const text = document.getElementById('week-list').innerText;
+        return { n: cells.length, hd: document.getElementById('week-hd').textContent,
+          icons: cells.every(c => c.querySelector('svg path, svg circle')),
+          times: cells.map(c => c.querySelector('b').textContent), temps: cells.map(c => c.querySelector('i').textContent),
+          oneLine: cells.every(c => [...c.querySelectorAll('b,i')].every(x => x.getClientRects().length === 1)),
+          inside: cells.every(c => { const b = c.getBoundingClientRect(); return b.left >= card.left - 1 && b.right <= card.right + 1; }),
+          sameSize: new Set(cells.map(c => Math.round(c.getBoundingClientRect().width))).size <= 2,
+          ar: /[٠-٩]/.test(text), latin: /[0-9]/.test(text),
+          night: [...cells].map(c => c.querySelector('svg').innerHTML.includes('M19 14.3') || c.querySelector('svg').innerHTML.includes('M10.5 3.5')) };
+      });
+      const tag = `hourly card ${label} ${file} ${width}x${height} ${digits}`;
+      const wantAt = ms => Array.from({ length: 6 }, (_, k) => { const h = (Math.floor((ms + 3 * 36e5) / 36e5) + 1 + k) % 24; return (h % 12 || 12) + ' ' + (h < 12 ? 'ص' : 'م'); });
+      const want = wantAt(Date.now() - 3000), wantNow = wantAt(Date.now());   // the hour may have turned while the page was drawn
+      const toLatin = s => s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+      check(`${tag}: no script errors, six hours with an icon each, titled`, !errors.length && r.n === 6 && r.icons && r.hd === 'الساعات القادمة', JSON.stringify(r) + errors.join('; '));
+      check(`${tag}: the next six full hours, in order`, [want, wantNow].some(w => JSON.stringify(r.times.map(toLatin)) === JSON.stringify(w)), JSON.stringify([r.times, want]));
+      check(`${tag}: temperatures in degrees, falling as the answer says`, r.temps.every(x => /°$/.test(x)) && toLatin(r.temps[0]) !== toLatin(r.temps[5]), r.temps.join(' '));
+      check(`${tag}: one line each, inside the card, ${digits} digits`, r.oneLine && r.inside && (digits === 'latin' ? r.latin && !r.ar : r.ar && !r.latin), JSON.stringify(r));
+      check(`${tag}: one weather request, asking for the hours with the days`, asked.length === 1 && /hourly=temperature_2m,weather_code/.test(asked[0]) && /daily=[^&]*sunset/.test(asked[0]), asked.join('\n'));
+      await ctx.close();
+    }
+  }
+  {   // day and night icons follow the sun: after sunset the moon, before it the sun; the plain forecast asks for no hours
+    const asked = [];
+    const { p, ctx } = await open('tv.html', 'panel=hourly&widget=1', { width: 461, height: 250, net: weatherNet(asked) });
+    const r = await p.evaluate(() => { SUN = { '2026-10-23': ['05:50', '18:00'] }; return ['2026-10-23T17:00', '2026-10-23T18:00', '2026-10-23T04:00', '2026-10-23T06:00'].map(isNight); });
+    check('hourly icons: night after sunset and before sunrise, day between', JSON.stringify(r) === '[false,true,true,false]', JSON.stringify(r));
+    await ctx.close();
+    const plain = [];
+    const f = await open('tv.html', 'panel=forecast', { net: weatherNet(plain) });
+    await f.p.waitForTimeout(300);
+    check('forecast card: no hours asked for, as before', plain.length === 1 && !/hourly|sunset/.test(plain[0]), plain.join('\n'));
+    await f.ctx.close();
+  }
+  {   // offline start: the saved hours are shown at once
+    const asked = [];
+    const { p, ctx } = await open('tv.html', 'panel=hourly&widget=1', { width: 461, height: 250, net: weatherNet(asked) });
+    await p.waitForTimeout(400);
+    asked.off = true;
+    await p.reload();
+    await p.waitForTimeout(300);
+    check('hourly card: after a restart the hours are there at once from the saved copy', await p.evaluate(() => document.querySelectorAll('#week-list .hc').length) === 6);
+    await ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

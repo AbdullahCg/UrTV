@@ -127,6 +127,12 @@
   @keyframes weekIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   .week li.task::before{content:'';flex:0 0 auto;width:.4em;height:.4em;border-radius:50%;background:var(--gold);align-self:center}
   .week li.task span{max-width:100%;min-width:0}
+  /* «الساعات القادمة»: the next six hours in one row, the earliest on the right */
+  .week li.hrs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.3em;white-space:normal;border-bottom:none;padding:1.2vh 0 .5vh;align-items:start;text-align:center}
+  .week li.hrs .hc{display:flex;flex-direction:column;align-items:center;gap:.4em;min-width:0}
+  .week li.hrs .hc b{font-weight:400;font-size:.78em;color:#B9AE96;white-space:nowrap}
+  .week li.hrs .hc svg{width:1.9em;height:1.9em;fill:none;stroke:var(--gold-3);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .week li.hrs .hc i{font-style:normal;font-variant-numeric:tabular-nums;font-size:1.05em;white-space:nowrap}
   .week li.past{color:#8F8670}
   .week li.next{color:var(--gold-hi)}
   .week li.next .dt{color:var(--gold-3)}
@@ -452,8 +458,8 @@ const CONFIG = {
   // other sports beside the teams' games: #events=f1,ufc,boxing (default none)
   events: _list('events').filter(k => ['f1','ufc','boxing'].includes(k)),
   eventWindowDays: 14,
-  // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','stocks','tasks','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: shows | prayers | forecast | hourly | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','hourly','matches','verse','wisdom','adhkar','stocks','tasks','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   // #tasks=: the open tasks, one per line (the app drops done ones), at most 12 of 60 characters
   tasks: (_Q.get('tasks') || '').split('\n').map(x=>x.trim().slice(0, 60)).filter(Boolean).slice(0, 12),
@@ -1503,7 +1509,7 @@ function renderWeekPage(animate){
 let FORECAST = [];
 try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
 let LIST_PAGE = 0;
-const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:'مباريات فرقك', tasks:'المهام'};
+const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:'مباريات فرقك', tasks:'المهام'};
 
 function renderPanel(animate){
   const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
@@ -1512,6 +1518,7 @@ function renderPanel(animate){
   let rows = [];
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
+  else if(P === 'hourly') rows = hourlyRows();
   else if(P === 'matches') rows = matchRows();
   else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
   else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
@@ -1631,6 +1638,43 @@ async function loadCrests(){
     try{ localStorage.setItem('crests', JSON.stringify(CRESTS)); }catch(e){}
     renderPanel(false);
   }finally{ CREST_BUSY = false; }
+}
+
+// ---- «الساعات القادمة»: the next six hours, from the same Open-Meteo request as the forecast (see loadWeather)
+let HOURLY = [], SUN = {};   // [{t: '2026-10-23T18:00' (the city's time), code, temp}], and date -> [sunrise, sunset] as 'HH:MM'
+try{ const c = JSON.parse(localStorage.getItem('hourly:' + location.hash) || 'null'); if(c){ HOURLY = c.h || []; SUN = c.s || {}; } }catch(e){}
+const hourKey = () => { const p = riyadhParts(); return `${p.y}-${pad(p.mo)}-${pad(p.d)}T${pad(p.h)}:00`; };
+const WX_SVG = {
+  sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7"/></svg>',
+  moon:'<svg viewBox="0 0 24 24"><path d="M19 14.3A7.6 7.6 0 0 1 9.7 5a7.6 7.6 0 1 0 9.3 9.3z"/></svg>',
+  part:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="3"/><path d="M8.5 2.5v1.4M2.5 8.5h1.4M4.3 4.3l1 1M12.7 4.3l-1 1"/><path d="M8 20h9.5a3.6 3.6 0 0 0 .5-7.2A5 5 0 0 0 8.6 12 4 4 0 0 0 8 20z"/></svg>',
+  partnight:'<svg viewBox="0 0 24 24"><path d="M10.5 3.5a4.6 4.6 0 0 0 5.6 6.6 4.6 4.6 0 1 1-5.6-6.6z"/><path d="M8 20.5h9.5a3.6 3.6 0 0 0 .5-7.2A5 5 0 0 0 8.6 12.5 4 4 0 0 0 8 20.5z"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24"><path d="M7 18.5h10.2a4 4 0 0 0 .6-7.95A5.6 5.6 0 0 0 7.2 9.4 4.6 4.6 0 0 0 7 18.5z"/></svg>',
+  fog:'<svg viewBox="0 0 24 24"><path d="M7 14h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6 4.1 4.1 0 0 0 7 14z"/><path d="M5 17.5h14M8 21h8"/></svg>',
+  rain:'<svg viewBox="0 0 24 24"><path d="M7 14.5h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6.5 4.1 4.1 0 0 0 7 14.5z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></svg>',
+  snow:'<svg viewBox="0 0 24 24"><path d="M7 14.5h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6.5 4.1 4.1 0 0 0 7 14.5z"/><path d="M8.5 18v.1M12 20v.1M15.5 18v.1M12 17.5v.1"/></svg>',
+  storm:'<svg viewBox="0 0 24 24"><path d="M7 14h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6 4.1 4.1 0 0 0 7 14z"/><path d="M12.5 14.5L10 18.5h3.5L11.5 22"/></svg>',
+};
+function wxIcon(code, night){
+  if(code <= 1) return night ? WX_SVG.moon : WX_SVG.sun;
+  if(code === 2) return night ? WX_SVG.partnight : WX_SVG.part;
+  if(code === 3) return WX_SVG.cloud;
+  if(code === 45 || code === 48) return WX_SVG.fog;
+  if(code >= 95) return WX_SVG.storm;
+  if((code >= 71 && code <= 77) || code === 85 || code === 86) return WX_SVG.snow;
+  return WX_SVG.rain;   // drizzle, rain and showers
+}
+function isNight(t){   // sunrise and sunset of that day when known, else 06:00 to 18:00
+  const hm = t.slice(11, 16), sun = SUN[t.slice(0, 10)];
+  return sun ? hm < sun[0] || hm >= sun[1] : hm < '06:00' || hm >= '18:00';
+}
+function hourlyRows(){
+  const next = HOURLY.filter(x => x.t > hourKey() && x.temp != null).slice(0, 6);
+  if(!next.length) return [];
+  return ['<li class="hrs">' + next.map(x => {
+    const h = +x.t.slice(11, 13), h12 = h % 12 === 0 ? 12 : h % 12;
+    return `<div class="hc"><b>${ar(h12)} ${h < 12 ? 'ص' : 'م'}</b>${wxIcon(x.code, isNight(x.t))}<i>${ar(Math.round(x.temp))}°</i></div>`;
+  }).join('') + '</li>'];
 }
 
 // every followed team's games this week, plus results from the last day
@@ -1828,8 +1872,11 @@ const WX_CODES = {
 async function loadWeather(){
   const q = `latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}&timezone=${encodeURIComponent(CONFIG.timezone)}`;
   try{
+    // the hours card asks in the same request: its hourly values, and sunrise and sunset for the day or night icon
+    const hours = CONFIG.panel === 'hourly';
     const r = await fetchT(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,weather_code`
-                         + `&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=5`, 12000);
+                         + `&daily=temperature_2m_max,temperature_2m_min,weather_code${hours ? ',sunrise,sunset' : ''}&forecast_days=5`
+                         + (hours ? '&hourly=temperature_2m,weather_code' : ''), 12000);
     if(!r.ok) throw 0;
     const j = await r.json();
     setText(document.getElementById('wx-temp'), ar(Math.round(j.current.temperature_2m)) + '°');
@@ -1843,7 +1890,14 @@ async function loadWeather(){
     FORECAST = (dl.time || []).map((t, i) => ({date:t, code:dl.weather_code?.[i],
       hi:dl.temperature_2m_max?.[i], lo:dl.temperature_2m_min?.[i]})).filter(x => x.hi != null && x.lo != null);
     try{ localStorage.setItem('forecast:' + location.hash, JSON.stringify(FORECAST)); }catch(e){}
-    if(CONFIG.panel === 'forecast') renderPanel(false);
+    if(hours){
+      const hr = j.hourly || {}, from = hourKey();
+      HOURLY = (hr.time || []).map((t, i) => ({t, code:hr.weather_code?.[i], temp:hr.temperature_2m?.[i]})).filter(x => x.t > from && x.temp != null).slice(0, 12);
+      SUN = {};
+      (dl.time || []).forEach((d, i) => { const up = dl.sunrise?.[i], down = dl.sunset?.[i]; if(up && down) SUN[d] = [up.slice(11, 16), down.slice(11, 16)]; });
+      try{ localStorage.setItem('hourly:' + location.hash, JSON.stringify({h:HOURLY, s:SUN})); }catch(e){}
+    }
+    if(CONFIG.panel === 'forecast' || hours) renderPanel(false);
     if(slotNow() === 'weather') renderSlot();
   }catch(e){ return; }   // keep the last reading; with none only the city shows
 
@@ -2094,7 +2148,7 @@ function boot(){
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers' || CONFIG.panel === 'hourly') renderPanel(false); }, 15000);
   if(SLOT_MATCHES){   // the matches timers run only while the slot shows matches
     setInterval(() => renderMatches(false), 60000);
     setInterval(() => renderMatches(true), CONFIG.matchPageMs);
@@ -2133,7 +2187,8 @@ function bootWidget(){
   else renderPanel(false);
   if(P === 'adhkar'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); }
   if(P === 'prayers'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
-  if(P === 'forecast'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
+  if(P === 'forecast' || P === 'hourly'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
+  if(P === 'hourly') setInterval(() => renderPanel(false), 60*1000);   // the next hour comes round
   if(P === 'matches'){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
   if(P === 'stocks'){ loadStocks(); setInterval(loadStocks, 15*60*1000); }
   setInterval(() => {

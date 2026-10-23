@@ -219,6 +219,13 @@ for key in ("panel", "slot"):
     missing += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", m.group(1) if m else "") if v not in settings_md]
 check("docs/SETTINGS.md: every saver.sh / dock.sh / music.sh command and every card and slot choice", not missing, missing)
 
+# the app's list of cards (Prefs.PANELS: what settings and saver.sh accept) and the page's must be the same words
+page_panels = re.search(r"  panel: \(\w+ => \[([^\]]+)\]", tpl_src)
+page_panels = re.findall(r"'([a-z]+)'", page_panels.group(1) if page_panels else "")
+app_panels = re.findall(r'\{"([a-z]+)", "[^"]+"\}', re.search(r"PANELS = \{(.*?)\n    \};", (ROOT / "android/app/src/main/java/sa/urtv/screensaver/Prefs.java").read_text(encoding="utf-8"), re.S).group(1))
+check("cards: Prefs.PANELS and the page's #panel= list name the same cards", sorted(page_panels) == sorted(app_panels),
+      f"page only {sorted(set(page_panels) - set(app_panels))}, app only {sorted(set(app_panels) - set(page_panels))}")
+
 # ---- launcher config
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()
 arr = {a.get("name"): [i.text for i in a] for a in cfg.findall("string-array")}
