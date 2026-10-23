@@ -1449,6 +1449,36 @@ for (const [width, height] of [[461, 250], [1920, 1080], [960, 540]]) {   // lon
   }
 }
 
+// ---- «مواقيت اليوم»: the six times as boxes; the lit one is the one the bottom panel names (the next prayer; during the iqama wait the one just
+// called; after Isha tomorrow's Fajr), the sunrise is never lit, the ones already gone are dimmed. Riyadh is UTC+3; 2026-10-23 is a Friday.
+{
+  const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
+  for (const [when, lit, past, label] of [   // lit: the box (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha = 0..5)
+      ['2026-10-22T17:58:00Z', 0, 5, '20:58 after Isha: tomorrow\'s Fajr'], ['2026-10-22T01:00:00Z', 0, 0, '04:00 before Fajr'],
+      ['2026-10-21T21:30:00Z', 0, 0, '00:30 after midnight'], ['2026-10-22T02:30:00Z', 2, 1, '05:30 between Fajr and sunrise'],
+      ['2026-10-22T03:30:00Z', 2, 2, '06:30 after sunrise'], ['2026-10-22T13:40:00Z', 4, 4, '16:40 Thursday'],
+      ['2026-10-23T13:40:00Z', 4, 4, '16:40 Friday (الجمعة)'], ['2026-10-22T14:50:00Z', 4, 4, '17:50 the Maghrib iqama wait'],
+      ['2026-10-22T08:50:00Z', 2, 2, '11:50 Thursday Dhuhr iqama wait'], ['2026-10-23T08:42:00Z', 3, 3, '11:42 Friday: no iqama wait for الجمعة'],
+      ['2026-10-22T16:20:00Z', 5, 5, '19:20 Isha iqama wait']]) {
+    for (const [hash, width, height] of [['panel=prayers', 1920, 1080], ['panel=prayers', 1280, 720], ['panel=prayers', 960, 540], ['panel=prayers&widget=1', 461, 250]]) {
+      const { p, ctx, errors } = await open('tv.html', hash, { width, height });
+      await p.clock.setFixedTime(new Date(when));
+      await p.evaluate(TIMES + ' renderPanel(false); tickPrayer();');
+      const r = await p.evaluate(() => { const lis = [...document.querySelectorAll('#week-list li')], card = document.querySelector('.week').getBoundingClientRect();
+        return { n: lis.length, lit: lis.map((l, i) => l.classList.contains('next') ? i : -1).filter(i => i >= 0), past: lis.filter(l => l.classList.contains('past')).length,
+          litName: (lis.find(l => l.classList.contains('next')) || { textContent: '' }).firstElementChild.textContent, panel: (document.getElementById('prayer-name') || {}).textContent || '',
+          inside: lis.every(l => { const b = l.getBoundingClientRect(); return b.left >= card.left - 1 && b.right <= card.right + 1 && b.bottom <= card.bottom + 1; }),
+          dayName: lis[2].firstElementChild.textContent }; });
+      const tag = `prayer boxes ${label} ${width}x${height}${hash.includes('widget') ? ' card' : ''}`;
+      check(`${tag}: six boxes inside the card, exactly one lit (box ${lit}), ${past} dimmed`,
+        !errors.length && r.n === 6 && r.lit.join() === String(lit) && r.past === past && r.inside, JSON.stringify(r) + errors.join('; '));
+      if (!hash.includes('widget')) check(`${tag}: the lit box is the prayer the bottom panel names, the sunrise never lit`, r.litName === r.panel && r.lit[0] !== 1, JSON.stringify(r));
+      if (when.startsWith('2026-10-23')) check(`${tag}: Friday's Dhuhr box says الجمعة`, r.dayName === 'الجمعة', r.dayName);
+      await ctx.close();
+    }
+  }
+}
+
 // ---- «الصلوات في صف»: five prayers in one row, the next lit, «المغرب بعد ١ س و ٥ د» above, with the clock held still
 {
   const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";

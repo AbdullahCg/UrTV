@@ -73,10 +73,10 @@ final class NowCard extends LinearLayout {
     /** what the card says now (MainActivity, on a change and once a minute for the sleep timer) */
     void bind(NowPlaying.State s) {
         playing = s.playing;
-        title.setText(s.title);
-        subText = s.sub;
-        hintText = s.hint;
-        setContentDescription(s.title + "، " + s.sub);
+        title.setText(Digits.of(s.title));
+        subText = Digits.of(s.sub);
+        hintText = Digits.of(s.hint);
+        setContentDescription(Digits.of(s.title + "، " + s.sub));
         paint(hasFocus());
     }
 

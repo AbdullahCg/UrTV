@@ -55,9 +55,7 @@ final class PrayerAdj {
     /** «الفجر +٢ د», «العشاء −١ د», «الظهر ٠ د» (Arabic digits, the real minus sign) */
     static String label(int index, int v) {
         String sign = v > 0 ? "+" : v < 0 ? "−" : "";
-        StringBuilder digits = new StringBuilder();
-        for (char c : String.valueOf(Math.abs(v)).toCharArray()) digits.append((char) ('٠' + (c - '0')));
-        return NAMES[index] + " " + sign + digits + " د";
+        return NAMES[index] + " " + sign + DigitsText.convert(String.valueOf(Math.abs(v)), false) + " د";
     }
 
     /** "fajr=+2 dhuhr=0 asr=0 maghrib=-1 isha=0" for optimize/saver.sh show */

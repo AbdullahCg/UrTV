@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        sa.urtv.home.Digits.init(this);   // the screensaver's «الأرقام» setting
         setContentView(R.layout.activity_main);
         cat = Catalog.get(this);
         prefs = new Prefs(this);
@@ -293,13 +294,9 @@ public class MainActivity extends Activity {
         startActivity(new Intent(this, PlayerActivity.class));
     }
 
-    /** ٣٠٪: the adhan volume in the Arabic-Indic digits the rest of the screen uses. */
+    /** ٣٠٪ (or 30%): the adhan volume in the digits the rest of the screen uses. */
     private static String percent(int value) {
-        StringBuilder b = new StringBuilder();
-        for (char c : String.valueOf(value).toCharArray()) {
-            b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        }
-        return b + "٪";
+        return Ui.digits(value + "%");
     }
 
     private static final class Row {

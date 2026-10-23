@@ -2388,14 +2388,17 @@ function fitYearStrip(){
 
 function prayerRows(){
   if(!DAY_TIMES) return [];
-  const p = riyadhParts(), now = p.h * 60 + p.mi;
+  const p = riyadhParts(), mins = p.h * 60 + p.mi + p.s / 60;
   const names = {Fajr:'الفجر', Sunrise:'الشروق', Dhuhr:isFriday() ? 'الجمعة' : 'الظهر', Asr:'العصر', Maghrib:'المغرب', Isha:'العشاء'};
-  let next = null;
+  // The lit box is the one the bottom panel names (tickPrayer): during the iqama wait the prayer that has just been called, else the next
+  // of the five, and after Isha tomorrow's Fajr. The sunrise is not a prayer and is never lit. Before Fajr nothing is past.
+  const at = k => { const [h, mi] = String(DAY_TIMES[k]).split(':').map(Number); return h * 60 + mi; };
+  const cur = PRAYERS.find(x => { const gap = x.key === 'Dhuhr' && isFriday() ? 0 : (CONFIG.iqama[x.key] || 0); return mins >= at(x.key) && mins < at(x.key) + gap; });
+  const lit = cur ? cur.key : (PRAYERS.find(x => at(x.key) > mins) || PRAYERS[0] || {}).key;
+  const tomorrow = !cur && PRAYERS.length && !PRAYERS.some(x => at(x.key) > mins);
   return Object.keys(names).filter(k => DAY_TIMES[k]).map(k => {
     const [h, mi] = String(DAY_TIMES[k]).split(':').map(Number);
-    const at = h * 60 + mi;
-    let cls = at < now ? 'past' : '';
-    if(at >= now && !next){ next = k; cls = 'next'; }
+    const cls = k === lit ? 'next' : at(k) <= mins && !(tomorrow && k === lit) ? 'past' : '';
     return `<li class="${cls}"><span>${names[k]}</span><span class="dt">${fmt12(h, mi)}</span></li>`;
   });
 }

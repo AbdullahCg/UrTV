@@ -24,6 +24,7 @@ final class Ui {
 
     static void text(TextView view, String file, int sizeSp, int color) {
         view.setTypeface(font(view.getContext(), file));
+        view.setText(digits(view.getText().toString()));   // a text written in the layout or the strings has the setting's digits too
         view.setTextSize(sizeSp);
         view.setTextColor(view.getResources().getColor(color));
     }
@@ -37,16 +38,11 @@ final class Ui {
                      : String.format(Locale.US, "%d:%02d", m, s);
     }
 
-    /** 114 -> ١١٤: the UI uses Arabic-Indic digits, like the rest of the project */
+    /** 114 -> ١١٤ (or 114 when the screensaver's digits are latin) */
     static String arabic(int n) { return digits(String.valueOf(n)); }
 
-    /** "05:12" -> "٠٥:١٢" */
+    /** "05:12" -> "٠٥:١٢" (or as it is when the digits are latin) */
     static String digits(String s) {
-        StringBuilder out = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            out.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        }
-        return out.toString();
+        return sa.urtv.home.DigitsText.convert(s, sa.urtv.home.Digits.latin());   // the screensaver's «الأرقام» setting
     }
 }

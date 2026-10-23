@@ -40,6 +40,7 @@ public class PlayerActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        sa.urtv.home.Digits.init(this);   // the screensaver's «الأرقام» setting
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_player);
         cat = Catalog.get(this);
@@ -202,7 +203,7 @@ public class PlayerActivity extends Activity {
 
         LinearLayout items = dialog.findViewById(R.id.sleep_items);
         final String[] labels = {
-                getString(R.string.sleep_30), getString(R.string.sleep_60), getString(R.string.sleep_90),
+                Ui.digits(getString(R.string.sleep_30)), Ui.digits(getString(R.string.sleep_60)), Ui.digits(getString(R.string.sleep_90)),
                 getString(R.string.sleep_off), getString(R.string.stop_now)
         };
         for (int i = 0; i < labels.length; i++) {

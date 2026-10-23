@@ -221,6 +221,10 @@ okword = [f"{f.name}: {m.group(0)[:40]}" for f, src in java.items()
 okword += [f"{x.name}: {m.group(0)[:40]}" for x in (ROOT / "android").glob("*/src/main/res/values*/*.xml")
            for m in re.finditer(r"<string [^>]*>[^<]*", x.read_text(encoding="utf-8")) if re.search(r"\bOK\b", m.group(0))]
 check("java: no «OK» in an Arabic hint (use «اختيار»)", not okword, okword)
+# the digits setting (hindi or latin) reaches every Java screen through DigitsText, one helper per app: nothing turns a digit by hand
+by_hand = [f"{f.name}: {m.group(0)}" for f, src in java.items() if f.name not in ("DigitsText.java",)
+           for m in re.finditer(r"'[٠\u0660]'\s*\+|\+\s*'[٠\u0660]'|'[0-9]'\s*\+\s*\(?\w+\s*-\s*'٠'", src)]
+check("java: no digit conversion by hand outside DigitsText (Digits.of / DigitsText.convert)", not by_hand, by_hand)
 # the preview and the settings must open fresh: an open one comes back with the settings it opened with, or in front of
 # the one asked for (a TV test read the preview as the settings screen, and as the settings not working)
 starts = [f"{f.name}: {l.strip()}" for f in sorted((ROOT / "optimize").glob("*.sh"))

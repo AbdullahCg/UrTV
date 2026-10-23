@@ -170,6 +170,11 @@ check("pair with no arguments: says what to do and offers the pairing port it fo
 w.find_adb = lambda: ""
 rc, out = cmd(ft.pair_cmd, [], adb.run, mdns)
 check("pair with no adb: says exactly what is missing", rc == 1 and "winget" in out and "brew" in out and "apt" in out, out)
+check("pair with no adb and no arguments: the pairing steps come first (what to open, which numbers), then what is missing",
+      rc == 1 and "Wireless debugging" in out and "6-digit" in out and "Pair device with pairing code" in out
+      and out.index("6-digit") < out.index("winget"), out)
+rc, out = cmd(ft.pair_cmd, ["192.168.1.20:37105", "123456"], adb.run, mdns)
+check("pair with arguments and no adb: only what is missing", rc == 1 and "winget" in out and "Pair device" not in out, out)
 rc, out = cmd(ft.connect_cmd, ["192.168.1.20:41234"], adb.run)
 check("connect with no adb: same", rc == 1 and "brew" in out, out)
 w.find_adb = lambda: "/fake/adb"

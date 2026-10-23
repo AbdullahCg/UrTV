@@ -27,6 +27,7 @@ public class AdhanActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        sa.urtv.home.Digits.init(this);   // the screensaver's «الأرقام» setting
         setContentView(R.layout.activity_adhan);
         prefs = new Prefs(this);
         own = OwnAdhan.exists(this) ? 1 : 0;
