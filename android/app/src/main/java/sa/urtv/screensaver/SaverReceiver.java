@@ -175,6 +175,8 @@ public class SaverReceiver extends BroadcastReceiver {
         List<String> langs = codes(i.getStringExtra("langs"), Prefs.LANGS);
         if (genres != null && genres.contains(null)) return "error: genres are " + names(Prefs.GENRES);
         if (langs != null && langs.contains(null)) return "error: langs are " + names(Prefs.LANGS);
+        List<String> events = codes(i.getStringExtra("events"), Prefs.EVENTS);
+        if (events != null && events.contains(null)) return "error: events are " + names(Prefs.EVENTS);
 
         if (idle != null) {   // first: a refusal here leaves everything else unsaved
             try {
@@ -203,6 +205,7 @@ public class SaverReceiver extends BroadcastReceiver {
         }
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
+        if (events != null) p.setList("events", events);
         return "saved\n" + describe(c, p);
     }
 
@@ -256,6 +259,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\ncountdown: " + (p.countdownDate().isEmpty() ? "none" : p.countdownDate() + " " + p.countdownName())
             + "\nidle: " + idle(Prefs.idleMs(c))
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
+            + "\nevents: " + Prefs.join(p.list("events"), ",")
             + "\nautoupdate: " + p.autoUpdate();
     }
 

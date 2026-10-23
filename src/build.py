@@ -248,6 +248,28 @@ def adhkar_for_screen():
     return out
 
 
+# NBA and NFL teams are «city nickname»; two games side by side may need the nickname alone («ليكرز × ووريورز»).
+# The city takes as many Arabic words as English ones, but for the few written as one word.
+US_SPORTS = ("Basketball", "American Football")
+CITY_ONE_WORD = {"New York"}
+NICK_TWO_WORDS = {"Trail Blazers"}
+
+
+def us_short(clubs):
+    out = {}
+    for c in clubs:
+        ar, en = c.get("ar", ""), c.get("en", "").split()
+        if c.get("sport") not in US_SPORTS or not ar or "(" in ar or len(en) < 2:
+            continue
+        nick = 2 if " ".join(en[-2:]) in NICK_TWO_WORDS else 1
+        city = " ".join(en[:-nick])
+        drop = 1 if city in CITY_ONE_WORD else len(city.split())
+        words = ar.split()
+        if len(words) > drop:
+            out[ar] = " ".join(words[drop:])
+    return out
+
+
 def main():
     html = (ROOT / "src/template.html").read_text(encoding="utf-8")
     # 2 KB, so inlined in both pages
@@ -258,6 +280,9 @@ def main():
     clubs = json.loads((ROOT / "assets/shared/teams.json").read_text(encoding="utf-8"))
     by_id = {c["id"]: c["ar"] for c in clubs if c.get("id") and c.get("ar")}
     html = html.replace("__TEAMS_BY_ID__", js_json(by_id))
+    html = html.replace("__TEAMS_SHORT__", js_json(us_short(clubs)))
+    # leagues of Formula 1, UFC, boxing and tennis, found by CI (.github/tools/team_ids.py); {} until a run delivers them
+    html = html.replace("__EVENTS__", js_json(json.loads((ROOT / "assets/shared/events.json").read_text(encoding="utf-8"))))
     html = html.replace("__VERSES__", js_json(verses_for_screen()))
     html = html.replace("__HADITH__", js_json(hadith_for_screen()))   # checked by CI
     html = html.replace("__ADHKAR__", js_json(adhkar_for_screen()))   # checked by CI

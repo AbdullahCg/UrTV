@@ -25,7 +25,7 @@ final class Prefs {
 
     // League name exactly as TheSportsDB spells it (checked from CI by .github/tools/team_ids.py), Arabic label.
     // Their clubs come from assets/shared/teams.json (Teams), which CI builds from these leagues' matches
-    // (.github/tools/team_ids.py reads this list); a new league here needs its minimum club count there.
+    // (.github/tools/team_ids.py reads this list); a new league here needs its sport and minimum team count there.
     static final String[][] LEAGUES = {
         {"Saudi-Arabian Pro League", "دوري روشن السعودي"},
         {"Saudi First Division League", "دوري يلو (الدرجة الأولى)"},
@@ -41,6 +41,14 @@ final class Prefs {
         {"UAE Pro League", "الدوري الإماراتي"},
         {"Qatar Stars League", "الدوري القطري"},
         {"American Major League Soccer", "الدوري الأمريكي"},
+        {"NBA", "دوري كرة السلة الأمريكي (NBA)"},
+        {"NFL", "دوري كرة القدم الأمريكية (NFL)"},
+    };
+
+    // Other sports shown in the matches slot and card beside the followed teams' games: only their next event
+    // (#events= key, Arabic label). The page finds each one's league ids in assets/shared/events.json (CI).
+    static final String[][] EVENTS = {
+        {"f1", "فورمولا 1"}, {"ufc", "UFC"}, {"boxing", "الملاكمة"},
     };
 
     // TVMaze genre (sent to the page), Arabic label
@@ -113,7 +121,7 @@ final class Prefs {
         sp.edit().putString("cityName", name).putString("cityLat", lat).putString("cityLon", lon).apply();
     }
 
-    static final int MAX_TEAMS = 10;
+    static final int MAX_TEAMS = 20;
 
     /** Followed teams in priority order, "id|name". Migrates the old two team fields once. */
     List<String> teams() {
@@ -260,6 +268,7 @@ final class Prefs {
         return "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]
             + "&tz=" + Uri.encode(TZ)
             + "&teams=" + join(teamIds(), ",")
+            + "&events=" + join(list("events"), ",")
             + "&panel=" + panel()
             + "&week=" + ("none".equals(panel()) ? "0" : "1")   // for a page older than #panel
             + "&genres=" + Uri.encode(join(list("genres"), ","))

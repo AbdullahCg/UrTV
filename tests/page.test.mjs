@@ -995,6 +995,113 @@ for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 5
   }
 }
 
+// ---- 20 followed teams: the slot pages through all of them, two at a time, and the card pages its rows
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const ids = Array.from({ length: 22 }, (_, i) => 900100 + i);
+  const { p, ctx, errors } = await open('tv.html', 'teams=' + ids.join(',') + '&panel=matches', { width, height });
+  const r = await p.evaluate(() => {
+    const NAMES = 'Arsenal Barcelona Chelsea Dortmund Everton Fulham Genoa Hertha Inter Juventus Lazio Milan Napoli Osasuna Porto Roma Sevilla Torino Udinese Valencia'.split(' ');
+    const ids = CONFIG.teamIds;
+    ids.forEach((id, i) => { MATCHES[id] = { idEvent: 'e' + i, idHomeTeam: String(id), strHomeTeam: NAMES[i],
+      idAwayTeam: 'x' + i, strAwayTeam: NAMES[19 - i] + ' B', strTimestamp: new Date(Date.now() + (i + 1) * 36e5).toISOString() }; });
+    MATCHES_LOADED = true;
+    const seen = new Set(), bad = [], row = document.getElementById('match-row');
+    MATCH_PAGE = -1;
+    for (let k = 0; k < 12; k++) {
+      renderMatches(true);
+      row.querySelectorAll('.mblock .big').forEach(b => seen.add(b.innerText));
+      const b = row.getBoundingClientRect();
+      if (b.left < -2 || b.right > innerWidth + 2 || b.bottom > innerHeight + 2) bad.push(k);
+    }
+    return { teams: ids.length, shown: seen.size, bad };
+  });
+  check(`20 teams at ${width}x${height}: capped, all paged through, on screen`,
+    !errors.length && r.teams === 20 && r.shown === 20 && !r.bad.length, JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+
+// ---- other sports, with TheSportsDB answers mocked: an NBA game, an NFL game, an F1 weekend, a UFC card
+{
+  const at = h => new Date(Date.now() + h * 36e5).toISOString().slice(0, 19);
+  const game = (id, sport, h, a, hid, aid, hrs) => ({ idEvent: id, strSport: sport, idHomeTeam: hid, strHomeTeam: h,
+    idAwayTeam: aid, strAwayTeam: a, strTimestamp: at(hrs), strStatus: 'NS', intHomeScore: null, intAwayScore: null });
+  const NEXT = {
+    '900001': [game('n1', 'Basketball', 'Los Angeles Lakers', 'Golden State Warriors', '900001', '900002', 5)],
+    '900003': [game('f1', 'American Football', 'Kansas City Chiefs', 'San Francisco 49ers', '900003', '900004', 30)],
+  };
+  const F1 = [['Saudi Arabian Grand Prix Practice 1', 3], ['Saudi Arabian Grand Prix Qualifying', 27],
+              ['Saudi Arabian Grand Prix Sprint', 30], ['Saudi Arabian Grand Prix', 51]]
+    .map(([n, h], i) => ({ idEvent: 'r' + i, strEvent: n, strCountry: 'Saudi Arabia', strTimestamp: at(h), strStatus: 'NS' }));
+  // the shapes TheSportsDB really answers (CI report): UFC «UFC 333 Volkanovski vs Evloev», boxing with no time of day
+  const UFC = [{ idEvent: 'u1', strEvent: 'UFC 333 Volkanovski vs Evloev', strCountry: 'United Arab Emirates', strTime: '16:00:00',
+                 strTimestamp: at(60), strStatus: 'NS' },
+               { idEvent: 'u2', strEvent: 'UFC Fight Night 291 Buckley vs Malott', strCountry: 'Canada', strTime: '21:00:00',
+                 strTimestamp: at(200), strStatus: 'NS' }];
+  const day = new Date(Date.now() + 30 * 36e5).toISOString().slice(0, 10);
+  const BOX = [{ idEvent: 'b1', strEvent: 'Dalton Smith vs Alberto Puello', strCountry: 'United Kingdom', strTime: '00:00:00',
+                 strTimestamp: day + 'T00:00:00', dateEvent: day, strStatus: 'NS' }];
+  const mock = r => {
+    const u = new URL(r.request().url());
+    if (!/thesportsdb/.test(u.host)) return r.abort();
+    const id = u.searchParams.get('id'), body = j => r.fulfill({ json: j, headers: { 'Access-Control-Allow-Origin': '*' } });
+    if (u.pathname.endsWith('eventsnext.php')) return body({ events: NEXT[id] || null });
+    if (u.pathname.endsWith('eventsnextleague.php')) return body({ events: { E1: F1, E2: UFC, E3: BOX }[id] || null });
+    return body({ results: null });
+  };
+  for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+    const ctx = await browser.newContext({ viewport: { width, height } });
+    await ctx.route(/^https?:/, mock);
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(page('tv.html') + '#teams=900001,900003&events=f1,ufc,boxing&panel=matches');
+    await p.evaluate(() => { EVENT_LEAGUES.f1 = [{ id: 'E1', name: 'Formula 1' }]; EVENT_LEAGUES.ufc = [{ id: 'E2', name: 'UFC' }];
+                             EVENT_LEAGUES.boxing = [{ id: 'E3', name: 'Boxing' }]; });
+    await p.evaluate(() => loadMatches());
+    await p.waitForTimeout(800);
+    const r = await p.evaluate(() => {
+      const row = document.getElementById('match-row'), seen = [], bad = [];
+      MATCH_PAGE = -1;
+      for (let k = 0; k < 4; k++) {
+        renderMatches(true);
+        row.querySelectorAll('.mblock').forEach(b => {
+          seen.push(b.innerText.replace(/\s+/g, ' ').trim());
+          const big = b.querySelector('.big > span');
+          const rg = document.createRange(), cs = getComputedStyle(big); rg.selectNodeContents(big);   // as fitMatches measures
+          if (rg.getBoundingClientRect().width > big.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + .5)
+            bad.push('overflow: ' + big.textContent);
+        });
+        const b = row.getBoundingClientRect();
+        if (b.left < -2 || b.right > innerWidth + 2 || b.bottom > innerHeight + 2) bad.push('off screen ' + k);
+      }
+      const card = matchRows().map(h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); });
+      const shown = [], cut = [];
+      for (let k = 0; k < card.length; k++) {   // every page of the card
+        LIST_PAGE = k; renderPanel(false);
+        document.querySelectorAll('#week-list li > span:first-child').forEach(sp => { shown.push(sp.textContent); if (!fits(sp)) cut.push(sp.textContent); });
+      }
+      return { seen, bad, card, cardRows: new Set(shown).size, cardCut: [...new Set(cut)] };
+    });
+    const all = r.seen.join(' | ');
+    const tag = `${width}x${height}`;
+    check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+    // in the slot two games share the row, so the names may take the nickname alone; the card has room for them whole
+    check(`${tag}: NBA game in Arabic`, (all.includes('لوس أنجلوس ليكرز × غولدن ستيت ووريورز') || all.includes('ليكرز × ووريورز'))
+      && r.card.some(c => c.includes('لوس أنجلوس ليكرز × غولدن ستيت ووريورز')), all + ' / ' + r.card.join(' | '));
+    check(`${tag}: NFL game in Arabic`, (all.includes('كانساس سيتي تشيفز × سان فرانسيسكو فورتي ناينرز') || all.includes('تشيفز × فورتي ناينرز'))
+      && r.card.some(c => c.includes('كانساس سيتي تشيفز × سان فرانسيسكو فورتي ناينرز')), all + ' / ' + r.card.join(' | '));
+    check(`${tag}: F1: the Grand Prix on the big line, the next session under it`, /جائزة السعودية( الكبرى)? التجارب الحرة ١/.test(all), all);
+    check(`${tag}: UFC: the fighters on the big line, the card's number and country under it`,
+      /× [^|]* UFC ٣٣٣ · الإمارات/.test(all) && !/[A-Za-z]/.test(all.replace(/UFC/g, '')), all);
+    check(`${tag}: a boxing card with no time tells the day only`, all.includes('ملاكمة') && !/ملاكمة[^|]*[٠-٩]+:[٠-٩]+/.test(all), all);
+    check(`${tag}: nothing off screen, every name whole on one line (no «…»)`, !r.bad.length && !all.includes('…'), r.bad.join(',') + ' ' + all);
+    check(`${tag}: the card beside the clock: every row on one line, long names in their short form`, r.cardRows > 0 && !r.cardCut.length, JSON.stringify(r.cardCut));
+    check(`${tag}: the card lists the F1 weekend (practice, qualifying, sprint, race)`,
+      ['التجارب الحرة ١', 'التأهل', 'السبرنت', 'السباق'].every(x => r.card.some(c => c.includes('جائزة السعودية الكبرى · ' + x))), r.card.join(' | '));
+    await ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

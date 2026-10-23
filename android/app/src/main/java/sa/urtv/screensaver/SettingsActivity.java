@@ -97,6 +97,9 @@ public class SettingsActivity extends Activity {
         row("الفرق المتابعة (" + arabicNum(prefs.teams().size()) + "/" + arabicNum(Prefs.MAX_TEAMS) + ")", teamsLabel(),
             R.drawable.ic_trophy, new Runnable() { public void run() { manageTeams(); } });
 
+        row("رياضات أخرى", labels(Prefs.EVENTS, prefs.list("events"), "بدون"), R.drawable.ic_trophy,
+            new Runnable() { public void run() { pickMany("events", "رياضات أخرى", Prefs.EVENTS, "بدون اختيار = بدون"); } });
+
         header("العرض");
         row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
             new Runnable() { public void run() { pickDigits(); } });
@@ -202,7 +205,7 @@ public class SettingsActivity extends Activity {
             }));
     }
 
-    /** Followed teams: untick to remove, or add one (presets, league browsing, search). Up to 10. */
+    /** Followed teams: untick to remove, or add one (presets, league browsing, search). Up to 20. */
     private void manageTeams() {
         final List<String> cur = prefs.teams();
         String[] labels = new String[cur.size()];
@@ -224,7 +227,7 @@ public class SettingsActivity extends Activity {
 
     private void addTeam(String id, String name) {
         if (prefs.addTeam(id, name)) toast("تمت متابعة " + name);
-        else toast(prefs.teams().size() >= Prefs.MAX_TEAMS ? "الحد الأعلى ١٠ فرق" : "متابَع مسبقاً");
+        else toast(prefs.teams().size() >= Prefs.MAX_TEAMS ? "الحد الأعلى ٢٠ فريقاً" : "متابَع مسبقاً");
         render();
     }
 
@@ -323,11 +326,15 @@ public class SettingsActivity extends Activity {
     }
 
     private void pickMany(final String key, String title, final String[][] options) {
+        pickMany(key, title, options, "بدون اختيار = الكل");
+    }
+
+    private void pickMany(final String key, String title, final String[][] options, String hint) {
         List<String> cur = prefs.list(key);
         String[] labels = new String[options.length];
         final boolean[] on = new boolean[options.length];
         for (int i = 0; i < options.length; i++) { labels[i] = options[i][1]; on[i] = cur.contains(options[i][0]); }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title + " (بدون اختيار = الكل)")
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title + " (" + hint + ")")
             .setMultiChoiceItems(labels, on, (d, i, checked) -> on[i] = checked)
             .setPositiveButton("حفظ", (d, w) -> {
                 List<String> v = new ArrayList<>();

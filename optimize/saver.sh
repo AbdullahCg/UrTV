@@ -5,7 +5,7 @@
 #   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed)
 #   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
-#   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 10; more are left out and listed)
+#   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed)
 #   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast matches verse wisdom adhkar stocks tasks none
 #   optimize/saver.sh home-card none               on the home screen (launcher): same choices, none = off
 #   optimize/saver.sh genres Drama,Comedy          episodes card: Drama Comedy Action Crime Thriller Mystery
@@ -28,6 +28,7 @@
 #   optimize/saver.sh slot fasting                 the bottom-left slot: matches (default; the weather when no team is followed)
 #                                                  weather fasting countdown markets none
 #   optimize/saver.sh countdown 2026-12-01 'رحلة الصيف'    the date and name slot=countdown counts down to ("clear" removes it)
+#   optimize/saver.sh events f1,ufc               other sports beside the teams' games: f1 ufc boxing  ("" = none)
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
@@ -56,15 +57,16 @@ case "${1:-}" in
   teams)
     shift
     [ $# -gt 0 ] || { echo "usage: optimize/saver.sh teams ID:EnglishName ..."; exit 1; }
-    if [ $# -gt 10 ]; then   # the app keeps the first 10 and drops the rest without a word: say so here
-      echo "Only 10 teams can be followed. Kept: ${*:1:10}"
+    if [ $# -gt 20 ]; then   # the app keeps the first 20 and drops the rest without a word: say so here
+      echo "Only 20 teams can be followed. Kept: ${*:1:20}"
       echo "Left out (${#} given): ${*:11}"
-      set -- "${@:1:10}"
+      set -- "${@:1:20}"
     fi
     send SET "--es teams $(quote "$(IFS=,; echo "$*")")" ;;
   card)      send SET "--es panel $(quote "${2:?usage: optimize/saver.sh card prayers}")" ;;
   home-card) send SET "--es home_panel $(quote "${2:?usage: optimize/saver.sh home-card none}")" ;;
   genres)    send SET "--es genres $(quote "${2-}")" ;;
+  events)    send SET "--es events $(quote "${2-}")" ;;
   langs)     send SET "--es langs $(quote "${2-}")" ;;
   minrating) send SET "--es minrating $(quote "${2:?usage: optimize/saver.sh minrating 7}")" ;;
   photos)    send SET "--es photos $(quote "${2:?usage: optimize/saver.sh photos 15}")" ;;
@@ -107,5 +109,5 @@ case "${1:-}" in
       *) echo "usage: optimize/saver.sh tasks list | add 'نص' | done N | del N | clear"; exit 1 ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,30p' "$0"; exit 1 ;;
+  *) sed -n '2,33p' "$0"; exit 1 ;;
 esac
