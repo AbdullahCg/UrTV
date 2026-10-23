@@ -28,6 +28,16 @@ final class Updater {
 
     static File pageFile(Context c) { return new File(c.getFilesDir(), "web/tv.html"); }
 
+    /** the build stamp of the page the app carries ("" if it cannot be read) */
+    static String assetStamp(Context c) {
+        try { return PageStamp.read(c.getAssets().open("tv.html")); } catch (Exception e) { return ""; }
+    }
+
+    /** the build stamp of a downloaded page file */
+    static String fileStamp(File f) {
+        try { return PageStamp.read(new java.io.FileInputStream(f)); } catch (Exception e) { return ""; }
+    }
+
     private static final AtomicBoolean DUE_RUNNING = new AtomicBoolean();
 
     /**
@@ -84,6 +94,8 @@ final class Updater {
             String tail = new String(body, Math.max(0, body.length - 4096), Math.min(body.length, 4096), "UTF-8");
             // never swap in a truncated or wrong file
             if (body.length < 30_000 || !head.contains("<html") || !tail.contains("</html>")) return "ملف التحديث غير صالح";
+            // a copy older than the page the app carries (a CDN serves old ones for minutes) is not kept, whatever its file time will be
+            if (PageStamp.newer(assetStamp(c), PageStamp.of(head))) return "الصفحة المرفقة أحدث من المنزّلة";
 
             File dir = out.getParentFile();
             if (!dir.isDirectory() && !dir.mkdirs()) return "تعذر الحفظ";

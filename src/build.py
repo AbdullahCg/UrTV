@@ -271,8 +271,24 @@ def us_short(clubs):
     return out
 
 
+def build_stamp():
+    """UTC YYYYMMDDHHMMSS of the newest commit that touched the page's sources (else of HEAD, else now): the same for every build of one
+    commit, never going back as commits are added. URTV_BUILD overrides it. The app compares these, so a page older than its own is never used."""
+    import os, subprocess, time
+    if os.environ.get("URTV_BUILD", "").isdigit():
+        return os.environ["URTV_BUILD"]
+    for args in (["--", "src", "assets"], []):
+        try:
+            t = subprocess.run(["git", "log", "-1", "--format=%ct"] + args, cwd=ROOT, capture_output=True, text=True, timeout=30).stdout.strip()
+        except Exception:
+            t = ""
+        if t.isdigit():
+            return time.strftime("%Y%m%d%H%M%S", time.gmtime(int(t)))
+    return time.strftime("%Y%m%d%H%M%S", time.gmtime())
+
+
 def main():
-    html = (ROOT / "src/template.html").read_text(encoding="utf-8")
+    html = (ROOT / "src/template.html").read_text(encoding="utf-8").replace("__BUILD__", build_stamp())
     # 2 KB, so inlined in both pages
     html = html.replace("__F_MARKS__", data_uri(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2", "font/woff2"))
     teams = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))

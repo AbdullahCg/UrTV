@@ -347,16 +347,19 @@ final class Prefs {
         return pageBase(c) + "#" + frag + "&panel=" + panel + "&cardstyle=" + cardStyle + "&widget=1";
     }
 
-    /** The page without its settings: the downloaded copy when it is newer than the app, else the one the app carries. */
+    /**
+     * The page without its settings: the downloaded copy when its build stamp is newer than the one the app carries, else the app's own. By
+     * the stamp in each page (PageStamp), not by file time: a download from a stale CDN copy gets a newer file time than the APK's install
+     * and used to win for hours.
+     */
     private String pageBase(Context c) {
         File remote = Updater.pageFile(c);
-        // A downloaded page older than the installed app is stale: the APK carries a newer copy.
-        long installed = 0;
-        try { installed = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).lastUpdateTime; }
-        catch (Exception ignored) { }
-        return autoUpdate() && remote.isFile() && remote.lastModified() > installed
-            ? Uri.fromFile(remote).toString()
-            : "file:///android_asset/tv.html";
+        boolean useRemote = false;
+        if (autoUpdate() && remote.isFile()) {
+            try { useRemote = PageStamp.newer(Updater.fileStamp(remote), Updater.assetStamp(c)); }
+            catch (Exception ignored) { }
+        }
+        return useRemote ? Uri.fromFile(remote).toString() : "file:///android_asset/tv.html";
     }
 
     /** Everything the page needs, as "city=..&lat=..&..."; also read by the launcher (ConfigProvider). */

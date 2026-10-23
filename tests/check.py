@@ -46,7 +46,11 @@ for page, limit in (("urtv.html", 4_000_000), ("tv.html", 650_000)):   # tv.html
     left = sorted(set(re.findall(r"__[A-Z][A-Z_]+__", html)))
     check(f"{page}: every build token replaced", not left, left)
     check(f"{page}: size under {limit // 1000} KB", len(html.encode()) < limit, len(html.encode()))
-stale = [n for n, b in before.items() if (ROOT / "dist" / n).read_bytes() != b]
+# the build stamp is the time of the newest commit of the sources: a build before the commit carries the one before, so it is left out here
+unstamp = lambda b: re.sub(rb'(<meta name="urtv-build" content=")\d{14}', rb"\1", b)
+stale = [n for n, b in before.items() if unstamp((ROOT / "dist" / n).read_bytes()) != unstamp(b)]
+check("dist/tv.html carries the build stamp the app compares pages by (<meta name=\"urtv-build\">, 14 digits)",
+      re.search(rb'<meta name="urtv-build" content="\d{14}">', (ROOT / "dist/tv.html").read_bytes()[:4096]) is not None)
 check("dist/ matched a fresh build (run src/build.py after editing src/)", len(before) == 1 and not stale, stale)
 
 # ---- data files
