@@ -76,11 +76,39 @@ def trouble():   # from run.log: what the scripts said went wrong, and how often
     return out + [f"- {l}" for l in errors]
 
 
+def windows_release(system, version, release):
+    """«11» or «10»: Python's release() says 10 on Windows 11 too, so the build number decides (22000 and over is 11).
+    The build is the last part of platform.version() («10.0.22631»), or of Git Bash's system («MINGW64_NT-10.0-22631»)."""
+    for text in (version, system):
+        m = re.search(r"\b10\.0[.-](\d{4,6})\b", text or "")
+        if m:
+            return "11" if int(m.group(1)) >= 22000 else "10"
+    return release
+
+
 def computer():
     name = platform.system()
     if name == "Windows" or "MINGW" in name.upper() or "MSYS" in name.upper():
-        return f"Windows {platform.release()}"
+        return f"Windows {windows_release(name, platform.version(), platform.release())}"
     return {"Darwin": f"macOS {platform.mac_ver()[0]}"}.get(name, f"{name} {platform.release()}")
+
+
+def live_versions():
+    """The two apps' versionName as the TV says it now, «Versions: screensaver 3.124, home 3.124»; None when the TV does not
+    answer (then report.md's line, written at the last setup, is all there is)."""
+    tv_py = Path(__file__).resolve().parent / "tv.py"
+    found = []
+    for package in ("sa.urtv.screensaver", "sa.urtv.home"):
+        try:
+            out = subprocess.run([sys.executable, "-I", str(tv_py), f"dumpsys package {package} 2> /dev/null | grep -m1 versionName"],
+                                 capture_output=True, text=True, timeout=60, env={**os.environ, "TV_TRIES": "1"})
+        except Exception:  # noqa: BLE001
+            return None
+        m = re.search(r"versionName=(\S+)", out.stdout) if out.returncode == 0 else None
+        if not m:
+            return None
+        found.append(m.group(1))
+    return f"Versions: screensaver {found[0]}, home {found[1]}"
 
 
 def steps():
@@ -134,8 +162,12 @@ def report_checks():
     lines = report.read_text(encoding="utf-8").splitlines()
     ok = sum(l.startswith("- ok:") for l in lines)
     bad = [l[2:] for l in lines if l.startswith("- !!")]
+    live = live_versions()   # the apps on the TV now; the report's line only dates from the last setup
     out = [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
-           *[l for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+           *[live if l.startswith("Versions:") and live else l
+             for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+    if live and not any(l.startswith("Versions:") for l in lines):
+        out.append(live)
     return out + packages(lines)
 
 

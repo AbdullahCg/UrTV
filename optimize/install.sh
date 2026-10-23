@@ -244,3 +244,19 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
   echo "Launcher is home. Press Home from inside an app to double-check."
   echo "Undo everything: optimize/reset.sh"
 fi
+
+# The report's «Versions:» line was written by run.sh before this install: say what is on the TV now, so run.sh's report
+# and share.sh agree. (Only when the report exists; no report, nothing to correct.)
+if [ "$what" != extras ] && [ -f "${URTV_RUN_DIR:-optimize/run}/report.md" ]; then
+  rep="${URTV_RUN_DIR:-optimize/run}/report.md"
+  vs=$("$PY" -I optimize/tv.py "dumpsys package sa.urtv.screensaver 2> /dev/null | grep -m1 versionName" 2> /dev/null | sed 's/.*=//' | tr -d '\r ') || vs=""
+  vh=$("$PY" -I optimize/tv.py "dumpsys package sa.urtv.home 2> /dev/null | grep -m1 versionName" 2> /dev/null | sed 's/.*=//' | tr -d '\r ') || vh=""
+  if [ -n "$vs$vh" ]; then
+    line="Versions: screensaver ${vs:-none}, home ${vh:-none}"
+    if grep -q '^Versions:' "$rep"; then
+      awk -v l="$line" '/^Versions:/ { print l; next } { print }' "$rep" > "$rep.tmp" && mv "$rep.tmp" "$rep"
+    else
+      printf '%s\n' "$line" >> "$rep"
+    fi
+  fi
+fi
