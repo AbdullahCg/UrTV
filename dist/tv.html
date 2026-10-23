@@ -43,7 +43,7 @@
   html.widget .mid{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--cg,clamp(8px,2vw,22px));align-items:start}
   html.widget .mid.n2,html.widget .mid.n3{grid-template-columns:minmax(0,560fr) minmax(0,540fr)}
   html.widget .mid .week.w3{grid-column:1/-1}
-  html.widget .week{width:100%}
+  html.widget .week{width:100%;padding:max(1.7vh,10px) max(1.4vw,14px)}   /* the small boxes keep a clear, even distance from the card's edge */
   html,body{
     height:100%;overflow:hidden;background:#040E09;color:var(--sand);
     font-family:'Thmanyah',system-ui,sans-serif;
@@ -147,6 +147,19 @@
   @keyframes weekIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   .week li.task::before{content:'';flex:0 0 auto;width:.4em;height:.4em;border-radius:50%;background:var(--gold);align-self:center}
   .week li.task span{max-width:100%;min-width:0}
+  /* «مواقيت اليوم»: the six times as boxes, three and three, larger than a list's rows; the next one lit, the past ones dimmed. Even room
+     round every box and round the grid, so it sits symmetrical in the card (renderCard puts .pgrid on the list) */
+  .week ul.pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(1.2vh + 6px) calc(.9vw + 6px);padding:calc(.5vh + 2px) 0 calc(.3vh + 2px)}
+  .week ul.pgrid li{flex-direction:column;align-items:center;justify-content:center;gap:.3em;white-space:nowrap;text-align:center;
+    padding:calc(1.7vh + 6px) .5em;border:1px solid rgba(var(--gold-rgb),.24);border-radius:calc(10px + .5vw);background:rgba(255,255,255,.045);
+    font-size:calc(clamp(18px,1.7vw,32px)*var(--z,1))}
+  .week ul.pgrid li:last-child{border-bottom:1px solid rgba(var(--gold-rgb),.24)}
+  .week ul.pgrid li span:first-child{max-width:none;overflow:visible;padding:0;margin:0;font-weight:500}
+  .week ul.pgrid li .dt{flex:none;min-width:0;text-align:center;font-size:.82em;color:#CFC5AD;font-variant-numeric:tabular-nums}
+  .week ul.pgrid li.past{color:#8F8670;background:rgba(255,255,255,.02);border-color:rgba(var(--gold-rgb),.12)}
+  .week ul.pgrid li.past .dt{color:#8A826D}
+  .week ul.pgrid li.next{background:rgba(var(--gold-rgb),.18);border-color:rgba(var(--gold-rgb),.55);color:var(--gold-hi)}
+  .week ul.pgrid li.next .dt{color:var(--gold-3)}
   /* «الساعات القادمة»: the next six hours in one row, the earliest on the right */
   .week li.hrs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.3em;white-space:normal;border-bottom:none;padding:1.2vh 0 .5vh;align-items:start;text-align:center}
   .week li.hrs .hc{display:flex;flex-direction:column;align-items:center;gap:.4em;min-width:0}
@@ -2217,6 +2230,7 @@ function renderCard(card, animate, keepSize){
   const was = card.eff;
   card.eff = card.kind === 'smart' ? smartKind() : card.kind;
   const P = card.eff;
+  ul.classList.toggle('pgrid', P === 'prayers');
   if(P !== was){   // the smart card changed its mind: a fresh page of the new kind
     card.page = 0; card.skip = 0; card.maxLen = 0; ul.__h = null;
     if(was === 'adhkar'){ clearTimeout(card.ad.t); card.ad.t = 0; card.ad.mode = ''; }
