@@ -2891,7 +2891,7 @@ const gameAt = (i, h, a, hrs, o = {}) => ({ idEvent: 'q' + i, strHomeTeam: h, st
 const MIXED = [gameAt(0, 'Al-Hilal', 'Al-Nassr', -5, { score: [2, 1] }), gameAt(1, 'Al-Ahli', 'Al-Ittihad', 3, { noab: true }),
                gameAt(2, 'Manchester United', 'Borussia Monchengladbach', 30)];
 const put = games => `NEXT_LIST = { '136013': ${JSON.stringify(games)} };`;
-const oneLine = p => p.evaluate(() => [...document.querySelectorAll('#week-list li.mg')].map(li => {
+const oneLine = p => p.evaluate(() => [...(((CARDS.find(c => c.eff === 'matches') || CARDS[0]).ul).querySelectorAll('li.mg'))].map(li => {
   const row = li.firstElementChild, r = row.getBoundingClientRect(), kids = [...row.children], bx = e => e.getBoundingClientRect();
   const mid = kids.find(k => k.classList.contains('sc') || k.classList.contains('x')), tms = kids.filter(k => k.classList.contains('tm'));
   const cen = e => { const b = bx(e); return (b.left + b.right) / 2; };
