@@ -770,12 +770,15 @@ function prayerName(x){ return x.key === 'Dhuhr' && isFriday() ? 'الجمعة' 
 // ---- the bar before the adhan: in the last 10 minutes before each prayer «الأذان بعد ٨ دقائق», from the adhan to the iqama
 // «الإقامة بعد ١٢ دقيقة» (the iqama minutes of CONFIG.iqama, none for a Friday's Dhuhr). #adhanbar=0 turns it off.
 const ADHAN_BAR_MIN = 10;
+// «٤ دقائق»: what is left to an adhan, in the same words at the same second on the bar and in the panel below (whole minutes of the
+// rounded second; never less than one)
+const untilAdhan = leftMin => humanRemaining(Math.max(60, Math.round(leftMin * 60)));
 function adhanBarText(){
   if(!CONFIG.adhanBar || !PRAYERS.length) return '';
   const p = riyadhParts(), mins = p.h*60 + p.mi + p.s/60;
   for(const x of PRAYERS){
     const at = x.h*60 + x.mi, toAdhan = at - mins;
-    if(toAdhan > 0 && toAdhan <= ADHAN_BAR_MIN) return 'الأذان بعد ' + humanRemaining(Math.max(60, Math.ceil(toAdhan)*60));
+    if(toAdhan > 0 && toAdhan <= ADHAN_BAR_MIN) return 'الأذان بعد ' + untilAdhan(toAdhan);
     const gap = x.key === 'Dhuhr' && isFriday() ? 0 : (CONFIG.iqama[x.key] || 0);
     if(mins >= at && mins < at + gap) return 'الإقامة بعد ' + humanRemaining(Math.max(60, Math.ceil(at + gap - mins)*60));
   }
@@ -823,7 +826,7 @@ function tickPrayer(){
   if(!next) next = PRAYERS[0];
   setText(elN, prayerName(next));
   setText(elT, fmt12(next.h, next.mi));
-  setHTML(elC, 'بعد <b>' + humanRemaining(Math.max(0, Math.round(leftM*60))) + '</b>');
+  setHTML(elC, 'بعد <b>' + untilAdhan(leftM) + '</b>');
 }
 
 // ---- «المناسبة القادمة»: the card in the middle of the bottom row follows the Hijri year ----

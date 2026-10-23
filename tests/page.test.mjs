@@ -2324,7 +2324,7 @@ const barAt = (p, day, hhmm, ss = '00') => p.evaluate(([iso, times]) => {
   window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
   eval(times); tickPrayer();
   const b = document.getElementById('adbar'), cs = getComputedStyle(b), r = b.getBoundingClientRect();
-  return { hidden: b.hidden || cs.display === 'none', text: b.textContent, top: r.top, h: r.height, w: r.width };
+  return { hidden: b.hidden || cs.display === 'none', text: b.textContent, top: r.top, h: r.height, w: r.width, panel: document.getElementById('prayer-count').textContent };
 }, [`${day}T${hhmm}:${ss}+03:00`, ADHAN_TIMES]);
 for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   for (const digits of ['hindi', 'latin']) {
@@ -2338,7 +2338,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const tag = `adhan bar ${width}x${height} ${digits}`;
     check(`${tag}: no script errors`, !errors.length, errors.join('; '));
     check(`${tag}: the last 10 minutes: «الأذان بعد …», shown from exactly 10 minutes before, not 11`,
-      !r.m10.hidden && r.m10.text === N('الأذان بعد ١٠ دقائق') && !r.m8.hidden && r.m8.text === N('الأذان بعد ٨ دقائق') && r.m1.text === N('الأذان بعد ١ دقيقة') && r.over10.hidden, JSON.stringify([r.m10, r.m8, r.m1, r.over10]));
+      !r.m10.hidden && r.m10.text === N('الأذان بعد ١٠ دقائق') && !r.m8.hidden && r.m8.text === N('الأذان بعد ٧ دقائق') && r.m1.text === N('الأذان بعد ١ دقيقة') && r.over10.hidden, JSON.stringify([r.m10, r.m8, r.m1, r.over10]));
     check(`${tag}: from the adhan to the iqama: «الإقامة بعد …» (Maghrib 10, Fajr 25, Asr and Isha 20, Dhuhr 20)`,
       r.at.text === N('الإقامة بعد ١٠ دقائق') && r.q5.text === N('الإقامة بعد ٥ دقائق') && r.end.hidden && r.fajr.text === N('الإقامة بعد ٢٥ دقيقة') && r.asr.text === N('الإقامة بعد ١٥ دقيقة')
       && r.isha.text === N('الإقامة بعد ١٥ دقيقة') && r.dhuhr.text === N('الإقامة بعد ٢٠ دقيقة'), JSON.stringify([r.at.text, r.q5.text, r.end.hidden, r.fajr.text, r.asr.text, r.isha.text, r.dhuhr.text]));
@@ -2350,6 +2350,30 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     await ctx.close();
   }
 }
+// the bar and the panel below say the same time at the same second (the bar rounded up, the panel's minutes went down: «بعد ٥» and «بعد ٤»)
+{
+  for (const [width, height] of [[1920, 1080], [960, 540]]) {
+    const { p, ctx, errors } = await open('tv.html', 'panel=prayers', { width, height });
+    const at = (hhmmss) => p.evaluate(([iso, times]) => {
+      const R = window.__R || (window.__R = Date), T = Date.parse(iso);
+      window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+      eval(times); tickPrayer();
+      return { bar: document.getElementById('adbar').textContent, panel: document.getElementById('prayer-count').textContent.trim() };
+    }, [`2026-10-22T${hhmmss}+03:00`, ADHAN_TIMES]);
+    const half = await at('17:40:30');   // 4 min 30 s before Maghrib
+    check(`bar and panel at 4 min 30 s before the prayer, ${width}x${height}: both say ٤ دقائق`,
+      !errors.length && half.bar === 'الأذان بعد ٤ دقائق' && half.panel === 'بعد ٤ دقائق', JSON.stringify(half));
+    const apart = [];
+    for (let s = 0; s < 600; s += 3) {   // the last 10 minutes, every 3 seconds
+      const t = 17 * 3600 + 35 * 60 + s, hh = [Math.floor(t / 3600), Math.floor(t % 3600 / 60), t % 60].map(n => String(n).padStart(2, '0')).join(':');
+      const r = await at(hh);
+      if (r.bar.replace('الأذان ', '') !== r.panel) apart.push(hh + ' ' + r.bar + ' / ' + r.panel);
+    }
+    check(`bar and panel, every 3 seconds of the last 10 minutes, ${width}x${height}: always the same time`, !apart.length, apart.slice(0, 4).join(' | '));
+    await ctx.close();
+  }
+}
+
 {   // off: never shown; the launcher's card mode never shows it; not before the times are known
   const off = await open('tv.html', 'panel=prayers&adhanbar=0');
   const a = await barAt(off.p, '2026-10-22', '17:37', '10');
