@@ -1038,6 +1038,16 @@ function finishedRecently(ev, now){
   const over = FINAL.includes((ev.strStatus || '').toUpperCase()) ? now >= k : now >= end;
   return over && now - end < 86400000;
 }
+// A game past its end with no result in the data (the CI file is refreshed every 6 h and the API is slow to post a score): it stays,
+// at its own time among the results and with no score, for a day after its end. Asked for once, 6 h after kick-off (loadLive).
+function pendingResult(ev, now){
+  if(!ev || ev.intHomeScore != null && ev.intAwayScore != null) return false;
+  const st = (ev.strStatus || '').toUpperCase(), k = toDate(ev).getTime(), end = k + durMs(ev);
+  return !FINAL.includes(st) && !CALLED_OFF.test(st) && !isNaN(k) && now >= end && now - end < 86400000;
+}
+// the order of the screen: results (and a past game with no result yet) in time order, then live, then the rest by time
+const gameRank = (ev, now) => finishedRecently(ev, now) || pendingResult(ev, now) ? 0 : now >= toDate(ev).getTime() ? 1 : 2;
+const byRank = (a, b) => a.r - b.r || a.t - b.t;
 // Keep a score seen at the final whistle: the free API's "last games" list can lag, and "next game"
 // moves on to the following fixture right away. Saved, so a restart within the day still shows it.
 const KEPT = (()=>{ try{ return JSON.parse(localStorage.getItem('keptResults') || '{}'); }catch(e){ return {}; } })();
@@ -1071,6 +1081,8 @@ function resultBlock(done){
 function gameBlock(ev, now, big){
   const home = esc(teamAr(ev.strHomeTeam, ev.idHomeTeam)), away = esc(teamAr(ev.strAwayTeam, ev.idAwayTeam));
   const d = toDate(ev), diff = d - now;
+  if(pendingResult(ev, now))   // over, no result yet: the teams and when they played
+    return `<div class="mblock"><div class="big"><span><span class="tm">${home}</span> × <span class="tm">${away}</span></span></div><div class="sub">${matchWhen(d)}</div></div>`;
   if(diff < -durMs(ev) || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
   const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
     .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
@@ -1091,14 +1103,14 @@ function matchSlot(id, now, shown){
   if(done){
     if(shown.has(done.idEvent)) return null;          // both teams in the same game
     shown.add(done.idEvent);
-    return {t: toDate(done).getTime(), html: resultBlock(done)};
+    return {t: toDate(done).getTime(), r: 0, html: resultBlock(done)};
   }
   const ev = MATCHES[id];
   if(!ev || shown.has(ev.idEvent)) return null;
   const html = gameBlock(ev, now);
   if(!html) return null;
   shown.add(ev.idEvent);
-  return {t: toDate(ev).getTime(), html};
+  return {t: toDate(ev).getTime(), r: gameRank(ev, now), html};
 }
 
 // ---------- whole leagues: #leagues= ----------
@@ -1110,6 +1122,7 @@ const LEAGUE_BASE = 'https://raw.githubusercontent.com/tshi-dev/UrTV/data-league
 const LEAGUE_LIVE_MAX = 6;
 const leagueSlug = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');   // team_ids.slug()
 let LEAGUE_DATA = (()=>{ try{ return JSON.parse(localStorage.getItem('leagueData') || '{}') || {}; }catch(e){ return {}; } })();   // name -> its file
+const STALE_ASK_H = 6, STALE_ASKED = new Set();   // a past game with no result: asked for once, 6 h after its kick-off
 let LIVE_PATCH = {};   // idEvent -> {at, ev}: lookupevent's newer word on a game, used while newer than the league's file
 async function loadLeagues(){
   let got = 0;
@@ -1147,8 +1160,8 @@ function leagueShow(now, shown){
   return leagueGames().filter(ev => !CALLED_OFF.test(ev.strStatus || '') && !shown.has(ev.idEvent)).map(ev => {
     const done = finishedRecently(ev, now);
     const html = done ? resultBlock(ev) : FINAL.includes((ev.strStatus || '').toUpperCase()) ? '' : gameBlock(ev, now);
-    return html ? {t: toDate(ev).getTime(), ev, done, html} : null;
-  }).filter(Boolean).sort((a, b) => a.t - b.t);
+    return html ? {t: toDate(ev).getTime(), r: gameRank(ev, now), ev, done, html} : null;
+  }).filter(Boolean).sort(byRank);
 }
 
 function liveStatus(ev, t12){
@@ -1175,6 +1188,9 @@ async function loadLive(){
     }catch(e){ return null; }
   };
   const theirs = CONFIG.leagues.length ? leagueGames().filter(ev => live(ev) && !own.has(ev.idEvent)).slice(0, LEAGUE_LIVE_MAX) : [];
+  // a game 6 h past kick-off with no result: ask once; the answer (or none) is what the screen shows from then on
+  const stale = matchEvents().filter(ev => !STALE_ASKED.has(ev.idEvent) && now - toDate(ev).getTime() > STALE_ASK_H * 3600000 && pendingResult(ev, now)).slice(0, LEAGUE_LIVE_MAX);
+  stale.forEach(ev => STALE_ASKED.add(ev.idEvent));
   await Promise.all([
     ...Object.entries(MATCHES).map(async ([id, ev])=>{
       if(!live(ev)) return;
@@ -1184,6 +1200,15 @@ async function loadLive(){
     ...theirs.map(async ev => {
       const fresh = await look(ev);
       if(fresh) LIVE_PATCH[ev.idEvent] = {at: Date.now(), ev: fresh};
+    }),
+    ...stale.map(async ev => {
+      const fresh = await look(ev);
+      if(!fresh) return;
+      LIVE_PATCH[ev.idEvent] = {at: Date.now(), ev: fresh};   // a league's copy
+      const mend = list => (list || []).map(x => x && x.idEvent === ev.idEvent ? Object.assign({}, x, fresh) : x);
+      Object.keys(MATCHES).forEach(id => { MATCHES[id] = mend([MATCHES[id]])[0]; });   // a followed team's copies
+      Object.keys(NEXT_LIST).forEach(id => { NEXT_LIST[id] = mend(NEXT_LIST[id]); });
+      Object.keys(RESULTS).forEach(id => { RESULTS[id] = mend(RESULTS[id]); });
     }),
   ]);
   if(asked) renderMatches();   // outside a match window nothing was asked, nothing changed
@@ -1334,7 +1359,7 @@ function renderMatches(turn){
   if(!SLOT_MATCHES) return;
   const now = Date.now(), shown = new Set();
   let games = CONFIG.teamIds.map(id => matchSlot(id, now, shown)).filter(Boolean);
-  if(CONFIG.leagues.length) games = [...games, ...leagueShow(now, shown)].sort((a, b) => a.t - b.t);   // one time order
+  if(CONFIG.leagues.length) games = [...games, ...leagueShow(now, shown)].sort(byRank);   // one order
   const live = focusGames(now, true);   // a followed team is playing: that game alone, big, until it ends
   const slots = live.length ? live.map(ev => gameBlock(ev, now, true))
     : [...games.map(g => g.html), ...CONFIG.events.map(k => eventSlot(k, now))].filter(Boolean);
@@ -2145,22 +2170,23 @@ function matchRows(card){
   const smart = card && card.kind === 'smart';
   if(smart){ const ids = new Set(focusGames(now).map(ev => ev.idEvent)); evs = evs.filter(ev => ids.has(ev.idEvent)); }   // only the game that brought the smart card here
   const others = smart ? [] : eventRows(now);
-  return [...evs.map(ev => ({ev, t: toDate(ev).getTime()}))
-    .filter(x => finishedRecently(x.ev, now)
+  return [...evs.map(ev => ({ev, t: toDate(ev).getTime(), r: gameRank(ev, now)}))
+    .filter(x => finishedRecently(x.ev, now) || pendingResult(x.ev, now)
       || (now < x.t + durMs(x.ev) && !FINAL.includes((x.ev.strStatus || '').toUpperCase())
           && x.t - now <= CONFIG.weekWindowDays * 86400000))
-    .sort((a, b) => a.t - b.t)
-    .map(({ev, t}) => {
+    .sort(byRank)
+    .map(({ev, t, r}) => {
       const d = new Date(t), scored = ev.intHomeScore != null && ev.intAwayScore != null;
       const mid = scored && now >= t ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
-      const upcoming = !finishedRecently(ev, now) && now < t;
+      const upcoming = !finishedRecently(ev, now) && now < t, pending = r === 0 && !finishedRecently(ev, now);
       const when = finishedRecently(ev, now) ? 'انتهت'
+        : pending ? ''   // over with no result yet: no score, no «بعد …»
         : now >= t ? '<span class="live">مباشر</span>'
         : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
       // an upcoming game has its date and time under the teams, as in the bottom row
-      const dateLine = upcoming ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
-      return {t, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
-    }), ...others].sort((a, b) => a.t - b.t).map(x => x.html);
+      const dateLine = upcoming || pending ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
+      return {t, r, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
+    }), ...others.map(o => ({...o, r: o.t <= now ? 1 : 2}))].sort(byRank).map(x => x.html);
 }
 
 // ---- «الأسهم»: the watchlist card. A Tadawul code (4 digits) is asked of Yahoo as CODE.SR, letters are a US ticker.

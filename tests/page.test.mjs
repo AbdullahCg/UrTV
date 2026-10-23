@@ -1654,6 +1654,81 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 
+// ---- a game past its end that the file still calls «NS» (the CI file is 6 h old, the API slow to post): shown at its own time among
+// the results, with no score and no «بعد …»; results, then live, then the rest; one lookupevent for a game 6 h past kick-off
+{
+  const GAME = '2573391';   // Al-Ahli × Al-Khaleej, 22 Oct 18:00 UTC, NS in the file
+  const open2 = async (now, answer, width = 960, height = 540) => {
+    const asked = [];
+    const extra = (r, u) => {
+      if (!u.pathname.endsWith('lookupevent.php')) return false;
+      asked.push(u.searchParams.get('id'));
+      const ev = answer && SAUDI_FILE.events.find(e => e.idEvent === u.searchParams.get('id'));
+      r.fulfill({ json: { events: ev ? [{ ...ev, ...answer }] : null }, headers: { 'Access-Control-Allow-Origin': '*' } });
+      return true;
+    };
+    const o = await open('tv.html', 'teams=136013&leagues=' + encodeURIComponent('Saudi-Arabian Pro League') + '&events=f1,ufc,boxing&panel=matches',
+      { width, height, now, net: tvMock(extra) });
+    await o.p.evaluate(() => { EVENT_LEAGUES.f1 = [{ id: 'E1', name: 'Formula 1' }]; EVENT_LEAGUES.ufc = [{ id: 'E2', name: 'UFC' }];
+                               EVENT_LEAGUES.boxing = [{ id: 'E3', name: 'Boxing' }]; });
+    await o.p.evaluate(() => loadMatches());
+    await o.p.waitForTimeout(800);
+    await o.p.evaluate(() => loadLive());   // the page's own timer does it every 2 minutes
+    await o.p.waitForTimeout(400);
+    return { ...o, asked };
+  };
+  const rowsOf = p => p.evaluate(() => matchRows().map(h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); }));
+  const slotOf = p => p.evaluate(() => { const out = []; MATCH_PAGE = -1; for (let k = 0; k < 40; k++) renderMatches(true);
+    for (let k = 0; k < MATCH_PAGES; k++) { renderMatches(true); document.querySelectorAll('#match-row .mblock').forEach(b => out.push(b.innerText.replace(/\s+/g, ' ').trim())); } return out; });
+  for (const [width, height] of [[1920, 1080], [960, 540]]) {
+    const tag = `a past game still «NS», ${width}x${height}`;
+    // Friday 13:00 in Riyadh: 16 h after kick-off. The lookup says nothing new (still NS): the game stays, without a score
+    const o = await open2(TV_NOW, { strStatus: 'NS' }, width, height);
+    const rows = await rowsOf(o.p), slot = await slotOf(o.p);
+    { const p = o.p;
+    // SHOT item2-card-${width} | 0
+    }
+    check(`${tag}: no script errors`, !o.errors.length, o.errors.join('; '));
+    check(`${tag}: the card: the two results, then the unscored game at its own time (no score, no «بعد»), then the rest by time`,
+      rows[0].startsWith('الحزم ٢ - ٢') && rows[1].startsWith('الفتح ١ - ٣') && rows[2].startsWith('الأهلي × الخليج')
+      && !/[٠-٩] - [٠-٩]|بعد|انتهت|مباشر/.test(rows[2]) && rows[3].startsWith('الفيصلي × النصر'), rows.slice(0, 5).join(' | '));
+    check(`${tag}: the slot shows it too, in the same place`,
+      slot.findIndex(b => b.startsWith('الأهلي × الخليج')) === slot.findIndex(b => b.startsWith('الفتح')) + 1
+      && !/بعد/.test(slot.find(b => b.startsWith('الأهلي × الخليج')) || 'بعد'), slot.slice(0, 4).join(' | '));
+    check(`${tag}: ONE lookupevent for it (16 h past), and not again`, o.asked.join() === GAME, o.asked.join());
+    await o.p.evaluate(() => loadLive()); await o.p.evaluate(() => loadLive()); await o.p.waitForTimeout(300);
+    check(`${tag}: asked once per game however often the page looks`, o.asked.join() === GAME, o.asked.join());
+    await o.ctx.close();
+  }
+  {   // the lookup brings the result: shown as a result at its own time
+    const o = await open2(TV_NOW, { strStatus: 'FT', intHomeScore: '3', intAwayScore: '1' });
+    const rows = await rowsOf(o.p);
+    check('a past game still «NS»: when lookupevent has its result, the result shows in its place (٣ - ١ انتهت)',
+      rows[2].startsWith('الأهلي ٣ - ١ الخليج') && rows[2].includes('انتهت'), rows.slice(0, 4).join(' | '));
+    await o.ctx.close();
+  }
+  {   // 4.5 h after kick-off (Thursday 22:30 UTC): shown with no score, not asked for yet (under 6 h)
+    const o = await open2(new Date('2026-10-22T22:30:00Z'), { strStatus: 'NS' });
+    const rows = await rowsOf(o.p);
+    check('a past game still «NS» under 6 h after kick-off: shown with no score, no lookup yet',
+      rows.some(t => t.startsWith('الأهلي × الخليج') && !/بعد|[٠-٩] - [٠-٩]/.test(t)) && !o.asked.length, o.asked.join() + ' / ' + rows.slice(0, 4).join(' | '));
+    await o.ctx.close();
+  }
+  {   // the order: results, the unscored past game, live, then the rest by time
+    const o = await open2(TV_NOW, { strStatus: 'NS' });
+    const rows = await o.p.evaluate(() => {
+      LEAGUE_DATA['Saudi-Arabian Pro League'].events.push({ idEvent: 'LIVE1', idLeague: '4668', idHomeTeam: '136012', idAwayTeam: '136016', strHomeTeam: 'Al-Ettifaq', strAwayTeam: 'Damac',
+        strStatus: '2H', strTimestamp: '2026-10-23T09:00:00', dateEvent: '2026-10-23', strTime: '09:00:00', strSport: 'Soccer', intHomeScore: '1', intAwayScore: '0', strProgress: '60' });
+      return matchRows().map(h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); });
+    });
+    const kind = t => /انتهت/.test(t) ? 'result' : /مباشر/.test(t) ? 'live' : t.startsWith('الأهلي × الخليج') ? 'pending' : 'next';
+    const seq = rows.map(kind).join(' ');
+    check('order: results, the unscored past game, live, then the rest (no past game after a coming one)',
+      /^result result pending live( next)+$/.test(seq), seq + ' / ' + rows.join(' | '));
+    await o.ctx.close();
+  }
+}
+
 // ---- the two longest games of every league side by side: each fits its line (or the pair goes one to a page), at three sizes
 for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const clubs = JSON.parse(readFileSync(path.join(ROOT, 'assets/shared/teams.json'), 'utf8'));
