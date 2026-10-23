@@ -13,7 +13,9 @@
     tv.py --check                            is the device answering the TV the setup started on? (saves it if none yet)
     tv.py --new-tv                           the device answering now is the TV to work on from here (replaces the saved one)
 
-The TV the setup started on is remembered (serial, make and model) in optimize/run/tv-id.json, local only. Every command
+The TV the setup started on is remembered (serial, make and model) in tv-id.json, next to the ADB key in the person's own
+home folder (~/.urtv, %USERPROFILE%\\.urtv on Windows), local only and outside the clone: a new clone of UrTV is the same
+computer, and the TV still trusts its key. Its path is never printed (it holds the user name). Every command
 that changes the TV checks, once per connection, that the device answering is that TV, and stops with a !! line if not.
 Read-only ones (getprop, dumpsys, pm list, settings get, --probe, --pull, --shot) don't need it.
 
@@ -25,6 +27,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -43,13 +46,19 @@ except ModuleNotFoundError:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOST_FILE = os.path.join(HERE, ".tv_host")  # written by find-tv.sh, git-ignored
+# What identifies this computer to the TV (its ADB key) and which TV the setup is for live in the person's home, not in the
+# clone: a new clone gets no new key (the TV would ask «Allow USB debugging?» for a computer it already trusts, or nothing
+# would connect), and it knows the TV already. URTV_HOME moves it (the tests do).
+HOME_DIR = os.environ.get("URTV_HOME") or os.path.join(os.path.expanduser("~"), ".urtv")
 HOST = os.environ.get("TV_HOST") or (open(HOST_FILE).read().strip() if os.path.exists(HOST_FILE) else "")
 if not HOST:
     sys.exit("Don't know your TV's IP. Run optimize/find-tv.sh, or set TV_HOST=192.168.x.y")
 PORT = int(os.environ.get("TV_PORT", "5555"))
-KEY = os.path.join(HERE, "adbkey", "adbkey")
+KEY = os.path.join(HOME_DIR, "adbkey")
+OLD_KEY = os.path.join(HERE, "adbkey", "adbkey")   # where the key lived before: inside the clone
 TRIES = int(os.environ.get("TV_TRIES", "4"))
-ID_FILE = os.path.join(os.environ.get("URTV_RUN_DIR") or os.path.join(HERE, "run"), "tv-id.json")
+ID_FILE = os.path.join(os.environ.get("URTV_RUN_DIR") or HOME_DIR, "tv-id.json")
+OLD_ID_FILE = os.path.join(HERE, "run", "tv-id.json")
 
 # One round trip: who is answering. The serial is ro.serialno, else ro.boot.serialno.
 IDENT_CMD = ('echo "serial=$(getprop ro.serialno)"; echo "bootserial=$(getprop ro.boot.serialno)"; '
@@ -80,6 +89,8 @@ def same_tv(saved, now):
 
 
 def load_identity():
+    if not os.environ.get("URTV_RUN_DIR"):
+        move_old(OLD_ID_FILE, ID_FILE)
     try:
         with open(ID_FILE, encoding="utf-8") as f:
             ident = json.load(f)
@@ -145,8 +156,29 @@ def is_read_only(cmd):
     return True
 
 
+def move_old(old, new):
+    """The first time: a file this clone kept inside optimize/ moves to the home folder, unless one is there already
+    (then the clone's copy is a stale one and stays as it is)."""
+    try:
+        if os.path.isfile(old) and not os.path.exists(new):
+            os.makedirs(os.path.dirname(new), exist_ok=True)
+            shutil.move(old, new)
+            return True
+    except OSError:
+        pass
+    return False
+
+
 def signer():
     os.makedirs(os.path.dirname(KEY), exist_ok=True)
+    try:
+        os.chmod(os.path.dirname(KEY), 0o700)
+    except OSError:
+        pass
+    if not os.path.exists(KEY) and move_old(OLD_KEY, KEY):
+        move_old(OLD_KEY + ".pub", KEY + ".pub")
+        print("   (the ADB key moved out of this folder into your home folder, in .urtv: a new clone of UrTV will use it too)",
+              file=sys.stderr)
     if not os.path.exists(KEY):
         keygen(KEY)
     return PythonRSASigner(open(KEY + ".pub").read(), open(KEY).read())

@@ -12,6 +12,7 @@ python3 tests/install_retry_test.py
 python3 tests/run_lock_test.py
 python3 tests/reboot_test.py
 python3 tests/tv_identity_test.py
+python3 tests/key_home_test.py
 python3 tests/dock_names_test.py
 python3 tests/dock_sleep_test.py
 python3 tests/find_tv_test.py

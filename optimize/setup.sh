@@ -46,3 +46,7 @@ else
   echo "!! This computer can't open https://github.com from optimize/venv (certificates or network). Check that it"
   echo "   is online, delete the folder optimize/venv, then run optimize/setup.sh again."
 fi
+# the key the TV trusts lives in the home folder, outside this clone (tv.py makes it on the first connection, and moves an
+# older one here from optimize/adbkey): a new clone of UrTV is the same computer and the TV does not ask again
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) keydir='%USERPROFILE%\.urtv' ;; *) keydir='~/.urtv' ;; esac
+echo "✓ ADB key: $keydir (outside this folder; a new clone of UrTV uses the same one. If an older UrTV folder has optimize/adbkey, copy it there)"
