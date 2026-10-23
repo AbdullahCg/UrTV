@@ -41,6 +41,8 @@ def main():
         e = {"when": d["when"], "text": pick["text"], "count": d["count"], "source": pick["source"]}
         if d.get("quran"):
             e["quran"] = d["quran"]
+            if d.get("uthmani"):   # the QPC Hafs text, checked by verify_uthmani.py; keep it
+                e["uthmani"] = d["uthmani"]
         virtue = rows[d["text"]].get("virtue")
         if d.get("virtue") and virtue and virtue.get("text"):   # the hadith's own words, as the book has them
             e["virtue"] = {"text": virtue["text"], "source": virtue["source"]}

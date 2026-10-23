@@ -151,7 +151,7 @@ const atRiyadh = (p, hhmm) => p.evaluate(([hhmm, sample]) => {
   const { p, ctx, errors } = await open('tv.html', 'panel=adhkar');
   const m = await atRiyadh(p, '06:00'), e = await atRiyadh(p, '16:00'), noon = await atRiyadh(p, '13:00'), dusk = await atRiyadh(p, '18:30');
   const edge = [await atRiyadh(p, '04:39'), await atRiyadh(p, '04:40'), await atRiyadh(p, '11:39'), await atRiyadh(p, '11:40'),
-                await atRiyadh(p, '14:59'), await atRiyadh(p, '15:00'), await atRiyadh(p, '17:29'), await atRiyadh(p, '17:30')].map(r => /^أذكار/.test(r.hd));
+                await atRiyadh(p, '14:59'), await atRiyadh(p, '15:00'), await atRiyadh(p, '17:29'), await atRiyadh(p, '17:30')].map(r => /^(أذكار|الآيتان)/.test(r.hd));
   const n = await atRiyadh(p, '22:00'), after = await atRiyadh(p, '03:00');
   const nightEdge = [await atRiyadh(p, '18:59'), await atRiyadh(p, '19:00'), await atRiyadh(p, '23:59'), await atRiyadh(p, '00:00'), await atRiyadh(p, '04:39')].map(r => r.hd);
   check('adhkar morning (6:00): title, sun icon, «حتى الظهر», first dhikr, one timer',
