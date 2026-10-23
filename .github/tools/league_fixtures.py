@@ -122,6 +122,12 @@ def previous(slug_, now, lid):
     return pick(old.get("events") or [], lid, now)
 
 
+def write_report(report, problems):
+    report["requests"] = ti.STATS["thesportsdb"]
+    report["problems"] = problems
+    (OUT / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     names = [n for n in ti.prefs_leagues() if not argv or n in argv]
@@ -151,9 +157,8 @@ def main(argv=None):
              **({"stale": True} if stale and events else {})}, ensure_ascii=False, separators=(",", ":")) + "\n",
             encoding="utf-8")
         print(f"{name}: {len(events)} games  {json.dumps(notes, ensure_ascii=False)}", flush=True)
-    report["requests"] = ti.STATS["thesportsdb"]
-    report["problems"] = problems
-    (OUT / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        write_report(report, problems)   # after every league: a run cut off by its time limit still pushes what it has
+    write_report(report, problems)
     if problems:
         print("\nPROBLEMS:\n- " + "\n- ".join(problems))
         sys.exit(1)

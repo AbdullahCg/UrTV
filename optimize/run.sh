@@ -8,6 +8,7 @@
 #                              becomes summary-<n>.md so the new run's before/after starts clean)
 #   SKIP_LAUNCHER=1 optimize/run.sh   keep the TV's own home screen (firmware that won't let another app be Home)
 #   SKIP_EXTRAS=1 optimize/run.sh     without TV Bro and SmartTube
+#   (a different TV than the one the setup started on is refused; for a new TV: optimize/venv/bin/python -I optimize/tv.py --new-tv)
 # Before: optimize/setup.sh and optimize/find-tv.sh. Optional packages the household gave up go in
 # optimize/lists/mine.txt (one per line, picked from lists/tcl-optional.txt) before running.
 # Results in optimize/run/: summary.md (before/after), ram-*.txt, backup.txt, report.md, steps.log (times), run.log.
@@ -90,6 +91,10 @@ fi
 
 exec > >(tee -a "$RUN/run.log") 2>&1   # everything it says, for optimize/share.sh: its !! lines and dropped connections
 
+# Is this the TV the setup started on? Two devices can answer on one Wi-Fi (a box and the TV). The first TV seen is
+# remembered in $RUN/tv-id.json; another one stops here, before the backup (which would overwrite the first TV's).
+tv --check
+
 check_list() {   # never disable what UAD-ng rates Unsafe; show everything that is not "Recommended"
   local out
   out=$("$PY" -I optimize/check-packages.py "$1")
@@ -103,6 +108,7 @@ report() {
   grep -E 'model|version.release|display.id' "$RUN/tv.txt" || true
   echo
   cat "$RUN/summary.md"
+  "$PY" -I optimize/heavy.py "$RUN/summary.md" || true   # the TV's own screensaver against ours: a !! advice line if ours is heavy
   echo
   echo "Features that must stay on:"
   for p in com.tcl.airplay2 com.google.android.apps.mediashell com.tcl.miracast com.google.android.katniss \
@@ -182,13 +188,19 @@ for s in "${STEPS[@]}"; do
   touch "$RUN/.done-$s"
   stamp "done $s"
 done
-if grep -q '!!' "$RUN/report.md"; then
+# the heavy-screensaver line is advice for the owner, not a failure: it is shown but does not stop the run
+ADVICE='the screensaver may slow this TV'
+if grep '!!' "$RUN/report.md" | grep -qv "$ADVICE"; then
   current=report-check   # the stop below is no step's fault
   echo
   echo "Done, with problems:"
   grep '!!' "$RUN/report.md"
   rm -f "$RUN/.done-report"   # the next run writes the report again, so a fixed problem stops showing
   exit 1
+fi
+if grep -q "$ADVICE" "$RUN/report.md"; then
+  echo
+  grep "$ADVICE" "$RUN/report.md"
 fi
 echo
 echo "All steps done. Next: settings (optimize/saver.sh), favourites (optimize/dock.sh), photos (optimize/shot.sh)."

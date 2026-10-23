@@ -127,6 +127,22 @@ check("main: a file stays small (about 300 bytes a game)", (out / "saudi-arabian
       (out / "saudi-arabian-pro-league.json").stat().st_size)
 check("main: the report lists each league", set(json.loads((out / "report.json").read_text(encoding="utf-8"))["leagues"]) == {"Saudi-Arabian Pro League", "NBA"})
 
+# a run cut off by its time limit (the job is cancelled mid-league): the leagues already done are in report.json, so it is pushed
+(out / "report.json").unlink()
+real_collect = lf.collect
+def cut_off(name, lid, now, get=main_get):
+    if name == "NBA":
+        raise KeyboardInterrupt   # what the runner's cancel looks like from inside
+    return real_collect(name, lid, now, get)
+lf.collect = cut_off
+try:
+    lf.main(["Saudi-Arabian Pro League", "NBA"])
+except (KeyboardInterrupt, SystemExit):
+    pass
+lf.collect = real_collect
+rep = json.loads((out / "report.json").read_text(encoding="utf-8")) if (out / "report.json").exists() else {}
+check("main: cut off mid-run, report.json already holds the leagues done", set(rep.get("leagues", {})) == {"Saudi-Arabian Pro League"}, rep)
+
 # ---- the page names a league's file as the collector does
 leagues = ti.prefs_leagues()
 node = shutil.which("node")

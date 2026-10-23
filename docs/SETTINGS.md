@@ -56,6 +56,8 @@ something about the screensaver, the home screen or the TV, find it in the table
 | the screensaver to start sooner or later | بدء شاشة التوقف بعد | `optimize/saver.sh idle <1, 2, 5, 10, 15, 30>` (minutes; the TV's own timer) |
 | their own photos as the background (a player, their country, family), 1 to 10, with ours or alone | صوري | `optimize/photos.sh add <files they named>` (made ready here: upright, screen size, no location or camera data), then `optimize/photos.sh mode mix` (with ours, the default) or `optimize/photos.sh mode only`; `optimize/photos.sh list`, `optimize/photos.sh del N`, `optimize/photos.sh clear` (back to ours only), `optimize/photos.sh show` (a screenshot with them). Ask where the files are; never search their computer |
 | the newest screen now | تحديث الشاشة الآن | `optimize/saver.sh update` (it also updates by itself; keep «التحديث التلقائي للصفحة» on) |
+| to turn our screensaver off (it slows the TV, or they don't want it), and the TV's own back | (ADB only) | `optimize/saver.sh off` (puts back the one from before the setup, else one the TV lists, else none; ours stays installed with its settings; ask first) |
+| our screensaver again | (ADB only) | `optimize/saver.sh on`; `optimize/saver.sh show` says, on its last line, which one is active |
 | which version they have, how to update | the last lines of the settings | `optimize/saver.sh show` (first line: `version: …`, and the newest one if known); to update the apps, `docs/SETUP-PROMPT.md` (the settings stay) |
 | to see the screensaver now | معاينة الشاشة | `optimize/start-saver.sh`, or `optimize/shot.sh screensaver` |
 | everything as it is now | | `optimize/saver.sh show` |
@@ -90,7 +92,6 @@ something about the screensaver, the home screen or the TV, find it in the table
 
 ## Not in تلفزيونك yet (say so, and pass it on with `--owner`)
 
-- Being built, not on TVs yet: turning our screensaver off when it is heavy for the TV.
 - Asked for, not planned yet: other countries' photos and prayer methods, moving cards around (layout), a news
   ticker, a flight countdown with the flight number (the countdown above can count to the trip's date).
 - Not possible: Samsung (Tizen) and LG (webOS) TVs can't run these apps.

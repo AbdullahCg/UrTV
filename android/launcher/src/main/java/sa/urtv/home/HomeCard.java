@@ -2,6 +2,8 @@ package sa.urtv.home;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
@@ -24,6 +26,7 @@ import java.util.Collections;
  */
 final class HomeCard {
     private static final Uri CONFIG = Uri.parse("content://sa.urtv.screensaver.config");
+    private static final String PREFS = "homecard";   // the last settings read from the screensaver
     private static final String FONTS = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/assets/fonts/";
 
     /** The box in pixels, {width, height}, for that many cards; asked again whenever the screen is laid out. */
@@ -77,31 +80,26 @@ final class HomeCard {
     }
 
     private String readUrl() {
+        String frag = null, panel = null;
         try (Cursor c = activity.getContentResolver().query(CONFIG, null, null, null, null)) {
-            if (c == null || !c.moveToFirst()) return fallback();
-            String frag = c.getString(0), panel = c.getString(1);
-            int all = c.getColumnIndex("home_panels");   // "a,b,c": every card; an older screensaver has only the first
-            if (all >= 0 && c.getString(all) != null) panel = c.getString(all);
-            if (frag == null || panel == null) return fallback();
-            if ("none".equals(panel) || panel.isEmpty()) return null;    // the user turned the cards off
-            cards = Math.max(1, Math.min(3, panel.split(",").length));
-            frag = frag.replaceAll("(^|&)(panel|week)=[^&]*", "");   // the screensaver's own card choice
-            // panel= is the first card, for a page that knows only one; home_panel= the whole list
-            return "file:///android_asset/web/tv.html#" + frag + "&panel=" + panel.split(",")[0]
-                + "&home_panel=" + panel + "&widget=1";
+            if (c != null && c.moveToFirst()) {
+                frag = c.getString(0);
+                panel = c.getString(1);
+                int all = c.getColumnIndex("home_panels");   // "a,b,c": every card; an older screensaver has only the first
+                if (all >= 0 && c.getString(all) != null) panel = c.getString(all);
+            }
         } catch (RuntimeException e) {
-            return fallback();   // the screensaver's settings are out of reach
+            // the screensaver's settings are out of reach
         }
-    }
-
-    /**
-     * The screensaver's settings could not be read: it is missing, too old, or signed with another
-     * key (a test build of this app). The prayer times of the default city are shown instead of
-     * an empty screen.
-     */
-    private String fallback() {
-        cards = 1;
-        return "file:///android_asset/web/tv.html#panel=prayers&widget=1";
+        SharedPreferences sp = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (frag != null && panel != null) {   // remember what was read, for when it can't be read
+            sp.edit().putString("frag", frag).putString("panel", panel).apply();
+        }
+        // Unreadable settings (the screensaver is missing, too old, or signed with another key, e.g. reinstalled
+        // before this app): keep the last cards chosen, «بدون» included. Only with nothing remembered, the prayers.
+        String[] choice = HomeCardChoice.pick(frag, panel, sp.getString("frag", null), sp.getString("panel", null));
+        cards = HomeCardChoice.count(choice);
+        return HomeCardChoice.url(choice);
     }
 
     @SuppressLint("SetJavaScriptEnabled")
