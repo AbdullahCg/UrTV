@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Arabic names for the home screen, as package|name. An app whose own name already has Arabic letters keeps it;
-  an app not listed here keeps its own name (nothing is ever transliterated). Only packages known for certain.
+  Arabic names for the home screen, as package|name. A name the owner's agent set on the TV (optimize/dock.sh name)
+  comes first; then an app's own name if it has Arabic letters; then this list; else the app's own name.
+  Only packages known for certain.
 -->
 <resources>
     <string-array name="app_names" translatable="false">
@@ -11,9 +12,9 @@
         <item>com.netflix.ninja|نتفليكس</item>
         <item>com.netflix.mediaclient|نتفليكس</item>
         <item>net.mbc.shahidTV|شاهد</item>
-        <item>com.disney.disneyplus|ديزني بلس</item>
+        <item>com.disney.disneyplus|ديزني +</item>
         <item>com.amazon.amazonvideo.livingroom|برايم فيديو</item>
-        <item>com.apple.atve.androidtv.appletv|آبل تي في</item>
+        <item>com.apple.atve.androidtv.appletv|ابل تي في</item>
         <item>com.spotify.tv.android|سبوتيفاي</item>
         <item>com.android.vending|متجر بلاي</item>
         <item>com.android.tv.settings|الإعدادات</item>
