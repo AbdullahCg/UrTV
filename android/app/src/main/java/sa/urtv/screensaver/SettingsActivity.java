@@ -157,7 +157,8 @@ public class SettingsActivity extends Activity {
         header("التطبيق");
         row("التحديث التلقائي للصفحة", prefs.autoUpdate() ? "يعمل · عند بدء الشاشة، كل ٦ ساعات" : "متوقف", R.drawable.ic_sync, new Runnable() { public void run() {
             prefs.setAutoUpdate(!prefs.autoUpdate()); render(); } });
-        row("تحديث الشاشة الآن", Updater.versionNote(this) + " " + "ينزّل أحدث نسخة من الشاشة. تحديث التطبيق نفسه يكون عبر مساعد الذكاء الاصطناعي، لأنه يضبط الشاشة الرئيسية وشاشة التوقف، وإعداداتك كلها تبقى.", R.drawable.ic_sync, new Runnable() { public void run() { updateNow(); } });
+        View last = row("تحديث الشاشة الآن", "ينزّل أحدث نسخة من الشاشة", R.drawable.ic_sync, new Runnable() { public void run() { updateNow(); } });
+        note(last, Updater.versionLines(this));
     }
 
     // ---------- pickers ----------
@@ -747,6 +748,27 @@ public class SettingsActivity extends Activity {
         t.setLetterSpacing(0.05f);
         t.setPadding(dp(6), dp(22), dp(6), dp(8));
         list.addView(t);
+    }
+
+    /** Plain lines at the end, in no button: nothing to focus, so the last row scrolls them into view. */
+    private void note(View last, String... lines) {
+        TextView t = new TextView(this);
+        t.setText(android.text.TextUtils.join("\n", lines));
+        t.setTextColor(0xFFC6BBA4);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        t.setTypeface(font("Thmanyah-Regular"));
+        t.setLineSpacing(dp(4), 1f);
+        t.setGravity(Gravity.START);
+        t.setTextDirection(View.TEXT_DIRECTION_RTL);
+        t.setPadding(dp(6), dp(18), dp(6), dp(24));
+        list.addView(t);
+        final View.OnFocusChangeListener was = last.getOnFocusChangeListener();
+        last.setOnFocusChangeListener((v, has) -> {
+            if (was != null) was.onFocusChange(v, has);
+            if (!has) return;
+            for (android.view.ViewParent p = list.getParent(); p != null; p = p.getParent())   // list sits in a frame in the scroll view
+                if (p instanceof ScrollView) { final ScrollView sv = (ScrollView) p; v.post(() -> sv.fullScroll(View.FOCUS_DOWN)); break; }
+        });
     }
 
     /** A card row: icon, label and its current value on a second line, chevron; gold when focused. */

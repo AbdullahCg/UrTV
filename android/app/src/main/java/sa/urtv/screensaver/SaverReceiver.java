@@ -260,7 +260,9 @@ public class SaverReceiver extends BroadcastReceiver {
 
     private static String describe(Context c, Prefs p) {
         String[] city = p.city();
-        return "city: " + city[0] + " (" + city[1] + ", " + city[2] + ")"
+        String latest = p.raw().getString("latestVersion", null);   // what Updater last saw on the release
+        return "version: " + BuildConfig.VERSION_NAME + (latest != null ? " (newest: " + latest + ")" : "")
+            + "\ncity: " + city[0] + " (" + city[1] + ", " + city[2] + ")"
             + "\nteams: " + Prefs.join(p.teams(), ", ")
             + "\npanel: " + p.panel() + "\nhome_panel: " + p.homePanel()
             + "\nminrating: " + p.minRating()
