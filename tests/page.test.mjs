@@ -1949,6 +1949,66 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- «صوري»: the first photo on screen obeys the mode. The app answers the owner's photos from disk but a cold start can take longer than
+// the page's 1.2 s; the page then showed a bundled photo of ours first (and theirs only at the next change)
+{
+  const OWNU = 'https://own.urtv.invalid/';
+  // how(n): ms to answer the owner's photo n, or 'fail'; every background the page ever shows is logged, in order
+  const start = async (hash, how, now = null) => {
+    const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
+    await ctx.route(/^https?:/, r => {
+      const u = r.request().url();
+      if (u.startsWith(OWNU)) {
+        const h = how(+u.slice(OWNU.length).replace('.jpg', ''));
+        return h === 'fail' ? r.abort() : void setTimeout(() => r.fulfill({ contentType: 'image/jpeg', body: badgePng }).catch(() => {}), h);
+      }
+      const i = u.indexOf('/master/'), rel = i > 0 ? u.slice(i + 8) : '';
+      if (/^(assets\/(backgrounds|fonts)|photos)\//.test(rel)) return r.fulfill({ path: path.join(ROOT, rel), headers: { 'Access-Control-Allow-Origin': '*' } });
+      return r.abort();
+    });
+    await ctx.addInitScript(i => { localStorage.setItem('photoIndex', i); window.__bg = [];
+      setInterval(() => { const ph = document.querySelector('.photo'), b = ph && ph.style.backgroundImage.replace(/^url\("?|"?\)$/g, '');
+        if (b && window.__bg[window.__bg.length - 1] !== b) window.__bg.push(b); }, 20); }, INDEX);
+    const p = await ctx.newPage(), errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    if (now) await p.clock.setFixedTime(now);
+    await p.goto(page('tv.html') + '#' + hash);
+    return { p, ctx, errors, log: ms => p.waitForTimeout(ms).then(() => p.evaluate(() => window.__bg)) };
+  };
+  const isOwn = u => u.startsWith(OWNU), ours = log => log.filter(u => !isOwn(u));
+  for (const [label, how, want] of [
+    ['the first photo of theirs is slow (2 s)', () => 2000, 'slow'],
+    ['the first photo of theirs fails, the second answers', n => n === 1 ? 'fail' : 20, 'second'],
+    ['the photos answer at once', () => 0, 'fast'],
+  ]) {
+    // photos=60 and one hour that is not 7:00..: the pick of an `only` page is theirs whatever the hour
+    const o = await start('own=2&ownmode=only&photos=60', how);
+    const log = await o.log(want === 'slow' ? 3200 : 1800);
+    check(`own photos, only, ${label}: the first photo is theirs, nothing of ours before it`, !o.errors.length && log.length >= 1 && isOwn(log[0]) && !ours(log).length, log.join(' | ') + o.errors.join(';'));
+    await o.ctx.close();
+  }
+  {   // theirs never load: one of ours after all of theirs were tried, the screen is not left empty
+    const o = await start('own=2&ownmode=only&photos=60', () => 'fail');
+    const log = await o.log(2000);
+    check('own photos, only, none loads: a bundled photo shows in the end (never empty)', log.length === 1 && !isOwn(log[0]), log.join(' | '));
+    await o.ctx.close();
+  }
+  {   // mix: at an hour whose turn is one of theirs (the pool is our 5 hosted photos, then theirs), a slow photo is waited for too
+    const riyadhDay = Math.floor(Date.UTC(2026, 9, 23) / 864e5);
+    const hour = [...Array(24).keys()].find(h => (riyadhDay * 24 + h) % 7 >= 5);
+    const now = new Date(Date.UTC(2026, 9, 23, hour - 3, 10));
+    const slow = await start('own=2&ownmode=mix&photos=60', () => 2000, now);
+    const log = await slow.log(3200);
+    check(`own photos, mix, at an hour of theirs (${hour}:10 Riyadh) and slow: theirs first, no flash of ours`, !slow.errors.length && log.length >= 1 && isOwn(log[0]) && !ours(log).length, log.join(' | '));
+    await slow.ctx.close();
+    const ourTurn = [...Array(24).keys()].find(h => (riyadhDay * 24 + h) % 7 < 5);
+    const o = await start('own=2&ownmode=mix&photos=60', () => 2000, new Date(Date.UTC(2026, 9, 23, ourTurn - 3, 10)));
+    const log2 = await o.log(1800);
+    check(`own photos, mix, at an hour of ours (${ourTurn}:10): ours at once, theirs do not hold it back`, log2.length >= 1 && !isOwn(log2[0]) && /\/photos\//.test(log2[0]), log2.join(' | '));
+    await o.ctx.close();
+  }
+}
+
 // ---- up to three cards on the home screen: one WebView, the box grows with the number of cards (HomeCard / MainActivity.homeCardBox).
 // One card is the size it always was (461 x 250); two or three share a box 58% of the screen wide (1122 px at 1920: 560 + 22 + 540),
 // as tall as 250 dp of 540 (a third card has 253 or, when a long app title is in the way, 193).

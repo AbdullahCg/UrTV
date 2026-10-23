@@ -2582,14 +2582,32 @@ function photoSet(n){
   }
   return pick;
 }
-let BG_SLOT = -1, PREFETCHED = false;
+// One of the owner's photos is due. The app answers it from disk, yet on a cold start that can take more than the 1.2 s the page gives
+// a hosted photo, and a photo of ours must not show first (only) or in its place (mix). So it is waited for, up to OWN_WAIT_MS; one that
+// fails gives way to the next of theirs; none loads, or none in time: a bundled one, so the screen is never empty (theirs still replace
+// it when they arrive).
+const OWN_WAIT_MS = 6000;
+let BG_SLOT = -1, PREFETCHED = false, BG_TURN = 0;
+function showOwn(pick, own, local){
+  const at = own.indexOf(pick), order = own.slice(at).concat(own.slice(0, at)), turn = ++BG_TURN;
+  const bundled = () => { if(turn === BG_TURN && !document.querySelector('.photo').style.backgroundImage) showBackground(local.u, local); };
+  const t = setTimeout(bundled, OWN_WAIT_MS);
+  const next = i => {
+    if(i >= order.length){ clearTimeout(t); bundled(); return; }
+    const img = new Image();
+    img.onload = () => { clearTimeout(t); if(turn === BG_TURN) showBackground(order[i].url, order[i].b); };
+    img.onerror = () => next(i + 1);
+    img.src = order[i].url;
+  };
+  next(0);
+}
 function applyBackground(force){
   try {
     const p = riyadhParts();
     const slotMin = CONFIG.photoMinutes;   // divides 1440, so slots count on across midnight
     const slot = riyadhDayNumber() * (1440 / slotMin) + Math.floor((p.h * 60 + p.mi) / slotMin);
     if(slot === BG_SLOT && !force) return;
-    BG_SLOT = slot;
+    BG_SLOT = slot; BG_TURN++;   // a photo of theirs still on its way for an earlier turn is dropped
     const only = OWN_ONLY(), own = ownPhotos();
     const set = !only && REMOTE_BGS.length ? photoSet(REMOTE_BGS.length).map(k => REMOTE_BGS[k]) : [];
     const local = BGS[slot % BGS.length];
@@ -2601,6 +2619,7 @@ function applyBackground(force){
     }
     if(!pool.length){ showBackground(local.u, local); return; }
     const pick = pool[slot % pool.length], url = pick.url, b = pick.b;
+    if(own.includes(pick)){ showOwn(pick, own, local); return; }
     if(pick.bundled){ showBackground(url, b); return; }
     // First photo: wait briefly for the hosted one (the app serves it from disk at once) so the screen
     // doesn't flash a bundled photo first; slow network → bundled one, swapped when the hosted one arrives.
