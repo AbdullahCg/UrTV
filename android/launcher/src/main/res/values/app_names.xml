@@ -21,5 +21,8 @@
         <item>com.google.android.tv|القنوات المباشرة</item>
         <item>com.android.documentsui|الملفات</item>
         <item>com.google.android.documentsui|الملفات</item>
+        <!-- the two the setup installs (optimize/install.sh extras) -->
+        <item>com.phlox.tvwebbrowser|المتصفح</item>
+        <item>org.smarttube.stable|سمارت تيوب</item>
     </string-array>
 </resources>
