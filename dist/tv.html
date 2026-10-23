@@ -393,6 +393,12 @@
   .p-prayer.now .big{color:var(--gold-hi);text-shadow:0 0 40px rgba(var(--gold-rgb),.45)}
   .p-prayer.now .label{color:#F1CF8A}
   .live{color:#EE8B70;font-weight:500}
+  /* the bar before the adhan: slim, at the very top, across the screen; the header starts below it (3.1vh) */
+  .adbar{position:fixed;left:0;right:0;top:0;height:2.9vh;min-height:16px;z-index:6;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(90deg,rgba(var(--gold-rgb),0),rgba(var(--gold-rgb),.34) 30%,rgba(var(--gold-rgb),.34) 70%,rgba(var(--gold-rgb),0));
+    color:var(--gold-hi);font-size:clamp(11px,1.1vw,21px);font-weight:500;letter-spacing:.04em;white-space:nowrap;pointer-events:none}
+  .adbar[hidden]{display:none}
+  html.widget .adbar{display:none}
   .dimmer{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30;transition:opacity 6s linear}
   .stage{transition:transform 3s ease}
   .sc{color:var(--gold-3);letter-spacing:.02em}
@@ -417,6 +423,7 @@
 <div class="top-veil"></div>
 <div class="bottom-veil"></div>
 <div class="dimmer" id="dimmer"></div>
+<div class="adbar" id="adbar" hidden></div>
 
 <main class="stage">
 
@@ -555,6 +562,8 @@ const CONFIG = {
   cdName: (_Q.get('cdname') || '').trim().slice(0, 40),
   // «التفسير الميسر» under the verse of the day: #tafsir=1 (anything else = off)
   tafsir: _Q.get('tafsir') === '1',
+  // the slim bar before the adhan: #adhanbar=0 turns it off (anything else = on)
+  adhanBar: _Q.get('adhanbar') !== '0',
   // #widget=1: only the cards, on a transparent page (the launcher's home screen shows them)
   widget: _Q.get('widget') === '1',
 };
@@ -745,7 +754,29 @@ function isFriday(){
 }
 function prayerName(x){ return x.key === 'Dhuhr' && isFriday() ? 'الجمعة' : x.name; }
 
+// ---- the bar before the adhan: in the last 10 minutes before each prayer «الأذان بعد ٨ دقائق», from the adhan to the iqama
+// «الإقامة بعد ١٢ دقيقة» (the iqama minutes of CONFIG.iqama, none for a Friday's Dhuhr). #adhanbar=0 turns it off.
+const ADHAN_BAR_MIN = 10;
+function adhanBarText(){
+  if(!CONFIG.adhanBar || !PRAYERS.length) return '';
+  const p = riyadhParts(), mins = p.h*60 + p.mi + p.s/60;
+  for(const x of PRAYERS){
+    const at = x.h*60 + x.mi, toAdhan = at - mins;
+    if(toAdhan > 0 && toAdhan <= ADHAN_BAR_MIN) return 'الأذان بعد ' + humanRemaining(Math.max(60, Math.ceil(toAdhan)*60));
+    const gap = x.key === 'Dhuhr' && isFriday() ? 0 : (CONFIG.iqama[x.key] || 0);
+    if(mins >= at && mins < at + gap) return 'الإقامة بعد ' + humanRemaining(Math.max(60, Math.ceil(at + gap - mins)*60));
+  }
+  return '';
+}
+function tickAdhanBar(){
+  const bar = document.getElementById('adbar'), t = adhanBarText();
+  if(!bar) return;
+  bar.hidden = !t;
+  if(t) setText(bar, t);
+}
+
 function tickPrayer(){
+  tickAdhanBar();
   const elL=document.getElementById('prayer-label'),
         elN=document.getElementById('prayer-name'),
         elT=document.getElementById('prayer-time'),

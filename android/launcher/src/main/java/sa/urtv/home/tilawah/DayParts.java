@@ -7,18 +7,20 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /**
- * What the home screen's greeting needs from the prayer times (PrayerTimes stays private to this package): the
- * moments of Fajr, Dhuhr, Asr and Isha today, and the next sunrise or sunset. The same numbers as the adhan.
+ * What the home screen's greeting and its bar before the adhan need from the prayer times (PrayerTimes stays private to this
+ * package): the moments of the five prayers today, and the next sunrise or sunset. The same numbers as the adhan.
  */
 public final class DayParts {
-    /** Fajr, Dhuhr, Asr and Isha today, in epoch millis */
-    public final long fajr, dhuhr, asr, isha;
+    /** Fajr, Dhuhr, Asr, Maghrib and Isha today, in epoch millis */
+    public final long fajr, dhuhr, asr, maghrib, isha;
     /** «الغروب» until Maghrib, then «الشروق» (the coming one); sunClock is "17:57" in the city's time */
     public final String sunLabel, sunClock;
+    /** it is Friday in the city: its Dhuhr is the Jumu'ah, with no iqama countdown */
+    public final boolean friday;
 
-    private DayParts(long fajr, long dhuhr, long asr, long isha, String sunLabel, String sunClock) {
-        this.fajr = fajr; this.dhuhr = dhuhr; this.asr = asr; this.isha = isha;
-        this.sunLabel = sunLabel; this.sunClock = sunClock;
+    private DayParts(long fajr, long dhuhr, long asr, long maghrib, long isha, String sunLabel, String sunClock, boolean friday) {
+        this.fajr = fajr; this.dhuhr = dhuhr; this.asr = asr; this.maghrib = maghrib; this.isha = isha;
+        this.sunLabel = sunLabel; this.sunClock = sunClock; this.friday = friday;
     }
 
     public static DayParts now(Context c) {
@@ -35,7 +37,8 @@ public final class DayParts {
             tomorrow.add(Calendar.DAY_OF_MONTH, 1);
             label = "الشروق"; clock = PrayerTimes.of(tomorrow, place).clock[PrayerTimes.SUNRISE];
         }
+        boolean friday = Calendar.getInstance(TimeZone.getTimeZone(Place.get(c).tz), Locale.US).get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY;
         return new DayParts(t.at[PrayerTimes.FAJR], t.at[PrayerTimes.DHUHR], t.at[PrayerTimes.ASR],
-                t.at[PrayerTimes.ISHA], label, clock);
+                t.at[PrayerTimes.MAGHRIB], t.at[PrayerTimes.ISHA], label, clock, friday);
     }
 }

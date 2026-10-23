@@ -285,6 +285,10 @@ final class Prefs {
     String photoMinutes() { return sp.getString("photoMinutes", "30"); }
     void setPhotoMinutes(String v) { sp.edit().putString("photoMinutes", v).apply(); }
 
+    /** The slim bar before the adhan, on the screensaver and on the home screen (default on); sent to the page as #adhanbar=. */
+    boolean adhanBar() { return sp.getBoolean("adhanBar", true); }
+    void setAdhanBar(boolean v) { sp.edit().putBoolean("adhanBar", v).apply(); }
+
     boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
@@ -322,6 +326,7 @@ final class Prefs {
             + "&photos=" + photoMinutes()
             + "&digits=" + digits()
             + "&cardstyle=" + cardStyle()
+            + "&adhanbar=" + (adhanBar() ? "1" : "0")
             + "&national=" + national()
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()

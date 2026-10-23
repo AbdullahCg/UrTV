@@ -106,6 +106,8 @@ public class SettingsActivity extends Activity {
         header("العرض");
         row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
             new Runnable() { public void run() { pickDigits(); } });
+        row("تنبيه قبل الأذان", prefs.adhanBar() ? "يعمل · شريط في أعلى الشاشة آخر ١٠ دقائق، ثم حتى الإقامة" : "متوقف", R.drawable.ic_eye,
+            new Runnable() { public void run() { prefs.setAdhanBar(!prefs.adhanBar()); render(); } });
         row("المناسبات الوطنية", Prefs.nationalLabel(prefs.national()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickNational(); } });
         row("الخانة اليسرى", Prefs.slotLabel(prefs.slot()), R.drawable.ic_eye,

@@ -114,6 +114,7 @@ public class MainActivity extends Activity {
     private int packageSeq;
     private PopupWindow inputsPopup;
     private HomeCard homeCard;
+    private TextView adhanBar;   // «الأذان بعد ٨ دقائق», over the top edge
     private View clockBlock, bottomBlock;   // the greeting, clock and date; the app title and the dock under it
 
     private final BroadcastReceiver tick = new BroadcastReceiver() {
@@ -253,6 +254,13 @@ public class MainActivity extends Activity {
         content.setClipChildren(false);
         content.setClipToPadding(false);
         scroll.addView(content, new FrameLayout.LayoutParams(-1, -2));
+
+        // the slim bar before the adhan, over the home screen's top edge (the header starts 36 dp down)
+        adhanBar = text(12, "sans-serif-medium", 0xFFFFE9B8);
+        adhanBar.setGravity(Gravity.CENTER);
+        adhanBar.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0x00DCB86F, 0x57DCB86F, 0x57DCB86F, 0x00DCB86F}));
+        adhanBar.setVisibility(View.GONE);
+        root.addView(adhanBar, new FrameLayout.LayoutParams(-1, dp(26), Gravity.TOP));
 
         // Hero: exactly one screen tall, header on top, title + dock at the bottom.
         hero = new FrameLayout(this);
@@ -805,6 +813,14 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
         String greg = new SimpleDateFormat("d MMMM", new Locale("ar")).format(now.getTime());
         date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  ·  " + greg));
+        updateAdhanBar();
+    }
+
+    /** Once a minute with the clock: the bar before the adhan shows in the last 10 minutes, and until the iqama. */
+    private void updateAdhanBar() {
+        String words = AdhanBar.text(this);
+        adhanBar.setVisibility(words == null ? View.GONE : View.VISIBLE);
+        if (words != null) adhanBar.setText(words);
     }
 
     private static String arabicDigits(String s) {

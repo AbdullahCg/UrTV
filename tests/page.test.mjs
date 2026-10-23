@@ -1970,6 +1970,54 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 
+// ---- the bar before the adhan: «الأذان بعد ٨ دقائق» in the last 10 minutes before each prayer, «الإقامة بعد ١٢ دقيقة» from the adhan
+// to the iqama (Fajr 25, Maghrib 10, the rest 20; none for a Friday's Dhuhr); #adhanbar=0 turns it off. Times held with Date.now.
+const ADHAN_TIMES = "buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '19:15' });";
+const barAt = (p, day, hhmm, ss = '00') => p.evaluate(([iso, times]) => {
+  const R = window.__R || (window.__R = Date), T = Date.parse(iso);
+  window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+  eval(times); tickPrayer();
+  const b = document.getElementById('adbar'), cs = getComputedStyle(b), r = b.getBoundingClientRect();
+  return { hidden: b.hidden || cs.display === 'none', text: b.textContent, top: r.top, h: r.height, w: r.width };
+}, [`${day}T${hhmm}:${ss}+03:00`, ADHAN_TIMES]);
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const digits of ['hindi', 'latin']) {
+    const { p, ctx, errors } = await open('tv.html', `panel=prayers&digits=${digits}`, { width, height });
+    const N = s => digits === 'latin' ? s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)) : s;
+    const THU = '2026-10-22', FRI = '2026-10-23';
+    const r = { m10: await barAt(p, THU, '17:35'), m10b: await barAt(p, THU, '17:35', '01'), m8: await barAt(p, THU, '17:37', '10'), m1: await barAt(p, THU, '17:44', '10'),
+      over10: await barAt(p, THU, '17:34', '59'), at: await barAt(p, THU, '17:45'), q5: await barAt(p, THU, '17:50', '12'), end: await barAt(p, THU, '17:55'),
+      fajr: await barAt(p, THU, '04:50'), dhuhr: await barAt(p, THU, '11:40'), dhuhrFri: await barAt(p, FRI, '11:40'), beforeFriday: await barAt(p, FRI, '11:35'),
+      asr: await barAt(p, THU, '15:05'), isha: await barAt(p, THU, '19:20'), none: await barAt(p, THU, '13:00') };
+    const tag = `adhan bar ${width}x${height} ${digits}`;
+    check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+    check(`${tag}: the last 10 minutes: «الأذان بعد …», shown from exactly 10 minutes before, not 11`,
+      !r.m10.hidden && r.m10.text === N('الأذان بعد ١٠ دقائق') && !r.m8.hidden && r.m8.text === N('الأذان بعد ٨ دقائق') && r.m1.text === N('الأذان بعد ١ دقيقة') && r.over10.hidden, JSON.stringify([r.m10, r.m8, r.m1, r.over10]));
+    check(`${tag}: from the adhan to the iqama: «الإقامة بعد …» (Maghrib 10, Fajr 25, Asr and Isha 20, Dhuhr 20)`,
+      r.at.text === N('الإقامة بعد ١٠ دقائق') && r.q5.text === N('الإقامة بعد ٥ دقائق') && r.end.hidden && r.fajr.text === N('الإقامة بعد ٢٥ دقيقة') && r.asr.text === N('الإقامة بعد ١٥ دقيقة')
+      && r.isha.text === N('الإقامة بعد ١٥ دقيقة') && r.dhuhr.text === N('الإقامة بعد ٢٠ دقيقة'), JSON.stringify([r.at.text, r.q5.text, r.end.hidden, r.fajr.text, r.asr.text, r.isha.text, r.dhuhr.text]));
+    check(`${tag}: Friday's Dhuhr has no iqama countdown, the adhan countdown before it is there; between prayers nothing`,
+      r.dhuhrFri.hidden && !r.beforeFriday.hidden && r.none.hidden, JSON.stringify([r.dhuhrFri, r.beforeFriday.hidden, r.none.hidden]));
+    check(`${tag}: a slim bar at the very top, across the screen`, r.m8.top === 0 && r.m8.h > 12 && r.m8.h < 0.035 * height + 1 && r.m8.w === width, JSON.stringify(r.m8));
+    const clear = await p.evaluate(() => document.getElementById('adbar').getBoundingClientRect().bottom <= document.querySelector('.top').getBoundingClientRect().top + 1);
+    check(`${tag}: the bar is above the date block and the weather (they start below it)`, clear, JSON.stringify(r.m8));
+    await ctx.close();
+  }
+}
+{   // off: never shown; the launcher's card mode never shows it; not before the times are known
+  const off = await open('tv.html', 'panel=prayers&adhanbar=0');
+  const a = await barAt(off.p, '2026-10-22', '17:37', '10');
+  check('adhan bar: #adhanbar=0 turns it off', !off.errors.length && a.hidden, JSON.stringify(a));
+  await off.ctx.close();
+  const w = await open('tv.html', 'panel=prayers&widget=1', { width: 461, height: 250 });
+  const b = await barAt(w.p, '2026-10-22', '17:37', '10');
+  check('adhan bar: not in the launcher\'s card page (the home screen has its own)', !w.errors.length && b.hidden, JSON.stringify(b));
+  await w.ctx.close();
+  const e = await open('tv.html', 'panel=verse');
+  check('adhan bar: hidden until the times are known, no errors', !e.errors.length && await e.p.evaluate(() => { tickPrayer(); return document.getElementById('adbar').hidden; }));
+  await e.ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);
