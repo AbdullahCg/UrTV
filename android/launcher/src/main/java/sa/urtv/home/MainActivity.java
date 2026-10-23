@@ -420,7 +420,7 @@ public class MainActivity extends Activity {
         if (isInstalled(SAVER_PKG)) { row.add(tasks); row.add(saver); }
         if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
         for (Pill p : row) {
-            right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
+            right.addView(p, llp(-2, dp(Pill.HEIGHT), dp(10), 0, 0, 0));
             pills.add(p);
         }
         // «يُتلى الآن»: the first child of the row, so it sits at its right end and the pills keep their places when it comes
@@ -430,11 +430,9 @@ public class MainActivity extends Activity {
         nowCard.setOnClickListener(v -> NowPlaying.toggle(this));   // OK: pause or play
         nowCard.setOnLongClickListener(v -> { startActivity(NowPlaying.player(this)); return true; });   // a long OK: the player
         nowCard.setOnFocusChangeListener((v, has) -> {
-            v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f)
-                    .setInterpolator(new OvershootInterpolator(2f)).setDuration(220).start();
             if (has) { lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f); }
         });
-        right.addView(nowCard, 0, llp(-2, dp(30), dp(10), 0, 0, 0));
+        right.addView(nowCard, 0, llp(-2, dp(Pill.HEIGHT), dp(10), 0, 0, 0));
         header.addView(right, new FrameLayout.LayoutParams(-2, -2, Gravity.LEFT | Gravity.TOP));
         return header;
     }
@@ -457,8 +455,6 @@ public class MainActivity extends Activity {
         Pill p = new Pill(this, label, icon, font("sans-serif-medium"));
         p.setId(View.generateViewId());
         p.setOnFocusChangeListener((v, has) -> {
-            v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f)
-                    .setInterpolator(new OvershootInterpolator(2f)).setDuration(220).start();
             if (has) {
                 lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f);
                 View card = homeCard == null ? null : homeCard.live();

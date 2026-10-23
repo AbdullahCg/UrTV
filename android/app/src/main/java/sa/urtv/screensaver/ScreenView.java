@@ -48,6 +48,7 @@ final class ScreenView {
         // it larger than its boxes, so the left column spilled off screen and moved as the clock and the matches changed.
         s.setTextZoom(100);
         if (android.os.Build.VERSION.SDK_INT >= 23 && screen) s.setOffscreenPreRaster(true);   // draw before it is shown
+        if (screen) w.addJavascriptInterface(new NowPlayingBridge(c), "UrtvNative");   // the «يُتلى الآن» card
         w.loadUrl(url);
         if (screen) {
             UpdateJob.schedule(c);

@@ -123,15 +123,21 @@
   .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .rt{flex:0 0 auto;color:var(--gold-3);font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .mwhen{display:block;font-style:normal;margin-top:.15em;font-size:.68em;font-weight:300;color:#A79C85;overflow:hidden;text-overflow:ellipsis}
-  /* the launcher's matches card: the date shares the first line, between the clubs and «بعد ٧ ساعات», when it all fits (rowFits());
-     else it drops under the clubs, as it always did (and as the screensaver's card keeps it) */
-  html.widget .week li.mg{flex-wrap:wrap}
-  html.widget .week li.mg .mwhen{order:3;flex:0 0 100%;margin-top:.15em}
-  html.widget .week li.mg.inl{flex-wrap:nowrap}
-  html.widget .week li.mg.inl > span:first-child{max-width:none}
-  html.widget .week li.mg.inl .mwhen{order:0;flex:1 1 auto;min-width:0;margin:0;text-align:center;white-space:nowrap}
+  /* a game is one line, on the launcher's card and the screensaver's: the clubs with their crests beside the score, then the date, then
+     «بعد …», «انتهت» or «مباشر». Too long for the card: fitGameRow() takes the clubs' short names, the date's short form, a smaller step */
+  .week li .mwhen{display:block;font-style:normal;font-size:.68em;font-weight:300;color:#A79C85}
+  .week li.mg{display:block;padding:calc(.8vh + 3px) 0}
+  .week li.mg .mr{display:flex;align-items:center;gap:.75em;white-space:nowrap;max-width:none;overflow:visible;padding:0;margin:0}
+  .week li.mg .mr > *{flex:0 0 auto;max-width:none;overflow:visible;text-overflow:clip;padding:0;margin:0}
+  .week li.mg .mr .mwhen{flex:1 0 auto;text-align:center;font-size:.84em}
+  .week li.mg .mr .dt{margin-inline-start:auto;min-width:0;font-size:.84em;text-align:left}
+  .week li.mg .mr.nocr img.cr{display:none}
+  .week li.mg .tm{display:inline-flex;align-items:center;gap:.32em}
+  .week li .tm .nm{max-width:none;overflow:visible;text-overflow:clip;padding:0;margin:0}   /* a name is never cut by the first-name rule above */
+  .week li.mg .tm .cr{margin:0}
+  .week li.mg .sc{font-variant-numeric:tabular-nums;color:var(--gold-hi);font-weight:600}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
-  .week li .tm .cr{width:1.25em;height:1.25em;object-fit:contain;vertical-align:middle;margin-block:-.25em;margin-inline-end:.3em}
+  .week li .tm .cr{width:1.25em;height:1.25em;object-fit:contain;vertical-align:middle;margin-block:-.25em}
   .week li .tm .cr:not([src]){visibility:hidden}   /* a restored row waits for its picture: the same room */
   .week ul.flip li{animation:weekIn .5s ease both}
   .week ul.flip li:nth-child(2){animation-delay:.06s}
@@ -164,7 +170,8 @@
   .week li.lv .lvt > *{flex:0 0 auto}   /* nothing shrinks: what does not fit is measured and stepped down (fitLive) */
   .week li.lv .lvt .tm{display:inline-flex;align-items:center}
   .week li.lv .lvt .tm .cr{flex:0 0 auto}
-  .week li.lv .lvt .tm .cr{width:1.35em;height:1.35em;margin-block:0;margin-inline-end:.35em}
+  .week li.lv .lvt .tm{gap:.35em}
+  .week li.lv .lvt .tm .cr{width:1.35em;height:1.35em;margin:0}
   .week li.lv .sc{color:var(--gold-hi);font-size:1.25em;font-weight:700;font-variant-numeric:tabular-nums;padding:0 .1em}
   /* «يومك»: a small name, then the thing itself (it may wrap, never «…»), then when */
   .week li.td{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.1em .8em;align-items:baseline;white-space:normal}
@@ -292,6 +299,21 @@
   html.cs-glass3 .week::before{background:linear-gradient(135deg,rgba(120,200,150,.20),rgba(20,60,40,.10) 50%,rgba(var(--gold-rgb),.12))}
   html.cs-glass3 .week::after{box-shadow:inset 0 1px 0 rgba(255,255,255,.40),inset 0 -1px 0 rgba(255,255,255,.06)}
   html.cs-glass3 .week .dia{background:rgb(30,60,44)}
+
+  /* «يُتلى الآن»: a small card at the top centre while the Quran or a radio station plays; it takes the style of the card beside the clock
+     (the rules above are on .week) and sits over the stage, out of its grid */
+  .stage > .week.np{position:absolute;top:calc(3.1vh + 4px);left:50%;transform:translateX(-50%);width:max-content;max-width:none;
+    padding:1.1vh 1.5vw;z-index:6}
+  .week.np[hidden],html.widget .week.np{display:none}
+  .np .npl{position:relative;z-index:1;display:flex;align-items:center;gap:.6em;white-space:nowrap;font-size:clamp(13px,1.1vw,21px);color:#F6EEDC;line-height:1.35}
+  .np .npk{color:var(--gold-2);font-weight:500}
+  .np .nps{color:rgba(var(--gold-rgb),.6)}
+  .np b{font-weight:500}
+  .np .npw{color:#CFC5AD;font-weight:300}
+  .np .npe{display:inline-flex;align-items:flex-end;gap:.16em;height:.95em}
+  .np .npe i{width:.2em;border-radius:1px;background:var(--gold)}
+  .np .npe i:nth-child(1){height:45%}.np .npe i:nth-child(2){height:100%}.np .npe i:nth-child(3){height:70%}
+  html.cs-dark3 .stage > .week.np,html.cs-glass3 .stage > .week.np{padding:calc(1.1vh + 8px) calc(1.5vw + 8px)}
 
   .dates{text-align:right;flex-shrink:0}
   .hijri{font-size:clamp(19px,1.86vw,37px);font-weight:500;color:var(--sand);line-height:1.3}
@@ -533,6 +555,12 @@
       </div>
     </div>
   </footer>
+
+  <!-- «يُتلى الآن»: while the Quran or a radio station plays in the launcher (nowPlayingTick), in the style of the card beside the clock -->
+  <div class="week np" id="np" hidden>
+    <span class="frm"></span><span class="dia t"></span><span class="dia b"></span>
+    <div class="npl" id="np-l"><span class="npe"><i></i><i></i><i></i></span><span class="npk">يُتلى الآن</span><span class="nps">·</span><b id="np-t"></b><span class="nps" id="np-s">·</span><span class="npw" id="np-w"></span></div>
+  </div>
 
 </main>
 
@@ -1196,6 +1224,15 @@ function matchWhen(d){
     + ' · ' + fmt12(+p.hour % 24, +p.minute);
 }
 
+// «الخميس ٢٢ أكتوبر»: the day of a finished game
+const matchDay = d => FMT_DAY_MONTH.format(d).replace('،','');
+const FMT_DM = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,day:'numeric',month:'long'});
+// the short form of matchWhen: «الجمعة ٩:٠٠ م» for a game this week, «٢٤ أكتوبر» for any other (and for a game already played)
+function matchWhenShort(d, now, done){
+  const p = hmParts(d), ahead = d - now;
+  return !done && ahead > 0 && ahead < 6 * 86400000 ? FMT_WEEKDAY.format(d) + ' ' + fmt12(+p.hour % 24, +p.minute) : FMT_DM.format(d);
+}
+
 // the final score of a finished game: «الهلال 2 - 1 النصر» and «النتيجة النهائية · السبت»
 function resultBlock(done){
   const day = FMT_WEEKDAY.format(toDate(done));
@@ -1539,7 +1576,7 @@ function fits(sp){   // to the fraction of a pixel: scrollWidth rounds, and a na
   const cs = getComputedStyle(sp);
   return FIT_RANGE.getBoundingClientRect().width <= sp.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + .05;
 }
-const shorten = sp => sp.querySelectorAll('.tm').forEach(t => { const s = t.dataset.short || TEAM_SHORT[t.textContent.trim()]; if(s) t.textContent = s; });
+const shorten = sp => sp.querySelectorAll('.tm').forEach(t => { const n = t.querySelector('.nm') || t, s = t.dataset.short || TEAM_SHORT[n.textContent.trim()]; if(s) n.textContent = s; });
 function fitMatches(row){
   const spans = [...row.querySelectorAll('.mblock .big > span')];
   const size = k => spans.forEach(sp => { sp.style.fontSize = k === 1 ? '' : k + 'em'; });
@@ -1550,21 +1587,37 @@ function fitMatches(row){
   size(FIT_STEPS[FIT_STEPS.length - 1]);
   return false;   // the caller may show these games apart
 }
-// the launcher's rows put the date in the empty middle of the first line when everything fits there
-const rowFits = li => li.scrollWidth <= li.clientWidth + .5 && [...li.children].every(fits);
-function inlineDate(li){
-  li.classList.add('inl');
-  if(rowFits(li)) return true;
-  li.classList.remove('inl');
-  return false;
+// A game is one line (clubs, crests, score, date, «بعد …»), and never ends in «…». When it is too long for the card the steps are, in this
+// order: the clubs' short names, the date's short form, a slightly smaller size, and only then no crests. Every step starts from the full
+// row again (the names and the date keep their full form in data-full), so a card that gets smaller redoes it.
+const rowCut = row => {
+  const r = row.getBoundingClientRect();
+  return [...row.children].some(c => { const b = c.getBoundingClientRect(); return b.width && (b.left < r.left - .5 || b.right > r.right + .5); });
+};
+function fitGameRow(li){
+  const row = li.firstElementChild;
+  if(!row || !row.classList.contains('mr')) return;
+  const names = row.querySelectorAll('.nm'), when = row.querySelector('.mwhen');
+  names.forEach(n => { if(n.dataset.full === undefined) n.dataset.full = n.textContent; n.textContent = n.dataset.full; });
+  if(when){ if(when.dataset.full === undefined) when.dataset.full = when.textContent; when.textContent = when.dataset.full; }
+  row.style.fontSize = '';
+  row.classList.remove('nocr');
+  const size = (steps = FIT_STEPS) => steps.find(k => { row.style.fontSize = k === 1 ? '' : k + 'em'; return !rowCut(row); });
+  if(size([1])) return;
+  shorten(row);
+  if(size([1])) return;
+  if(when && when.dataset.s) when.textContent = when.dataset.s;
+  if(size()) return;
+  row.classList.add('nocr');
+  size([...FIT_STEPS, .64, .56, .5]);   // a narrow card: smaller still, never two lines
 }
-// the card beside the clock has room for a whole game; only a row that would end in «…» takes the short names
-// with crests (the launcher's card) the next step is the short names, then no crests: the names alone, as before
-// still too long (a narrow card: beside a wide clock, or in the TV's own font when ours didn't load): a little smaller, never «…»
 function shortenRows(ul){
-  ul.querySelectorAll('li').forEach(li => {
-    if(li.classList.contains('mg') && inlineDate(li)) return;   // one line: the names keep their whole form
-    const sp = li.firstElementChild;
+  const games = [...ul.querySelectorAll('li.mg')];
+  games.forEach(fitGameRow);
+  const k = Math.min(1, ...games.map(li => parseFloat(li.firstElementChild.style.fontSize) || 1));   // the games of a card share one size
+  if(k < 1) games.forEach(li => { li.firstElementChild.style.fontSize = k + 'em'; });
+  ul.querySelectorAll('li:not(.mg)').forEach(li => {
+    const sp = li.firstElementChild;   // the other sports' rows (a race weekend, the next event): the names, then smaller, never «…»
     if(!sp || !sp.matches('span') || fits(sp)) return;
     shorten(sp);
     if(!fits(sp)) sp.querySelectorAll('img.cr').forEach(i => i.remove());
@@ -2094,9 +2147,9 @@ function liveWhen(ev){   // «مباشر» and «الدقيقة ٦٧» / «اس�
   return `<span class="live">مباشر</span> · ${liveStatus(ev, ar(fmt12(+p.hour % 24, +p.minute)))}`;
 }
 const liveScore = ev => ev.intHomeScore != null && ev.intAwayScore != null ? `<span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span>` : '<span class="sc">×</span>';
-function liveRow(ev){   // a row of the card
-  return `<li class="lv"><div class="lvm">${liveWhen(ev)}</div><div class="lvt"><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>`
-    + `${liveScore(ev)}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span></div></li>`;
+function liveRow(ev){   // a row of the card: «الهلال [شعار] ٢ - ١ [شعار] النصر», the crests next to the score
+  return `<li class="lv"><div class="lvm">${liveWhen(ev)}</div><div class="lvt"><span class="tm"><span class="nm">${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${crestImg(ev, 'Home')}</span>`
+    + `${liveScore(ev)}<span class="tm">${crestImg(ev, 'Away')}<span class="nm">${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span></span></div></li>`;
 }
 // one line, always: the names step down in size, then take their short forms, then lose their crests (as the list's rows do)
 function fitLive(ul){
@@ -2239,7 +2292,7 @@ function shrinkCard(c, tooWide){   // false when there is no step left
   const cap = list && c.ri ? c.base - c.ri : 0, maxLen = quote && c.ri ? Math.max(20, Math.floor(c.len0 * Math.pow(.8, c.ri))) : 0;
   c.z = Z_STEPS[c.zi];
   c.el.style.setProperty('--z', c.z);
-  if(c.eff === 'matches') c.ul.querySelectorAll('li.mg:not(.inl)').forEach(inlineDate);   // smaller text: a date may fit beside the clubs now
+  if(c.eff === 'matches') shortenRows(c.ul);   // smaller text: a row may keep more of its names and date now
   if(cap !== c.cap || maxLen !== c.maxLen){ c.cap = cap; c.maxLen = maxLen; renderCard(c, false, true); }
   return true;
 }
@@ -2514,16 +2567,17 @@ function matchRows(card){
     .sort(byRank)
     .map(({ev, t, r}) => {
       const d = new Date(t), scored = ev.intHomeScore != null && ev.intAwayScore != null;
-      const mid = scored && now >= t ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
-      const upcoming = !finishedRecently(ev, now) && now < t, pending = r === 0 && !finishedRecently(ev, now);
-      const when = finishedRecently(ev, now) ? 'انتهت'
+      const mid = scored && now >= t ? `<span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span>` : '<span class="x">×</span>';
+      const done = finishedRecently(ev, now), upcoming = !done && now < t, pending = r === 0 && !done;
+      const when = done ? 'انتهت'
         : pending ? ''   // over with no result yet: no score, no «بعد …»
         : now >= t ? '<span class="live">مباشر</span>'
-        : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
-      // an upcoming game has its date and time under the teams, as in the bottom row
-      const dateLine = upcoming || pending ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
-      const wide = CONFIG.widget && dateLine;   // the launcher's card: the date is the row's own item, beside the clubs or under them
-      return {t, r, html: `<li${wide ? ' class="mg"' : ''}><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${wide ? '' : dateLine}</span>${wide ? dateLine : ''}<span class="dt">${when}</span></li>`};
+        : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date says the rest
+      // the date is always there but for a game under way: the day and time of a game to come or one with no result yet, the day of a finished one
+      const date = upcoming || pending ? matchWhen(d) : done ? matchDay(d) : '';
+      const dateEl = date ? `<i class="mwhen" data-s="${esc(matchWhenShort(d, now, done))}">${date}</i>` : '';
+      const club = (id, name, home) => `<span class="tm">${home ? '' : crestImg(ev, 'Away')}<span class="nm">${esc(teamAr(name, id))}</span>${home ? crestImg(ev, 'Home') : ''}</span>`;
+      return {t, r, html: `<li class="mg"><span class="mr">${club(ev.idHomeTeam, ev.strHomeTeam, true)} ${mid} ${club(ev.idAwayTeam, ev.strAwayTeam, false)} ${dateEl} <span class="dt">${when}</span></span></li>`};
     }), ...others.map(o => ({...o, r: o.t <= now ? 1 : 2}))].sort(byRank).map(x => x.html);
 }
 
@@ -3039,6 +3093,24 @@ function pruneStorage(){
   }catch(e){}
 }
 
+// «يُتلى الآن» (the screensaver only): the app answers window.UrtvNative.nowPlaying() with {"title":"سورة الكهف","who":"ماهر المعيقلي"} while the
+// Quran or a station plays in the launcher, and "" otherwise. Asked once at the start and then every minute, and the card goes when the
+// answer is empty. The words go in as text. One line: a long one steps down in size (never «…»).
+function nowPlayingTick(){
+  const card = document.getElementById('np');
+  if(!card || CONFIG.widget) return;   // the launcher's cards never carry it
+  let s = null;
+  try{ const raw = window.UrtvNative && window.UrtvNative.nowPlaying(); s = raw ? JSON.parse(raw) : null; }catch(e){}
+  const title = s && typeof s.title === 'string' ? s.title.trim() : '', who = s && typeof s.who === 'string' ? s.who.trim() : '';
+  if(!title){ card.hidden = true; return; }
+  setText(document.getElementById('np-t'), title);
+  setText(document.getElementById('np-w'), who);
+  document.getElementById('np-s').hidden = !who;
+  card.hidden = false;
+  const line = document.getElementById('np-l');
+  FIT_STEPS.concat([.64, .56]).find(k => { line.style.fontSize = k === 1 ? '' : k + 'em'; return card.getBoundingClientRect().width <= innerWidth * .42; });
+}
+
 function boot(){
   pruneStorage();
   if(CONFIG.widget){ bootWidget(); return; }
@@ -3073,6 +3145,8 @@ function boot(){
   loadPrayers(); if(USES('shows')) loadWeek(); loadWeather();
   applyNight(); pixelShift();
 
+  nowPlayingTick();
+  setInterval(nowPlayingTick, 60*1000);
   setInterval(tickClock, 1000);
   setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); wxExpire(); if(!SLOT_MATCHES) renderSlot(); }, 15000);
   if(SLOT_MATCHES){   // the matches timers run only while the slot shows matches

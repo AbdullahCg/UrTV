@@ -22,6 +22,11 @@
     <!-- the adhan sets the TV's volume to its own level and puts it back afterwards -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- the screensaver (same signing key) asks what is playing, for its «يُتلى الآن» card -->
+    <permission
+        android:name="sa.urtv.home.READ_NOW_PLAYING"
+        android:protectionLevel="signature" />
+
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
@@ -192,6 +197,13 @@
 
         <!-- «أذان من ملفي»: the shell hands over the person's own adhan recording here (`content write`, optimize/music.sh
              adhan add); DUMP = only the shell. It only writes; nothing can be read back. -->
+        <!-- what is playing (one row while a surah or a station plays), read by the screensaver's card; same key only -->
+        <provider
+            android:name=".tilawah.NowPlayingProvider"
+            android:authorities="sa.urtv.home.nowplaying"
+            android:exported="true"
+            android:readPermission="sa.urtv.home.READ_NOW_PLAYING" />
+
         <provider
             android:name=".tilawah.OwnAdhanProvider"
             android:authorities="sa.urtv.home.adhan"

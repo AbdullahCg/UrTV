@@ -40,12 +40,30 @@ check("MainActivity: OK pauses or plays, a long OK opens the player",
 check("MainActivity: ◀ is the previous surah and ▶ the next while the card has the focus, for a surah only (a station: ◀ goes on to the pills)",
       "NowPlaying.prev(this); else NowPlaying.next(this)" in main and "if (s.show && !s.radio) {" in main and "KEYCODE_DPAD_LEFT) NowPlaying.prev" in main)
 check("MainActivity: it is the first child of the pills row, a pill's height, hidden until something plays: the pills do not move",
-      'right.addView(nowCard, 0, llp(-2, dp(30), dp(10), 0, 0, 0))' in main and "nowCard.setVisibility(View.GONE);" in main)
+      'right.addView(nowCard, 0, llp(-2, dp(Pill.HEIGHT), dp(10), 0, 0, 0))' in main and "nowCard.setVisibility(View.GONE);" in main)
 check("MainActivity: it goes with the playback, and the focus goes back to the first pill if it had it",
       "nowCard.hasFocus() && !pills.isEmpty()) pills.get(0).requestFocus()" in main)
 check("MainActivity: it takes the focus like a pill (D-pad order: ▶ from the first pill reaches it; down goes to the cards or the dock)",
       "nowCard.setNextFocusDownId(card != null ? card.getId()" in main and "nowCard.setNextFocusLeftId(pills.get(0).getId())" in main)
-check("NowCard: a pill's 30 dp is kept by the row, not the card; its focus shows the keys on its second line",
+# the screensaver's own «يُتلى الآن» card (item 6): the launcher answers a signed-only provider, the app gives the page one read-only call
+manifest_h = (ROOT / "android/launcher/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+manifest_s = (ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+provider = (TIL / "NowPlayingProvider.java").read_text(encoding="utf-8")
+bridge = (ROOT / "android/app/src/main/java/sa/urtv/screensaver/NowPlayingBridge.java").read_text(encoding="utf-8")
+screenview = (ROOT / "android/app/src/main/java/sa/urtv/screensaver/ScreenView.java").read_text(encoding="utf-8")
+check("screen card: the launcher's provider is read-only, one row only while a surah or a station PLAYS (not paused, not the adhan)",
+      "if (s.show && s.playing) out.addRow" in provider and "return null;" in provider.split("getType")[1].split("}")[0]
+      and "insert(Uri uri, ContentValues v) { return null; }" in provider)
+check("screen card: the provider needs a signature permission only the screensaver (same key) holds",
+      'android:name="sa.urtv.home.READ_NOW_PLAYING"' in manifest_h and 'android:protectionLevel="signature"' in manifest_h
+      and 'android:authorities="sa.urtv.home.nowplaying"' in manifest_h and 'android:readPermission="sa.urtv.home.READ_NOW_PLAYING"' in manifest_h
+      and 'uses-permission android:name="sa.urtv.home.READ_NOW_PLAYING"' in manifest_s)
+check("screen card: the page gets one call, window.UrtvNative.nowPlaying(), on the screen only (not on the settings' previews); errors give an empty answer",
+      '@JavascriptInterface' in bridge and bridge.count("@JavascriptInterface") == 1 and "catch (Exception ignored)" in bridge
+      and 'if (screen) w.addJavascriptInterface(new NowPlayingBridge(c), "UrtvNative")' in screenview)
+check("screen card: the page asks once at the start and then once a minute, no faster",
+      "nowPlayingTick();\n  setInterval(nowPlayingTick, 60*1000);" in (ROOT / "src/template.html").read_text(encoding="utf-8"))
+check("NowCard: a pill's height (Pill.HEIGHT) is kept by the row, not the card; its focus shows the keys on its second line",
       "sub.setText(focused ? hintText : subText)" in card and "playing ? pause : play" in card)
 
 if not shutil.which("javac"):

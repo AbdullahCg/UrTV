@@ -4,6 +4,11 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Outline;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
@@ -12,7 +17,11 @@ import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -30,8 +39,6 @@ import java.util.List;
 
 /** Remote-friendly settings: every row is a button that opens a list. */
 public class SettingsActivity extends Activity {
-    private static final int DIALOG_THEME = android.R.style.Theme_Material_Dialog_Alert;
-
     private Prefs prefs;
     private LinearLayout list;
 
@@ -49,19 +56,41 @@ public class SettingsActivity extends Activity {
         super.onCreate(b);
         prefs = new Prefs(this);
         UpdateJob.schedule(this);
+        // the same design as the «تلاوة وأذان» screens: the dark green, a dimmed photo of ours behind, glass rows, the hint at the bottom
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xFF040E09);
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        Bitmap photo = photo(2);
+        if (photo != null) {
+            ImageView bg = new ImageView(this);
+            bg.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            bg.setImageBitmap(photo);
+            bg.setAlpha(0.42f);
+            root.addView(bg, new FrameLayout.LayoutParams(-1, -1));
+        }
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackground(new android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xFF0A2016, 0xFF04120C, 0xFF020806}));
         scroll.setVerticalScrollBarEnabled(false);
-        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+        FrameLayout frame = new FrameLayout(this);
         list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         list.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        list.setPadding(dp(8), dp(36), dp(8), dp(48));
-        int width = Math.min(getResources().getDisplayMetrics().widthPixels - dp(64), dp(860));
-        frame.addView(list, new android.widget.FrameLayout.LayoutParams(width, -2, Gravity.CENTER_HORIZONTAL));
+        list.setPadding(dp(8), dp(40), dp(8), dp(16));
+        int width = Math.min(getResources().getDisplayMetrics().widthPixels - dp(144), dp(1100));
+        frame.addView(list, new FrameLayout.LayoutParams(width, -2, Gravity.CENTER_HORIZONTAL));
         scroll.addView(frame);
-        setContentView(scroll);
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        TextView hint = new TextView(this);
+        hint.setText("يمين/يسار وأعلى/أسفل بين الصفوف  •  اختيار لفتح الصف  •  رجوع للخروج");
+        hint.setTextColor(0xFFC6BBA4);
+        hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        hint.setTypeface(font("Thmanyah-Regular"));
+        hint.setGravity(Gravity.CENTER);
+        hint.setPadding(dp(72), dp(10), dp(72), dp(18));
+        column.addView(hint, new LinearLayout.LayoutParams(-1, -2));
+        root.addView(column, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
         render();
     }
 
@@ -73,19 +102,25 @@ public class SettingsActivity extends Activity {
 
     private void render() {
         list.removeAllViews();
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.setPadding(0, 0, 0, dp(14));
         TextView title = new TextView(this);
         title.setText("تلفزيونك");
         title.setTextColor(0xFFF6EFE0);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 44);
         title.setTypeface(font("ThmanyahDisplay-Bold"));
-        list.addView(title);
+        head.addView(title);
         TextView sub = new TextView(this);
         sub.setText("إعدادات شاشة التوقف");
         sub.setTextColor(0xFFC6BBA4);
-        sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
         sub.setTypeface(font("Thmanyah-Regular"));
-        sub.setPadding(0, 0, 0, dp(18));
-        list.addView(sub);
+        LinearLayout.LayoutParams sp0 = new LinearLayout.LayoutParams(-2, -2);
+        sp0.setMarginStart(dp(20));
+        head.addView(sub, sp0);
+        list.addView(head);
 
         row("معاينة الشاشة", "شاهد الشاشة الآن", R.drawable.ic_play, new Runnable() { public void run() {
             startActivity(new Intent(SettingsActivity.this, MainActivity.class)); } }).requestFocus();
@@ -183,7 +218,7 @@ public class SettingsActivity extends Activity {
         String[] labels = new String[regions.length + 1];
         labels[0] = "بحث عن مدينة أو قرية…";
         for (int i = 0; i < regions.length; i++) labels[i + 1] = regions[i].name + "  (" + regions[i].cities.length + ")";
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("المنطقة")
+        new Dlg(this).setTitle("المنطقة")
             .setItems(labels, (d, i) -> { if (i == 0) searchCity(); else pickCityIn(regions[i - 1]); })
             .show();
     }
@@ -195,7 +230,7 @@ public class SettingsActivity extends Activity {
             names[i] = r.cities[i][0];
             if (names[i].equals(prefs.city()[0])) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(r.name)
+        new Dlg(this).setTitle(r.name)
             .setSingleChoiceItems(names, sel, (d, i) -> {
                 prefs.setCity(r.cities[i][0], r.cities[i][1], r.cities[i][2]);
                 d.dismiss();
@@ -220,7 +255,7 @@ public class SettingsActivity extends Activity {
                     String region = c.optString("admin1", "");
                     rows[i] = region.isEmpty() ? names[i] : names[i] + "  ·  " + region;
                 }
-                new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر المكان")
+                new Dlg(this).setTitle("اختر المكان")
                     .setItems(rows, (d, i) -> { prefs.setCity(names[i], lats[i], lons[i], zones[i]); render(); }).show();
             }));
     }
@@ -231,7 +266,7 @@ public class SettingsActivity extends Activity {
         String[] labels = new String[cur.size()];
         final boolean[] keep = new boolean[cur.size()];
         for (int i = 0; i < cur.size(); i++) { labels[i] = cur.get(i).split("\\|", 2)[1]; keep[i] = true; }
-        AlertDialog.Builder b = new AlertDialog.Builder(this, DIALOG_THEME)
+        AlertDialog.Builder b = new Dlg(this)
             .setTitle(cur.isEmpty() ? "لا توجد فرق متابعة" : "الفرق المتابعة (ألغِ التحديد للحذف)")
             .setPositiveButton("حفظ", (d, w) -> {
                 List<String> v = new ArrayList<>();
@@ -258,7 +293,7 @@ public class SettingsActivity extends Activity {
         for (int i = 0; i < opts.size(); i++) labels[i] = opts.get(i)[1];
         labels[opts.size()] = "تصفح الدوريات…";
         labels[opts.size() + 1] = "بحث عن أي فريق أو منتخب…";
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("إضافة فريق")
+        new Dlg(this).setTitle("إضافة فريق")
             .setItems(labels, (d, i) -> {
                 if (i < opts.size()) addTeam(opts.get(i)[0], opts.get(i)[1]);
                 else if (i == opts.size()) pickLeague(slot);
@@ -271,7 +306,7 @@ public class SettingsActivity extends Activity {
         final String[] labels = new String[Prefs.LEAGUES.length + 1];
         for (int i = 0; i < Prefs.LEAGUES.length; i++) labels[i] = Prefs.LEAGUES[i][1];
         labels[Prefs.LEAGUES.length] = "المنتخبات";
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الدوري")
+        new Dlg(this).setTitle("الدوري")
             .setItems(labels, (d, i) -> {
                 String league = i < Prefs.LEAGUES.length ? Prefs.LEAGUES[i][0] : Teams.NATIONAL;
                 List<TeamSearch.Team> clubs = Teams.inLeague(this, league);
@@ -301,7 +336,7 @@ public class SettingsActivity extends Activity {
             if (withLeague && t.leagues.length > 0)
                 rows[i] += "  ·  " + (Teams.NATIONAL.equals(t.leagues[0]) ? "منتخب" : leagueAr(t.leagues[0]));
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title)
+        new Dlg(this).setTitle(title)
             .setItems(rows, (d, i) -> {
                 TeamSearch.Team t = clubs.get(i);
                 addTeam(t.id, t.ar.isEmpty() ? Arabic.translit(t.en) : t.ar);
@@ -337,7 +372,7 @@ public class SettingsActivity extends Activity {
             rows[i] = (ours[i] != null ? Teams.label(this, ours[i]) : Arabic.team(this, names[i]))
                 + "  ·  " + leagueAr(t.optString("strLeague", ""));
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title)
+        new Dlg(this).setTitle(title)
             .setItems(rows, (d, i) -> {
                 if (ours[i] != null && !ours[i].ar.isEmpty()) addTeam(ids[i], ours[i].ar);
                 else inArabic(names[i], Arabic.TEAM, ar -> addTeam(ids[i], ar));
@@ -354,7 +389,7 @@ public class SettingsActivity extends Activity {
         String[] labels = new String[options.length];
         final boolean[] on = new boolean[options.length];
         for (int i = 0; i < options.length; i++) { labels[i] = options[i][1]; on[i] = cur.contains(options[i][0]); }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title + " (" + hint + ")")
+        new Dlg(this).setTitle(title + " (" + hint + ")")
             .setMultiChoiceItems(labels, on, (d, i, checked) -> on[i] = checked)
             .setPositiveButton("حفظ", (d, w) -> {
                 List<String> v = new ArrayList<>();
@@ -377,7 +412,7 @@ public class SettingsActivity extends Activity {
         final String[] labels = new String[Prefs.LEAGUES.length];
         final boolean[] on = new boolean[Prefs.LEAGUES.length];
         for (int i = 0; i < labels.length; i++) { labels[i] = Prefs.LEAGUES[i][1]; on[i] = cur.contains(Prefs.LEAGUES[i][0]); }
-        new AlertDialog.Builder(this, DIALOG_THEME)
+        new Dlg(this)
             .setTitle("الدوريات كاملة (حتى " + arabicNum(Prefs.MAX_LEAGUES) + "، بدون اختيار = بدون)")
             .setMultiChoiceItems(labels, on, (d, i, checked) -> {
                 int n = 0;
@@ -402,7 +437,7 @@ public class SettingsActivity extends Activity {
         String[] labels = new String[cur.size()];
         final boolean[] keep = new boolean[cur.size()];
         for (int i = 0; i < cur.size(); i++) { labels[i] = cur.get(i).split("\\|", 2)[1]; keep[i] = true; }
-        AlertDialog.Builder b = new AlertDialog.Builder(this, DIALOG_THEME)
+        AlertDialog.Builder b = new Dlg(this)
             .setTitle(cur.isEmpty() ? "لا توجد مسلسلات مختارة" : "المسلسلات المختارة (ألغِ التحديد للحذف)")
             .setPositiveButton("حفظ", (d, w) -> {
                 List<String> v = new ArrayList<>();
@@ -430,7 +465,7 @@ public class SettingsActivity extends Activity {
                 rows[i] = names[i] + (year.length() >= 4 ? " (" + year.substring(0, 4) + ")" : "")
                     + "، " + labelOf(Prefs.LANGS, s.optString("language", ""));
             }
-            new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر المسلسل")
+            new Dlg(this).setTitle("اختر المسلسل")
                 .setItems(rows, (d, i) -> {
                     for (String s : prefs.shows()) if (s.startsWith(ids[i] + "|")) { toast("مضاف مسبقاً"); return; }
                     List<String> v = prefs.shows();
@@ -476,19 +511,20 @@ public class SettingsActivity extends Activity {
 
     /**
      * A picker with the list on one side, one plain line under each name, and on the other side the focused choice drawn live by the
-     * page itself. The WebView is made when the picker opens and destroyed when it closes; it keeps the TV's text size out of it
-     * (setTextZoom(100) in ScreenView) like every other one of ours.
+     * page itself: the card, over a dimmed photo of ours as it looks on the screen, in a box that is only as tall as the card (measured
+     * from the page once it has drawn). The dialog is in the screen's glass design (Dlg). The WebView is made when the picker opens and
+     * destroyed when it closes; it keeps the TV's text size out of it (setTextZoom(100) in ScreenView) like every other one of ours.
      */
     private void pickWithPreview(String title, final String[] values, final String[] labels, final String[] about, int selected,
                                  final Url urlFor, final Pick onPick) {
-        final int previewW = 400, previewH = 260;   // dp: about the size of the card on the home screen
+        final int previewW = 480, viewH = 300, pad = 22;   // dp: the page is laid out in a box like the home screen's, 480 wide
         final LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.HORIZONTAL);
         box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        box.setPadding(dp(16), dp(8), dp(16), dp(8));
+        box.setPadding(dp(12), dp(4), dp(12), dp(4));
         final android.widget.ListView lv = new android.widget.ListView(this);
         lv.setDividerHeight(0);
-        lv.setSelector(new android.graphics.drawable.ColorDrawable(0x33D6AF6B));
+        lv.setSelector(getDrawable(R.drawable.glass_focus));
         lv.setAdapter(new android.widget.BaseAdapter() {
             @Override public int getCount() { return values.length; }
             @Override public Object getItem(int i) { return values[i]; }
@@ -496,27 +532,39 @@ public class SettingsActivity extends Activity {
             @Override public View getView(int i, View old, android.view.ViewGroup parent) {
                 LinearLayout r = new LinearLayout(SettingsActivity.this);
                 r.setOrientation(LinearLayout.VERTICAL);
-                r.setPadding(dp(12), dp(8), dp(12), dp(8));
+                r.setPadding(dp(16), dp(10), dp(16), dp(10));
                 TextView n = new TextView(SettingsActivity.this);
                 n.setText(labels[i]);
                 n.setTextColor(0xFFF6EFE0);
-                n.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+                n.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
                 n.setTypeface(font("Thmanyah-Medium"));
                 r.addView(n);
                 TextView a = new TextView(SettingsActivity.this);
                 a.setText(about[i]);
                 a.setTextColor(0xFFC6BBA4);
-                a.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                a.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
                 a.setTypeface(font("Thmanyah-Regular"));
                 r.addView(a);
                 return r;
             }
         });
-        box.addView(lv, new LinearLayout.LayoutParams(0, dp(previewH + 60), 1f));
-        final android.widget.FrameLayout stage = new android.widget.FrameLayout(this);
-        stage.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-            new int[]{0xFF14382A, 0xFF07150E}));   // the home screen's dark wallpaper, so glass and dark cards show as they will
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(dp(previewW), dp(previewH));
+        box.addView(lv, new LinearLayout.LayoutParams(0, dp(330), 1f));
+        // the stage: our photo, dimmed, with the card on it; as tall as the card needs (setStageHeight), round-cornered, no empty space
+        final FrameLayout stage = new FrameLayout(this);
+        stage.setBackgroundColor(0xFF07150E);
+        Bitmap photo = photo(3);
+        if (photo != null) {
+            ImageView bgPhoto = new ImageView(this);
+            bgPhoto.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            bgPhoto.setImageBitmap(photo);
+            bgPhoto.setColorFilter(new PorterDuffColorFilter(0x8C000000, PorterDuff.Mode.SRC_OVER));   // dim, as the screen's own veil does
+            stage.addView(bgPhoto, new FrameLayout.LayoutParams(-1, -1));
+        }
+        stage.setOutlineProvider(new ViewOutlineProvider() {
+            @Override public void getOutline(View v, Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), dp(18)); }
+        });
+        stage.setClipToOutline(true);
+        final LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(dp(previewW), dp(2 * pad + 150));
         sp.setMarginStart(dp(16));
         sp.gravity = Gravity.CENTER_VERTICAL;
         box.addView(stage, sp);
@@ -524,6 +572,18 @@ public class SettingsActivity extends Activity {
         final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
         final android.webkit.WebView[] web = new android.webkit.WebView[1];
         final int[] shown = {-1}, loads = {0};
+        // the card's height in CSS px (= dp) once the page has drawn it: asked twice, the data of some cards comes a moment later
+        final Runnable measure = new Runnable() { public void run() {
+            final android.webkit.WebView w = web[0];
+            if (w == null) return;
+            w.evaluateJavascript("(function(){var c=document.querySelector('.week');return c?Math.ceil(c.getBoundingClientRect().height):0})()", value -> {
+                int h;
+                try { h = Integer.parseInt(value.trim()); } catch (RuntimeException e) { return; }
+                if (web[0] != w || h <= 0) return;
+                sp.height = dp(Math.min(2 * pad + h, 2 * pad + viewH));
+                stage.setLayoutParams(sp);
+            });
+        } };
         final Runnable update = new Runnable() { public void run() {
             int i = lv.getSelectedItemPosition();
             if (i < 0) i = Math.max(0, selected);   // nothing selected yet (touch mode): the current choice
@@ -535,10 +595,16 @@ public class SettingsActivity extends Activity {
             u = hash < 0 ? u + "?p=" + (++loads[0]) : u.substring(0, hash) + "?p=" + (++loads[0]) + u.substring(hash);
             if (web[0] == null) {
                 web[0] = ScreenView.createPreview(SettingsActivity.this, u);
-                stage.addView(web[0], new android.widget.FrameLayout.LayoutParams(-1, -1));
+                FrameLayout.LayoutParams wp = new FrameLayout.LayoutParams(-1, dp(viewH));   // the page's own box: a fixed one, the card is at its top
+                wp.topMargin = dp(pad);
+                wp.leftMargin = wp.rightMargin = dp(pad);
+                stage.addView(web[0], wp);
             } else {   // the page reads its settings once, when it starts: load it again, no reload() (that would redo the old URL)
                 web[0].loadUrl(u);
             }
+            handler.removeCallbacks(measure);
+            handler.postDelayed(measure, 900);
+            handler.postDelayed(measure, 2600);
         } };
         lv.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(android.widget.AdapterView<?> p, View v, int pos, long id) {
@@ -547,10 +613,11 @@ public class SettingsActivity extends Activity {
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> p) { }
         });
-        final AlertDialog dialog = new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title).setView(box)
+        final AlertDialog dialog = new Dlg(this).setTitle(title).setView(box)
             .setNegativeButton("إلغاء", null).create();
         lv.setOnItemClickListener((p, v, pos, id) -> { onPick.on(values[pos]); dialog.dismiss(); render(); });
         dialog.setOnShowListener(d -> {
+            dress(dialog);
             dialog.getWindow().setLayout(Math.min(getResources().getDisplayMetrics().widthPixels - dp(48), dp(940)), android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
             lv.requestFocus();
             lv.setSelection(Math.max(0, selected));
@@ -558,6 +625,7 @@ public class SettingsActivity extends Activity {
         });
         dialog.setOnDismissListener(d -> {   // nothing of the preview outlives the picker
             handler.removeCallbacks(update);
+            handler.removeCallbacks(measure);
             if (web[0] != null) { ScreenView.release(web[0]); web[0] = null; }
         });
         dialog.show();
@@ -568,7 +636,7 @@ public class SettingsActivity extends Activity {
         labels[0] = "بدون حد";
         int sel = 0;
         for (int i = 0; i < Prefs.MIN_RATINGS.length; i++) if (Prefs.MIN_RATINGS[i].equals(prefs.minRating())) sel = i;
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("أقل تقييم")
+        new Dlg(this).setTitle("أقل تقييم")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setMinRating(Prefs.MIN_RATINGS[i]); d.dismiss(); render(); })
             .show();
     }
@@ -585,7 +653,7 @@ public class SettingsActivity extends Activity {
         String[] labels = new String[Prefs.MARKETS.length];
         final boolean[] on = new boolean[Prefs.MARKETS.length];
         for (int i = 0; i < labels.length; i++) { labels[i] = Prefs.MARKETS[i][1]; on[i] = cur.contains(Prefs.MARKETS[i][0]); }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الأسواق (حتى " + arabicNum(Prefs.MAX_MARKETS) + ")")
+        new Dlg(this).setTitle("الأسواق (حتى " + arabicNum(Prefs.MAX_MARKETS) + ")")
             .setMultiChoiceItems(labels, on, (d, i, checked) -> on[i] = checked)
             .setPositiveButton("حفظ", (d, w) -> {
                 List<String> v = new ArrayList<>();
@@ -609,7 +677,7 @@ public class SettingsActivity extends Activity {
         in.setText(Prefs.join(prefs.stocks(), " "));
         in.setSingleLine(true);
         in.setInputType(InputType.TYPE_CLASS_TEXT);
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("قائمة الأسهم (رمز تداول من ٤ أرقام أو رمز أمريكي، حتى " + arabicNum(Prefs.MAX_STOCKS) + ")")
+        new Dlg(this).setTitle("قائمة الأسهم (رمز تداول من ٤ أرقام أو رمز أمريكي، حتى " + arabicNum(Prefs.MAX_STOCKS) + ")")
             .setView(in)
             .setPositiveButton("حفظ", (d, w) -> {
                 List<String> v = new ArrayList<>();
@@ -637,7 +705,7 @@ public class SettingsActivity extends Activity {
             labels[i] = Prefs.MK_STYLES[i][1];
             if (Prefs.MK_STYLES[i][0].equals(prefs.mkStyle())) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("عرض الأسواق")
+        new Dlg(this).setTitle("عرض الأسواق")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setMkStyle(Prefs.MK_STYLES[i][0]); d.dismiss(); render(); })
             .show();
     }
@@ -663,7 +731,7 @@ public class SettingsActivity extends Activity {
             labels[i] = Prefs.SLOTS[i][1];
             if (Prefs.SLOTS[i][0].equals(prefs.slot())) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الخانة اليسرى")
+        new Dlg(this).setTitle("الخانة اليسرى")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setSlot(Prefs.SLOTS[i][0]); d.dismiss(); render(); })
             .show();
     }
@@ -677,12 +745,12 @@ public class SettingsActivity extends Activity {
     /** The date is set from the computer (optimize/saver.sh countdown); here it can be cleared. */
     private void manageCountdown() {
         if (prefs.countdownDate().isEmpty()) {
-            new AlertDialog.Builder(this, DIALOG_THEME).setTitle("العدّ التنازلي")
+            new Dlg(this).setTitle("العدّ التنازلي")
                 .setMessage("لم يُحدَّد تاريخ. يحدده المساعد على الكمبيوتر.")
                 .setPositiveButton("حسنًا", null).show();
             return;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("العدّ التنازلي")
+        new Dlg(this).setTitle("العدّ التنازلي")
             .setMessage(countdownLabel())
             .setPositiveButton("مسح", (d, w) -> { prefs.setCountdown("", ""); render(); })
             .setNegativeButton("إلغاء", null).show();
@@ -695,7 +763,7 @@ public class SettingsActivity extends Activity {
             labels[i] = Prefs.DIGITS[i][1];
             if (Prefs.DIGITS[i][0].equals(prefs.digits())) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("الأرقام")
+        new Dlg(this).setTitle("الأرقام")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setDigits(Prefs.DIGITS[i][0]); d.dismiss(); render(); })
             .show();
     }
@@ -707,7 +775,7 @@ public class SettingsActivity extends Activity {
             labels[i] = Prefs.NATIONAL[i][1];
             if (Prefs.NATIONAL[i][0].equals(prefs.national())) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("المناسبات الوطنية")
+        new Dlg(this).setTitle("المناسبات الوطنية")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setNational(Prefs.NATIONAL[i][0]); d.dismiss(); render(); })
             .show();
     }
@@ -719,7 +787,7 @@ public class SettingsActivity extends Activity {
             labels[i] = minutesLabel(Integer.parseInt(Prefs.PHOTO_MINUTES[i]));
             if (Prefs.PHOTO_MINUTES[i].equals(prefs.photoMinutes())) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("تبديل الصورة كل")
+        new Dlg(this).setTitle("تبديل الصورة كل")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setPhotoMinutes(Prefs.PHOTO_MINUTES[i]); d.dismiss(); render(); })
             .show();
     }
@@ -736,7 +804,7 @@ public class SettingsActivity extends Activity {
             return;
         }
         String[] items = {"تُضاف إلى صور التطبيق", "صوري فقط", "حذف كل صوري"};
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("صوري")
+        new Dlg(this).setTitle("صوري")
             .setSingleChoiceItems(items, Own.ONLY.equals(Own.mode(this)) ? 1 : 0, (d, i) -> {
                 d.dismiss();
                 if (i == 2) { confirmClearOwn(); return; }
@@ -748,7 +816,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void confirmClearOwn() {
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("حذف كل صوري؟")
+        new Dlg(this).setTitle("حذف كل صوري؟")
             .setPositiveButton("حذف", (d, i) -> { Own.clear(this); render(); })
             .setNegativeButton("إلغاء", null)
             .show();
@@ -768,7 +836,7 @@ public class SettingsActivity extends Activity {
             labels[i] = minutesLabel(Integer.parseInt(Prefs.IDLE_MINUTES[i]));
             if (Long.parseLong(Prefs.IDLE_MINUTES[i]) * 60000 == now) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("بدء شاشة التوقف بعد")
+        new Dlg(this).setTitle("بدء شاشة التوقف بعد")
             .setSingleChoiceItems(labels, sel, (d, i) -> {
                 try {
                     Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT,
@@ -881,14 +949,59 @@ public class SettingsActivity extends Activity {
         return tf;
     }
 
+    /** the dialogs of this screen: the glass theme (styles.xml), and Thmanyah on every word of them once they show */
+    private static final class Dlg extends AlertDialog.Builder {
+        private final SettingsActivity owner;
+
+        Dlg(SettingsActivity a) { super(a, R.style.UrDialog); owner = a; }
+
+        @Override public AlertDialog create() {
+            final AlertDialog d = super.create();
+            d.setOnShowListener(x -> owner.dress(d));
+            return d;
+        }
+    }
+
+    void dress(AlertDialog d) { if (d.getWindow() != null) dressView(d.getWindow().getDecorView()); }
+
+    /** Thmanyah on every text under this view, and on the ones that come later (a list makes its rows when it is shown) */
+    private void dressView(View v) {
+        if (v instanceof TextView) ((TextView) v).setTypeface(font("Thmanyah-Medium"));
+        if (!(v instanceof ViewGroup)) return;
+        ViewGroup g = (ViewGroup) v;
+        for (int i = 0; i < g.getChildCount(); i++) dressView(g.getChildAt(i));
+        g.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener() {
+            @Override public void onChildViewAdded(View parent, View child) { dressView(child); }
+            @Override public void onChildViewRemoved(View parent, View child) { }
+        });
+    }
+
+    /** One of our backgrounds (assets/backgrounds, the screen's own photos), a different one each day, at 1/sample of its size; null if none can be read */
+    private Bitmap photo(int sample) {
+        try {
+            List<String> names = new ArrayList<>();
+            String[] all = getAssets().list("backgrounds");
+            if (all != null) for (String n : all) if (n.endsWith(".jpg")) names.add(n);
+            if (names.isEmpty()) return null;
+            java.util.Collections.sort(names);
+            InputStream in = getAssets().open("backgrounds/" + names.get((int) ((System.currentTimeMillis() / 86400000L) % names.size())));
+            try {
+                BitmapFactory.Options o = new BitmapFactory.Options();
+                o.inSampleSize = sample;
+                return BitmapFactory.decodeStream(in, null, o);
+            } finally { try { in.close(); } catch (Exception ignored) { } }
+        } catch (Exception | OutOfMemoryError e) {
+            return null;
+        }
+    }
+
     private void header(String text) {
         TextView t = new TextView(this);
         t.setText(text);
         t.setTextColor(0xFFD6AF6B);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         t.setTypeface(font("Thmanyah-Medium"));
-        t.setLetterSpacing(0.05f);
-        t.setPadding(dp(6), dp(22), dp(6), dp(8));
+        t.setPadding(dp(10), dp(18), dp(10), dp(6));
         list.addView(t);
     }
 
@@ -898,7 +1011,7 @@ public class SettingsActivity extends Activity {
         t.setText(android.text.TextUtils.join("\n", lines));
         t.setTextColor(0xFFC6BBA4);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        t.setTypeface(font("Thmanyah-Regular"));
+        t.setTypeface(font("Thmanyah-Regular"));   // a version line has digits and Latin letters: Thmanyah has them
         t.setLineSpacing(dp(4), 1f);
         t.setGravity(Gravity.START);
         t.setTextDirection(View.TEXT_DIRECTION_RTL);
@@ -941,27 +1054,23 @@ public class SettingsActivity extends Activity {
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        card.setPadding(dp(18), dp(12), dp(18), dp(12));
+        card.setPadding(dp(24), dp(14), dp(20), dp(14));
         card.setFocusable(true);
         card.setClickable(true);
-        final android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setCornerRadius(dp(14));
-        bg.setColor(0x14FFFFFF);
-        bg.setStroke(dp(2), 0x1FD6AF6B);
-        card.setBackground(bg);
+        card.setBackgroundResource(R.drawable.glass_row);   // glass; the gold-tinted one while it has the focus
 
         final android.widget.ImageView ic = new android.widget.ImageView(this);
         final android.graphics.drawable.Drawable d = getDrawable(icon).mutate();
         d.setTint(0xFFD6AF6B);
         ic.setImageDrawable(d);
-        card.addView(ic, new LinearLayout.LayoutParams(dp(24), dp(24)));
+        card.addView(ic, new LinearLayout.LayoutParams(dp(28), dp(28)));
 
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
         final TextView name = new TextView(this);
         name.setText(label);
         name.setTextColor(0xFFF6EFE0);
-        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
         name.setTypeface(font("Thmanyah-Medium"));
         name.setSingleLine(true);
         texts.addView(name);
@@ -969,14 +1078,14 @@ public class SettingsActivity extends Activity {
         if (value != null) {
             val.setText(value);
             val.setTextColor(0xFFC6BBA4);
-            val.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            val.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
             val.setTypeface(font("Thmanyah-Regular"));
             val.setSingleLine(true);
             val.setEllipsize(android.text.TextUtils.TruncateAt.END);
             texts.addView(val);
         }
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, -2, 1f);
-        tp.setMarginStart(dp(16));
+        tp.setMarginStart(dp(18));
         card.addView(texts, tp);
 
         final TextView chevron = new TextView(this);
@@ -987,13 +1096,11 @@ public class SettingsActivity extends Activity {
 
         if (onClick != null) card.setOnClickListener(v -> onClick.run());
         card.setOnFocusChangeListener((v, has) -> {
-            // No scaling: a scaled rounded card overlapped its neighbours and blurred the text.
-            bg.setColor(has ? 0x33D6AF6B : 0x14FFFFFF);
-            bg.setStroke(dp(2), has ? 0xFFD6AF6B : 0x1FD6AF6B);
+            // No scaling: a scaled rounded card overlapped its neighbours and blurred the text. The glass changes by itself (glass_row).
             chevron.setTextColor(has ? 0xFFD6AF6B : 0x99C6BBA4);
         });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.bottomMargin = dp(8);
+        lp.bottomMargin = dp(9);
         list.addView(card, lp);
         return card;
     }
@@ -1006,7 +1113,7 @@ public class SettingsActivity extends Activity {
         in.setHint(hint);
         in.setSingleLine(true);
         in.setInputType(InputType.TYPE_CLASS_TEXT);
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("بحث").setView(in)
+        new Dlg(this).setTitle("بحث").setView(in)
             .setPositiveButton("بحث", (d, w) -> {
                 String q = in.getText().toString().trim();
                 if (!q.isEmpty()) then.got(q);

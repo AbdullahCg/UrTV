@@ -21,9 +21,9 @@
     <string name="sleep_90">٩٠ دقيقة</string>
     <string name="stop_now">إيقاف التشغيل الآن</string>
     <string name="sleep_left">يتوقف بعد %1$s دقيقة</string>
-    <string name="hint_main">يمين/يسار بين الأقسام  •  OK اختيار  •  رجوع للواجهة</string>
-    <string name="hint_player">&#8294;OK&#8297; تشغيل/إيقاف  •  يمين/يسار تقديم  •  أسفل مؤقت النوم  •  رجوع للقائمة</string>
-    <string name="hint_adhan">&#8294;OK&#8297; إيقاف/تشغيل  •  أسفل مؤقت النوم  •  رجوع للقائمة</string>
+    <string name="hint_main">يمين/يسار بين الأقسام  •  اختيار للفتح  •  رجوع للواجهة</string>
+    <string name="hint_player">اختيار: تشغيل/إيقاف  •  يمين/يسار تقديم  •  أسفل مؤقت النوم  •  رجوع للقائمة</string>
+    <string name="hint_adhan">اختيار: إيقاف/تشغيل  •  أسفل مؤقت النوم  •  رجوع للقائمة</string>
     <string name="back">رجوع</string>
     <string name="stop">إيقاف</string>
     <string name="play_pause">تشغيل أو إيقاف</string>
@@ -43,7 +43,7 @@
     <string name="adhan_voices">اختر المؤذن</string>
     <string name="adhan_volume">صوت الأذان</string>
     <string name="adhan_exact_title">قد يتأخر الأذان دقائق</string>
-    <string name="adhan_exact_detail">فعّل المنبّهات الدقيقة  •  OK يفتح الإعداد</string>
+    <string name="adhan_exact_detail">فعّل المنبّهات الدقيقة  •  اختيار يفتح الإعداد</string>
     <string name="adhan_chosen">%1$s  •  الصوت المختار</string>
-    <string name="adhan_hint">&#8294;OK&#8297; يجرّب ١٢ ثانية ويحفظ الاختيار  •  التسجيلات: أرشيف الإنترنت، ملكية عامة  •  رجوع</string>
+    <string name="adhan_hint">اختيار يجرّب ١٢ ثانية ويحفظ الاختيار  •  التسجيلات: أرشيف الإنترنت، ملكية عامة  •  رجوع</string>
 </resources>

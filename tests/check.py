@@ -215,6 +215,12 @@ bidi = [f"{f.name}: {m.group(0)[:40]}" for f, src in java.items()
 bidi += [f"{x.name}: {m.group(0)[:40]}" for x in (ROOT / "android").glob("*/src/main/res/values*/*.xml")
          for m in re.finditer(r'<string [^>]*>[A-Za-z]+ [\u0600-\u06FF][^<]*', x.read_text(encoding="utf-8"))]
 check("java: no Arabic string starts with a Latin word without an isolate", not bidi, bidi)
+# the select key is «اختيار» in the hints, never the Latin word OK (it falls out of Thmanyah and shows in the system font)
+okword = [f"{f.name}: {m.group(0)[:40]}" for f, src in java.items()
+          for m in re.finditer(r'"[^"\n]*[\u0600-\u06FF][^"\n]*"', src) if re.search(r"\bOK\b", m.group(0))]
+okword += [f"{x.name}: {m.group(0)[:40]}" for x in (ROOT / "android").glob("*/src/main/res/values*/*.xml")
+           for m in re.finditer(r"<string [^>]*>[^<]*", x.read_text(encoding="utf-8")) if re.search(r"\bOK\b", m.group(0))]
+check("java: no «OK» in an Arabic hint (use «اختيار»)", not okword, okword)
 # the preview and the settings must open fresh: an open one comes back with the settings it opened with, or in front of
 # the one asked for (a TV test read the preview as the settings screen, and as the settings not working)
 starts = [f"{f.name}: {l.strip()}" for f in sorted((ROOT / "optimize").glob("*.sh"))

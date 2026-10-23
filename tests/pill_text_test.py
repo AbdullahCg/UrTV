@@ -29,7 +29,7 @@ order = re.findall(r"Arrays\.asList\(([^)]*)\)", main.split("List<Pill> row", 1)
 check("MainActivity: the pills are the same seven in the same order (sources, network, settings, sleep, then tasks, screensaver, tilawah)",
       order == ["inputs, wifiPill, settings, sleepPill"] and "row.add(tasks); row.add(saver);" in main and "row.add(tilawah)" in main, order)
 check("MainActivity: every pill is a Pill with a fixed 30 dp row (the row's height is reserved)",
-      "right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0))" in main and "TextView tasks" not in main and "TextView saver" not in main)
+      "right.addView(p, llp(-2, dp(Pill.HEIGHT), dp(10), 0, 0, 0))" in main and "TextView tasks" not in main and "TextView saver" not in main)
 check("MainActivity: D-pad ends and order are unchanged (wireFocus and moveFocusSideways still walk the pills list)",
       "p.setNextFocusLeftId(i == 0 ? p.getId() : pills.get(i - 1).getId())" in main and "int next = right ? index - 1 : index + 1;" in main)
 check("MainActivity: the sleep and network names are set on the pill, not drawn on the row", "sleepPill.setLabel(PillText.sleep(left))" in main

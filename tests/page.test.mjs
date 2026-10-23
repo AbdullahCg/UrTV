@@ -2468,8 +2468,8 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
 }
 
 // ---- the settings' pickers draw the focused card live: the page itself, card only (#panel=<choice>&cardstyle=<style>&widget=1) with the
-// current settings, in a box of 400 x 260 (SettingsActivity.pickWithPreview). Every choice and every style: no errors, drawn, inside the box.
-const PREVIEW = [400, 260];
+// current settings, in a box of 436 x 300 over a dimmed photo (SettingsActivity.pickWithPreview, which sizes its frame to the card). Every choice and every style: no errors, drawn, inside the box.
+const PREVIEW = [436, 300];
 for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'matches', 'verse', 'wisdom', 'adhkar', 'stocks', 'tasks', 'year', 'smart', 'today']) {
   for (const style of ['current', 'dark1', 'glass1', 'dark3', 'glass3']) {
     if (style !== 'current' && !['verse', 'matches', 'prayerrow', 'hourly', 'today', 'adhkar'].includes(panel)) continue;
@@ -2882,61 +2882,88 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
 }
 
 
-// ---- the launcher's matches card: «القادسية × الهلال … الجمعة ٢٣ أكتوبر · ٩:٠٠ م … بعد ٧ ساعات» on one line when it all fits (fits()),
-// the date under the clubs when the names need the line. The screensaver's card keeps its two lines.
-const rowGeom = (p, idx) => p.evaluate(i => {
-  const card = CARDS[i].el, box = e => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
-  return [...card.querySelectorAll('li.mg')].map(li => {
-    const [clubs, date, dt] = [li.children[0], li.querySelector('.mwhen'), li.querySelector('.dt')];
-    const inl = li.classList.contains('inl');
-    li.classList.toggle('inl', !inl);   // the other layout, to see that the choice was the right one
-    const other = rowFits(li);
-    li.classList.toggle('inl', inl);
-    return { inl, clubs: box(clubs), date: box(date), dt: box(dt), li: box(li), text: date.textContent, crests: li.querySelectorAll('img.cr').length,
-             otherFits: other, cut: [li, ...li.querySelectorAll('*')].some(e => e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1), dots: li.innerText.includes('…'),
-             fine: rowFits(li) };
-  });
-}, idx);
+// ---- a game is ONE line, on the launcher's card and on the screensaver's: «الهلال [شعار] ٢ - ١ [شعار] النصر», then the date, then «بعد …»
+// (or «انتهت» with the day it was played). Too long: the clubs' short names, then a shorter date, then a smaller size; never «…», never two lines.
+const NOW_G = HOME_NOW.getTime();
+const gameAt = (i, h, a, hrs, o = {}) => ({ idEvent: 'q' + i, strHomeTeam: h, strAwayTeam: a, idHomeTeam: String(100 + 2 * i), idAwayTeam: String(101 + 2 * i),
+  strHomeTeamBadge: o.nohb ? null : BADGE(100 + 2 * i), strAwayTeamBadge: o.noab ? null : BADGE(101 + 2 * i), strTimestamp: new Date(NOW_G + hrs * 36e5).toISOString(),
+  ...(o.score ? { intHomeScore: o.score[0], intAwayScore: o.score[1], strStatus: 'FT' } : { strStatus: 'NS' }) });
+const MIXED = [gameAt(0, 'Al-Hilal', 'Al-Nassr', -5, { score: [2, 1] }), gameAt(1, 'Al-Ahli', 'Al-Ittihad', 3, { noab: true }),
+               gameAt(2, 'Manchester United', 'Borussia Monchengladbach', 30)];
+const put = games => `NEXT_LIST = { '136013': ${JSON.stringify(games)} };`;
+const oneLine = p => p.evaluate(() => [...document.querySelectorAll('#week-list li.mg')].map(li => {
+  const row = li.firstElementChild, r = row.getBoundingClientRect(), kids = [...row.children], bx = e => e.getBoundingClientRect();
+  const mid = kids.find(k => k.classList.contains('sc') || k.classList.contains('x')), tms = kids.filter(k => k.classList.contains('tm'));
+  const cen = e => { const b = bx(e); return (b.left + b.right) / 2; };
+  const mk = tm => ({ nm: tm.querySelector('.nm'), cr: tm.querySelector('img.cr') });
+  const h = mk(tms[0]), a = mk(tms[1]);
+  const mids = kids.map(k => { const b = bx(k); return (b.top + b.bottom) / 2; });
+  return {
+    text: li.textContent.replace(/\s+/g, ' ').trim(), cut: rowCut(row), dots: li.innerText.includes('…'),
+    oneLine: Math.max(...mids) - Math.min(...mids) < r.height * .5 && li.getBoundingClientRect().height < 3 * parseFloat(getComputedStyle(row).fontSize),
+    inside: kids.every(k => { const b = bx(k); return !b.width || (b.left >= r.left - .5 && b.right <= r.right + .5); }),
+    // right to left: the home club, its crest, the score, the guest's crest, the guest club (a missing crest leaves its name next to the score)
+    order: [h.nm, h.cr, mid, a.cr, a.nm].filter(Boolean).map(cen).every((x, k, all) => !k || x < all[k - 1]),
+    gapHome: h.cr ? Math.abs(bx(h.cr).right - bx(h.nm).left) : 0, gapAway: a.cr ? Math.abs(bx(a.nm).right - bx(a.cr).left) : 0,
+    crests: [h.cr, a.cr].filter(Boolean).length, domHome: h.cr ? !!(h.nm.compareDocumentPosition(h.cr) & 4) : true, domAway: a.cr ? !!(a.cr.compareDocumentPosition(a.nm) & 4) : true,
+    date: (row.querySelector('.mwhen') || {}).textContent || '', dt: row.querySelector('.dt').textContent.replace(/\s+/g, ' ').trim(), size: row.style.fontSize,
+    font: parseFloat(getComputedStyle(row).fontSize),
+  };
+}));
 for (const [cards, W, wide, label] of [['matches,prayerrow,hourly', 1920, 560, 'first slot (560)'], ['prayerrow,matches,hourly', 1920, 540, 'second slot (540)'],
     ['prayerrow,hourly,matches', 1920, 1122, 'full-width third slot'], ['prayerrow,hourly,matches', 960, 561, 'third slot at 960'], ['matches', 1920, 461, 'alone (461)']]) {
-  for (const [gn, games] of [['long names', LONG_GAMES], ['short names', SHORT_GAMES]]) {
-    const o = await homeCards(cards, W, { extra: 'teams=136013', games });
-    await o.p.evaluate(() => loadCrests()); await o.p.waitForTimeout(250);
-    const rows = await rowGeom(o.p, cards.split(',').indexOf('matches'));
+  for (const [gn, games] of [['mixed', MIXED], ['short names', [gameAt(0, 'Al-Hilal', 'Al-Nassr', 3), gameAt(1, 'Al-Ahli', 'Al-Ittihad', 27, { noab: true })]]]) {
+    const o = await homeCards(cards, W, { extra: 'teams=136013' });
+    await o.p.evaluate(put(games) + ' renderPanel(false);'); await o.p.evaluate(() => loadCrests()); await o.p.waitForTimeout(300);
+    await o.p.evaluate(() => { for (const c of CARDS) c.ul.__h = null; renderPanel(false, 'matches'); });
+    const rows = await oneLine(o.p);
     const tag = `home matches ${label}, ${gn}`;
-    check(`${tag}: ${games.length} games, each one line or two, no script errors`, !o.errors.length && rows.length === games.length, JSON.stringify(rows.length) + o.errors.join('; '));
-    check(`${tag}: one line only when it all fits: the clubs, then the date in the space, then «بعد …» at the far end`,
-      rows.every(r => !r.inl || (r.clubs.l >= r.date.r - 1 && r.date.l >= r.dt.r - 1 && Math.abs(r.date.t - r.clubs.t) < r.clubs.b - r.clubs.t && r.li.b - r.li.t < 2 * (r.clubs.b - r.clubs.t))), JSON.stringify(rows));
-    check(`${tag}: the date drops under the clubs (the old two lines) only when one line would not fit`,
-      rows.every(r => r.inl ? !r.cut && !r.dots && r.fine : !r.otherFits && r.date.t >= r.clubs.b - 2 && !r.cut && !r.dots), JSON.stringify(rows));
-    check(`${tag}: the crests are still there, the date reads «اليوم · ساعة»`,
-      rows.every(r => r.crests >= 1 && /^\S+ [٠-٩]+ \S+ · [٠-٩]+:[٠-٩]+ [صم]$/.test(r.text.trim())), JSON.stringify(rows.map(r => [r.crests, r.text])));
-    if (wide >= 540 && gn === 'short names') check(`${tag}: short names fit on one line at this width`, rows.every(r => r.inl), JSON.stringify(rows.map(r => r.inl)));
+    check(`${tag}: ${games.length} games, each on one line inside the card, nothing cut, no «…»`,
+      !o.errors.length && rows.length === games.length && rows.every(r => r.oneLine && !r.cut && !r.dots && r.inside), JSON.stringify(rows) + o.errors.join('; '));
+    check(`${tag}: the crests sit next to the score, close to the names: club, crest, score, crest, club`,
+      rows.every(r => r.order && r.domHome && r.domAway && r.gapHome < r.font * .7 && r.gapAway < r.font * .7) && rows.some(r => r.crests === 2), JSON.stringify(rows));
+    check(`${tag}: the date is on the line: a finished game says «انتهت» and the day, a game to come the day and time and «بعد …»`,
+      rows.every(r => r.date && (r.dt === 'انتهت' ? /[٠-٩]+ \S+$/.test(r.date.trim()) : /^بعد [٠-٩]+ \S+$/.test(r.dt))), JSON.stringify(rows.map(r => [r.date, r.dt])));
+    check(`${tag}: the games of a card share one size`, new Set(rows.map(r => r.size)).size === 1, JSON.stringify(rows.map(r => r.size)));
+    if (wide >= 540 && gn === 'short names') check(`${tag}: short clubs keep the full date at this width`, rows.every(r => !r.size && /·|\S+ [٠-٩]+ \S+$/.test(r.date)), JSON.stringify(rows.map(r => [r.size, r.date])));
     await o.ctx.close();
   }
 }
-for (const width of [400, 330]) {   // a narrow box: the longest names take the whole line, the date goes under (the others may stay on one)
-  const o = await homeCards('matches', 1920, { extra: 'teams=136013', games: LONG_GAMES, width, height: 250 });
-  await o.p.evaluate(() => loadCrests()); await o.p.waitForTimeout(250);
-  const rows = await rowGeom(o.p, 0), r = await homeProbe(o.p);
-  check(`home matches alone, ${width} px wide: the first game's date is under its clubs, nothing cut or ending in «…»`,
-    !o.errors.length && rows[0].inl === false && rows[0].date.t >= rows[0].clubs.b - 2 && !r.cut.length && !r.dots.length, JSON.stringify([rows[0], r]));
+{   // a score and a «×»: «الهلال [شعار] ٢ - ١ [شعار] النصر» and «الأهلي [شعار] × [شعار] الاتحاد»
+  const o = await homeCards('matches', 1920, { extra: 'teams=136013' });
+  await o.p.evaluate(put(MIXED) + ' renderPanel(false);'); await o.p.evaluate(() => loadCrests()); await o.p.waitForTimeout(300);
+  const rows = await oneLine(o.p);
+  check('home matches: the score between the crests, «×» when there is no score', rows[0].text.includes('٢ - ١') && rows[1].text.includes('×') && !rows[1].text.includes(' - '), JSON.stringify(rows.map(r => r.text)));
+  check('home matches: a club with no crest keeps its name next to the score, the other side keeps its crest', rows[1].crests === 1 && rows[1].order, JSON.stringify(rows[1]));
   await o.ctx.close();
 }
-{   // a smaller text step can bring a date up beside the clubs again
-  const o = await homeCards('matches', 1920, { extra: 'teams=136013', games: LONG_GAMES, width: 400, height: 250 });
-  const r = await o.p.evaluate(() => { const c = CARDS[0], on = () => c.el.querySelector('li.mg').classList.contains('inl'); const before = on();
-    for (let k = 0; k < 6 && !on(); k++) shrinkCard(c, true); return { before, after: on(), z: c.z }; });
-  check('home matches: a game stacked at full size goes on one line once the text steps down far enough', !o.errors.length && !r.before && r.after && r.z < 1, JSON.stringify(r));
+for (const width of [400, 330]) {   // a narrow box: the steps down the ladder, one line to the end
+  const o = await homeCards('matches', 1920, { extra: 'teams=136013', width, height: 250 });
+  await o.p.evaluate(put(MIXED) + ' renderPanel(false);'); await o.p.evaluate(() => loadCrests()); await o.p.waitForTimeout(300);
+  await o.p.evaluate(() => { for (const c of CARDS) c.ul.__h = null; renderPanel(false, 'matches'); });
+  const rows = await oneLine(o.p), r = await homeProbe(o.p);
+  check(`home matches alone, ${width} px wide: one line each, the short date or a smaller size, nothing cut or ending in «…»`,
+    !o.errors.length && rows.length === 3 && rows.every(x => x.oneLine && !x.cut && !x.dots && x.inside) && !r.cut.length && !r.dots.length, JSON.stringify([rows, r]));
+  check(`home matches alone, ${width} px wide: the long names took their short form, the date its short form («٢٢ أكتوبر» / «الجمعة ١:٤٠ م») before the size went down`,
+    rows[2].text.includes('اليونايتد') && rows.some(x => /^(\S+ [٠-٩]+:[٠-٩]+ [صم]|[٠-٩]+ \S+)$/.test(x.date.trim())), JSON.stringify(rows.map(x => [x.text, x.date, x.size])));
   await o.ctx.close();
 }
-{   // the screensaver's card: the date stays under the clubs, inside the first span, on every width
-  for (const [w, h] of [[1920, 1080], [960, 540]]) {
+{   // a smaller card step brings the whole names and date back where they now fit, and the other way round
+  const o = await homeCards('matches', 1920, { extra: 'teams=136013', width: 400, height: 250 });
+  await o.p.evaluate(put(MIXED) + ' renderPanel(false);'); await o.p.waitForTimeout(200);
+  const r = await o.p.evaluate(() => { const c = CARDS[0], longest = () => [...c.ul.querySelectorAll('.mwhen')].map(e => e.textContent.length);
+    const before = longest(); for (let k = 0; k < 5; k++) shrinkCard(c, true); return { before, after: longest(), z: c.z, cut: [...c.ul.querySelectorAll('li.mg')].some(li => rowCut(li.firstElementChild)) }; });
+  check('home matches: a card that steps down refits its rows (dates get their full form back where it fits), nothing cut', !o.errors.length && !r.cut && r.z < 1
+    && r.after.some((n, i) => n >= r.before[i]), JSON.stringify(r));
+  await o.ctx.close();
+}
+{   // the screensaver's card: the same one line, no crests; the date is on it for a finished game too
+  for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const o = await open('tv.html', 'teams=136013&panel=matches', { width: w, height: h, now: HOME_NOW });
-    await o.p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false);');
-    const r = await o.p.evaluate(() => [...document.querySelectorAll('#week-list li')].map(li => ({ mg: li.classList.contains('mg') || li.classList.contains('inl'),
-      inside: !!li.querySelector(':scope > span:first-child > .mwhen'), under: (t => li.querySelector('.mwhen').getBoundingClientRect().top >= t.top + t.height / 2)(li.querySelector('.tm').getBoundingClientRect()) })));
-    check(`screensaver matches card ${w}x${h}: two lines per game as before`, !o.errors.length && r.length === 2 && r.every(x => !x.mg && x.inside && x.under), JSON.stringify(r));
+    await o.p.evaluate(put(MIXED) + ' renderPanel(false);');
+    const rows = await oneLine(o.p), crests = await o.p.evaluate(() => document.querySelectorAll('img.cr').length);
+    check(`screensaver matches card ${w}x${h}: one line per game (as on the home screen), no crests, the date on every row`,
+      !o.errors.length && rows.length === 3 && !crests && rows.every(x => x.oneLine && !x.cut && !x.dots && x.inside && x.date), JSON.stringify(rows) + o.errors.join('; '));
     await o.ctx.close();
   }
 }
@@ -3150,6 +3177,56 @@ for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+
+// ---- «يُتلى الآن» on the screensaver: while the Quran or a station plays in the launcher (window.UrtvNative.nowPlaying(), mocked here) a small
+// card at the top centre says «يُتلى الآن · سورة الكهف · ماهر المعيقلي», in the style of the card beside the clock; it goes when the answer is empty
+const NP_MOCK = answer => `window.__np = ${JSON.stringify(answer)}; window.UrtvNative = { nowPlaying: () => window.__np };`;
+const npState = p => p.evaluate(() => {
+  const n = document.getElementById('np'), b = n.getBoundingClientRect(), main = document.querySelector('.week:not(.np)').getBoundingClientRect(), hijri = document.querySelector('.dates').getBoundingClientRect();
+  const mk = document.querySelector('.markets').getBoundingClientRect();
+  return { shown: !n.hidden && getComputedStyle(n).display !== 'none', text: n.innerText.replace(/\s+/g, ' ').trim(), cx: (b.left + b.right) / 2 / innerWidth, top: b.top / innerHeight, w: b.width / innerWidth,
+           cut: n.scrollWidth > n.clientWidth + 1, clear: b.left > mk.right - 1 && b.right < hijri.left + 1, overMain: b.bottom > main.top && b.top < main.bottom && b.right > main.left && b.left < main.right };
+});
+for (const [style, w, h] of [['current', 1920, 1080], ['dark1', 1920, 1080], ['glass1', 1280, 720], ['dark3', 1280, 720], ['glass3', 960, 540], ['current', 960, 540]]) {
+  const tag = `now playing card (${style}, ${w}x${h})`;
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=prayers' + (style === 'current' ? '' : '&cardstyle=' + style), { width: w, height: h });
+  const before = await p.evaluate(() => { const n = document.getElementById('np'); return n.hidden || getComputedStyle(n).display === 'none'; });
+  check(`${tag}: nothing in the page without the app (no UrtvNative): the card is hidden`, before && !errors.length, errors.join('; '));
+  await p.evaluate(NP_MOCK({ title: 'سورة الكهف', who: 'ماهر المعيقلي' }) + ' nowPlayingTick();');
+  const s = await npState(p);
+  check(`${tag}: «يُتلى الآن · سورة الكهف · ماهر المعيقلي», at the top, in the middle, clear of the markets and the date`,
+    s.shown && /^يُتلى الآن\s*·\s*سورة الكهف\s*·\s*ماهر المعيقلي$/.test(s.text) && Math.abs(s.cx - .5) < .02 && s.top < .12 && s.clear && !s.cut && !s.overMain, JSON.stringify(s));
+  check(`${tag}: it takes the style of the card beside the clock`,
+    await p.evaluate(st => { const a = getComputedStyle(document.querySelector('.week:not(.np)')), n = getComputedStyle(document.getElementById('np'));
+      return a.borderRadius === n.borderRadius && (st === 'current' || document.documentElement.classList.contains('cs-' + st)); }, style));
+  await p.evaluate(NP_MOCK(null) + ' nowPlayingTick();');
+  check(`${tag}: it goes when the answer is empty (playback stopped)`, !(await npState(p)).shown);
+  await p.evaluate(NP_MOCK({ title: 'إذاعة القرآن الكريم من القاهرة والعالم', who: 'بث مباشر' }) + ' nowPlayingTick();');
+  const l = await npState(p);
+  check(`${tag}: a long station name stays on one line, inside the screen, never «…»`, l.shown && !l.cut && l.w < .45 && !l.text.includes('…') && l.text.endsWith('بث مباشر'), JSON.stringify(l));
+  await p.evaluate(NP_MOCK({ title: '<img src=x onerror=alert(1)>', who: '' }) + ' nowPlayingTick();');
+  check(`${tag}: the words go in as text (no markup), and with no reciter no stray «·»`,
+    await p.evaluate(() => !document.querySelector('#np img') && document.getElementById('np-s').hidden && document.getElementById('np-t').textContent.startsWith('<img')));
+  await p.evaluate(() => { window.UrtvNative = { nowPlaying: () => { throw new Error('boom'); } }; nowPlayingTick(); });
+  check(`${tag}: an error from the app hides it and breaks nothing`, !(await npState(p)).shown && !errors.length, errors.join('; '));
+  await ctx.close();
+}
+{   // the minute: asked once at the start and then every minute, not faster
+  const { p, ctx } = await open('tv.html', 'teams=136013&panel=prayers', { now: HOME_NOW });
+  await p.evaluate(() => { window.__asks = 0; window.UrtvNative = { nowPlaying: () => { window.__asks++; return JSON.stringify({ title: 'سورة طه', who: 'x' }); } }; });
+  await p.clock.runFor(59000);
+  const early = await p.evaluate(() => window.__asks);
+  await p.clock.runFor(2000);
+  const later = await p.evaluate(() => window.__asks);
+  check('now playing card: the page asks the app once a minute, not more often', early === 0 && later === 1, early + ' ' + later);
+  await ctx.close();
+}
+{   // the launcher's cards never show it
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width: 461, height: 250, init: null });
+  await p.evaluate(NP_MOCK({ title: 'سورة الكهف', who: 'x' }) + ' try { nowPlayingTick(); } catch(e) {}');
+  check('now playing card: not part of the launcher\'s home cards', !errors.length && await p.evaluate(() => { const n = document.getElementById('np'); return !n || n.hidden || getComputedStyle(n).display === 'none'; }), errors.join('; '));
+  await ctx.close();
+}
 
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');

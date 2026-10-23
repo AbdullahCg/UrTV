@@ -63,10 +63,10 @@ public class PlayerActivity extends Activity {
         Ui.text(title, "ThmanyahDisplay-Bold.otf", 46, R.color.sand);
         Ui.text(artist, "Thmanyah-Regular.otf", 22, R.color.dim);
         Ui.text(live, "Thmanyah-Medium.otf", 14, R.color.gold);
-        Ui.text(pos, "Thmanyah-Light.otf", 13, R.color.dim);
-        Ui.text(dur, "Thmanyah-Light.otf", 13, R.color.dim);
+        Ui.text(pos, "Thmanyah-Regular.otf", 14, R.color.dim);
+        Ui.text(dur, "Thmanyah-Regular.otf", 14, R.color.dim);
         Ui.text(sleepInfo, "Thmanyah-Medium.otf", 14, R.color.gold);
-        Ui.text(hint, "Thmanyah-Light.otf", 13, R.color.dim);
+        Ui.text(hint, "Thmanyah-Regular.otf", 14, R.color.dim);
     }
 
     @Override protected void onResume() {

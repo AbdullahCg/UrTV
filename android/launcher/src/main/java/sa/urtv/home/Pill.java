@@ -22,6 +22,8 @@ import android.widget.TextView;
 final class Pill extends LinearLayout {
     private static final int ON = 0xE6FFFFFF, FOCUSED = 0xFF111111, GOLD = 0xFFD4AF6A;
     private static final long MS = 150;
+    /** the row's height in dp: every pill, the circles and the one with the focus, is this tall, so they share one centre line */
+    static final int HEIGHT = 34;
 
     private final float density;
     private final ImageView icon;
@@ -40,7 +42,7 @@ final class Pill extends LinearLayout {
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         setFocusable(true);
-        bg.setCornerRadius(dp(15));
+        bg.setCornerRadius(dp(HEIGHT / 2f));
         bg.setColor(0x66000000);
         bg.setStroke(dp(1), 0x33FFFFFF);
         setBackground(bg);
@@ -48,10 +50,11 @@ final class Pill extends LinearLayout {
         glyph = c.getDrawable(iconRes).mutate();
         icon = new ImageView(c);
         icon.setImageDrawable(glyph);
-        addView(icon, new LayoutParams(dp(16), dp(16)));
+        addView(icon, new LayoutParams(dp(18), dp(18)));
 
         name = new TextView(c);
-        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        name.setIncludeFontPadding(false);
         name.setTypeface(face);
         name.setSingleLine(true);
         name.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
@@ -95,8 +98,8 @@ final class Pill extends LinearLayout {
     /** the width of the name's window now: nothing when closed, the name and the gap to the icon when open */
     private void apply() {
         float textWidth = name.getPaint().measureText(label == null ? "" : label);
-        int full = Math.round(dp(8) + textWidth) + 1;
-        int pad = Math.round(dp(7) + dp(7) * open);   // a 30 dp circle closed, 14 dp of room on each side open
+        int full = Math.round(dp(9) + textWidth) + dp(2);
+        int pad = Math.round(dp(8) + dp(8) * open);   // a 34 dp circle closed (18 dp icon, 8 dp around), 16 dp of room on each side open
         setPadding(pad, 0, pad, 0);
         LayoutParams lp = (LayoutParams) clip.getLayoutParams();
         int w = Math.round(full * open);
@@ -104,7 +107,7 @@ final class Pill extends LinearLayout {
         // the name is always laid out whole (an exact width), right edge on the icon's side; the window above only shows part of it
         FrameLayout.LayoutParams nlp = (FrameLayout.LayoutParams) name.getLayoutParams();
         if (nlp.width != full) { nlp.width = full; name.setLayoutParams(nlp); }
-        name.setPadding(0, 0, dp(8), 0);   // the gap to the icon, on the name's right
+        name.setPadding(0, 0, dp(9), 0);   // the gap to the icon, on the name's right
         String shown = PillText.shown(label, open > 0);   // icon only while closed: no words at all, not hidden ones
         if (!shown.contentEquals(name.getText())) name.setText(shown);
     }

@@ -8,5 +8,5 @@ sub	1		0	يُتلى الآن  ·  بث مباشر	a station: «بث مباشر»
 sub	1		5	يُتلى الآن  ·  بث مباشر  ·  نوم ٥ د	a station with a sleep timer
 sub	0	مشاري العفاسي	-1	يُتلى الآن  ·  مشاري العفاسي	a negative number is no timer
 sub	0	مشاري العفاسي	120	يُتلى الآن  ·  مشاري العفاسي  ·  نوم ١٢٠ د	two hours left
-hint	0			⁦OK⁩ إيقاف/تشغيل  ·  ◀ ▶ السورة  ·  مطولًا: فتح	a surah: OK, ◀ ▶ the surah, a long OK opens the player
-hint	1			⁦OK⁩ إيقاف/تشغيل  ·  مطولًا: فتح	a station: no ◀ ▶ (nothing to skip to)
+hint	0			اختيار: إيقاف/تشغيل  ·  يمين/يسار: السورة  ·  مطولًا: فتح	a surah: OK, ◀ ▶ the surah, a long OK opens the player
+hint	1			اختيار: إيقاف/تشغيل  ·  مطولًا: فتح	a station: no ◀ ▶ (nothing to skip to)
