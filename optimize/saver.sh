@@ -10,7 +10,8 @@
 #                                                      unless the name is a built-in city; a built-in city is always Asia/Riyadh)
 #   optimize/saver.sh city 'الكويت' 29.37 47.98 Asia/Kuwait
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
-#   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed)
+#   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed);
+#                                                  `teams none` (or `teams ""`) follows no team: the defaults (الهلال، المنتخب السعودي) go
 #   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast hourly prayerrow matches verse wisdom adhkar stocks tasks year smart today none
 #   optimize/saver.sh home-card verse,hourly,year  on the home screen (launcher): up to 3 cards, same choices, in this order
 #                                                  (one value works too; none = off). Two sit side by side, a third under them
@@ -40,6 +41,8 @@
 #   optimize/saver.sh leagues 'Saudi-Arabian Pro League'   whole leagues, up to 5, by English or Arabic name (دوري روشن السعودي);
 #                                                  every game of every club in them joins the teams' games ("" = none)
 #   optimize/saver.sh events f1,ufc               other sports beside the teams' games: f1 ufc boxing  ("" = none)
+#   optimize/saver.sh prayeradj on|off             «تعديل وقت الصلاة» (off by default): each prayer moved by its own whole minutes, -20..20
+#   optimize/saver.sh prayeradj fajr +2 maghrib -1   the minutes of fajr dhuhr asr maghrib isha (the others stay); sunrise is never moved
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
 set -euo pipefail
@@ -123,7 +126,11 @@ case "${1:-}" in
     send SET "$extra" ;;
   teams)
     shift
-    [ $# -gt 0 ] || { echo "usage: optimize/saver.sh teams ID:EnglishName ..."; exit 1; }
+    [ $# -gt 0 ] || { echo "usage: optimize/saver.sh teams ID:EnglishName ... | none"; exit 1; }
+    if [ $# -eq 1 ] && { [ "$1" = none ] || [ -z "$1" ]; }; then   # no team at all: an empty list (the app keeps it empty)
+      set1 teams ""; exit $?
+    fi
+    [ "$1" != none ] || { echo "usage: optimize/saver.sh teams none   (alone: it clears the followed teams)"; exit 1; }
     if [ $# -gt 20 ]; then   # the app keeps the first 20 and drops the rest without a word: say so here
       echo "Only 20 teams can be followed. Kept: ${*:1:20}"
       echo "Left out (${#} given): ${*:11}"
@@ -181,6 +188,28 @@ case "${1:-}" in
              send TASKS "--es op $2 --ei n $3" ;;
       *) echo "usage: optimize/saver.sh tasks list | add 'نص' | done N | del N | clear"; exit 1 ;;
     esac ;;
+  prayeradj)
+    shift
+    [ $# -gt 0 ] || { echo "usage: optimize/saver.sh prayeradj on|off | fajr +2 | maghrib -1 …   (fajr dhuhr asr maghrib isha; minutes -20..20)"; exit 1; }
+    case "$1" in
+      on|off) [ $# -eq 1 ] || { echo "usage: optimize/saver.sh prayeradj on|off"; exit 1; }
+              extra="--es prayeradj $1" ;;
+      *) extra=
+         while [ $# -gt 0 ]; do
+           [ $# -ge 2 ] || { echo "usage: optimize/saver.sh prayeradj fajr +2 maghrib -1 …   (each prayer, then its minutes)"; exit 1; }
+           case "$1" in
+             fajr|الفجر) key=fajr ;; dhuhr|الظهر) key=dhuhr ;; asr|العصر) key=asr ;; maghrib|المغرب) key=maghrib ;; isha|العشاء) key=isha ;;
+             *) echo "error: $1 is not a prayer: fajr dhuhr asr maghrib isha"; exit 1 ;;
+           esac
+           v=$(quote "$2") || exit 1
+           extra="$extra --es adj_$key $v"
+           shift 2
+         done ;;
+    esac
+    rc=0; send SET "${extra# }" || rc=$?
+    # the home app's adhan alarm was set for the old minutes: set it again now (no launcher, no harm)
+    [ "$rc" != 0 ] || "$PY" -I optimize/tv.py "am broadcast -n sa.urtv.home/.tilawah.MusicReceiver -a sa.urtv.home.ADHAN_RESCHEDULE" > /dev/null 2>&1 || true
+    exit "$rc" ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,41p' "$0"; exit 1 ;;
+  *) sed -n '2,/^# Only ADB/p' "$0"; exit 1 ;;
 esac

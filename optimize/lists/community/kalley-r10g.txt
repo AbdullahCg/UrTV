@@ -1,0 +1,25 @@
+# UrTV community list: kalley-r10g
+# Packages only, from the CleanYourTV project's tested debloat list for this model: https://github.com/Gathin23/cleanyourtv
+# MIT licence, Copyright (c) 2026 Gathin: see LICENSE-CleanYourTV.txt in this folder.
+# Source: examples/kalley-r10g/debloat.txt at commit 6cad2be3a130a84494c3ea9b805accac6e5013e8, taken 2026-10-23.
+# Made by .github/tools/community_lists.py. Used only when this TV is matched (optimize/community.py): never for another model.
+# match-brand: KALLEY
+# match-model: R10G
+# match-device: R10G
+
+com.google.android.partnersetup
+com.google.android.videos
+com.google.android.youtube.tvmusic
+com.seraphic.media.tv.interactive.app
+com.amazon.amazonvideo.livingroom
+com.realtek.kara
+com.realtek.karaoke.userguide
+com.apple.atve.androidtv.appletv
+com.nagra.ion.claroco
+com.kick.mobile
+com.jio.web.androidtv
+com.cbs.ca
+net.froemling.bombsquad
+com.yodo1.crossyroad
+com.google.android.apps.tv.launcherx
+com.google.android.tungsten.setupwraith

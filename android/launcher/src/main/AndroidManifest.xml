@@ -182,6 +182,7 @@
                 <action android:name="sa.urtv.home.SEEK_BY" />
                 <action android:name="sa.urtv.home.ADHAN" />
                 <action android:name="sa.urtv.home.ADHAN_VOLUME" />
+                <action android:name="sa.urtv.home.ADHAN_RESCHEDULE" />
                 <action android:name="sa.urtv.home.ADHAN_ON" />
                 <action android:name="sa.urtv.home.ADHAN_OFF" />
                 <action android:name="sa.urtv.home.VOICE" />

@@ -34,6 +34,10 @@ def run(cmd):
     if m: return FS[J + m.group(1) + ".rc"]
     m = re.fullmatch(r"cat " + re.escape(J) + r"(\w+)\.out", cmd)
     if m: return ""
+    m = re.match(r"if \[ -f (\S+) \]; then head -c (\d+) \S+ > \S+ && \[ -f \S+ \] && mv \S+ \S+; fi; (.*)", cmd)
+    if m:   # cut_back for i > 0: only a file that is there is cut
+        if m.group(1) in FS: FS[m.group(1)] = FS[m.group(1)][:int(m.group(2))]
+        cmd = m.group(3)
     out = []
     for part in [c.strip() for c in cmd.split(";")]:
         m = re.fullmatch(r"echo -n '([^']*)' >> (\S+)", part)
@@ -116,6 +120,29 @@ bad = [seed for seed in range(50) if not one(seed)]
 print(f"upload: {50 - len(bad)}/50 intact despite {stats['drop']} dropped connections and {stats['lost']} lost replies")
 print(f"decode: run in the background and looked at {stats['polls']} times")
 
+# the cut-back line, run by a real sh: with no file yet (0%) it used to end in «mv: bad '….b64.x': No such file or directory»
+import subprocess, shutil
+cutbad = []
+def cut_check(name, ok, detail=""):
+    print(f"{name}: " + ("ok" if ok else f"WRONG {detail}"))
+    if not ok: cutbad.append(name)
+if shutil.which("sh"):
+    def sh_cut(i, content):
+        d = tempfile.mkdtemp(); tmp = os.path.join(d, "x.apk.b64")
+        if content is not None: open(tmp, "w").write(content)
+        r = subprocess.run(["sh", "-c", tv.cut_back(tmp, i) + f"; echo -n 'PIECE' >> {tmp}; wc -c < {tmp}"], capture_output=True, text=True)
+        return r.returncode, r.stderr.strip(), (open(tmp).read() if os.path.exists(tmp) else None), os.listdir(d)
+    rc, err, body, left = sh_cut(0, None)
+    cut_check("cut back at 0%, no file yet", rc == 0 and not err and body == "PIECE" and left == ["x.apk.b64"], (rc, err, body, left))
+    rc, err, body, left = sh_cut(0, "AAAABBBBAAAABBBB")
+    cut_check("cut back at 0%, a doubled first piece", rc == 0 and body == "PIECE" and left == ["x.apk.b64"], (body, left))
+    rc, err, body, left = sh_cut(4, "AAAABBBB")
+    cut_check("cut back at 4, a piece too many", rc == 0 and body == "AAAAPIECE" and left == ["x.apk.b64"] and not err, (body, err, left))
+    rc, err, body, left = sh_cut(4, None)
+    cut_check("cut back at 4, the file is gone", rc == 0 and not err and body == "PIECE", (rc, err, body))
+cut_check("backoff: 5, 10, 15, 20, 25, 30, 30 s", [tv.backoff(i) for i in range(7)] == [5, 10, 15, 20, 25, 30, 30], [tv.backoff(i) for i in range(7)])
+cut_check("tries: 6 for a command, more for an upload", tv.LONG_TRIES >= tv.TRIES)
+
 # run_bg: a long command is started once, polled with short calls, its output and exit code come back;
 # a job that never ends is given up on after the limit; a job that died without an answer is run directly.
 class Fake:
@@ -174,4 +201,4 @@ paths = {
 wrong = {k: tv.tv_path(k) for k, v in paths.items() if tv.tv_path(k) != v}
 tv.os.name = real_name
 print(f"Git Bash paths: {len(paths) - len(wrong)}/{len(paths)} put back" + (f": wrong {wrong}" if wrong else ""))
-sys.exit(1 if bad or wrong or bgbad else 0)
+sys.exit(1 if bad or wrong or bgbad or cutbad else 0)

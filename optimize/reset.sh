@@ -13,6 +13,7 @@ lists=(optimize/lists/tcl-safe.txt optimize/lists/tcl-optional.txt)
 for extra in optimize/lists/mine*.txt; do   # local lists, e.g. mine-bloat.txt; absent on a fresh clone
   [ -f "$extra" ] && lists+=("$extra")
 done
+[ -s optimize/run/community-applied.txt ] && lists+=(optimize/run/community-applied.txt)   # a community list the setup used
 optimize/restore.sh "${lists[@]}" > /dev/null
 stock=no
 for _ in 1 2 3 4; do   # a cold stock home can take a while to come up
@@ -69,5 +70,6 @@ echo "4/4 Tweaks back to Android's defaults…"
 optimize/tweaks.sh restore > /dev/null
 [ -d optimize/run ] && mv optimize/run "optimize/run-$(date +%Y%m%d-%H%M%S)"   # keep the old results apart
 
+"$PY" -I optimize/offlist.py clear 2> /dev/null || true   # the apps kept on by request: a reset starts like new
 echo "Done. Still disabled on this TV (made so by the manufacturer, or by something else):"
 tv "pm list packages -d" | sed 's/^package:/   /'

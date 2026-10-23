@@ -1,0 +1,26 @@
+# UrTV community list: motorola-swtv-24ae-fhd
+# Packages only, from the CleanYourTV project's tested debloat list for this model: https://github.com/Gathin23/cleanyourtv
+# MIT licence, Copyright (c) 2026 Gathin: see LICENSE-CleanYourTV.txt in this folder.
+# Source: examples/motorola-swtv-24ae-fhd/debloat.txt at commit 6cad2be3a130a84494c3ea9b805accac6e5013e8, taken 2026-10-23.
+# Made by .github/tools/community_lists.py. Used only when this TV is matched (optimize/community.py): never for another model.
+# match-brand: MOTOROLA
+# match-model: SW11TG SWTV24AEFHD
+# match-device: BEOMIL
+
+com.smartdevice.recordactivation
+com.smartdevice.aftersale
+com.google.android.feedback
+com.android.tv.feedbackconsent
+com.android.adservices.api
+com.android.ondevicepersonalization.services
+com.android.federatedcompute.services
+com.smartdevice.recommendation
+com.smartdevice.leanbacklauncher.customizer
+com.Smartdevice.emanual
+com.android.healthconnect.controller
+com.android.health.connect.backuprestore
+com.smartdevice.dailymanage
+com.smartdevice.myapp
+com.google.android.play.games
+com.google.android.tungsten.setupwraith
+com.google.android.apps.tv.launcherx

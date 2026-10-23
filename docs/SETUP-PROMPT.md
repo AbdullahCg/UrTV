@@ -8,10 +8,14 @@ installed on it; a chat in the browser or a cloud session can't reach your TV), 
 On Windows, everything it needs installs from PowerShell in three lines (then close PowerShell, open a new one,
 type `claude` and log in):
 ```
-winget install -e --id Git.Git
-winget install -e --id Python.Python.3.12
+winget install -e --id Git.Git --source winget
+winget install -e --id Python.Python.3.12 --source winget
 irm https://claude.ai/install.ps1 | iex
 ```
+A deep folder breaks Windows paths («Filename too long»): clone into a short one such as `C:\UrTV` (below), and once run
+`git config --global core.longpaths true`. If `winget` fails with a certificate error on its store source
+(`0x8a15005e`, «server certificate had a validation error»), the lines above already use `--source winget`: use it on every
+`winget` command.
 Or in the Claude desktop app: the **Code** tab, with a **local** folder on this computer (not a cloud environment).
 
 ---
@@ -107,12 +111,13 @@ me exactly what was refused. Don't port the scripts to PowerShell or look for an
 
 **Missing Git or Python is yours to fix, not mine.** If Git Bash isn't there, or a script says
 `!! No working Python 3 here`, ask me once, then install it yourself and carry on:
-`winget install -e --id Git.Git --accept-source-agreements --accept-package-agreements` or
-`winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements`. Then run the
+`winget install -e --id Git.Git --source winget --accept-source-agreements --accept-package-agreements` or
+`winget install -e --id Python.Python.3.12 --source winget --accept-source-agreements --accept-package-agreements`. Then run the
 same command again: the scripts find the new Python without a new terminal. Don't stop and hand me the install.
 On a Mac with only the system Python 3.9 and no Homebrew, `uv python install 3.12` needs no admin password (get uv
 with `curl -LsSf https://astral.sh/uv/install.sh | sh`); the scripts find uv's Python by themselves.
 ```
+git config --global core.longpaths true   # Windows only, once (a deep folder breaks git: «Filename too long»)
 git clone --depth 1 https://github.com/tshi-dev/UrTV     # only the latest version: much faster. On Windows into a short folder: git clone --depth 1 https://github.com/tshi-dev/UrTV C:/UrTV (a deep one breaks Python and git: «Filename too long»)
 cd UrTV                                # on Windows: cd C:/UrTV
 git pull                               # always the latest (a command of its own, not joined with the others)
@@ -122,11 +127,29 @@ optimize/find-tv.sh --check            # Windows: always through Git Bash (below
 - `!! This terminal cannot reach the home network` → **stop**. Tell me, in plain words, that you can't reach the TV
   from where your commands run, and that I need an agent running on this computer itself (for example Claude Code
   installed on it, or the Claude desktop app's Code tab on a local folder; on Windows first, in PowerShell:
-  `winget install -e --id Git.Git`, `winget install -e --id Python.Python.3.12`, `irm https://claude.ai/install.ps1 | iex`,
+  `winget install -e --id Git.Git --source winget`, `winget install -e --id Python.Python.3.12 --source winget`, `irm https://claude.ai/install.ps1 | iex`,
   then a new PowerShell window and `claude`). A chat that only links to my computer's folders or screen does not
   run commands on it, so it does not count. Give me the one line to paste there:
   «Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step. You are on a computer on the same Wi-Fi as the TV.»
   Don't look for workarounds.
+
+**Android 11 or newer, and port 5555 does not answer: pair with «Wireless debugging».** Some Android 11+ TVs (a Skyworth on
+Android 14 closed 5555 after every restart) offer ADB only through Developer options → «Wireless debugging». If
+`optimize/find-tv.sh` ends with `No TV with ADB open` and the TV is Android 11 or newer (or it says the TV answers as
+«Wireless debugging»), offer it to me once, in Arabic, and wait for my answer:
+
+> التلفزيون ما فتح المنفذ العادي (5555). نستخدم «التصحيح اللاسلكي»: في التلفزيون افتح الإعدادات ← النظام ← خيارات
+> المطوّر ← «Wireless debugging» وشغّله، بعدين اضغط «Pair device with pairing code». بيطلع لك رمز من ٦ أرقام وتحته
+> عنوان مثل 192.168.x.x:xxxxx. اكتبهم لي هنا، وخلّ النافذة مفتوحة.
+
+Then `optimize/find-tv.sh pair <IP:port of that window> <the 6 digits>` (alone, `pair` explains it and shows the
+pairing port if the TV announces it). It pairs, finds the connection port by itself, connects and remembers the TV in
+`~/.urtv` (never in a report or a share); then `--probe` as in step 1. It needs the platform's `adb` program: if it
+says it is missing, install it as its message says (`winget install -e --id Google.PlatformTools --source winget`,
+`brew install android-platform-tools`, `sudo apt install adb`) and run the same command again. After a restart
+the port changes: `tv.py` and `find-tv.sh` look it up again by themselves; only if that fails, ask me for the
+«IP address & Port» on the main Wireless debugging screen (not the pairing window) and run
+`optimize/find-tv.sh connect <IP:port>`. No code and no IP goes in `report.md` or the share.
 
 Signs you are in such a place, if you want to know why: your address is not 192.168.x, 10.x or 172.16–31.x; the
 network interfaces are only `lo` and `tap0`; `echo > /dev/tcp/<router>/80` says `Network is unreachable`; or every
@@ -148,6 +171,9 @@ yet»), or an old UrTV folder is there without a working `.git`, delete that fol
   tuner, firmware updates, Play Store, Google services), and never edit `keep.txt` to get past a refusal. Never
   disable the TV's own home screen or setup app yourself; only `optimize/install.sh launcher` does that, behind a
   5-minute safety switch.
+- Never switch Play Protect or the package verifier off yourself (`settings put global package_verifier_enable 0`, or
+  `verifier_verify_adb_installs`): one agent did, for the whole TV. `optimize/install.sh` is the only thing that touches
+  `verifier_verify_adb_installs`, for one install, and puts it back.
 - Never uninstall system apps, never `pm clear`, never factory-reset, never touch accounts, Wi-Fi, network or
   developer settings (turning ADB off locks us out). Never delete `optimize/run/` or `optimize/backup-*.txt`: they
   are how we undo. Everything is reversible: `optimize/reset.sh` puts the TV back as it came.
@@ -170,8 +196,8 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `you cannot ask for escalated permissions`, `rejected by policy` (Codex) | Codex's approvals are not on «Approve for me» | message 1 again, wait for «تم», then the same command |
 | `ModuleNotFoundError: No module named 'adb_shell'`, or `!! The Python packages aren't in optimize/venv` | `optimize/setup.sh` didn't finish (often pip had no network) | `optimize/setup.sh` again until it ends with «✓ Python ADB client»; its `!!` line says what is wrong. Then the same command; don't stop for this |
 | `!! This folder's path is too long for Windows`, `Filename too long`, or `DLL load failed … too long` | the UrTV folder sits too deep for Windows | clone it again into a short folder: `git clone -c core.longpaths=true https://github.com/tshi-dev/UrTV C:/UrTV`, and carry on there (or once, `git config --global core.longpaths true`, then clone again; a short folder like `C:/UrTV` is still best) |
-| `!! No working Python 3 here`, or `python` opens the Microsoft Store | Python not installed, or only Windows' Store shortcut | ask me once, install it yourself (`winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements`), then the same command again in Git Bash |
-| `INSTALL_FAILED_VERIFICATION_FAILURE: Install not allowed` (seen on a TCL Android 14) | Play Protect checks apps installed over ADB and refused it | nothing: `install.sh` switches `verifier_verify_adb_installs` to 0 for that install only, retries once and puts the old value back (it says so in one line); if it still fails, the line shows the TV's own message |
+| `!! No working Python 3 here`, or `python` opens the Microsoft Store | Python not installed, or only Windows' Store shortcut | ask me once, install it yourself (`winget install -e --id Python.Python.3.12 --source winget --accept-source-agreements --accept-package-agreements`), then the same command again in Git Bash |
+| `INSTALL_FAILED_VERIFICATION_FAILURE: Install not allowed` (seen on Android 12–14 for the home app, which targets an older SDK than Play Protect likes) | Play Protect checks apps installed over ADB and refused it | tell me, in Arabic, to watch the TV and press «تثبيت على أي حال» (Install anyway) if Play Protect shows a message (`install.sh` prints these words). `install.sh` switches `verifier_verify_adb_installs` to 0 for that install only, retries once and puts the old value back (it says so in one line); if it still fails, the line shows the TV's own message and the same words. **Never** turn the verifier off for the whole TV |
 | `Could not download …` on Windows with `CRYPT_E_NO_REVOCATION_CHECK` / `revocation` | Windows' curl (Schannel) can't reach the certificate revocation server | nothing: `install.sh` retries 3 times and, on that error, once more with `--ssl-revoke-best-effort`; if it keeps failing, check the internet/proxy and run the same command again |
 | `CERTIFICATE_VERIFY_FAILED` (macOS) | python.org's Python has no CA certificates | `optimize/setup.sh` again: it installs certifi into `optimize/venv` and every script uses it; if the line stays, delete `optimize/venv` first |
 | `symbol _ERR_get_error_all`, or a cryptography `DLL`/`dlopen` error (macOS) | an old system Python (3.9) was used, and the cryptography wheel won't load on it | `brew install python@3.12`, or with no admin password and no Homebrew `uv python install 3.12` (install uv first: `curl -LsSf https://astral.sh/uv/install.sh \| sh`), delete `optimize/venv`, then `optimize/setup.sh`: uv's Python is found by itself |
@@ -184,16 +210,24 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `--probe` times out and the TV shows no «Allow USB debugging?» after a new clone of the repo | the ADB key the TV trusted stayed in the older folder's `optimize/adbkey`; a new clone makes a new key and the TV never saw it | the key now lives outside any clone, in `~/.urtv` (Windows: `%USERPROFILE%\.urtv`), and `tv.py` moves an older `optimize/adbkey` there by itself. If the older folder is not the one you are in, copy its `optimize/adbkey/adbkey` and `adbkey.pub` into `~/.urtv`, then the same command. Never print or paste that path: it holds my user name. The saved TV (`tv-id.json`) is there too |
 | `reset.sh`: `mv: cannot move 'optimize/run' … Permission denied` (Windows) | something holds a file open inside `optimize/run` (a log you write there, an editor, an image viewer) | close it, never write your own logs into `optimize/run`; the same command again (the apps are already removed, it carries on) |
 | `!! This terminal cannot reach the home network` | your commands run in a cloud, sandbox or virtual machine | stop, tell me (step 0) |
+| the TV forgot its Wi-Fi after the first restart (two TCL sets did) | some firmware drops its saved network on a restart | **before the first restart** (step 3 starts with one) ask me to have the Wi-Fi password at hand. If the TV comes back with no network: tell me to open Settings → Network & Internet, pick the network and type the password, and say «تم»; then `optimize/find-tv.sh` (the address may change) and the same command. Never touch the Wi-Fi settings yourself |
+| a «choose a home app» list, or a «who is watching» profile picker, shows on the TV during the home switch (a Sony with two profiles, a Nokia) | the TV asks which home to use, or which profile to open | look at the screen (`optimize/shot.sh home`) and ask me to press OK on «تلفزيونك» then «دائماً» (Always) in the list; on a profile picker my usual profile, then Home. Then the same command if it stopped |
+| `Home switch skipped: this TV refuses to turn its own home screen off` (`This command is illegal`, a Nokia Streaming Box 8000) | that TV's firmware does not let `pm disable-user` touch its launcher | nothing is broken: the stock home is back and the rest of the setup goes on. Say so to me in Arabic (the TV keeps its own home screen; the screensaver works); `report.md` has the line «Home switch: skipped»; don't try `SKIP_LAUNCHER` or other ways |
 | `Don't know your TV's IP` | `find-tv.sh` was not run or found nothing | `optimize/find-tv.sh`, or ask me for the IP (TV: Settings → Network → the Wi-Fi) and save it: `echo <ip> > optimize/.tv_host` |
-| `No TV with ADB open` | debugging off, TV asleep, or the computer is on another (guest) Wi-Fi | ask me to check all three, then `optimize/find-tv.sh` again |
+| `No TV with ADB open` | debugging off, TV asleep, or the computer is on another (guest) Wi-Fi | ask me to check all three, then `optimize/find-tv.sh` again (it scans the whole network, the router's known devices and mDNS, and knocks twice, slowly the second time); on Android 11+ with 5555 still closed: pair (step 0, «Wireless debugging») |
+| `No TV with ADB open on port 5555` and «Wireless debugging» in the next line, or `ADB open` never appears after a restart of a TV that worked before | Android 11+ TVs may close 5555 after every restart (seen on a Skyworth, Android 14) | `optimize/find-tv.sh pair` (step 0); a TV that was paired once is reconnected by `optimize/find-tv.sh` itself |
+| `!! Wireless debugging needs the platform's own adb program` | pairing and the Wireless-debugging connection go through `adb`, which isn't installed (the Python client has no pairing) | install it as the line says (`winget install -e --id Google.PlatformTools --source winget`, `brew install android-platform-tools`, `sudo apt install adb`), a new Git Bash window on Windows, then the same command |
+| `!! Pairing failed: the code is wrong or it has expired` / `the pairing dialog must be open` | the 6 digits changed (they do whenever the dialog is closed and opened), or the IP:port is not the one in the dialog | ask me to read the dialog again, then `optimize/find-tv.sh pair <IP:port> <code>` |
+| `the TV's Wireless-debugging port does not answer and was not found on the Wi-Fi` | the port changed after a restart and the router doesn't pass mDNS (multicast) | ask me for «IP address & Port» on the main Wireless debugging screen, then `optimize/find-tv.sh connect <IP:port>` |
 | `!! This is not the TV the setup started on` | two devices answer on this Wi-Fi (a box and the TV), or the address now belongs to another one; the script stopped **before changing anything** | ask me which one is my TV; `optimize/find-tv.sh` and pick it (or `echo <ip> > optimize/.tv_host`), then the same command. The same TV on a new address is fine. Only if I say it really is a new TV: `optimize/venv/bin/python -I optimize/tv.py --new-tv`, then `optimize/run.sh` (it starts from the first step); or work from a fresh clone of the repo |
-| `!! TV not answering after 4 tries` | TV went to standby, lost Wi-Fi, or got a new IP | ask me to wake the TV; run `optimize/find-tv.sh` if the IP may have changed; then the same command |
+| `!! TV not answering after 6 tries` (10 for an upload or install) | TV went to standby, lost Wi-Fi (weak signal: seen on a TCL G10, Android 12), or got a new IP. The tries wait 5, 10, 15, 20, 30 s | ask me to wake the TV, and if the signal is weak to move the router or the TV closer or use a cable; run `optimize/find-tv.sh` if the IP may have changed; then the same command (an upload resumes where it stopped; so do the extras: TV Bro and SmartTube already on the TV are not sent again) |
 | `!! TV did not come back within 5 minutes` | slow restart, or it stayed in standby | ask me to turn it on, then `optimize/venv/bin/python -I optimize/tv.py --wait`, then the same command |
 | `!! upload keeps failing` or `md5 mismatch` | bad Wi-Fi, or the TV's storage is full (the line says how much space is left) | the same command once; if again, show me that line |
 | `!! … is not a folder on the TV`, or a TV path like `C:/Program Files/Git/data/…` | an old copy: Git Bash rewrote the TV's path before Python saw it (now undone by `tv.py`) | `git pull`, then the same command |
 | `UnicodeEncodeError` or `charmap` (Windows) | an old copy: Arabic text in Windows' own code page | `git pull`, then the same command |
 | `Refusing: these are in …keep.txt` | a protected package got into `mine.txt` | take that line out of `mine.txt`, run again |
 | `!! … has a package rated Unsafe` | `mine.txt` has a package the TV may need | take it out of `mine.txt`, run again |
+| `(unknown model: no optional list. …)` from the community step | our lists are TCL's and no community list fits this brand and model (or the device code is shared by several sizes: a guess is never applied) | nothing: the setup goes on without an optional list. Say in step 7 that nothing was disabled beyond the common Google extras |
 | `Unknown package` or `not installed` while disabling | that package is not on this model | nothing, normal |
 | `An older … signed with another key is installed` | an older build of our app | nothing, it reinstalls; redo step 4 for that app |
 | `!! Install of … failed` | usually storage, or a very old Android | stop and show me |
@@ -202,7 +236,11 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `Done, with problems:` and `optimize/run.sh` exits 1 | every step ran, but `report.md` has `!!` lines (printed under it) | read them, fix what each says (this table), then `optimize/run.sh` again: only the report step is redone |
 | `ADB dropped during the switch; the TV is back, trying the switch again` | Wi-Fi ADB dropped while the home was being switched; the script waited for the TV (up to 6 minutes) and is doing the switch a second time, the safety switch armed again | nothing, wait; only if it ends in `!!` follow that line |
 | `!! The safety switch put the stock home back` | ADB was slower than the 5-minute switch | nothing is broken: the same command again |
-| `!! Home did not open the new launcher` | slow ADB, or firmware that pins its own home | leave the TV 5 minutes; `optimize/run.sh` once more; if again, `SKIP_LAUNCHER=1 optimize/run.sh` |
+| `!! This device is not an Android TV` (`run.sh: stopped at precheck`) | no `android.software.leanback`: a phone, a tablet or a box that is not Android TV | nothing was changed; give me the Arabic message in the line, and stop |
+| `!! WebView: system WebView is 66` (or any number below 80) | the screensaver page needs WebView/Chrome 80+ (`?.`, `??`) and would not run | tell me in Arabic to update «Android System WebView» from the Play Store (`optimize/precheck.sh webview-store` opens its page); then `optimize/precheck.sh` again. The setup and the report go on, the line stays until it is fixed |
+| `The setup wizard of this TV owns its saved Wi-Fi network: left on` or `!! The setup wizard of this TV answers Home and owns its saved Wi-Fi network` | disabling `com.google.android.tungsten.setupwraith` can delete the Wi-Fi network saved during the first-run wizard (two TCL sets lost their password; CleanYourTV documents it). `install.sh` turns the wizard off only when it really answers Home and the network is not its own | the first line: nothing to do. The `!!` line: nothing was changed; tell me what it says in Arabic (forget the network in Settings → Network and join it again), then the same command. `optimize/restore.sh` and the safety switch always turn the wizard back on |
+| `!! Auto-start (TCL): not allowed for sa.urtv.home(ignore)` | TCL firmware starts apps at boot only if they hold its auto-start op; ours need it (adhan alarms after a restart, the sleep service) | `optimize/autostart.sh` again; the report shows `Auto-start (TCL): … allow` after the restart. Not a TCL: «Auto-start: not a TCL», nothing to do |
+| `!! Home did not open the new launcher` | slow ADB, or firmware that pins its own home (a Fire TV often refuses another home) | leave the TV 5 minutes; `optimize/run.sh` once more; if again, `SKIP_LAUNCHER=1 optimize/run.sh` |
 | the TV has no home at all (black screen, Home does nothing) | our home app is gone while the stock home is off | `optimize/restore.sh` (no list: only the home screen), then `optimize/install.sh launcher`; more in `docs/OPTIMIZE.md`, «Home screen problems» |
 | `!! The stock home is not on screen` (reset) | the stock home was slow to start | ask me to press Home, then `optimize/reset.sh` again |
 | `!! still off` (keep.sh) | a protected feature would not turn back on | **stop**, show me; don't continue |
@@ -222,6 +260,7 @@ Anything else, or anything twice: stop, show me the output and what you think it
 optimize/setup.sh
 optimize/find-tv.sh                       # accept "Allow USB debugging?" on the TV, tick "Always allow"
 optimize/venv/bin/python -I optimize/tv.py --probe     # first tell me to watch the TV (below)
+optimize/precheck.sh                      # is it an Android TV, is its WebView 80 or newer (run.sh does it as its first step too)
 optimize/shot.sh home my-apps
 ```
 Right before `--probe`, tell me, word for word, and **don't end your turn or wait for my reply**: run `--probe` straight
@@ -231,6 +270,13 @@ out, tell me again and run it once more.
 > الحين بتطلع لك على التلفزيون رسالة «Allow USB debugging?»: اضغط Allow وعلّم «Always allow». بعدها تقدر
 > تتركني، أكمّل لحالي حوالي ٤٠ دقيقة.
 
+- `optimize/precheck.sh` decides first whether to go on. **Exit 3, «not an Android TV»**: stop, change nothing, and give
+  me its Arabic message as it is (Samsung Tizen and LG webOS TVs can't run these apps; a phone or tablet is not a TV).
+  **Fire TV** (Amazon): tell me in Arabic it may work only partly and the home switch may be refused; go on.
+  **`!! WebView: system WebView is NN`** (below 80; the screensaver page uses `?.` and `??`, so on 66 it never ran): tell
+  me its Arabic text, and offer to open the page myself (`optimize/precheck.sh webview-store` opens «Android System
+  WebView» in the TV's Play Store; I press Update; then `optimize/precheck.sh` again). The setup can go on meanwhile, and
+  `report.md` keeps the `!!` line until the WebView is new enough. Never try to change the page for an old WebView.
 - Tell me the model and Android version.
 - Read the row for this TV model in `docs/TVS.md` before going on: it says what was seen on that model (ADB port,
   what to watch out for).
@@ -248,6 +294,10 @@ disabled apps back on, the TV's own home screen and screensaver back, our two ap
 SmartTube removed if the setup installed them, the speed tweaks back to Android's defaults); my photos, accounts and other apps are not touched. Any agent on this computer can
 run it for me later.
 
+Also tell me, in Arabic, before the first restart: «التلفزيون بيعيد التشغيل مرتين. بعض تلفزيونات TCL نسيت الواي فاي بعد
+أول إعادة تشغيل، فجهّز كلمة سر الواي فاي. لو رجع التلفزيون بدون إنترنت: الإعدادات ← الشبكة والإنترنت، اختر شبكتك
+واكتب كلمة السر، وقلّي «تم».» (Table: «the TV forgot its Wi-Fi».)
+
 ## 3. Run it (20–30 minutes, the TV restarts twice)
 
 ```
@@ -256,7 +306,10 @@ optimize/run.sh
 It saves the TV's state, measures memory and the TV's own screensaver, disables telemetry/ads/demos and my picks,
 applies the speed and memory tweaks, installs the screensaver and the home screen (behind the safety switch) and
 TV Bro and SmartTube (from their own GitHub releases, the build for this TV's processor),
-measures again and writes `optimize/run/report.md`. If it stops for any reason: `optimize/run.sh` again (it
+measures again and writes `optimize/run/report.md`. Before the optional picks, on a TV whose model our own lists do not
+know (a Sony, Hisense, Haier, Xiaomi…), `optimize/community.sh` applies the tested list for exactly that model from
+CleanYourTV (MIT, `optimize/lists/community/`) if there is one: never a list for another model, never anything in
+`keep.txt`, a launcher or a setup wizard; `report.md` shows them («Community list: …») and `optimize/keep.sh off` names them. If it stops for any reason: `optimize/run.sh` again (it
 continues), and `optimize/run.sh status` shows where it is.
 
 If the home-screen step says Home did not switch, leave the TV alone for 5 minutes (the stock home comes back by
@@ -269,7 +322,7 @@ Every setting, and what to say when I ask for something else: `docs/SETTINGS.md`
 ```
 optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon> <time zone, e.g. Asia/Riyadh or Asia/Kuwait; a place that is not in the list is refused without it>)
 optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال): one call per club, Saudi clubs first;
-                                                  # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
+                                                  # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order); «لا شي»: optimize/saver.sh teams none
 optimize/saver.sh card <one of: verse, wisdom, adhkar, stocks, tasks, year, shows, prayers, forecast, matches, none>   # beside the clock (verse unless I said otherwise)
 optimize/saver.sh home-card none                  # home screen: no card
 # «المهام» (only if I ask): optimize/saver.sh tasks add 'نص' | list | done N | del N | clear, and card tasks
@@ -282,6 +335,7 @@ optimize/saver.sh photos <5, 10, 15, 30 or 60>   # ONLY if I asked how often the
 optimize/saver.sh idle <1, 2, 5, 10, 15 or 30>   # ONLY if I asked when the screensaver starts after the TV idles (the TV's own timer: leave it)
 optimize/saver.sh cardstyle <current, dark1, glass1, dark3 or glass3>   # ONLY if I asked for another look for the card beside the clock (default current: leave it)
 optimize/saver.sh national <auto or off>          # ONLY if I asked to turn off the green look on National Day and Founding Day (default auto: leave it)
+optimize/saver.sh prayeradj <fajr +2 maghrib -1 …, then on>   # ONLY if I said my mosque's adhan is minutes early or late (default off: leave it); off goes back to the calculated times
 optimize/saver.sh digits <hindi or latin>        # ONLY if I asked for 123 instead of ١٢٣ (default hindi: leave it)
 optimize/saver.sh markets <up to 4 of tasi, aramco, spx, btc, gold, silver, xrp, comma-separated>   # ONLY if I asked for other markets at the top left (default tasi,spx,btc: leave it)
 optimize/saver.sh mkstyle <arrows or prices>      # ONLY if I asked to see the prices, not just arrows (default arrows: leave it)
@@ -308,7 +362,8 @@ gave so I can change any (`dock.sh name <pkg> '<اسم آخر>'`, or `''` for it
 
 Take every id from `find-team`'s output, which comes from our list of every club in the app's leagues and the
 national teams; never guess one. If it gives several, pick the one I meant (a Saudi club before a namesake abroad).
-If I said «لا شي» to clubs, skip `find-team` and `teams`. `optimize/saver.sh` without arguments lists every option.
+If I said «لا شي» to clubs, skip `find-team` and clear the defaults (الهلال والمنتخب السعودي would stay otherwise):
+`optimize/saver.sh teams none`. The same any time later if I stop following a team and follow no other. `optimize/saver.sh` without arguments lists every option.
 
 ## 5. Check (5 minutes)
 
@@ -344,8 +399,23 @@ optimize/run.sh status                            # every step ✓, and «report
   back; ours stays installed) and read `optimize/saver.sh show` back to me. If I say no, leave it; `optimize/saver.sh on`
   turns ours on any time. Don't turn it off on your own, and don't hide the line.
 - What was disabled, my settings, and anything that looked wrong or slow.
+- **What was turned off, by name, and a chance to keep one (once; it must not hold anything up).** Run
+  `optimize/keep.sh off` (or read `report.md`, «Turned off by the setup») and show me the apps by their usual names,
+  in Arabic («تنبيهات TCL»، «حساب TCL»، «عروض الشركاء»…), in a short list. Then ask once, after the summary:
+  «هذي التطبيقات اللي أطفيتها. إذا تبي واحد منها ارجعه قلّي «أبي هذا» واسمه.» Most people say nothing: then go straight on
+  to the next point and never ask again. If I name one (or several), find its package in that list and run
+  `optimize/keep.sh restore <package> …`; it turns it on and remembers it, so a later `optimize/run.sh again` leaves it
+  on. (`optimize/keep.sh unkeep <package>` if I change my mind.) Never turn an app on by hand with your own `pm` commands.
 - When I'm at the TV, to try voice from the remote and casting (AirPlay or Cast) from a phone once, and to tell
   you if either doesn't work (`optimize/keep.sh` turns them back on).
+- **Network debugging after the setup (once; default: leave it on).** Ask me in Arabic, in one line: «للخصوصية تقدر
+  تقفل تصحيح الأخطاء. البيانات تتحدّث بدونه، لكن تحديث التطبيقات وأي تغيير من الكمبيوتر يحتاجه، فتفتحه وقتها.
+  تبي تقفله؟» The page's data and content update by themselves without ADB; a new version of the apps (design and developer
+  updates) and any change of settings from the computer need it. If I say no or say nothing: leave it on and go on. If I say
+  yes: I turn it off myself on the TV (Settings → System → Developer options → USB debugging, Network debugging and
+  Wireless debugging off; never you: turning ADB off locks the tools out), then `optimize/find-tv.sh --closed` confirms
+  the port is closed (`OK: ADB is closed`; `!! ADB still answers` says what is still on; `?? Can't tell` means the TV is
+  asleep). To change anything later I turn it back on and you start from `optimize/find-tv.sh`.
 - In one line, what I can still ask you to change any time: the favourites, the card on the home screen, the
   screensaver delay, and the optional TCL extras (the TCL tab and channels, game bar, T-Cast…).
 - How to undo, again: the folder's full path and the exact command to paste there

@@ -165,7 +165,7 @@ def report_checks():
     live = live_versions()   # the apps on the TV now; the report's line only dates from the last setup
     out = [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
            *[live if l.startswith("Versions:") and live else l
-             for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+             for l in lines if l.startswith(("Device:", "WebView:", "!! WebView:", "Auto-start", "!! Auto-start", "Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
     if live and not any(l.startswith("Versions:") for l in lines):
         out.append(live)
     return out + packages(lines)
@@ -192,7 +192,7 @@ def packages(lines, before=None):   # what our lists turned off, what they left 
         if m:
             state.setdefault((m.group(1), m.group(3)), []).append(m.group(2))
     out = []
-    for lst in ("tcl-safe", "tcl-optional", "home-replaced"):
+    for lst in ("tcl-safe", "tcl-optional", "community", "home-replaced"):
         off, on = state.get(("off", lst), []), state.get(("on", lst), [])
         absent = len(state.get(("absent", lst), []))
         if off or on or absent:

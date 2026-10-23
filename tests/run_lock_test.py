@@ -19,7 +19,7 @@ def tree(slow=False, fail=""):
     shutil.copy(ROOT / "optimize" / "run.sh", t / "optimize")
     (t / "optimize" / "lists" / "tcl-safe.txt").write_text("# none\n")
     (t / "bin" / "py").write_text(STUB_PY); (t / "bin" / "py").chmod(0o755)
-    for step in ("backup", "keep", "measure", "disable", "tweaks", "install", "dock"):
+    for step in ("precheck", "autostart", "community", "backup", "keep", "measure", "disable", "tweaks", "install", "dock"):
         body = "#!/usr/bin/env bash\n"
         if step == "backup": body += "echo x > optimize/backup-1.txt\n"
         if step == "measure": body += "echo '| ok |' >> optimize/run/summary.md\n"
@@ -52,6 +52,14 @@ t = tree(fail="keep")
 code, out = run(t)
 results.append(("failed step: «stopped at keep, run the same command again»",
                 code == 3 and out[-1] == "run.sh: stopped at keep, run the same command again"
+                and not (t / "optimize/run/.lock").exists(), out[-3:]))
+
+# not an Android TV: the first step stops the run with its own last line (nothing else was touched)
+t = tree(fail="precheck")
+code, out = run(t)
+results.append(("precheck says «not an Android TV»: stops there, no later step ran",
+                code == 3 and out[-1].startswith("run.sh: stopped at precheck: this device is not an Android TV")
+                and not (t / "optimize/run/.done-probe").exists() and not (t / "optimize/run/.done-precheck").exists()
                 and not (t / "optimize/run/.lock").exists(), out[-3:]))
 
 # a second run while the first is alive is refused, and the first one's marks are left alone

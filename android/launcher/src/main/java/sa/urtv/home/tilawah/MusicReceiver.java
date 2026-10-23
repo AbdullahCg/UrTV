@@ -30,6 +30,10 @@ public class MusicReceiver extends BroadcastReceiver {
                 MusicService.adhan(context, voice, null, 0);
                 return;
             }
+            case "sa.urtv.home.ADHAN_RESCHEDULE":   // optimize/saver.sh prayeradj: the alarm for the minutes as they are now
+                AdhanSync.reschedule(context);
+                setResultData("rescheduled");
+                return;
             case "sa.urtv.home.ADHAN_ON":
             case "sa.urtv.home.ADHAN_OFF":
                 prefs.setAdhanOn("sa.urtv.home.ADHAN_ON".equals(action));

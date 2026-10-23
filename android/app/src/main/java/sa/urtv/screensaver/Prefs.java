@@ -324,6 +324,12 @@ final class Prefs {
     boolean yearStrip() { return sp.getBoolean("yearStrip", false); }
     void setYearStrip(boolean v) { sp.edit().putBoolean("yearStrip", v).apply(); }
 
+    /** «تعديل وقت الصلاة» (default off): the five prayers moved by their own minutes, −20..20 (PrayerAdj); sent to the page and the home screen as #adj=. */
+    boolean prayerAdjOn() { return sp.getBoolean("prayerAdjOn", false); }
+    void setPrayerAdjOn(boolean v) { sp.edit().putBoolean("prayerAdjOn", v).apply(); }
+    int[] prayerAdj() { return PrayerAdj.decode(sp.getString("prayerAdj", "")); }
+    void setPrayerAdj(int[] v) { sp.edit().putString("prayerAdj", PrayerAdj.encode(v)).apply(); }
+
     boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
@@ -374,6 +380,7 @@ final class Prefs {
             + "&cardstyle=" + cardStyle()
             + "&adhanbar=" + (adhanBar() ? "1" : "0")
             + "&yearstrip=" + (yearStrip() ? "1" : "0")
+            + PrayerAdj.fragment(prayerAdjOn(), prayerAdj())
             + "&national=" + national()
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()

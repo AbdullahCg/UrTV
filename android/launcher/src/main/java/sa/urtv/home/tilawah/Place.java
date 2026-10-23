@@ -16,8 +16,10 @@ final class Place {
 
     final double lat, lng;
     final String tz;
+    /** «تعديل وقت الصلاة»: minutes added to the five prayers (see PrayerAdjust); zeros unless the settings say so */
+    final int[] adj;
 
-    private Place(double lat, double lng, String tz) { this.lat = lat; this.lng = lng; this.tz = tz; }
+    private Place(double lat, double lng, String tz, int[] adj) { this.lat = lat; this.lng = lng; this.tz = tz; this.adj = adj; }
 
     static Place get(Context c) {
         try (Cursor cur = c.getContentResolver().query(CONFIG, null, null, null, null)) {
@@ -40,7 +42,7 @@ final class Place {
     private static Place bundled(Context c) {
         return new Place(number(c.getString(R.string.latitude), 24.6877),
                 number(c.getString(R.string.longitude), 46.7219),
-                orDefault(c.getString(R.string.timezone), "Asia/Riyadh"));
+                orDefault(c.getString(R.string.timezone), "Asia/Riyadh"), new int[PrayerAdjust.COUNT]);
     }
 
     /** "city=..&lat=24.7&lon=46.7&tz=Asia%2FRiyadh&..." — the same fragment the page reads. */
@@ -56,7 +58,7 @@ final class Place {
                 else if ("tz".equals(key)) tz = value;
             }
             if (lat == null || lon == null) return null;
-            return new Place(number(lat, 24.6877), number(lon, 46.7219), orDefault(tz, "Asia/Riyadh"));
+            return new Place(number(lat, 24.6877), number(lon, 46.7219), orDefault(tz, "Asia/Riyadh"), PrayerAdjust.fromFragment(fragment));
         } catch (Exception e) {
             return null;
         }

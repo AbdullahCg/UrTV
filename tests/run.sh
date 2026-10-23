@@ -6,7 +6,9 @@ cd "$(dirname "$0")/.."
 python3 tests/check.py
 python3 tests/tilawah_test.py
 python3 tests/prayer_math_test.py
+python3 tests/prayer_adj_test.py
 python3 tests/upload_test.py
+python3 tests/install_extras_test.py
 python3 tests/share_test.py
 python3 tests/install_versions_test.py
 python3 tests/install_retry_test.py
@@ -18,6 +20,9 @@ python3 tests/key_home_test.py
 python3 tests/dock_names_test.py
 python3 tests/dock_sleep_test.py
 python3 tests/find_tv_test.py
+python3 tests/wireless_test.py
+python3 tests/precheck_test.py
+python3 tests/autostart_test.py
 python3 tests/find_team_test.py
 python3 tests/team_search_test.py
 python3 tests/team_ids_test.py
@@ -32,6 +37,8 @@ python3 tests/saver_off_test.py
 python3 tests/versions_test.py
 python3 tests/app_fixes_test.py
 python3 tests/keep_test.py
+python3 tests/keep_restore_test.py
+python3 tests/community_test.py
 python3 tests/reset_screensaver_test.py
 python3 tests/task_voice_test.py
 python3 tests/photo_prep_test.py
