@@ -43,6 +43,18 @@ async function open(file, hash, { width = 1920, height = 1080, seed = true, net 
   return { p, ctx, errors };
 }
 
+// A restart of the page, for the tests of what the page keeps in localStorage. Chromium writes a page's storage out a moment after
+// the write and, now and then (about one run in ten, on the branch before these tests were added too), starts the reloaded page
+// before that: it finds nothing. What the browser keeps is not what is tested, so the keys are carried over by hand, as the TV's
+// WebView keeps them: put back at the start of the next load, where the page has none.
+const restart = async p => {
+  const kept = await p.evaluate(() => JSON.stringify(Object.assign({}, localStorage)));
+  await p.context().addInitScript(kv => {
+    try { const o = JSON.parse(kv); for (const k in o) if (localStorage.getItem(k) === null) localStorage.setItem(k, o[k]); } catch (e) {}
+  }, kept);
+  await p.reload();
+};
+
 // ---- both pages, three screen sizes: no errors, shown, clock right, nothing off screen, Arabic digits
 for (const file of ['urtv.html', 'tv.html']) {
   for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
@@ -504,7 +516,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   await p.goto(page('tv.html') + '#panel=shows');
   await p.waitForTimeout(800);
   await p.evaluate(() => { document.getElementById('week-list').innerHTML = '<li>SAVED</li>'; saveSnap(); });
-  await p.reload();
+  await restart(p);
   const t = await p.evaluate(() => document.getElementById('week-list').textContent);
   check('saved panels restored on the next start', t === 'SAVED', t);
   await ctx.close();
@@ -525,7 +537,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
     document.getElementById('match-row').innerHTML = '<div class="saved-match">SAVED</div>';
     saveSnap();
   });
-  await p.reload();
+  await restart(p);
   await p.waitForTimeout(1500);
   const r = await p.evaluate(() => ({
     temp: document.getElementById('wx-temp').textContent,
@@ -557,7 +569,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   t = await slot();
   check('API moved to the next fixture: score still shown', t.includes('النتيجة النهائية') && t.includes('٢ - ١'), t);
 
-  await p.reload();
+  await restart(p);
   await p.waitForTimeout(800);
   await p.evaluate(`MATCHES['136013'] = ${game('g2', -72, null, 'NS')}; renderMatches();`);
   t = await slot();
@@ -1166,7 +1178,7 @@ for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]
   check(`${tag}: one request per crest, none for the same crest again`, asked === 3 && seen.length === 3, JSON.stringify(seen));
   // a restart: the rows and crests come back from the saved copy with no request
   await p.evaluate(() => saveSnap());
-  await p.reload();
+  await restart(p);
   await p.waitForTimeout(500);
   const back = await p.evaluate(() => [...document.querySelectorAll('#week-list img.cr')].filter(i => i.src.startsWith('data:image/png')).length);
   check(`${tag}: after a restart the crests are back at once, from the saved copy`, back === 3 && seen.length === 3, back + ' ' + seen.length);
@@ -1268,7 +1280,7 @@ for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]
     const { p, ctx } = await open('tv.html', 'panel=hourly&widget=1', { width: 461, height: 250, net: weatherNet(asked) });
     await p.waitForTimeout(400);
     asked.off = true;
-    await p.reload();
+    await restart(p);
     await p.waitForTimeout(300);
     check('hourly card: after a restart the hours are there at once from the saved copy', await p.evaluate(() => document.querySelectorAll('#week-list .hc').length) === 6);
     await ctx.close();
@@ -1824,9 +1836,9 @@ for (const [list, want, mid] of [['verse', 'verse', 'n1'], ['prayers,hourly', 'p
   await p.goto(page('tv.html') + '#home_panel=shows,tasks&widget=1');
   await p.waitForTimeout(800);
   await p.evaluate(() => { CARDS[0].ul.innerHTML = '<li>SAVED A</li>'; CARDS[1].ul.innerHTML = '<li>SAVED B</li>'; saveSnap(); });
-  await p.goto(page('tv.html') + '#home_panel=shows,tasks&widget=1'); await p.reload();
+  await p.goto(page('tv.html') + '#home_panel=shows,tasks&widget=1'); await restart(p);
   const same = await p.evaluate(() => CARDS.map(c => c.ul.textContent).join('|'));
-  await p.goto(page('tv.html') + '#home_panel=tasks,shows&widget=1'); await p.reload();
+  await p.goto(page('tv.html') + '#home_panel=tasks,shows&widget=1'); await restart(p);
   const swapped = await p.evaluate(() => CARDS.map(c => c.ul.textContent).join('|'));
   check('home cards: the last drawn cards come back at once, each its own', same === 'SAVED A|لا مهام اليوم' || same === 'SAVED A|SAVED B', same);
   check('home cards: a card in another place does not take another kind\'s saved copy', !swapped.includes('SAVED'), swapped);
