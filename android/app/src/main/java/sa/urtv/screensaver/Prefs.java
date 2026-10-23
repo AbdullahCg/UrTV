@@ -67,7 +67,7 @@ final class Prefs {
         sp.edit().putString("cityName", name).putString("cityLat", lat).putString("cityLon", lon).apply();
     }
 
-    static final int MAX_TEAMS = 10;
+    static final int MAX_TEAMS = 20;
 
     /** Followed teams in priority order, "id|name". Migrates the old two team fields once. */
     List<String> teams() {

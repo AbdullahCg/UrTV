@@ -219,6 +219,31 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   await ctx.close();
 }
 
+// ---- 20 followed teams: the slot pages through all of them, two at a time, and the card pages its rows
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const ids = Array.from({ length: 22 }, (_, i) => 900100 + i);
+  const { p, ctx, errors } = await open('tv.html', 'teams=' + ids.join(',') + '&panel=matches', { width, height });
+  const r = await p.evaluate(() => {
+    const NAMES = 'Arsenal Barcelona Chelsea Dortmund Everton Fulham Genoa Hertha Inter Juventus Lazio Milan Napoli Osasuna Porto Roma Sevilla Torino Udinese Valencia'.split(' ');
+    const ids = CONFIG.teamIds;
+    ids.forEach((id, i) => { MATCHES[id] = { idEvent: 'e' + i, idHomeTeam: String(id), strHomeTeam: NAMES[i],
+      idAwayTeam: 'x' + i, strAwayTeam: NAMES[19 - i] + ' B', strTimestamp: new Date(Date.now() + (i + 1) * 36e5).toISOString() }; });
+    MATCHES_LOADED = true;
+    const seen = new Set(), bad = [], row = document.getElementById('match-row');
+    MATCH_PAGE = -1;
+    for (let k = 0; k < 12; k++) {
+      renderMatches(true);
+      row.querySelectorAll('.mblock .big').forEach(b => seen.add(b.innerText));
+      const b = row.getBoundingClientRect();
+      if (b.left < -2 || b.right > innerWidth + 2 || b.bottom > innerHeight + 2) bad.push(k);
+    }
+    return { teams: ids.length, shown: seen.size, bad };
+  });
+  check(`20 teams at ${width}x${height}: capped, all paged through, on screen`,
+    !errors.length && r.teams === 20 && r.shown === 20 && !r.bad.length, JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

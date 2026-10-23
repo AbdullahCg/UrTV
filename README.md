@@ -146,7 +146,7 @@ release; a push to `next` publishes `apk-next` instead (a test build). `tests/ru
 urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137&panel=prayers
 ```
 
-`teams`: up to 10 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
+`teams`: up to 20 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
 `forecast`, `matches`, `verse` or `none`. Also `genres`, `langs`, `shows`, `minrating` for the episodes card.
 
 **Data** (free, no keys): Aladhan (prayer times, Umm al-Qura), Open-Meteo (weather), Yahoo and CoinGecko (markets),

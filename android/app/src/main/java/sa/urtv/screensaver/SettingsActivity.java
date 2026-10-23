@@ -166,7 +166,7 @@ public class SettingsActivity extends Activity {
             }));
     }
 
-    /** Followed teams: untick to remove, or add one (presets, league browsing, search). Up to 10. */
+    /** Followed teams: untick to remove, or add one (presets, league browsing, search). Up to 20. */
     private void manageTeams() {
         final List<String> cur = prefs.teams();
         String[] labels = new String[cur.size()];
@@ -188,7 +188,7 @@ public class SettingsActivity extends Activity {
 
     private void addTeam(String id, String name) {
         if (prefs.addTeam(id, name)) toast("تمت متابعة " + name);
-        else toast(prefs.teams().size() >= Prefs.MAX_TEAMS ? "الحد الأعلى ١٠ فرق" : "متابَع مسبقاً");
+        else toast(prefs.teams().size() >= Prefs.MAX_TEAMS ? "الحد الأعلى ٢٠ فريقاً" : "متابَع مسبقاً");
         render();
     }
 
