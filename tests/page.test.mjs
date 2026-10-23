@@ -2383,7 +2383,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const b = await barAt(w.p, '2026-10-22', '17:37', '10');
   check('adhan bar: not in the launcher\'s card page (the home screen has its own)', !w.errors.length && b.hidden, JSON.stringify(b));
   await w.ctx.close();
-  const e = await open('tv.html', 'panel=verse');
+  const e = await open('tv.html', 'panel=verse', { now: new Date('2026-10-22T10:00:00Z') });   // 13:00 in Riyadh: between prayers whatever the day it is run
   check('adhan bar: hidden until the times are known, no errors', !e.errors.length && await e.p.evaluate(() => { tickPrayer(); return document.getElementById('adbar').hidden; }));
   await e.ctx.close();
 }
