@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # شاشة تلفزيونك's settings, for agents: no remote, no menus.
-#   optimize/saver.sh show                         current settings
+#   optimize/saver.sh show                         current settings, and last which screensaver is active (ours or the TV's own)
+#   optimize/saver.sh off                          the TV's own screensaver back (the one from before setup; else a stock one; else none);
+#                                                  ours stays installed, with its settings
+#   optimize/saver.sh on                           ours again
 #   optimize/saver.sh cities                       built-in Saudi cities by region
 #   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed, or a short form of it: مكة; says if it fits several)
 #   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude; its time zone is the TV's own
@@ -45,12 +48,56 @@ send() {   # $1 action, $2 extras; prints the receiver's answer (the "data" of a
   echo "$out"
   [[ "$out" != error:* ]]
 }
+OURS=sa.urtv.screensaver/.ScreenDream
+BACKUP="${SAVER_BACKUP:-optimize/run/backup.txt}"   # optimize/backup.sh's copy of the TV as it came
+active() {   # one line: which screensaver the TV uses now
+  local out comp en
+  out=$(printf '%s\n' "settings get secure screensaver_components" "settings get secure screensaver_enabled" \
+    | "$PY" -I optimize/tv.py --batch | tr -d '\r' | grep -v '^\$ ' || true)
+  comp=$(sed -n 1p <<< "$out"); en=$(sed -n 2p <<< "$out"); comp="${comp%%,*}"
+  if [ "$en" = 0 ]; then echo "screensaver now: off (the TV's screensaver switch is off)"
+  elif [ -z "$comp" ] || [ "$comp" = null ]; then echo "screensaver now: the TV's own default"
+  elif [[ "$comp" == sa.urtv.screensaver/* ]]; then echo "screensaver now: ours (شاشة تلفزيونك)"
+  else echo "screensaver now: the TV's own, $comp"; fi
+}
+stock_dream() {   # a screensaver this TV lists besides ours: component, or nothing
+  local list
+  list=$("$PY" -I optimize/tv.py "(cmd package query-services --brief -a android.service.dreams.DreamService || pm query-services --brief -a android.service.dreams.DreamService) 2> /dev/null" \
+    | tr -d '\r' | grep -E '^[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+$' | grep -v '^sa\.urtv\.' || true)
+  { grep -iE 'backdrop|dream|ambient|photo' <<< "$list" || true; echo "$list"; } | grep -m1 . || true
+}
 quote() {  # one shell-safe argument for the TV's shell
   case "$1" in *"'"*) echo "no apostrophes please: $1" >&2; exit 1 ;; esac
   printf "'%s'" "$1"
 }
 case "${1:-}" in
-  show)   send GET ;;
+  show)   rc=0; send GET || rc=$?; active; exit "$rc" ;;   # the version line stays first
+  on)
+    "$PY" -I optimize/tv.py "pm list packages sa.urtv.screensaver" | tr -d '\r' | grep -qx 'package:sa.urtv.screensaver' \
+      || { echo "!! Our screensaver is not installed on this TV: optimize/install.sh saver"; exit 1; }
+    printf '%s\n' "settings put secure screensaver_enabled 1" "settings put secure screensaver_components $OURS" \
+      "settings put secure screensaver_default_component $OURS" | "$PY" -I optimize/tv.py --batch > /dev/null
+    active ;;
+  off)
+    prev=; enabled=
+    if [ -f "$BACKUP" ]; then   # what the TV had before setup: components, enabled, screen_off_timeout (backup.sh)
+      vals=$(tr -d '\r' < "$BACKUP" | awk '/^== /{s=($2=="screensaver")} s&&!/^==/{print}')
+      prev=$(sed -n 1p <<< "$vals"); enabled=$(sed -n 2p <<< "$vals")
+    fi
+    prev="${prev%%,*}"
+    case "$prev" in ""|null|sa.urtv.screensaver/*) prev= ;; esac   # none then, or a backup taken with ours already set
+    if [ -n "$prev" ]; then why="the one from before setup"; else why="a stock one"; prev=$(stock_dream); fi
+    if [ -n "$prev" ] && [[ "$prev" =~ ^[A-Za-z0-9_.]+/[A-Za-z0-9_.\$]+$ ]]; then
+      case "$enabled" in 0|1) ;; *) enabled=1 ;; esac
+      printf '%s\n' "settings put secure screensaver_enabled $enabled" "settings put secure screensaver_components '$prev'" \
+        "settings delete secure screensaver_default_component" | "$PY" -I optimize/tv.py --batch > /dev/null
+      echo "Ours is off ($why is back). It stays installed: optimize/saver.sh on turns it on again."
+    else
+      printf '%s\n' "settings put secure screensaver_enabled 0" "settings delete secure screensaver_components" \
+        "settings delete secure screensaver_default_component" | "$PY" -I optimize/tv.py --batch > /dev/null
+      echo "Ours is off, and this TV lists no screensaver of its own, so screensavers are off. It stays installed: optimize/saver.sh on turns it on again."
+    fi
+    active ;;
   cities) send CITIES ;;
   update) send UPDATE ;;
   city)
@@ -116,5 +163,5 @@ case "${1:-}" in
       *) echo "usage: optimize/saver.sh tasks list | add 'نص' | done N | del N | clear"; exit 1 ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,35p' "$0"; exit 1 ;;
+  *) sed -n '2,40p' "$0"; exit 1 ;;
 esac
