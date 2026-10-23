@@ -480,7 +480,7 @@ const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : 
 // the city's time zone, #tz=: the clock, prayers, matches and dates all go by it; one this browser does not know is Riyadh
 const _tzOk = z => { try{ new Intl.DateTimeFormat('en',{timeZone:z}); return true; }catch(e){ return false; } };
 // the cards a slot can show (Prefs.PANELS in the app is the same list); «none» is the absence of one
-const CARD_KINDS = ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year'];
+const CARD_KINDS = ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year','smart'];
 const CONFIG = {
   city: _Q.get('city') || 'الرياض',
   latitude: _num('lat', 24.7136),
@@ -1691,6 +1691,39 @@ try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || 
 const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
 const LISTS = ['matches', 'stocks', 'tasks', 'shows'];   // the kinds that page through their rows
 
+// ---- «البطاقة الذكية» (smart): the card for what matters now, picked again with every redraw (the clock timers draw it every 15 s,
+// so a change shows within a minute); no request of its own, it shows what the other cards load. In this order:
+//  1. a followed team's game is live, or starts within 60 minutes: the matches card, with that game;
+//  2. the adhkar window (morning from Fajr to Dhuhr, evening from Asr to Maghrib): the adhkar card;
+//  3. within 15 minutes of a prayer: the prayers' row, with the minutes left in its title;
+//  4. otherwise: the next hours' weather.
+const SMART_GAME_MIN = 60, SMART_PRAYER_MIN = 15;
+// the followed teams' games that are live now, or (not liveOnly) start within SMART_GAME_MIN minutes: [ev] in time order
+function focusGames(now, liveOnly){
+  const seen = new Set(), out = [];
+  CONFIG.teamIds.forEach(id => [MATCHES[id], ...(NEXT_LIST[id] || [])].forEach(ev => {
+    if(!ev || !ev.idEvent || seen.has(ev.idEvent)) return;
+    seen.add(ev.idEvent);
+    const k = toDate(ev).getTime(), st = (ev.strStatus || '').toUpperCase();
+    if(isNaN(k) || FINAL.includes(st) || CALLED_OFF.test(st)) return;
+    const live = now >= k && now < k + durMs(ev), soon = now < k && k - now <= SMART_GAME_MIN * 60000;
+    if(live || (soon && !liveOnly)) out.push(ev);
+  }));
+  return out.sort((a, b) => toDate(a) - toDate(b));
+}
+function prayerSoon(minutes){   // is a prayer's adhan within that many minutes?
+  const p = riyadhParts(), now = p.h * 60 + p.mi + p.s / 60;
+  return PRAYERS.some(x => { const d = x.h * 60 + x.mi - now; return d > 0 && d <= minutes; });
+}
+function smartKind(now = Date.now()){
+  if(CONFIG.teamIds.length && focusGames(now).length) return 'matches';
+  const w = adhkarWindow();
+  if(w === 'morning' || w === 'evening') return 'adhkar';
+  if(prayerSoon(SMART_PRAYER_MIN)) return 'prayerrow';
+  return 'hourly';
+}
+
+
 // the header: HTML when the kind has icons or a note in it, else its title (the two never share a stale copy)
 function paintHd(hd, title, html){
   if(html) setHTML(hd, html); else { setText(hd, title); hd.__h = null; }
@@ -1977,8 +2010,11 @@ function matchEvents(){
 }
 // ... in time order
 function matchRows(card){
-  const now = Date.now(), evs = matchEvents();
-  const others = eventRows(now);
+  const now = Date.now();
+  let evs = matchEvents();
+  const smart = card && card.kind === 'smart';
+  if(smart){ const ids = new Set(focusGames(now).map(ev => ev.idEvent)); evs = evs.filter(ev => ids.has(ev.idEvent)); }   // only the game that brought the smart card here
+  const others = smart ? [] : eventRows(now);
   return [...evs.map(ev => ({ev, t: toDate(ev).getTime()}))
     .filter(x => finishedRecently(x.ev, now)
       || (now < x.t + durMs(x.ev) && !FINAL.includes((x.ev.strStatus || '').toUpperCase())

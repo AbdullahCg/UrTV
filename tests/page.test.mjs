@@ -1833,6 +1833,90 @@ for (const [list, want, mid] of [['verse', 'verse', 'n1'], ['prayers,hourly', 'p
   await ctx.close();
 }
 
+// ---- «البطاقة الذكية» (smart): what matters now, by four rules in this order, checked on every redraw. The time is held with the
+// Date.now override; Thursday 2026-10-22, Riyadh +3: Fajr 4:50, Dhuhr 11:40, Asr 15:00, Maghrib 17:45, Isha 19:15.
+const SMART_PRAYERS = "buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '19:15' });";
+const smartAt = async (p, hhmm, { game = null, status = null, score = true } = {}) => p.evaluate(([hhmm, game, status, score, prayers, sample]) => {
+  const R = window.__R || (window.__R = Date), T = Date.parse('2026-10-22T' + hhmm + ':00+03:00');
+  window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+  ADHKAR.length = 0; ADHKAR.push(...sample);
+  eval(prayers);
+  HOURLY = [1, 2, 3, 4, 5, 6].map(i => ({ t: '2026-10-22T' + String(i + 12).padStart(2, '0') + ':00', code: 2, temp: 33 - i }));
+  MATCHES = {}; NEXT_LIST = {};
+  if (game !== null) {   // kick-off `game` minutes from now (negative: already under way)
+    const ev = { idEvent: 'g1', strHomeTeam: 'Al-Hilal', strAwayTeam: 'Al-Nassr', idHomeTeam: '100', idAwayTeam: '101', strSport: 'Soccer',
+      strTimestamp: new Date(T + game * 60000).toISOString(), strStatus: status || (game < 0 ? '2H' : 'NS'), strProgress: '34',
+      intHomeScore: score && game < 0 ? 2 : null, intAwayScore: score && game < 0 ? 1 : null };
+    MATCHES['136013'] = ev; NEXT_LIST['136013'] = [ev];
+  }
+  MATCHES_LOADED = true;
+  for (const c of CARDS) { clearTimeout(c.ad.t); c.ad.t = 0; c.ad.i = 0; c.ad.mode = ''; }
+  renderPanel(false);
+  const c = CARDS[0];
+  return { eff: c.eff, hd: c.hd.textContent.replace(/\s+/g, ' ').trim(), text: c.ul.textContent.replace(/\s+/g, ' ').trim(), rows: c.ul.children.length,
+           timer: c.ad.t !== 0 };
+}, [hhmm, game, status, score, SMART_PRAYERS, ADHKAR_SAMPLE]);
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=smart', { width, height });
+  const tag = `smart card ${width}x${height}`;
+  const r = {
+    live: await smartAt(p, '10:00', { game: -20 }),                 // a followed team is playing: the game, over the adhkar window
+    in59: await smartAt(p, '13:00', { game: 59 }),
+    in61: await smartAt(p, '13:00', { game: 61 }),
+    over: await smartAt(p, '13:00', { game: -30, status: 'FT' }),   // finished: not live any more
+    soonOverAdhkar: await smartAt(p, '16:00', { game: 30 }),
+    morning: await smartAt(p, '06:00'), evening: await smartAt(p, '16:00'), beforeMaghrib: await smartAt(p, '17:44'),
+    night: await smartAt(p, '22:00'),
+    p15: await smartAt(p, '19:00'), p16: await smartAt(p, '18:59'), atAdhan: await smartAt(p, '19:15'), fajr15: await smartAt(p, '04:35'),
+    dhuhr10: await smartAt(p, '11:30'),
+    plain: await smartAt(p, '13:00'),
+  };
+  check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+  check(`${tag}: a followed team's game, live or within 60 minutes: the matches card with that game`,
+    [r.live, r.in59, r.soonOverAdhkar].every(x => x.eff === 'matches' && x.rows === 1 && /الهلال/.test(x.text) && /النصر/.test(x.text))
+    && /٢ - ١/.test(r.live.text) && r.in61.eff !== 'matches' && r.over.eff !== 'matches', JSON.stringify({ live: r.live, in59: r.in59, in61: r.in61.eff, over: r.over.eff, soon: r.soonOverAdhkar }));
+  check(`${tag}: the adhkar window (morning from Fajr, evening until Maghrib): the adhkar card; at night and after the window it is not`,
+    r.morning.eff === 'adhkar' && /الصباح/.test(r.morning.hd) && r.evening.eff === 'adhkar' && /المساء/.test(r.evening.hd) && r.beforeMaghrib.eff === 'adhkar'
+    && r.night.eff !== 'adhkar' && r.plain.eff !== 'adhkar', JSON.stringify({ m: r.morning.eff, e: r.evening.eff, b: r.beforeMaghrib.eff, n: r.night.eff }));
+  check(`${tag}: 15 minutes before a prayer: the prayer row, «العشاء بعد ١٥ د»; 16 minutes before, and at the adhan itself, it is not`,
+    r.p15.eff === 'prayerrow' && r.p15.hd === 'العشاء بعد ١٥ د' && r.fajr15.eff === 'prayerrow' && r.p16.eff === 'hourly' && r.atAdhan.eff === 'hourly',
+    JSON.stringify({ p15: r.p15.hd, f: r.fajr15.eff, p16: r.p16.eff, at: r.atAdhan.eff }));
+  check(`${tag}: otherwise the next hours' weather`, r.plain.eff === 'hourly' && r.plain.hd === 'الساعات القادمة' && r.plain.rows === 1 && r.night.eff === 'hourly',
+    JSON.stringify(r.plain));
+  check(`${tag}: before Dhuhr and before Maghrib the adhkar window is still open, so the adhkar stay (rule 2 comes before rule 3)`,
+    r.dhuhr10.eff === 'adhkar' && r.beforeMaghrib.eff === 'adhkar', JSON.stringify([r.dhuhr10.eff, r.beforeMaghrib.eff]));
+  // the card follows the minute: it changes by itself as the time passes, the adhkar timer stops when it leaves
+  const flow = await p.evaluate(() => {
+    const R = window.__R, mk = hh => { const T = Date.parse('2026-10-22T' + hh + ':00+03:00'); window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } }; };
+    MATCHES = {}; NEXT_LIST = {}; const out = [];
+    mk('16:00'); renderPanel(false, 'prayers'); out.push([CARDS[0].eff, CARDS[0].ad.t !== 0]);
+    mk('18:00'); renderPanel(false, 'prayers'); out.push([CARDS[0].eff, CARDS[0].ad.t !== 0]);
+    return out;
+  });
+  check(`${tag}: it changes with the time, and the adhkar timer stops when the card leaves them`, JSON.stringify(flow) === '[["adhkar",true],["hourly",false]]', JSON.stringify(flow));
+  await ctx.close();
+}
+{   // in a home slot, beside the others; Latin digits too
+  for (const [digits, want] of [['hindi', 'العشاء بعد ١٥ د'], ['latin', 'العشاء بعد 15 د']]) {
+    const o = await open('tv.html', `home_panel=smart,verse&widget=1&digits=${digits}`, { width: 561, height: 250 });
+    const r = await smartAt(o.p, '19:00');
+    check(`smart card in a home slot (${digits}): the prayer row and its title, the second card beside it; no script errors`, !o.errors.length && r.eff === 'prayerrow' && r.hd === want
+      && await o.p.evaluate(() => CARDS.length === 2 && CARDS[1].kind === 'verse'), JSON.stringify(r) + o.errors.join('; '));
+    await o.ctx.close();
+  }
+}
+{   // no request of its own: the same ones its four cards would make, the hours in the forecast's single request
+  const asked = [];
+  const o = await open('tv.html', 'teams=136013&home_panel=smart&widget=1', { width: 461, height: 250, net: r => { asked.push(r.request().url()); return false; } });
+  await o.p.waitForTimeout(300);
+  const hosts = [...new Set(asked.map(u => new URL(u).host))].sort();
+  const forecast = asked.filter(u => /api\.open-meteo\.com\/v1\/forecast/.test(u));
+  check('smart card: only the requests of the cards it shows (prayers, matches, the forecast with its hours), one forecast request',
+    hosts.every(h => ['api.aladhan.com', 'www.thesportsdb.com', 'api.open-meteo.com', 'raw.githubusercontent.com', 'api.coingecko.com', 'query1.finance.yahoo.com'].includes(h) || /thesportsdb\.com$/.test(h))
+    && forecast.length === 1 && /hourly=/.test(forecast[0]) && !asked.some(u => /air-quality|tvmaze|wikidata/.test(u)), asked.join(' '));
+  await o.ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);
