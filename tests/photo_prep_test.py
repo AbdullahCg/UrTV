@@ -125,12 +125,13 @@ try:
 except ValueError:
     check("a missing file is refused", True)
 
-# the command line
+# the command line (no -I here: it would hide a Pillow that pip put in the user's site-packages, as on CI;
+# photos.sh runs it with the venv's python, whose packages -I keeps)
 import subprocess
-r = subprocess.run([sys.executable, "-I", os.path.join(here, "..", "optimize", "photo_prep.py"), make("cli.jpg", (3000, 2000)),
+r = subprocess.run([sys.executable, os.path.join(here, "..", "optimize", "photo_prep.py"), make("cli.jpg", (3000, 2000)),
                     os.path.join(tmp, "cli-out.jpg"), "--screen", "1280x720"], capture_output=True, text=True)
 check("command line: prints the size", r.returncode == 0 and r.stdout.strip() == "1280x853", r.stdout + r.stderr)
-r = subprocess.run([sys.executable, "-I", os.path.join(here, "..", "optimize", "photo_prep.py"), bad, os.path.join(tmp, "o.jpg")],
+r = subprocess.run([sys.executable, os.path.join(here, "..", "optimize", "photo_prep.py"), bad, os.path.join(tmp, "o.jpg")],
                    capture_output=True, text=True)
 check("command line: a bad file exits with a message", r.returncode != 0 and "x.jpg" in r.stderr, r.stderr)
 sys.exit(1 if failed else 0)
