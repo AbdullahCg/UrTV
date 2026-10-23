@@ -117,7 +117,7 @@ print(f"upload: {50 - len(bad)}/50 intact despite {stats['drop']} dropped connec
 print(f"decode: run in the background and looked at {stats['polls']} times")
 
 # run_bg: a long command is started once, polled with short calls, its output and exit code come back;
-# a job that never ends is given up on after the limit; a job that died without an answer says so.
+# a job that never ends is given up on after the limit; a job that died without an answer is run directly.
 class Fake:
     def __init__(self, polls, dead=False): self.polls, self.dead, self.calls = polls, dead, []   # dead: True at once, "later" after a while
     def shell(self, cmd, timeout=120):
@@ -145,7 +145,13 @@ with contextlib.redirect_stderr(io.StringIO()):
     got = tv.run_bg(f, "install", "pm install -r /data/local/tmp/x.apk")
 if got != (0, "Success"): bgbad.append(f"no background jobs: {got}")
 if sum(c.endswith("echo __rc=$?") for c in f.calls) != 1: bgbad.append("no background jobs: not run directly once")
-for name, fake, limit, word in (("never ends", Fake(10**9), 30, "still running after"), ("dies", Fake(10**9, dead="later"), 600, "stopped without an answer")):
+# the same TV, but the job lives a few seconds first (a TCL on Android 14): still run directly, once
+f = Fake(10**9, dead="later")
+with contextlib.redirect_stderr(io.StringIO()):
+    got = tv.run_bg(f, "install", "pm install -r /data/local/tmp/x.apk")
+if got != (0, "Success"): bgbad.append(f"dies after a while: {got}")
+if sum(c.endswith("echo __rc=$?") for c in f.calls) != 1: bgbad.append("dies after a while: not run directly once")
+for name, fake, limit, word in (("never ends", Fake(10**9), 30, "still running after"),):
     err = io.StringIO()
     try:
         with contextlib.redirect_stderr(err): tv.run_bg(fake, "install", "pm install -r /x.apk", limit_s=limit)

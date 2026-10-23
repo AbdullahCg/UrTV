@@ -249,14 +249,14 @@ def run_bg(tv, name, cmd, progress=None, limit_s=None):
         if state[:1] == ["done"]:
             break
         if state[:1] != ["running"]:
-            if waited == 0 and started == "started":
-                # some TVs end what a shell left running as soon as that shell closes: do it the old, direct way
-                print(f"   ({name}: this TV doesn't keep background jobs; running it directly)", file=sys.stderr)
-                tv.shell(f"rm -f {j}.rc {j}.out {j}.pid")
-                out = tv.shell(f"({cmd}) 2>&1; echo __rc=$?", timeout=limit).rstrip()
-                body, _, rc = out.rpartition("__rc=")
-                return (int(rc) if rc.strip().lstrip("-").isdigit() else 1), body.rstrip()
-            sys.exit(f"!! The {name} job on the TV stopped without an answer (a restart of the TV?). Run the same command again.")
+            # it died with no answer: some TVs end what a shell left running, at once or a few seconds after that shell
+            # closes (a TCL on Android 14 did it after the first look). Do it the old, direct way. Both jobs (decode,
+            # pm install) are safe to run again from the start.
+            print(f"   ({name}: this TV doesn't keep background jobs; running it directly)", file=sys.stderr)
+            tv.shell(f"rm -f {j}.rc {j}.out {j}.pid")
+            out = tv.shell(f"({cmd}) 2>&1; echo __rc=$?", timeout=limit).rstrip()
+            body, _, rc = out.rpartition("__rc=")
+            return (int(rc) if rc.strip().lstrip("-").isdigit() else 1), body.rstrip()
         if waited >= limit:
             sys.exit(f"!! The {name} job on the TV is still running after {limit // 60} minutes. It is left running there: "
                      "run the same command again to wait for it.")
