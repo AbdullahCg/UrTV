@@ -2483,6 +2483,74 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
   }
 }
 
+// ---- the slim year strip under the clock (#yearstrip=1): 8 rows of 46, day N lit up to N-1, today's dot, no wider than the clock,
+// the clock never moves for it, clear of the card and the bottom row; hidden when the room under the clock is too small
+const STRIP_BOX = p => p.evaluate(() => {
+  const r = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
+  const s = document.getElementById('ystrip'), dots = s ? [...s.querySelectorAll('circle')] : [];
+  const rows = new Set([...s.querySelectorAll('svg > circle:not(.halo)')].map(c => c.getAttribute('cy'))).size;
+  return { hidden: !s || s.hidden || getComputedStyle(s).display === 'none', clock: r(document.querySelector('.clock')),
+    strip: s ? r(s) : null, week: r(document.querySelector('.week')), bottom: r(document.querySelector('.bottom')),
+    on: s.querySelectorAll('.on').length, now: s.querySelectorAll('.now').length, off: s.querySelectorAll('.off').length, rows,
+    cx: [...s.querySelectorAll('svg > circle')].filter(c => !c.classList.contains('halo')).map(c => +c.getAttribute('cx')),
+    cy: [...s.querySelectorAll('svg > circle')].filter(c => !c.classList.contains('halo')).map(c => +c.getAttribute('cy')),
+    text: (s.querySelector('.yt') || {}).textContent, dotPx: s.querySelector('svg').getBoundingClientRect().width / 46 * 4 / 6,
+    nowCx: +(s.querySelector('.now') || { getAttribute: () => -1 }).getAttribute('cx') };
+});
+const overlap = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const [name, iso, hm] of [['8:00', '2026-10-23T05:00:00Z', 1], ['10:08 (four digits)', '2026-10-23T07:08:00Z', 2], ['12:59 (four digits)', '2026-10-23T09:59:00Z', 2]]) {
+    const on = await open('tv.html', 'yearstrip=1&panel=year', { width: w, height: h, now: iso });
+    const off = await open('tv.html', 'panel=year', { width: w, height: h, now: iso });
+    for (const x of [on, off]) await x.p.addStyleTag({ content: '.stage{transition:none!important}' });   // the pixel shift glides for 3 s: measure after it
+    await on.p.waitForTimeout(100);
+    const a = await STRIP_BOX(on.p), clock0 = await off.p.evaluate(() => { const b = document.querySelector('.clock').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
+    const tag = `yearstrip ${w}x${h} ${name}`;
+    check(`${tag}: shown, 296 days of 365: 8 rows of 46, ${295} lit, today once, ${365 - 296} to come`,
+      !on.errors.length && !a.hidden && a.rows === 8 && a.on === 295 && a.now === 1 && a.off === 69 && a.on + a.now + a.off === 365, JSON.stringify(a) + on.errors.join('; '));
+    check(`${tag}: from the right, top row first (day 1 at the top right, day 296 in row 7, 20th from the right)`,
+      a.cx[0] === 45 * 6 + 3 && a.cy[0] === 3 && a.nowCx === (45 - 19) * 6 + 3 && a.cy[295] === 6 * 6 + 3, JSON.stringify([a.cx[0], a.cy[0], a.nowCx, a.cy[295]]));
+    check(`${tag}: «اليوم ٢٩٦ من ٣٦٥ · ٨١٪»`, a.text === 'اليوم ٢٩٦ من ٣٦٥ · ٨١٪', a.text);
+    check(`${tag}: no wider than the clock, centred under it, dots ${Math.round(4 * w / 960)} px wide (±)`,
+      a.strip.w <= a.clock.w + 1 && Math.abs((a.strip.l + a.strip.r) / 2 - (a.clock.l + a.clock.r) / 2) < 3 && Math.abs(a.dotPx - 4 * w / 960) < 1.2, JSON.stringify([a.strip, a.clock, a.dotPx]));
+    check(`${tag}: under the clock, clear of the card and of the bottom row`,
+      a.strip.t >= a.clock.b && !overlap(a.strip, a.week) && !overlap(a.strip, a.bottom) && a.strip.b <= a.bottom.t, JSON.stringify([a.strip, a.week, a.bottom]));
+    check(`${tag}: the clock stays where it is without the strip`,
+      Math.abs(a.clock.l - clock0[0]) < 1 && Math.abs(a.clock.t - clock0[1]) < 1 && Math.abs(a.clock.w - clock0[2]) < 1 && Math.abs(a.clock.h - clock0[3]) < 1, JSON.stringify([a.clock, clock0]));
+    const hid = await off.p.evaluate(() => { const s = document.getElementById('ystrip'); return s.hidden || s.children.length === 0; });
+    check(`${tag}: off by default (nothing drawn, nothing shown)`, hid);
+    await on.ctx.close(); await off.ctx.close();
+  }
+}
+{   // leap year, Latin digits, the day turning over, a room too small for it, the widget
+  const o = await open('tv.html', 'yearstrip=1&digits=latin', { now: '2028-12-31T09:00:00Z' });
+  const a = await STRIP_BOX(o.p);
+  check('yearstrip: a leap year has 366 dots (365 lit, today last), «day 366 of 366 · 100%» with digits=latin',
+    a.on + a.now + a.off === 366 && a.on === 365 && a.now === 1 && a.text === 'اليوم 366 من 366 · 100%', JSON.stringify([a.on, a.now, a.off, a.text]));
+  await o.ctx.close();
+}
+{
+  const o = await open('tv.html', 'yearstrip=1', { width: 960, height: 330, now: '2026-10-23T09:00:00Z' });
+  const a = await STRIP_BOX(o.p);
+  check('yearstrip: hidden, not overlapping, when the room under the clock is too small (960x330)', a.hidden && !o.errors.length, JSON.stringify([a.hidden, a.clock, a.bottom]));
+  await o.ctx.close();
+}
+{
+  const o = await open('tv.html', 'yearstrip=1&widget=1&home_panel=year', { width: 1200, height: 500 });
+  const n = await o.p.evaluate(() => { const s = document.getElementById('ystrip'); return { shown: s && getComputedStyle(s).display !== 'none' && s.children.length > 0 }; });
+  check('yearstrip: never on the home screen\'s widget page', !o.errors.length && !n.shown, JSON.stringify(n) + o.errors.join('; '));
+  await o.ctx.close();
+}
+{   // the day turns over at midnight (Riyadh): the dots are drawn again with today moved on
+  const o = await open('tv.html', 'yearstrip=1', { now: '2026-10-23T20:59:50Z' });
+  const before = await STRIP_BOX(o.p);
+  await o.p.clock.setFixedTime('2026-10-23T21:00:30Z'); await o.p.evaluate(() => { tickClock.last = null; tickClock(); });
+  const after = await STRIP_BOX(o.p);
+  check('yearstrip: after Riyadh midnight the strip says day 297 (296 before)', before.text === 'اليوم ٢٩٦ من ٣٦٥ · ٨١٪' && after.text === 'اليوم ٢٩٧ من ٣٦٥ · ٨١٪' && after.on === 296, before.text + ' / ' + after.text);
+  await o.ctx.close();
+}
+
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

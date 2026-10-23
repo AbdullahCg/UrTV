@@ -108,6 +108,8 @@ public class SettingsActivity extends Activity {
             new Runnable() { public void run() { pickDigits(); } });
         row("تنبيه قبل الأذان", prefs.adhanBar() ? "يعمل · شريط في أعلى الشاشة آخر ١٠ دقائق، ثم حتى الإقامة" : "متوقف", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setAdhanBar(!prefs.adhanBar()); render(); } });
+        row("شريط السنة تحت الساعة", prefs.yearStrip() ? "يعمل · ٣٦٥ نقطة تحت الساعة، واليوم يلمع" : "متوقف", R.drawable.ic_eye,
+            new Runnable() { public void run() { prefs.setYearStrip(!prefs.yearStrip()); render(); } });
         row("المناسبات الوطنية", Prefs.nationalLabel(prefs.national()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickNational(); } });
         row("الخانة اليسرى", Prefs.slotLabel(prefs.slot()), R.drawable.ic_eye,
