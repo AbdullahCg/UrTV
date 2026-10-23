@@ -141,15 +141,17 @@ final class Updater {
         return b.toString();
     }
 
-    /** Arabic line for the settings row: this app's version and whether a newer release exists. */
-    static String versionNote(Context c) {
+    /** The three lines under the settings: this app's version, the newest release, and how to update. */
+    static String[] versionLines(Context c) {
         String mine = BuildConfig.VERSION_NAME;
         String latest = new Prefs(c).raw().getString("latestVersion", null);
-        String head = "الإصدار " + arabic(mine);
-        if (latest == null || minor(latest) < 0) return head + ".";
-        if (minor(latest) <= minor(mine)) return head + "، وهو الأحدث.";
-        return head + ". يوجد إصدار جديد " + arabic(latest)
-            + ": اطلب من مساعدك «حدّث تلفزيوني»، وإعداداتك تبقى.";
+        String available = latest == null || minor(latest) < 0 ? "لم يُفحص بعد"
+            : minor(latest) <= minor(mine) ? "لا يوجد أحدث" : arabic(latest);
+        return new String[] {
+            "الإصدار الحالي: " + arabic(mine),
+            "الإصدار المتاح: " + available,
+            "طريقة التحديث: اطلب من مساعد الذكاء الاصطناعي «حدّث تلفزيوني»، وإعداداتك كلها تبقى.",
+        };
     }
 
     private static byte[] readAll(InputStream in) throws java.io.IOException {
