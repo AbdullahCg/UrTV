@@ -398,6 +398,7 @@ def main():
         return
     if a == ["--check"]:
         TV(guard=True).shell("true")
+        print("OK: this is the saved TV")   # a refusal exits above with its !! line; the make, model and serial stay out of this line
         return
     if a == ["--new-tv"]:
         tv = TV()
