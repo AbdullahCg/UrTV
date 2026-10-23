@@ -261,7 +261,7 @@ itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1
 optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon>)
 optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال): one call per club, Saudi clubs first;
                                                   # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
-optimize/saver.sh card <one of: verse, wisdom, adhkar, stocks, tasks, shows, prayers, forecast, matches, none>   # beside the clock (verse unless I said otherwise)
+optimize/saver.sh card <one of: verse, wisdom, adhkar, stocks, tasks, year, shows, prayers, forecast, matches, none>   # beside the clock (verse unless I said otherwise)
 optimize/saver.sh home-card none                  # home screen: no card
 # «المهام» (only if I ask): optimize/saver.sh tasks add 'نص' | list | done N | del N | clear, and card tasks
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)

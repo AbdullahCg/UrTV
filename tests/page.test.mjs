@@ -1102,6 +1102,94 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- «السنة»: a dot for every day of the Gregorian year in Riyadh time, passed days lit, today brightest
+const yearAt = async (p, iso) => { await p.evaluate(FAKE_NOW(iso)); await p.evaluate('renderPanel(false)'); };
+const yearRead = p => p.evaluate(() => {
+  const c = k => document.querySelectorAll('#week-list li.yr circle.' + k).length, fillOf = e => getComputedStyle(e).fill;
+  const on = [...document.querySelectorAll('#week-list li.yr circle.on')].map(e => +e.getAttribute('fill-opacity'));
+  const now = document.querySelector('#week-list li.yr circle.now');
+  return { hd: document.getElementById('week-hd').textContent.trim(), on: c('on'), now: c('now'), off: c('off'),
+           year: (document.querySelector('li.yr .yn') || {}).textContent, foot: (document.querySelector('li.yr .yt') || {}).textContent,
+           first: on[0], last: on[on.length - 1], nowFill: now ? fillOf(now) : '', offOp: getComputedStyle(document.querySelector('li.yr circle.off') || document.body).fillOpacity,
+           svgs: document.querySelectorAll('#week-list svg').length, kids: document.querySelectorAll('#week-list *').length };
+});
+for (const [name, iso, y, total, day, pct] of [
+  ['23 Oct 2026', '2026-10-23T09:00:00Z', '٢٠٢٦', 365, 296, 81],
+  ['1 Jan 2026', '2026-01-01T09:00:00Z', '٢٠٢٦', 365, 1, 0],
+  ['31 Dec 2026', '2026-12-31T09:00:00Z', '٢٠٢٦', 365, 365, 100],
+  ['29 Feb 2028 (leap year)', '2028-02-29T09:00:00Z', '٢٠٢٨', 366, 60, 16],
+  ['31 Dec 2028 (leap year)', '2028-12-31T09:00:00Z', '٢٠٢٨', 366, 366, 100],
+  ['Riyadh is already 1 Jan 2027 at 22:00 UTC', '2026-12-31T22:00:00Z', '٢٠٢٧', 365, 1, 0],
+]) {
+  const { p, ctx, errors } = await open('tv.html', 'panel=year');
+  await yearAt(p, iso);
+  const r = await yearRead(p), n = x => String(x).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+  check(`year ${name}: header «السنة», year ${y}, ${total} dots`, !errors.length && r.hd === 'السنة' && r.year === y && r.on + r.now + r.off === total, JSON.stringify(r) + errors.join('; '));
+  check(`year ${name}: ${day - 1} passed, today one, ${total - day} to come`, r.on === day - 1 && r.now === 1 && r.off === total - day, JSON.stringify(r));
+  check(`year ${name}: «اليوم ${n(day)} من ${n(total)} · ${n(pct)}٪»`, r.foot === `اليوم ${n(day)} من ${n(total)} · ${n(pct)}٪`, r.foot);
+  await ctx.close();
+}
+{   // looks: today the brightest gold, the passed days rise from dim, the days to come stay dim; one SVG, no animation loop
+  const { p, ctx } = await open('tv.html', 'panel=year');
+  await yearAt(p, '2026-10-23T09:00:00Z');
+  const r = await yearRead(p);
+  check('year: today is the brightest gold (#FFE9B8), the passed days rise from dim to full, the rest stay dim',
+    r.nowFill === 'rgb(255, 233, 184)' && r.first < .4 && r.last > .95 && r.first < r.last && +r.offOp < .2, JSON.stringify(r));
+  check('year: one SVG for the whole grid, under 1200 nodes', r.svgs === 1 && r.kids < 1200, JSON.stringify([r.svgs, r.kids]));
+  check('year: the dots are drawn once a day, not on a timer (nothing re-renders while the minute passes)', await p.evaluate(async () => {
+    const svg = document.querySelector('#week-list svg'); renderPanel(false); await new Promise(r => setTimeout(r, 200));
+    return document.querySelector('#week-list svg') === svg; }));
+  await ctx.close();
+}
+{   // the fill-in plays once, when the card first appears; not at all with reduced motion
+  for (const reduce of [false, true]) {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: reduce ? 'reduce' : 'no-preference' });
+    await ctx.route(/^https?:/, r => r.abort());
+    const p = await ctx.newPage();
+    await p.goto(page('tv.html') + '#panel=year');
+    await p.waitForFunction(() => document.querySelector('#week-list li.yr'), null, { timeout: 4000 });
+    const a = await p.evaluate(() => getComputedStyle(document.querySelector('li.yr .r')).animationName);
+    await p.evaluate('renderPanel(false)');
+    const b = await p.evaluate(() => [document.querySelector('li.yr').className, getComputedStyle(document.querySelector('li.yr .r')).animationName]);
+    check(`year: fill-in ${reduce ? 'skipped with reduced motion' : 'plays on the first draw only'}`,
+      reduce ? a === 'none' && b[1] === 'none' : a === 'yrIn' && b[1] === 'none' && !b[0].includes('fill'), JSON.stringify([a, b]));
+    await ctx.close();
+  }
+}
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const style of ['', 'current', 'dark1', 'glass1', 'dark3', 'glass3']) {
+    const { p, ctx, errors } = await open('tv.html', 'panel=year' + (style ? '&cardstyle=' + style : ''), { width, height });
+    await yearAt(p, '2028-12-31T09:00:00Z');   // the longest year, the last row full of lit dots
+    await p.waitForTimeout(900);
+    const r = await p.evaluate(() => {
+      const card = document.querySelector('.week'), c = card.getBoundingClientRect(), top = document.querySelector('.top').getBoundingClientRect(),
+            bar = document.querySelector('.bottom').getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
+      const inside = [...card.querySelectorAll('li.yr > *')].every(e => { const b = e.getBoundingClientRect(); return b.left >= c.left && b.right <= c.right && b.bottom <= c.bottom; });
+      const dot = card.querySelector('circle.off, circle.on').getBoundingClientRect();
+      return { fit: c.top >= top.bottom && c.bottom <= bar.top - 4 && c.right <= clock.left - 4 && c.left >= 0 && c.height <= 0.5 * innerHeight,
+               inside, dot: dot.width, h: c.height / innerHeight };
+    });
+    check(`year ${width}x${height} ${style || 'default'}: fits the card, clear of the clock and the bottom bar, dots readable`,
+      !errors.length && r.fit && r.inside && r.dot >= 3, JSON.stringify(r) + errors.join('; '));
+    await ctx.close();
+  }
+}
+{   // digits and the launcher's card
+  const { p, ctx, errors } = await open('tv.html', 'panel=year&digits=latin');
+  await yearAt(p, '2026-10-23T09:00:00Z');
+  const r = await yearRead(p), card = await p.evaluate(() => document.querySelector('.week').innerText);
+  check('year digits=latin: 2026 and «اليوم 296 من 365 · 81%», no Eastern digits', !errors.length && r.year === '2026' && r.foot === 'اليوم 296 من 365 · 81%' && !/[٠-٩]/.test(card), r.year + ' ' + r.foot);
+  await ctx.close();
+}
+{
+  const { p, ctx, errors } = await open('tv.html', 'panel=year&widget=1', { width: 461, height: 250 });
+  await yearAt(p, '2026-10-23T09:00:00Z');
+  const r = await p.evaluate(() => { const c = document.querySelector('.week').getBoundingClientRect(), s = document.querySelector('.week svg').getBoundingClientRect();
+    return { n: document.querySelectorAll('.week circle').length, w: c.width, h: c.height, dot: s.width / 380 * 6.4, ok: c.height <= innerHeight && s.right <= c.right }; });
+  check('launcher card year: all dots there, fits 461x250', !errors.length && r.n >= 365 && r.ok, JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);
