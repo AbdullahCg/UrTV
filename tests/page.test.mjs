@@ -1273,6 +1273,55 @@ for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]
   }
 }
 
+// ---- «الصلوات في صف»: five prayers in one row, the next lit, «المغرب بعد ١ س و ٥ د» above, with the clock held still
+{
+  const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
+  // Riyadh is UTC+3: 13:40 UTC = 16:40 there, so Maghrib (17:45) is 1 h 5 min away; 2026-10-23 is a Friday, 2026-10-22 a Thursday
+  for (const [when, next, head, label] of [
+      ['2026-10-22T13:40:00Z', 3, 'المغرب بعد ١ س و ٥ د', 'Thursday afternoon'],
+      ['2026-10-23T13:40:00Z', 3, 'المغرب بعد ١ س و ٥ د', 'Friday afternoon'],
+      ['2026-10-22T01:00:00Z', 0, 'الفجر بعد ٥٠ د', 'Thursday 04:00 in Riyadh, before Fajr'],
+      ['2026-10-22T10:00:00Z', 2, 'العصر بعد ٢ س', 'Thursday 13:00, a whole number of hours'],
+      ['2026-10-22T17:10:00Z', 0, 'الفجر بعد ٨ س و ٤٠ د', 'after Isha: tomorrow\'s Fajr'],
+      ['2026-10-22T14:40:00Z', 3, 'المغرب بعد ٥ د', 'five minutes before Maghrib']]) {
+    for (const [file, hash, width, height] of [['tv.html', 'panel=prayerrow', 1920, 1080], ['tv.html', 'panel=prayerrow', 1280, 720], ['tv.html', 'panel=prayerrow', 960, 540],
+        ['urtv.html', 'panel=prayerrow', 1920, 1080], ['tv.html', 'panel=prayerrow&widget=1', 461, 250], ['tv.html', 'panel=prayerrow&widget=1', 960, 540]]) {
+      if (file === 'urtv.html' && label !== 'Thursday afternoon') continue;
+      for (const digits of (label === 'Thursday afternoon' || label === 'Friday afternoon') ? ['hindi', 'latin'] : ['hindi']) {
+        const { p, ctx, errors } = await open(file, hash + '&digits=' + digits, { width, height });
+        await p.clock.setFixedTime(new Date(when));
+        await p.evaluate(TIMES + ' renderPanel(false);');
+        const r = await p.evaluate(() => {
+          const cells = [...document.querySelectorAll('#week-list .pc')], card = document.querySelector('.week').getBoundingClientRect(), text = document.getElementById('week-list').innerText;
+          return { n: cells.length, hd: document.getElementById('week-hd').textContent, names: cells.map(c => c.querySelector('b').textContent),
+            next: cells.map((c, i) => c.classList.contains('next') ? i : -1).filter(i => i >= 0), past: cells.filter(c => c.classList.contains('past')).length,
+            oneLine: cells.every(c => [...c.querySelectorAll('b,i')].every(x => x.getClientRects().length === 1)),
+            inside: cells.every(c => { const b = c.getBoundingClientRect(); return b.left >= card.left - 1 && b.right <= card.right + 1; }),
+            times: cells.map(c => c.querySelector('i').textContent), ar: /[٠-٩]/.test(text), latin: /[0-9]/.test(text),
+            litBg: cells.map(c => getComputedStyle(c).backgroundColor !== 'rgba(0, 0, 0, 0)') };
+        });
+        const tag = `prayer row ${label} ${file} ${width}x${height} ${hash.includes('widget') ? 'card ' : ''}${digits}`;
+        const toLatin = s => s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        const friday = when.startsWith('2026-10-23');
+        const headWant = digits === 'latin' ? head.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)) : head;
+        check(`${tag}: five prayers in order, ${friday ? 'الجمعة for Dhuhr' : 'الظهر'}, no script errors`,
+          !errors.length && r.n === 5 && r.names.join() === ['الفجر', friday ? 'الجمعة' : 'الظهر', 'العصر', 'المغرب', 'العشاء'].join(), JSON.stringify(r) + errors.join('; '));
+        check(`${tag}: the next one lit alone, the ones before it dimmed, «${head}» above`,
+          r.next.join() === String(next) && r.hd === headWant && r.litBg[next] && r.litBg.filter(Boolean).length === 1
+          && r.past === (next === 0 ? (label.startsWith('after Isha') ? 4 : 0) : next), JSON.stringify(r));
+        check(`${tag}: one line each, inside the card, ${digits} digits`, r.oneLine && r.inside && (digits === 'latin' ? r.latin && !r.ar : r.ar && !r.latin)
+          && r.times.every(t => /[صم]$/.test(t)), JSON.stringify(r));
+        await ctx.close();
+      }
+    }
+  }
+  {   // before the times arrive: a title, no row, no errors
+    const { p, ctx, errors } = await open('tv.html', 'panel=prayerrow&widget=1', { width: 461, height: 250 });
+    check('prayer row with no times yet: no errors', !errors.length, errors.join('; '));
+    await ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

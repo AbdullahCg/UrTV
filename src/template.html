@@ -133,6 +133,15 @@
   .week li.hrs .hc b{font-weight:400;font-size:.78em;color:#B9AE96;white-space:nowrap}
   .week li.hrs .hc svg{width:1.9em;height:1.9em;fill:none;stroke:var(--gold-3);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
   .week li.hrs .hc i{font-style:normal;font-variant-numeric:tabular-nums;font-size:1.05em;white-space:nowrap}
+  /* «الصلوات في صف»: the five prayers side by side, the next one lit */
+  .week li.prow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.3em;white-space:normal;border-bottom:none;padding:.9vh 0 .3vh;text-align:center;align-items:stretch}
+  .week li.prow .pc{display:flex;flex-direction:column;align-items:center;gap:.3em;padding:.55em .1em;border-radius:.7em;min-width:0}
+  .week li.prow .pc b{font-weight:500;white-space:nowrap}
+  .week li.prow .pc i{font-style:normal;font-size:.8em;color:#B9AE96;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .week li.prow .pc.past{color:#8F8670}
+  .week li.prow .pc.past i{color:#7F775F}
+  .week li.prow .pc.next{background:rgba(var(--gold-rgb),.18);box-shadow:inset 0 0 0 1px rgba(var(--gold-rgb),.45);color:var(--gold-hi)}
+  .week li.prow .pc.next i{color:var(--gold-3)}
   .week li.past{color:#8F8670}
   .week li.next{color:var(--gold-hi)}
   .week li.next .dt{color:var(--gold-3)}
@@ -454,8 +463,8 @@ const CONFIG = {
   // other sports beside the teams' games: #events=f1,ufc,boxing (default none)
   events: _list('events').filter(k => ['f1','ufc','boxing'].includes(k)),
   eventWindowDays: 14,
-  // the card beside the clock: shows | prayers | forecast | hourly | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','hourly','matches','verse','wisdom','adhkar','stocks','tasks','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: shows | prayers | forecast | hourly | prayerrow | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   // #tasks=: the open tasks, one per line (the app drops done ones), at most 12 of 60 characters
   tasks: (_Q.get('tasks') || '').split('\n').map(x=>x.trim().slice(0, 60)).filter(Boolean).slice(0, 12),
@@ -637,7 +646,7 @@ async function loadPrayers(){
   }
   tickPrayer();
   tickOccasion();   // Ramadan mode needs the prayer times
-  if(CONFIG.panel === 'prayers' || CONFIG.panel === 'adhkar') renderPanel(false);
+  if(CONFIG.panel === 'prayers' || CONFIG.panel === 'adhkar' || CONFIG.panel === 'prayerrow') renderPanel(false);
 }
 
 const UNIT = {
@@ -1515,6 +1524,7 @@ function renderPanel(animate){
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
   else if(P === 'hourly') rows = hourlyRows();
+  else if(P === 'prayerrow'){ const q = prayerRowCard(); setText(hd, q.title); rows = q.rows; }
   else if(P === 'matches') rows = matchRows();
   else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
   else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
@@ -1634,6 +1644,24 @@ async function loadCrests(){
     try{ localStorage.setItem('crests', JSON.stringify(CRESTS)); }catch(e){}
     renderPanel(false);
   }finally{ CREST_BUSY = false; }
+}
+
+// ---- «الصلوات في صف»: the five prayers in one row, the next lit, and above it «المغرب بعد ١ س و ٥ د»
+function shortHM(sec){   // «١ س و ٥ د», «٢ س», «٥ د»
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  return [h ? ar(h) + ' س' : '', m || !h ? ar(Math.max(m, 1)) + ' د' : ''].filter(Boolean).join(' و ');
+}
+function prayerRowCard(){
+  if(!PRAYERS.length) return {title:'مواقيت اليوم', rows:[]};
+  const p = riyadhParts(), mins = p.h * 60 + p.mi + p.s / 60;
+  let next = PRAYERS.findIndex(x => x.h * 60 + x.mi > mins), tomorrow = false;
+  if(next < 0){ next = 0; tomorrow = true; }   // after Isha the next is tomorrow's Fajr
+  const n = PRAYERS[next], left = n.h * 60 + n.mi + (tomorrow ? 1440 : 0) - mins;
+  return {
+    title: `${prayerName(n)} بعد ${shortHM(Math.max(0, Math.round(left * 60)))}`,
+    rows: ['<li class="prow">' + PRAYERS.map((x, i) =>
+      `<div class="pc${i === next ? ' next' : tomorrow || x.h * 60 + x.mi <= mins ? ' past' : ''}"><b>${prayerName(x)}</b><i>${fmt12(x.h, x.mi)}</i></div>`).join('') + '</li>'],
+  };
 }
 
 // ---- «الساعات القادمة»: the next six hours, from the same Open-Meteo request as the forecast (see loadWeather)
@@ -2144,7 +2172,7 @@ function boot(){
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers' || CONFIG.panel === 'hourly') renderPanel(false); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers' || CONFIG.panel === 'hourly' || CONFIG.panel === 'prayerrow') renderPanel(false); }, 15000);
   if(SLOT_MATCHES){   // the matches timers run only while the slot shows matches
     setInterval(() => renderMatches(false), 60000);
     setInterval(() => renderMatches(true), CONFIG.matchPageMs);
@@ -2182,7 +2210,7 @@ function bootWidget(){
   if(P === 'shows'){ loadWeek(); setInterval(loadWeek, 6*3600*1000); }
   else renderPanel(false);
   if(P === 'adhkar'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); }
-  if(P === 'prayers'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
+  if(P === 'prayers' || P === 'prayerrow'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
   if(P === 'forecast' || P === 'hourly'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
   if(P === 'hourly') setInterval(() => renderPanel(false), 60*1000);   // the next hour comes round
   if(P === 'matches'){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
@@ -2194,7 +2222,7 @@ function bootWidget(){
     if(P === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);
   let lastDay = riyadhDayNumber();
-  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers') loadPrayers(); renderPanel(false); } else if(P === 'adhkar' || P === 'stocks') renderPanel(false); }, 60*1000);
+  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers' || P === 'prayerrow') loadPrayers(); renderPanel(false); } else if(P === 'adhkar' || P === 'stocks') renderPanel(false); }, 60*1000);
   reveal();
 }
 

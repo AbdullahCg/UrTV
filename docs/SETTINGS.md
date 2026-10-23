@@ -26,12 +26,13 @@ something about the screensaver, the home screen or the TV, find it in the table
 | their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>`; not listed: `optimize/saver.sh city '<name>' <lat> <lon>` |
 | their clubs, the matches | الفرق المتابعة (up to 20) | `optimize/saver.sh find-team <club>` (Arabic or English), then `optimize/saver.sh teams <id:Name> …` in their order |
 | Formula 1, UFC, boxing | رياضات أخرى | `optimize/saver.sh events f1,ufc,boxing` (`""` = none) |
-| what shows beside the clock | المحتوى | `optimize/saver.sh card <verse, wisdom, adhkar, stocks, tasks, shows, prayers, forecast, hourly, matches, none>` |
+| what shows beside the clock | المحتوى | `optimize/saver.sh card <verse, wisdom, adhkar, stocks, tasks, shows, prayers, forecast, hourly, prayerrow, matches, none>` |
 | verse / hadith of the day | آية اليوم وحديث اليوم | `optimize/saver.sh card verse` (a verse one day, a hadith the next) |
 | a proverb or saying | حكمة اليوم | `optimize/saver.sh card wisdom` |
 | morning and evening adhkar | أذكار الصباح والمساء | `optimize/saver.sh card adhkar` (morning Fajr–Dhuhr, evening Asr–Maghrib, end of al-Baqara at night; else the verse) |
 | today's prayer times as a list | مواقيت الصلاة اليوم | `optimize/saver.sh card prayers` (the next prayer is always at the bottom right) |
 | the weather for the coming days | طقس الأيام القادمة | `optimize/saver.sh card forecast`, or the bottom-left `optimize/saver.sh slot weather` |
+| the five prayers in one row | الصلوات في صف | `optimize/saver.sh card prayerrow` or `home-card prayerrow`: الفجر، الظهر (الجمعة on Friday)، العصر، المغرب، العشاء side by side, the next one lit, and above them «المغرب بعد ١ س و ٥ د» (after Isha the next is tomorrow's Fajr) |
 | the weather for the next hours | طقس الساعات القادمة | `optimize/saver.sh card hourly` (the next 6 hours, each with its time, icon and temperature; also `home-card hourly`; it uses the same weather request as the forecast, every 30 minutes) |
 | new episodes of series | جديد المسلسلات | `optimize/saver.sh card shows`; filters `genres`, `langs`, `minrating` (`optimize/saver.sh` lists them); «مسلسلات مختارة» is in the app's settings |
 | their stocks | الأسهم | `optimize/saver.sh stocks 2222 1120 AAPL` (up to 8: 4 digits = Tadawul, letters = US) and `optimize/saver.sh card stocks` |
