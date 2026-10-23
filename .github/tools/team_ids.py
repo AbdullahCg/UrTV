@@ -104,7 +104,7 @@ SPORT_AR = {"Soccer": "كرة القدم", "Basketball": "كرة السلة", "A
 SPORT_WORDS = {"Soccer": re.compile(r"football|soccer", re.I), "Basketball": re.compile(r"basketball", re.I),
                "American Football": re.compile(r"american football|gridiron|national football league", re.I)}
 SPORT_CLASS = {"Soccer": "Q476028", "Basketball": "Q13393265", "American Football": "Q17156793"}
-GUESSES = {"Portuguese Primeira Liga": "4344", "Turkish Super Lig": "4339"}   # used only if the name matches
+GUESSES = {"Portuguese Primeira Liga": "4344", "Turkish Super Lig": "4339", "NBA": "4387", "NFL": "4391"}   # used only if the name matches
 ALIASES = {"United States": ["USA", "United States of America"], "Jordan": ["Jordan national football team"],
            "South Korea": ["Korea Republic"], "Iran": ["IR Iran"], "China": ["China PR"]}
 NATIONAL = {   # national teams: TheSportsDB's English name -> our Arabic name
@@ -356,6 +356,22 @@ def league_ids(names, cached=None):
     return ids
 
 
+def scan_days(lid, name, today, every, days=25):
+    """The free API lists only a season's first 100 games, which leaves a league with 30 teams short a few early in
+    the season. Its games day by day (15 a day at most) name every team within a few weeks: add the sides found,
+    around today, until the league has its minimum. Returns the days asked."""
+    asked = 0
+    for k in range(days):
+        if len(every) >= LEAGUES[name]["min"]:
+            break
+        day = today + datetime.timedelta(days=(k + 1) // 2 * (1 if k % 2 else -1))   # 0, +1, -1, +2, -2, ...
+        asked += 1
+        for e in get(f"eventsday.php?d={day.isoformat()}&l={urllib.parse.quote(name.replace(' ', '_'))}").get("events") or []:
+            if str(e.get("idLeague")) == str(lid):
+                every.update(sides([e]))
+    return asked
+
+
 def collect_league(name, lid, today, teams, report, problems):
     """The clubs of the last two seasons that have matches, and of the last and next rounds."""
     seasons, nameless = {}, {}
@@ -375,6 +391,8 @@ def collect_league(name, lid, today, teams, report, problems):
     for found in [*seasons.values(), rounds]:
         every.update(found)
     if LEAGUES[name]["sport"] != "Soccer":   # preseason games name foreign sides: the league's own list decides
+        scanned = scan_days(lid, name, today, every)
+        report.setdefault("days scanned", {})[name] = scanned
         own = {str(t["idTeam"]): t["strTeam"].strip() for t in get("search_all_teams.php?" + urllib.parse.urlencode(
             {"l": name})).get("teams") or [] if t.get("idTeam") and t.get("strTeam")}
         report.setdefault("league team lists", {})[name] = len(own)
@@ -407,6 +425,9 @@ def collect_league(name, lid, today, teams, report, problems):
                         break
     report["clubs per league"][name] = {"clubs": len(every), "seasons": {s: len(f) for s, f in clubs_in.items()},
                                         "last and next rounds": len(rounds)}
+    for k in ("days scanned", "league team lists"):
+        if name in report.get(k, {}):
+            report["clubs per league"][name][k] = report[k][name]
     if any(without.values()):
         report["clubs per league"][name]["named in matches without an id"] = {s: v for s, v in without.items() if v}
     print(f"{name}: {len(every)} clubs {report['clubs per league'][name]['seasons']}", flush=True)
@@ -799,6 +820,9 @@ EVENT_LOOSE = re.compile(r"formula|ufc|mma|boxing|\batp\b|\bwta\b|tennis|grand s
 EVENT_FIELDS = ("strEvent", "strEventAlternate", "strLeague", "strHomeTeam", "strAwayTeam", "dateEvent", "strTime",
                 "strTimestamp", "strVenue", "strCity", "strCountry", "strStatus", "strSeason", "intRound")
 MAX_TENNIS = 3
+# TheSportsDB league ids around the ones events live at (Formula 1 4370, UFC 4443, ATP/WTA 4464/4517...): which is
+# which is read from what each answers, never assumed
+EVENT_IDS = [4370, 4443, 4444, 4445, 4446, 4447, 4448, 4449, 4450, 4464, 4465, 4466, 4467, 4468, 4517, 4518, 4519, 4520]
 
 
 def event_sample(events, n=6):   # what a league answers, for reading the report (the screen parses these fields)
@@ -808,8 +832,16 @@ def event_sample(events, n=6):   # what a league answers, for reading the report
 def collect_events(report, problems):
     """{key: [{id, name}]} for #events=: each wanted league found by name, tennis only if it has upcoming events.
     Also looks for a Saudi basketball league. The report keeps what each league answered."""
-    leagues = get("all_leagues.php").get("leagues") or []
+    leagues = list(get("all_leagues.php").get("leagues") or [])
     notes = report.setdefault("events", {})
+    notes["all_leagues.php gave"] = len(leagues)
+    if not leagues:   # the free key's list can come back empty: look the likely ids up one by one, as the report shows
+        notes["lookupleague.php"] = {}
+        for i in EVENT_IDS:
+            got = (get(f"lookupleague.php?id={i}").get("leagues") or [{}])[0]
+            notes["lookupleague.php"][str(i)] = [got.get("strLeague"), got.get("strSport")]
+            if got.get("strLeague"):
+                leagues.append(got)
     notes["leagues that look like events"] = [{"id": l["idLeague"], "name": l["strLeague"], "sport": l.get("strSport")}
                                               for l in leagues if EVENT_LOOSE.search(l.get("strLeague", ""))][:60]
     found = {}

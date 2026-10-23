@@ -268,6 +268,20 @@ def short_get(path):   # 2026-27 lists 19 of La Liga's 20: Club 19 is in last se
     return {"events": None}
 
 
+# early in a season the free API's first 100 games miss teams: day by day around today finds them
+asked_days = []
+def day_get(path):
+    asked_days.append(path)
+    k = len(asked_days)
+    return {"events": [{"idLeague": "4387", "idHomeTeam": str(700 + 2 * k), "strHomeTeam": f"T{2 * k}",
+                        "idAwayTeam": str(701 + 2 * k), "strAwayTeam": f"T{2 * k + 1}"}]}
+real_get, ti.get = ti.get, day_get
+have = {str(i): f"Team {i}" for i in range(28)}
+ti.scan_days("4387", "NBA", datetime.date.today(), have)
+ti.get = real_get
+check("a short league is completed day by day, and the scan stops at the minimum", len(have) >= 30
+      and len(asked_days) == 1 and "d=" + datetime.date.today().isoformat() in asked_days[0], (len(have), asked_days))
+
 real_get, ti.get = ti.get, short_get
 report, problems, teams = {"clubs per league": {}}, [], {}
 with contextlib.redirect_stdout(io.StringIO()):
