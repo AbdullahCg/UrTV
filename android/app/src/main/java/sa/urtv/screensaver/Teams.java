@@ -41,7 +41,7 @@ final class Teams {
                 JSONObject o = a.optJSONObject(i);
                 if (o == null || o.optString("id").isEmpty()) continue;
                 TeamSearch.Team t = new TeamSearch.Team(o.optString("id"), o.optString("en"), o.optString("ar"),
-                    strings(o.optJSONArray("leagues")), strings(o.optJSONArray("alt")));
+                    strings(o.optJSONArray("leagues")), strings(o.optJSONArray("alt")), o.optString("sport", "Soccer"));
                 v.add(t);
                 BY_ID.put(t.id, t);
                 if ("translit".equals(o.optString("arFrom"))) TRANSLIT.add(t.id);

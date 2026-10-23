@@ -22,8 +22,10 @@ final class TeamSearch {
     static final class Team {
         final String id, en, ar;
         final String[] leagues, alt;
-        Team(String id, String en, String ar, String[] leagues, String[] alt) {
-            this.id = id; this.en = en; this.ar = ar; this.leagues = leagues; this.alt = alt;
+        final String sport;   // TheSportsDB's strSport: "Soccer", "Basketball", "American Football"
+        Team(String id, String en, String ar, String[] leagues, String[] alt) { this(id, en, ar, leagues, alt, "Soccer"); }
+        Team(String id, String en, String ar, String[] leagues, String[] alt, String sport) {
+            this.id = id; this.en = en; this.ar = ar; this.leagues = leagues; this.alt = alt; this.sport = sport;
         }
         boolean saudi() {
             for (String l : leagues) if (l.contains("Saudi")) return true;

@@ -39,6 +39,12 @@ final class Prefs {
         {"NFL", "دوري كرة القدم الأمريكية (NFL)"},
     };
 
+    // Other sports shown in the matches slot and card beside the followed teams' games: only their next event
+    // (#events= key, Arabic label). The page finds each one's league ids in assets/shared/events.json (CI).
+    static final String[][] EVENTS = {
+        {"f1", "فورمولا 1"}, {"ufc", "UFC"}, {"boxing", "الملاكمة"}, {"tennis", "التنس (البطولات الكبرى)"},
+    };
+
     // TVMaze genre (sent to the page), Arabic label
     static final String[][] GENRES = {
         {"Drama", "دراما"}, {"Comedy", "كوميديا"}, {"Action", "أكشن"}, {"Crime", "جريمة"},
@@ -149,6 +155,7 @@ final class Prefs {
         return "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]
             + "&tz=" + Uri.encode(TZ)
             + "&teams=" + join(teamIds(), ",")
+            + "&events=" + join(list("events"), ",")
             + "&panel=" + panel()
             + "&week=" + ("none".equals(panel()) ? "0" : "1")   // for a page older than #panel
             + "&genres=" + Uri.encode(join(list("genres"), ","))

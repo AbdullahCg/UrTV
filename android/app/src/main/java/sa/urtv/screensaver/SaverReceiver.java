@@ -101,6 +101,8 @@ public class SaverReceiver extends BroadcastReceiver {
         List<String> langs = codes(i.getStringExtra("langs"), Prefs.LANGS);
         if (genres != null && genres.contains(null)) return "error: genres are " + names(Prefs.GENRES);
         if (langs != null && langs.contains(null)) return "error: langs are " + names(Prefs.LANGS);
+        List<String> events = codes(i.getStringExtra("events"), Prefs.EVENTS);
+        if (events != null && events.contains(null)) return "error: events are " + names(Prefs.EVENTS);
 
         if (city != null) p.setCity(city[0], city[1], city[2]);
         if (teams != null) p.setList("teams", teams);
@@ -109,6 +111,7 @@ public class SaverReceiver extends BroadcastReceiver {
         if (rating != null) p.setMinRating(rating);
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
+        if (events != null) p.setList("events", events);
         return "saved\n" + describe(p);
     }
 
@@ -119,6 +122,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\npanel: " + p.panel() + "\nhome_panel: " + p.homePanel()
             + "\nminrating: " + p.minRating()
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
+            + "\nevents: " + Prefs.join(p.list("events"), ",")
             + "\nautoupdate: " + p.autoUpdate();
     }
 

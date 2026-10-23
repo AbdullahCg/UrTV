@@ -340,6 +340,9 @@ const CONFIG = {
             : [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137'])
     .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)).slice(0, 20),
   sportsKey: '123',
+  // other sports beside the teams' games: #events=f1,ufc,boxing,tennis (default none)
+  events: _list('events').filter(k => ['f1','ufc','boxing','tennis'].includes(k)),
+  eventWindowDays: 14,
   // the card beside the clock: shows | prayers | forecast | matches | verse | none (#week=0 from older builds = none)
   panel: (p => ['shows','prayers','forecast','matches','verse','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
@@ -720,9 +723,12 @@ function toDate(ev){
 // one slot per picked team: a result from the last 24h, else a fixture this week, else hidden
 // A game is over once its status says so, or 2.5 h after kick-off; its score stays up for a day after that.
 const FINAL = ['FT','AET','PEN','MATCH FINISHED'];
+// how long a game lasts, by sport, before it counts as over without a final status
+const DUR_H = {Soccer:2.5, Basketball:3, 'American Football':3.75};
+const durMs = ev => (DUR_H[ev.strSport] || 2.5) * 3600000;
 function finishedRecently(ev, now){
   if(!ev || ev.intHomeScore == null || ev.intAwayScore == null) return false;
-  const k = toDate(ev).getTime(), end = k + 2.5*3600000;
+  const k = toDate(ev).getTime(), end = k + durMs(ev);
   const over = FINAL.includes((ev.strStatus || '').toUpperCase()) ? now >= k : now >= end;
   return over && now - end < 86400000;
 }
@@ -754,7 +760,7 @@ function matchSlot(id, now, shown){
   if(!ev || shown.has(ev.idEvent)) return '';
   const home = esc(teamAr(ev.strHomeTeam, ev.idHomeTeam)), away = esc(teamAr(ev.strAwayTeam, ev.idAwayTeam));
   const d = toDate(ev), diff = d - now;
-  if(diff < -2.5*3600000 || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
+  if(diff < -durMs(ev) || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
   shown.add(ev.idEvent);
   const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
     .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
@@ -773,7 +779,7 @@ function liveStatus(ev, t12){
   if(st === 'HT') return 'استراحة';
   if(['FT','AET','PEN'].includes(st)) return 'انتهت';
   const m = parseInt(ev.strProgress, 10);
-  return isNaN(m) ? `بدأت ${t12}` : `الدقيقة ${ar(m)}`;
+  return isNaN(m) || (ev.strSport && ev.strSport !== 'Soccer') ? `بدأت ${t12}` : `الدقيقة ${ar(m)}`;   // minutes are football's
 }
 
 // while a picked team is playing, refresh that event every 2 minutes
@@ -782,7 +788,7 @@ async function loadLive(){
   await Promise.all(Object.entries(MATCHES).map(async ([id, ev])=>{
     if(!ev || !ev.idEvent) return;
     const k = toDate(ev).getTime();
-    if(now < k - 5*60000 || now > k + 2.5*3600000) return;
+    if(now < k - 5*60000 || now > k + durMs(ev)) return;
     try{
       const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/lookupevent.php?id=${ev.idEvent}`, 10000);
       const j = await r.json();
@@ -793,11 +799,129 @@ async function loadLive(){
   renderMatches();
 }
 
+// ---------- other sports: Formula 1, UFC, boxing, tennis (events, not teams) ----------
+// Each has TheSportsDB leagues, found by CI (assets/shared/events.json); the next events of each are asked for every
+// 30 minutes with the matches, and shown beside the followed teams' games: the event's name, not «فريق × فريق».
+const EVENT_LEAGUES = {};
+let EVENT_NEXT = {};   // key -> upcoming events, as the leagues answered
+const EVENT_DUR_H = {f1:2.5, ufc:6, boxing:5, tennis:8};
+const EVENT_TAG = {f1:'', ufc:'', boxing:'ملاكمة', tennis:'تنس'};
+const COUNTRY_AR = {'saudi arabia':'السعودية','bahrain':'البحرين','qatar':'قطر','united arab emirates':'الإمارات','uae':'الإمارات',
+  'australia':'أستراليا','japan':'اليابان','china':'الصين','united states':'الولايات المتحدة','usa':'الولايات المتحدة',
+  'italy':'إيطاليا','monaco':'موناكو','canada':'كندا','spain':'إسبانيا','austria':'النمسا','united kingdom':'بريطانيا',
+  'great britain':'بريطانيا','england':'بريطانيا','hungary':'المجر','belgium':'بلجيكا','netherlands':'هولندا',
+  'azerbaijan':'أذربيجان','singapore':'سنغافورة','mexico':'المكسيك','brazil':'البرازيل','france':'فرنسا','germany':'ألمانيا',
+  'portugal':'البرتغال','turkey':'تركيا','russia':'روسيا','south korea':'كوريا الجنوبية','malaysia':'ماليزيا','india':'الهند',
+  'argentina':'الأرجنتين','egypt':'مصر','morocco':'المغرب'};
+// the place in «X Grand Prix» as Arabic writes it (the country, or the city for Miami, Las Vegas, Monaco…)
+const GP_AR = {'saudi arabian':'السعودية','saudi arabia':'السعودية','bahrain':'البحرين','australian':'أستراليا','japanese':'اليابان',
+  'chinese':'الصين','miami':'ميامي','emilia romagna':'إميليا رومانيا','emilia-romagna':'إميليا رومانيا','monaco':'موناكو',
+  'canadian':'كندا','spanish':'إسبانيا','barcelona':'إسبانيا','austrian':'النمسا','british':'بريطانيا','hungarian':'المجر',
+  'belgian':'بلجيكا','dutch':'هولندا','italian':'إيطاليا','azerbaijan':'أذربيجان','singapore':'سنغافورة','united states':'الولايات المتحدة',
+  'american':'الولايات المتحدة','mexico city':'مدينة المكسيك','mexican':'المكسيك','mexico':'المكسيك','sao paulo':'ساو باولو',
+  'brazilian':'البرازيل','brazil':'البرازيل','las vegas':'لاس فيغاس','qatar':'قطر','abu dhabi':'أبوظبي','french':'فرنسا',
+  'portuguese':'البرتغال','styrian':'ستيريا','70th anniversary':'الذكرى السبعين','eifel':'آيفل','turkish':'تركيا','russian':'روسيا'};
+const SESSIONS = [[/sprint\s*(qualifying|shootout)/i, 'تأهل السبرنت'], [/sprint/i, 'السبرنت'],
+  [/(?:free\s*)?practice\s*(\d)|\bfp\s*(\d)/i, null], [/qualifying|\bquali\b/i, 'التأهل'], [/race|grand prix/i, 'السباق']];
+const TENNIS_AR = [[/australian open/i,'أستراليا المفتوحة'],[/roland garros|french open/i,'رولان غاروس'],[/wimbledon/i,'ويمبلدون'],
+  [/us open/i,'أمريكا المفتوحة'],[/atp finals/i,'نهائيات ATP'],[/wta finals/i,'نهائيات WTA'],[/indian wells/i,'إنديان ويلز'],
+  [/miami open/i,'ميامي المفتوحة'],[/monte.carlo/i,'مونت كارلو'],[/madrid/i,'مدريد المفتوحة'],[/rome|italian open/i,'روما المفتوحة'],
+  [/cincinnati/i,'سينسيناتي'],[/shanghai/i,'شنغهاي'],[/paris masters/i,'باريس ماسترز'],[/riyadh/i,'الرياض'],[/jeddah/i,'جدة']];
+const foldKey = s => String(s || '').normalize('NFKD').replace(/[̀-ͯ]+/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const arDigits = s => String(s).replace(/[0-9]/g, d => AR[+d]);
+const trl = s => String(s || '').split(/(\s+)/).map(w => /[A-Za-z]/.test(w) ? translit(w) : w).join('');   // names of people
+
+// one TheSportsDB event of league key -> {title, tag, country, t, dur}
+function eventInfo(key, ev){
+  const name = String(ev.strEvent || ev.strEventAlternate || '').trim();
+  let title = '', session = '';
+  if(key === 'f1'){
+    const gp = name.match(/^(.*?)\s*grand prix/i);
+    const place = gp ? foldKey(gp[1].replace(/\bformula\s*1\b/i,'').replace(/\b20\d\d\b/,'')) : '';
+    const rest = name.replace(/^.*?grand prix/i,'');
+    for(const [rx, label] of SESSIONS){
+      const m = (rest || name).match(rx);
+      if(!m) continue;
+      session = label || 'التجارب الحرة ' + arDigits(m[1] || m[2] || '');
+      break;
+    }
+    if(!session) session = 'السباق';
+    title = gp ? 'جائزة ' + (GP_AR[place] || trl(gp[1].trim())) + ' الكبرى' : trl(name);
+  }else if(key === 'tennis'){
+    const hit = TENNIS_AR.find(([rx]) => rx.test(name + ' ' + (ev.strLeague || '')));
+    title = hit ? hit[1] : trl(name);
+    if(ev.strHomeTeam && ev.strAwayTeam) title += ' · ' + trl(ev.strHomeTeam) + ' × ' + trl(ev.strAwayTeam);
+  }else{
+    const m = name.match(/^(UFC[^:]*?|[^:]*?)\s*:\s*(.+)$/i);
+    const prefix = /^UFC/i.test(name) && m ? arDigits(m[1].trim()) : '';
+    let pair = ev.strHomeTeam && ev.strAwayTeam ? [ev.strHomeTeam, ev.strAwayTeam]
+      : ((m ? m[2] : name).split(/\s+vs\.?\s+/i));
+    title = pair.length === 2 ? trl(pair[0]) + ' × ' + trl(pair[1]) : arDigits(m ? trl(m[2]) : trl(name));
+    if(prefix) title = prefix + ' · ' + title;
+    else if(key === 'ufc' && !/UFC/i.test(title)) title = 'UFC · ' + title;
+  }
+  const c = foldKey(ev.strCountry);
+  const country = COUNTRY_AR[c] || (c ? trl(ev.strCountry) : '');
+  return {title: key === 'f1' ? title + ' · ' + session : title, tag: EVENT_TAG[key], country: title.includes(country) ? '' : country,
+          t: toDate(ev).getTime(), dur: EVENT_DUR_H[key] * 3600000};
+}
+// the events of key still to come (or running) within the window, soonest first
+function eventsOf(key, now){
+  const over = e => /^(FT|AET|PEN|FINISHED|MATCH FINISHED|CANCELLED|POSTPONED)$/i.test(e.strStatus || '');
+  return (EVENT_NEXT[key] || []).filter(e => e && e.idEvent && !over(e))
+    .map(e => ({e, i: eventInfo(key, e)}))
+    .filter(x => !isNaN(x.i.t) && now < x.i.t + x.i.dur && x.i.t - now <= CONFIG.eventWindowDays * 86400000)
+    .sort((a, b) => a.i.t - b.i.t);
+}
+function eventWhen(i, now){
+  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
+    .formatToParts(new Date(i.t)).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  const t12 = ar(fmt12(+p.hour % 24, +p.minute));
+  const sameDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(i.t))
+               === new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(now));
+  const dayName = sameDay ? 'اليوم' : new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(new Date(i.t));
+  if(now >= i.t) return {live:true, text: `<span class="live">مباشر</span> · بدأ ${t12}`, row: '<span class="live">مباشر</span>'};
+  return {live:false, text: sameDay ? `اليوم · ${t12}` : `بعد ${shortRemaining(i.t - now)} · ${t12}`, row: `${dayName} ${t12}`};
+}
+function eventSlot(key, now){
+  const x = eventsOf(key, now)[0];
+  if(!x) return '';
+  const w = eventWhen(x.i, now);
+  const sub = [x.i.tag, x.i.country, w.text].filter(Boolean).join(' · ');
+  return `<div class="mblock"><div class="big"><span>${esc(x.i.title)}</span></div><div class="sub">${sub}</div></div>`;
+}
+function eventRows(now){   // for the card: a Formula 1 weekend's sessions, else the next event of each
+  const rows = [];
+  for(const key of CONFIG.events) eventsOf(key, now).slice(0, key === 'f1' ? 4 : 1).forEach(x => {
+    const w = eventWhen(x.i, now);
+    rows.push({t: x.i.t, html: `<li><span>${esc(x.i.title)}</span><span class="dt">${w.row}</span></li>`});
+  });
+  return rows;
+}
+async function loadEvents(){
+  for(const key of CONFIG.events){
+    const got = [];
+    let answered = false;
+    await Promise.all((EVENT_LEAGUES[key] || []).map(async l => {
+      try{
+        const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventsnextleague.php?id=${l.id}`, 10000);
+        if(!r.ok) return;
+        const j = await r.json(); answered = true;
+        got.push(...(j.events || []));
+      }catch(e){}
+    }));
+    if(answered) EVENT_NEXT[key] = got;   // a failed refresh keeps the last events
+  }
+  renderMatches();
+  if(CONFIG.panel === 'matches') renderPanel(false);
+}
+
 // Every followed team with something to show, two at a time; the page turns every 15 s.
 let MATCH_PAGE = 0;
 function renderMatches(turn){
   const now = Date.now(), shown = new Set();
-  const slots = CONFIG.teamIds.map(id => matchSlot(id, now, shown)).filter(Boolean);
+  const slots = [...CONFIG.teamIds.map(id => matchSlot(id, now, shown)),
+                 ...CONFIG.events.map(k => eventSlot(k, now))].filter(Boolean);
   const row = document.getElementById('match-row');
   if(!slots.length){ if(!MATCHES_LOADED && row.firstElementChild) return; row.innerHTML = '<div class="none-week">لا شيء هذا الأسبوع</div>'; return; }
   const per = CONFIG.matchesPerPage, pages = Math.ceil(slots.length / per);
@@ -825,6 +949,7 @@ async function loadMatches(){
   }));
   if(!answered && CONFIG.teamIds.length) return;    // offline: keep what is shown (the saved panels)
   MATCHES_LOADED = true;
+  loadEvents();
   renderMatches();
   if(CONFIG.panel === 'matches') renderPanel(false);
 }
@@ -1039,9 +1164,10 @@ function matchRows(){
   });
   const day = d => new Intl.DateTimeFormat(GREG, {timeZone:CONFIG.timezone, weekday:'long'}).format(d);
   const today = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(new Date());
-  return evs.map(ev => ({ev, t: toDate(ev).getTime()}))
+  const others = eventRows(now);
+  return [...evs.map(ev => ({ev, t: toDate(ev).getTime()}))
     .filter(x => finishedRecently(x.ev, now)
-      || (now < x.t + 2.5*3600000 && !FINAL.includes((x.ev.strStatus || '').toUpperCase())
+      || (now < x.t + durMs(x.ev) && !FINAL.includes((x.ev.strStatus || '').toUpperCase())
           && x.t - now <= CONFIG.weekWindowDays * 86400000))
     .sort((a, b) => a.t - b.t)
     .map(({ev, t}) => {
@@ -1053,8 +1179,8 @@ function matchRows(){
         : now >= t ? '<span class="live">مباشر</span>'
         : (new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(d) === today ? 'اليوم' : day(d))
           + ' ' + fmt12(+p.hour % 24, +p.minute);
-      return `<li><span>${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}${mid}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span><span class="dt">${when}</span></li>`;
-    });
+      return {t, html: `<li><span>${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}${mid}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span><span class="dt">${when}</span></li>`};
+    }), ...others].sort((a, b) => a.t - b.t).map(x => x.html);
 }
 
 // verse one day, hadith the next. Verse texts come from the Quran API via CI (.github/tools/fetch_verses.py), never typed.
