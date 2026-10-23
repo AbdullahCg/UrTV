@@ -91,6 +91,7 @@
                 <action android:name="sa.urtv.screensaver.CITIES" />
                 <action android:name="sa.urtv.screensaver.UPDATE" />
                 <action android:name="sa.urtv.screensaver.TASKS" />
+                <action android:name="sa.urtv.screensaver.PHOTOS" />
             </intent-filter>
         </receiver>
 
@@ -99,6 +100,12 @@
             android:authorities="sa.urtv.screensaver.config"
             android:exported="true"
             android:readPermission="sa.urtv.screensaver.READ_CONFIG"
-            android:writePermission="sa.urtv.screensaver.WRITE_TASKS" />
+            android:writePermission="sa.urtv.screensaver.WRITE_TASKS">
+            <!-- the shell hands over a photo here (`content write`, optimize/photos.sh); DUMP as for SaverReceiver -->
+            <path-permission
+                android:path="/own-in"
+                android:readPermission="android.permission.DUMP"
+                android:writePermission="android.permission.DUMP" />
+        </provider>
     </application>
 </manifest>

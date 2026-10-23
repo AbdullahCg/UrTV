@@ -1399,6 +1399,79 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 
+// ---- «صوري»: the owner's own photos (#own=N&ownmode=mix|only). The app answers https://own.urtv.invalid/N.jpg from its own folder;
+// here a generated picture stands in. Rotated hour by hour with 60-minute slots (the Riyadh clock is stubbed).
+{
+  const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAJABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDkKKKKzPJP/9k=', 'base64');
+  const OWN = 'https://own.urtv.invalid/';
+  const rotate = async (hash, { failOwn = false } = {}) => {
+    const asked = [];
+    const net = r => {
+      const u = r.request().url();
+      asked.push(u);
+      if (!u.startsWith(OWN)) return false;
+      if (failOwn) { r.abort(); return true; }
+      r.fulfill({ contentType: 'image/jpeg', body: JPEG });
+      return true;
+    };
+    const o = await open('tv.html', hash + '&photos=60', { net });
+    const seen = new Set();
+    let credit = '';
+    for (let h = 0; h < 24; h++) {
+      await o.p.evaluate(h => { const orig = window.__rp || (window.__rp = riyadhParts); riyadhParts = d => ({ ...orig(d), h, mi: 0 }); applyBackground(true); }, h);
+      await o.p.waitForTimeout(60);
+      const [bg, cr] = await o.p.evaluate(() => [document.querySelector('.photo').style.backgroundImage, document.getElementById('credit').textContent]);
+      seen.add(bg.replace(/^url\("?|"?\)$/g, ''));
+      if (bg.includes('own.urtv.invalid')) credit += cr;
+    }
+    await o.ctx.close();
+    return { seen: [...seen], asked, credit, errors: o.errors };
+  };
+  const ownSeen = r => r.seen.filter(u => u.startsWith(OWN));
+  const hosted = r => r.seen.filter(u => u.includes('/photos/'));
+  const bundled = r => r.seen.filter(u => u.includes('/assets/backgrounds/') || u.startsWith('data:'));
+
+  let r = await rotate('own=3&ownmode=only');
+  check('own photos, only: every photo of the owner shows, and nothing of ours', ownSeen(r).length === 3 && r.seen.length === 3
+    && ownSeen(r).every(u => /\/[123]\.jpg$/.test(u)), r.seen.join(' '));
+  check('own photos, only: no network for our photos (no index, no hosted, no bundled)',
+    !r.asked.some(u => u.includes('/photos/') || u.includes('/assets/backgrounds/')), r.asked.filter(u => !u.startsWith(OWN)).join(' '));
+  check('own photos: no credit line', r.credit === '' && !r.errors.length, r.credit + r.errors.join(';'));
+
+  r = await rotate('own=2&ownmode=mix');
+  check('own photos, mix: theirs join ours in the rotation', ownSeen(r).length === 2 && hosted(r).length > 0, r.seen.join(' '));
+
+  r = await rotate('own=2');
+  check('own photos: mix is the default mode', ownSeen(r).length === 2 && hosted(r).length > 0, r.seen.join(' '));
+
+  r = await rotate('city=جدة');
+  check('no own photos: nothing changes (ours only, no own request)', ownSeen(r).length === 0 && hosted(r).length > 0
+    && !r.asked.some(u => u.startsWith(OWN)), r.seen.join(' '));
+
+  r = await rotate('own=0&ownmode=only');
+  check('no own photos, only: ours (only needs a photo to apply)', ownSeen(r).length === 0 && hosted(r).length > 0, r.seen.join(' '));
+
+  r = await rotate('own=99&ownmode=only');
+  check('own photos: at most 10', ownSeen(r).length <= 10 && ownSeen(r).every(u => /\/(10|[1-9])\.jpg$/.test(u)), r.seen.join(' '));
+
+  r = await rotate('own=2&ownmode=only', { failOwn: true });
+  check('own photos, only, unreadable: a bundled photo shows, never an empty screen', r.seen.every(u => u !== '' && u !== 'none') && bundled(r).length > 0, r.seen.join(' '));
+
+  // no hosted index yet (first start, offline): theirs join the bundled photos
+  {
+    const o = await open('tv.html', 'own=1&ownmode=mix&photos=60', { seed: false, net: r2 => { if (r2.request().url().startsWith(OWN)) { r2.fulfill({ contentType: 'image/jpeg', body: JPEG }); return true; } return false; } });
+    const seen = new Set();
+    for (let h = 0; h < 24; h++) {
+      await o.p.evaluate(h => { const orig = window.__rp || (window.__rp = riyadhParts); riyadhParts = d => ({ ...orig(d), h, mi: 0 }); applyBackground(true); }, h);
+      await o.p.waitForTimeout(60);
+      seen.add(await o.p.evaluate(() => document.querySelector('.photo').style.backgroundImage));
+    }
+    const all = [...seen].join(' ');
+    check('own photos, mix, no hosted set yet: theirs join the bundled photos', all.includes('own.urtv.invalid/1.jpg') && seen.size > 1, all.slice(0, 300));
+    await o.ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

@@ -285,6 +285,7 @@ optimize/saver.sh mkstyle <arrows or prices>      # ONLY if I asked to see the p
 optimize/saver.sh stocks <Tadawul codes and US tickers, e.g. 2222 1120 AAPL>   # ONLY with card stocks: my watchlist, up to 8 (default 2222 1120 7010 2010: leave it)
 optimize/saver.sh slot <matches, weather, fasting, countdown, markets or none>   # ONLY if I asked what the bottom-left slot shows (default matches: leave it; with no team it shows the weather by itself)
 optimize/saver.sh countdown <YYYY-MM-DD> '<name>'   # ONLY if I asked for a countdown (also: slot countdown); "countdown clear" removes it
+# own photos (only if I ask, or say yes to the offer in step 7): optimize/photos.sh add FILE... | list | del N | clear | mode mix|only | show
 optimize/saver.sh update
 optimize/saver.sh show                            # read both back to me
 optimize/dock.sh show
@@ -340,6 +341,21 @@ optimize/run.sh status                            # every step ✓, and «report
 - How to undo, again: the folder's full path and the exact command to paste there
   (`optimize/reset.sh`; on Windows in Git Bash), what it brings back, and that if I ever want it, I can open an
   agent on this computer and say «رجّع التلفزيون مثل ما كان: شغّل optimize/reset.sh في مجلد UrTV».
+
+### Offer: my own photos (once, after step 7; skip it if I'm in a hurry)
+
+Ask me in one line, in my language: «تبغى صورك أنت خلفية للشاشة؟ لاعبك المفضل، بلدك، عائلتك… من ١ إلى ١٠ صور.»
+If I say no or don't answer, say nothing more about it. If I say yes:
+- **Ask me where the files are** (a folder or the file names) and wait. Never look for them yourself: don't list, search
+  or open my Pictures, Downloads, Desktop, phone backups or any other folder I haven't named. Use only the files I named.
+- 1 to 10 photos. Ask whether they should **join** the Saudi photos (`mix`, the default) or be **the only ones** (`only`).
+- Run `optimize/photos.sh add <the files I named>`. It makes each one ready on this computer (upright, at the TV's screen
+  size, JPEG, all metadata such as location and camera removed) before anything is uploaded, so tell me that's done
+  and that nothing leaves this computer except to my TV. If I chose `only`: `optimize/photos.sh mode only`.
+- Show me the result: `optimize/photos.sh list`, then `optimize/photos.sh show` and look at the screenshot yourself.
+  Never keep, copy or upload my photos anywhere else, and never put them in this folder.
+- Tell me I can change it any time: `optimize/photos.sh del N`, `clear` (the TV goes back to our photos only), `mode mix|only`,
+  or in the screensaver app's settings, row «صوري» (mode, remove all). Adding photos is only through you.
 
 ## 8. Ask me to share how it went (the very last thing)
 
