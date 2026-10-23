@@ -46,6 +46,8 @@ except ModuleNotFoundError:
              "«✓ Python ADB client», else it says why. Then the same command again.")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)   # python -I does not look next to the script
+import wireless   # noqa: E402  (Wireless debugging, Android 11+: pairing, the adb program, mDNS)
 HOST_FILE = os.path.join(HERE, ".tv_host")  # written by find-tv.sh, git-ignored
 # What identifies this computer to the TV (its ADB key) and which TV the setup is for live in the person's home, not in the
 # clone: a new clone gets no new key (the TV would ask «Allow USB debugging?» for a computer it already trusts, or nothing
@@ -182,6 +184,20 @@ def move_old(old, new):
     return False
 
 
+def new_dev(timeout):
+    """A connection object for the TV. Port 5555 by default (adb_shell). A TV that was paired for Wireless debugging (find-tv.sh
+    pair) goes through the adb program instead, on the port it has now (looked up again by mDNS after a restart); TV_PORT set
+    by hand always means plain TCP."""
+    st = None if "TV_PORT" in os.environ else wireless.state_for(HOST)
+    if st:
+        return wireless.AdbCli(HOST, st, timeout)
+    return AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=timeout)
+
+
+def upload_chunk():
+    return wireless.AdbCli.chunk if "TV_PORT" not in os.environ and wireless.state_for(HOST) else 96_000
+
+
 def signer():
     os.makedirs(os.path.dirname(KEY), exist_ok=True)
     try:
@@ -206,7 +222,7 @@ class TV:
 
     def _open(self):
         self.close()
-        dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=60.0)
+        dev = new_dev(60.0)
         dev.connect(rsa_keys=[signer()], auth_timeout_s=120)
         if self.guard:
             try:
@@ -319,8 +335,9 @@ def run_bg(tv, name, cmd, progress=None, limit_s=None):
     return (int(rc) if rc.lstrip("-").isdigit() else 1), out
 
 
-def push_b64(tv, local, remote, chunk=96_000):   # one argument may not exceed 128 KB on Android
+def push_b64(tv, local, remote, chunk=None):   # one argument may not exceed 128 KB on Android (32 KB on a Windows command line)
     """Upload in base64 pieces; on a retry, pieces already on the TV are kept (resumes, not restarts)."""
+    chunk = chunk or upload_chunk()
     data = open(local, "rb").read()
     enc = base64.b64encode(data).decode()
     folder = remote.rsplit("/", 1)[0] or "/"
@@ -395,7 +412,7 @@ def wait_for_tv(limit_s=300, before=None, restart=False):
     down = False   # seen not answering, or still booting, since we started
     while time.time() - start < limit_s:
         try:
-            dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=15.0)
+            dev = new_dev(15.0)
             dev.connect(rsa_keys=[signer()], auth_timeout_s=30)
             booted = dev.shell("getprop sys.boot_completed", read_timeout_s=15).strip()
             now = boot_marker(dev) if restart else None
@@ -421,7 +438,7 @@ def main():
         return
     if a == ["--reboot"]:   # once: a retried reboot could restart the TV twice
         try:
-            dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=30.0)
+            dev = new_dev(30.0)
             dev.connect(rsa_keys=[signer()], auth_timeout_s=60)
         except Exception as e:  # noqa: BLE001  (nothing was sent: safe to run again)
             sys.exit(f"!! Can't reach the TV to restart it ({type(e).__name__}: {e}). Nothing was sent; run it again.")

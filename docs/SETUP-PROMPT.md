@@ -128,6 +128,24 @@ optimize/find-tv.sh --check            # Windows: always through Git Bash (below
   «Set up my TV with https://github.com/tshi-dev/UrTV: clone it and follow `docs/SETUP-PROMPT.md` step by step. You are on a computer on the same Wi-Fi as the TV.»
   Don't look for workarounds.
 
+**Android 11 or newer, and port 5555 does not answer: pair with «Wireless debugging».** Some Android 11+ TVs (a Skyworth on
+Android 14 closed 5555 after every restart) offer ADB only through Developer options → «Wireless debugging». If
+`optimize/find-tv.sh` ends with `No TV with ADB open` and the TV is Android 11 or newer (or it says the TV answers as
+«Wireless debugging»), offer it to me once, in Arabic, and wait for my answer:
+
+> التلفزيون ما فتح المنفذ العادي (5555). نستخدم «التصحيح اللاسلكي»: في التلفزيون افتح الإعدادات ← النظام ← خيارات
+> المطوّر ← «Wireless debugging» وشغّله، بعدين اضغط «Pair device with pairing code». بيطلع لك رمز من ٦ أرقام وتحته
+> عنوان مثل 192.168.x.x:xxxxx. اكتبهم لي هنا، وخلّ النافذة مفتوحة.
+
+Then `optimize/find-tv.sh pair <IP:port of that window> <the 6 digits>` (alone, `pair` explains it and shows the
+pairing port if the TV announces it). It pairs, finds the connection port by itself, connects and remembers the TV in
+`~/.urtv` (never in a report or a share); then `--probe` as in step 1. It needs the platform's `adb` program: if it
+says it is missing, install it as its message says (`winget install -e --id Google.PlatformTools`,
+`brew install android-platform-tools`, `sudo apt install adb`) and run the same command again. After a restart
+the port changes: `tv.py` and `find-tv.sh` look it up again by themselves; only if that fails, ask me for the
+«IP address & Port» on the main Wireless debugging screen (not the pairing window) and run
+`optimize/find-tv.sh connect <IP:port>`. No code and no IP goes in `report.md` or the share.
+
 Signs you are in such a place, if you want to know why: your address is not 192.168.x, 10.x or 172.16–31.x; the
 network interfaces are only `lo` and `tap0`; `echo > /dev/tcp/<router>/80` says `Network is unreachable`; or every
 address "answers" (a proxy). If `git clone` stops halfway (on Windows it can leave an empty folder, «No commits
@@ -185,7 +203,11 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `reset.sh`: `mv: cannot move 'optimize/run' … Permission denied` (Windows) | something holds a file open inside `optimize/run` (a log you write there, an editor, an image viewer) | close it, never write your own logs into `optimize/run`; the same command again (the apps are already removed, it carries on) |
 | `!! This terminal cannot reach the home network` | your commands run in a cloud, sandbox or virtual machine | stop, tell me (step 0) |
 | `Don't know your TV's IP` | `find-tv.sh` was not run or found nothing | `optimize/find-tv.sh`, or ask me for the IP (TV: Settings → Network → the Wi-Fi) and save it: `echo <ip> > optimize/.tv_host` |
-| `No TV with ADB open` | debugging off, TV asleep, or the computer is on another (guest) Wi-Fi | ask me to check all three, then `optimize/find-tv.sh` again |
+| `No TV with ADB open` | debugging off, TV asleep, or the computer is on another (guest) Wi-Fi | ask me to check all three, then `optimize/find-tv.sh` again (it scans the whole network, the router's known devices and mDNS, and knocks twice, slowly the second time); on Android 11+ with 5555 still closed: pair (step 0, «Wireless debugging») |
+| `No TV with ADB open on port 5555` and «Wireless debugging» in the next line, or `ADB open` never appears after a restart of a TV that worked before | Android 11+ TVs may close 5555 after every restart (seen on a Skyworth, Android 14) | `optimize/find-tv.sh pair` (step 0); a TV that was paired once is reconnected by `optimize/find-tv.sh` itself |
+| `!! Wireless debugging needs the platform's own adb program` | pairing and the Wireless-debugging connection go through `adb`, which isn't installed (the Python client has no pairing) | install it as the line says (`winget install -e --id Google.PlatformTools`, `brew install android-platform-tools`, `sudo apt install adb`), a new Git Bash window on Windows, then the same command |
+| `!! Pairing failed: the code is wrong or it has expired` / `the pairing dialog must be open` | the 6 digits changed (they do whenever the dialog is closed and opened), or the IP:port is not the one in the dialog | ask me to read the dialog again, then `optimize/find-tv.sh pair <IP:port> <code>` |
+| `the TV's Wireless-debugging port does not answer and was not found on the Wi-Fi` | the port changed after a restart and the router doesn't pass mDNS (multicast) | ask me for «IP address & Port» on the main Wireless debugging screen, then `optimize/find-tv.sh connect <IP:port>` |
 | `!! This is not the TV the setup started on` | two devices answer on this Wi-Fi (a box and the TV), or the address now belongs to another one; the script stopped **before changing anything** | ask me which one is my TV; `optimize/find-tv.sh` and pick it (or `echo <ip> > optimize/.tv_host`), then the same command. The same TV on a new address is fine. Only if I say it really is a new TV: `optimize/venv/bin/python -I optimize/tv.py --new-tv`, then `optimize/run.sh` (it starts from the first step); or work from a fresh clone of the repo |
 | `!! TV not answering after 4 tries` | TV went to standby, lost Wi-Fi, or got a new IP | ask me to wake the TV; run `optimize/find-tv.sh` if the IP may have changed; then the same command |
 | `!! TV did not come back within 5 minutes` | slow restart, or it stayed in standby | ask me to turn it on, then `optimize/venv/bin/python -I optimize/tv.py --wait`, then the same command |
