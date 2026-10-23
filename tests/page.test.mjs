@@ -1479,6 +1479,31 @@ for (const [width, height] of [[461, 250], [1920, 1080], [960, 540]]) {   // lon
   }
 }
 
+// ---- «تعديل وقت الصلاة» on the screensaver's page, with the fragment as the app builds it (Prefs.fragment(): the offsets come after yearstrip):
+// the card, the next-prayer panel, the adhan bar and the iqama wait all read the moved Maghrib (17:45 + 2 = 17:47), here and in the launcher's card
+{
+  const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
+  const FRAG = 'city=%D8%A7%D9%84%D8%B1%D9%8A%D8%A7%D8%B6&lat=24.7136&lon=46.6753&tz=Asia%2FRiyadh&teams=&events=&leagues=&panel=prayers&week=1&genres=&langs=&shows=&minrating=0&photos=30&digits=hindi&cardstyle=current&adhanbar=1&yearstrip=0&adj=0,0,0,2,0&national=all&markets=tasi,spx,btc&mkstyle=arrows&stocks=&slot=matches&cd=&cdname=';
+  for (const [when, label, wantCard, wantPanel, wantBar] of [
+      ['2026-10-22T13:40:00Z', '16:40', '٥:٤٧ م', 'المغرب ٥:٤٧ م', ''],
+      ['2026-10-22T14:44:00Z', '17:44, three minutes to the moved adhan', '٥:٤٧ م', 'المغرب ٥:٤٧ م', 'الأذان بعد ٣ دقائق'],
+      ['2026-10-22T14:46:00Z', '17:46: the unmoved Maghrib has passed, the moved one has not', '٥:٤٧ م', 'المغرب ٥:٤٧ م', 'الأذان بعد ١ دقيقة'],
+      ['2026-10-22T14:50:00Z', '17:50: in the iqama wait (17:47 + 10)', '٥:٤٧ م', 'المغرب ٥:٤٧ م', 'الإقامة بعد ٧ دقائق']]) {
+    for (const [hash, width, height] of [[FRAG, 1920, 1080], [FRAG + '&widget=1', 561, 253]]) {
+      const { p, ctx, errors } = await open('tv.html', hash, { width, height });
+      await p.clock.setFixedTime(new Date(when));
+      await p.evaluate(TIMES + ' renderPanel(false); tickPrayer();');
+      const r = await p.evaluate(() => ({ adj: CONFIG.prayerAdj.join(), maghrib: fmt12(...[PRAYERS.find(x => x.key === 'Maghrib')].map(x => [x.h, x.mi])[0]),
+        card: [...document.querySelectorAll('#week-list li')].map(l => l.textContent.replace(/\s+/g, ' ').trim()).find(t => t.startsWith('المغرب')) || '',
+        panel: (document.getElementById('prayer-name').textContent + ' ' + document.getElementById('prayer-time').textContent).trim(), bar: adhanBarText() || '' }));
+      const tag = `adj on the page, ${label}, ${width}x${height}${hash.includes('widget') ? ' card' : ''}`;
+      check(`${tag}: the offsets arrive with the fragment and the card, the panel${hash.includes('widget') ? '' : ', the bar'} show the moved Maghrib`,
+        !errors.length && r.adj === '0,0,0,2,0' && r.maghrib === wantCard && r.card.includes(wantCard) && (hash.includes('widget') || (r.panel === wantPanel && r.bar === wantBar)), JSON.stringify(r) + errors.join('; '));
+      await ctx.close();
+    }
+  }
+}
+
 // ---- «الصلوات في صف»: five prayers in one row, the next lit, «المغرب بعد ١ س و ٥ د» above, with the clock held still
 {
   const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
