@@ -314,6 +314,27 @@ check("MusicReceiver takes the volume", "sa.urtv.home.ADHAN_VOLUME" in text(TILA
 check("the settings row warns when the alarm may be late", "KIND_EXACT" in main and "adhan_exact_title" in main
       and "ACTION_REQUEST_SCHEDULE_EXACT_ALARM" in main and "قد يتأخر الأذان دقائق" in text(APP / "res/values/strings.xml"))
 
+# ---- power and the main thread
+check("the position tick runs only while something plays", "startTick()" in service_src and "stopTick()" in service_src
+      and "handler.post(tick);\n    }\n\n    @Override public int onStartCommand" not in service_src and "if (!ticking) return;" in service_src)
+check("the Wi-Fi lock is released when playing stops and taken again on play",
+      service_src.count("playbackPaused()") >= 5 and "private void playbackStarted()" in service_src
+      and "acquireWifi();\n        startTick();" in service_src and "releaseWifi();\n        handler.removeCallbacks(pausedStop);" in service_src)
+check("paused for 30 minutes stops the service", "PAUSED_STOP_MS = 30 * 60_000L" in service_src and "pausedStop" in service_src)
+check("the place is not saved every few seconds", "tickCount" not in service_src and "% 5 == 0" not in service_src)
+check("the place is saved when it pauses, stops or the service ends", service_src.count("save();") >= 4 and "if (playing) save();" in service_src)
+check("the sleep timer's fade is one Runnable that cancelling stops",
+      "private final Runnable fade" in service_src and "handler.removeCallbacks(fade)" in service_src and "this::fadeOut" not in service_src)
+home = text(JAVA / "MainActivity.java")
+update_clock = home[home.index("private void updateClock()"):home.index("private void updateAdhanBar(")]
+check("the minute tick reads the screensaver's settings once", update_clock.count("ConfigSnapshot.read(") == 1 and "cityZone()" in update_clock
+      and "getContentResolver" not in update_clock)
+check("the tick's date formats are made once", "new android.icu.text.SimpleDateFormat" in update_clock and "if (gregFormat == null)" in update_clock)
+check("the day's prayer times are kept in memory", "todayCopy" in prayers and "forgetToday()" in prayers)
+check("the wallpaper is decoded at the screen's width", "inSampleSize" in home and "widthPixels" in home[home.index("private Bitmap decode("):])
+check("the fade's end clears the view it was above", "old.setImageDrawable(null)" in home and "wallBack.setImageDrawable(null)" not in home)
+check("a failed index or photo is retried in an hour", "RETRY_MS = 60 * 60 * 1000L" in home and "failedRecently(" in home and home.count("photoFailed.put(") >= 2)
+
 if failures:
     print(f"\n{len(failures)} tilawah check(s) failed.")
     sys.exit(1)

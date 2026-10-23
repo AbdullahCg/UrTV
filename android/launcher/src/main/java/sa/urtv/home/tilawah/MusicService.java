@@ -77,8 +77,9 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     private boolean resumeOnFocus;
     private int retries;
     private int pendingSeek;
-    private int tickCount;
     private int fadeStep;
+    /** the 1-second position tick runs only while something plays */
+    private boolean ticking;
     private String currentUrl;
 
     // what was on when the adhan started, so it comes back afterwards
@@ -101,22 +102,57 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     };
     private final Runnable tick = new Runnable() {
         @Override public void run() {
+            if (!ticking) return;
             if (player != null && prepared) {
                 try {
                     position = player.getCurrentPosition();
                     int d = player.getDuration();
                     if (d > 0) duration = d;
-                    if (playing && ++tickCount % 5 == 0) save();
-                    updateSession();
+                    updateSession();   // (the place is saved when it stops or pauses, not every few seconds: the disk is flash)
                 } catch (IllegalStateException ignored) {}
             }
             handler.postDelayed(this, 1000);
         }
     };
+    /** paused for this long (a pause, or another app took the sound), the service stops: nothing is holding the TV awake for it */
+    private static final long PAUSED_STOP_MS = 30 * 60_000L;
+    private final Runnable pausedStop = new Runnable() {
+        @Override public void run() { if (!playing && !buffering) stopPlayback(); }
+    };
 
     private final Runnable sleepStart = new Runnable() {
         @Override public void run() { fadeStep = 0; fadeOut(); }
     };
+    /** the sleep timer's fade is one Runnable, so cancelling the timer can stop it half way */
+    private final Runnable fade = new Runnable() {
+        @Override public void run() { fadeOut(); }
+    };
+
+    private void startTick() {
+        if (ticking) return;
+        ticking = true;
+        handler.post(tick);
+    }
+
+    private void stopTick() {
+        ticking = false;
+        handler.removeCallbacks(tick);
+    }
+
+    /** Playing began (or came back): the tick and the Wi-Fi lock on, no pause timer. */
+    private void playbackStarted() {
+        handler.removeCallbacks(pausedStop);
+        acquireWifi();
+        startTick();
+    }
+
+    /** Playing stopped for now (a pause, another app's sound, an error): the tick and the lock off, the pause timer on. */
+    private void playbackPaused() {
+        stopTick();
+        releaseWifi();
+        handler.removeCallbacks(pausedStop);
+        handler.postDelayed(pausedStop, PAUSED_STOP_MS);
+    }
 
     // ---- state for the screens and optimize/music.sh ----
     static int currentSource() { return source; }
@@ -186,7 +222,6 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         });
         session.setActive(true);
         registerReceiver(screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF));
-        handler.post(tick);
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -223,6 +258,8 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     @Override public IBinder onBind(Intent intent) { return null; }
 
     @Override public void onDestroy() {
+        if (playing) save();
+        stopTick();
         handler.removeCallbacksAndMessages(null);
         try { unregisterReceiver(screenOff); } catch (IllegalArgumentException ignored) {}
         adhanVolumeBack();
@@ -322,6 +359,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
             try { player.pause(); } catch (IllegalStateException ignored) {}
         }
         playing = false;
+        if (wasPlaying) playbackPaused();   // the adhan that follows starts the tick and the lock again
         return wasPlaying;
     }
 
@@ -387,7 +425,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
                 }
                 mp.start();
                 playing = true;
-                acquireWifi();
+                playbackStarted();
             } else {
                 error = "الصوت مشغول";
             }
@@ -415,6 +453,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         playing = false;
         buffering = false;
         prepared = false;
+        playbackPaused();
         if (source == Prefs.SOURCE_SURAH && position > 0) pendingSeek = position;
         final String failed = currentUrl;
         if (source == Prefs.SOURCE_ADHAN && retries >= 2) {
@@ -497,6 +536,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
             playing = false;
             resumeOnFocus = false;
             abandonFocus();
+            playbackPaused();
             save();
             updateSession();
             updateNotification();
@@ -510,7 +550,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
             player.start();
             playing = true;
             error = null;
-            acquireWifi();
+            playbackStarted();
             updateSession();
             updateNotification();
         }
@@ -542,6 +582,10 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         source = Prefs.SOURCE_NONE;
         adhanName = null;
         handler.removeCallbacks(sleepStart);
+        handler.removeCallbacks(fade);
+        fadeStep = 0;
+        handler.removeCallbacks(pausedStop);
+        stopTick();
         sleepUntil = 0;
         foregroundStarted = false;
         stopForeground(true);
@@ -571,6 +615,11 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     void setSleep(int minutes) {
         handler.removeCallbacks(sleepStart);
+        if (fadeStep > 0) {   // cancelled (or set again) in the middle of the fade: it stops, and the sound is back to full
+            handler.removeCallbacks(fade);
+            fadeStep = 0;
+            if (player != null) { try { player.setVolume(1f, 1f); } catch (IllegalStateException ignored) { } }
+        }
         if (minutes <= 0) {
             sleepUntil = 0;
             updateSession();
@@ -588,7 +637,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         fadeStep++;
         float volume = Math.max(0f, 1f - fadeStep / 30f);
         try { player.setVolume(volume, volume); } catch (IllegalStateException ignored) {}
-        if (fadeStep < 30) handler.postDelayed(this::fadeOut, 500);
+        if (fadeStep < 30) handler.postDelayed(fade, 500);
         else { sleepUntil = 0; stopPlayback(); }
     }
 
@@ -609,6 +658,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
                 player.pause();
                 playing = false;
                 resumeOnFocus = true;
+                playbackPaused();
                 save();
                 updateSession();
                 updateNotification();
@@ -621,6 +671,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
                 player.start();
                 playing = true;
                 resumeOnFocus = false;
+                playbackStarted();
                 updateSession();
                 updateNotification();
             }

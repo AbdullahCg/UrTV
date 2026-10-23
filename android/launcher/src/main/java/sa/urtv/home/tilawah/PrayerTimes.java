@@ -66,14 +66,28 @@ final class PrayerTimes {
     }
 
     /** Today's times: the ones fetched from Aladhan when they are in, the computed ones otherwise. */
-    static PrayerTimes today(Context c) {
-        Place place = Place.get(c);
+    static PrayerTimes today(Context c) { return today(c, Place.get(c)); }
+
+    /**
+     * The same for a place the caller already has. Kept in memory for the day (and the city): the home screen asks every minute,
+     * and the sun arithmetic and the preferences need not be gone through each time. New times from Aladhan drop the copy.
+     */
+    static synchronized PrayerTimes today(Context c, Place place) {
         Calendar day = Calendar.getInstance(TimeZone.getTimeZone(place.tz), Locale.US);
+        String key = key(day, place);
+        if (todayCopy != null && key.equals(todayKey)) return todayCopy;
         PrayerTimes t = of(day, place);
-        String saved = prefs(c).getString(key(day, place), null);
+        String saved = prefs(c).getString(key, null);
         if (saved != null) t.apply(saved);   // Aladhan's, when they came; a bad copy is ignored
+        todayCopy = t;
+        todayKey = key;
         return t;
     }
+
+    private static PrayerTimes todayCopy;
+    private static String todayKey;
+
+    private static synchronized void forgetToday() { todayCopy = null; todayKey = null; }
 
     /** The next of the five prayers, looking at tomorrow when today's Isha has passed. */
     static Next next(Context c) {
@@ -169,6 +183,7 @@ final class PrayerTimes {
                 if ((k.startsWith("times_") || k.startsWith("fetched_")) && !k.endsWith(key.substring("times_".length()))) edit.remove(k);
             }
             edit.putString(key, out.toString()).putBoolean("fetched_" + key, true).apply();
+            forgetToday();
             AdhanScheduler.schedule(c);   // the alarm was set for the computed times: the new ones may differ by minutes
             return true;
         } catch (Exception ignored) {
@@ -215,6 +230,8 @@ final class PrayerTimes {
     private static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences("tilawah", Context.MODE_PRIVATE);
     }
+
+    static String dayKey(Calendar day, Place place) { return key(day, place); }
 
     /** The day's key in the city's zone and for that city: a new city the same day asks Aladhan again. */
     private static String key(Calendar day, Place place) {

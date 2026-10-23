@@ -60,7 +60,9 @@ Package `sa.urtv.home` · classes `sa.urtv.home.tilawah` · label «تلاوة»
 During an adhan, seek and next/previous are ignored, and the hint line says so.
 
 The sleep timer fades the volume out at the end and shows the remaining minutes in gold on the
-player. On Android 13+ the app asks for the notification permission on first launch; playback
+player. Cancelling it during the fade stops the fade and the sound comes back. Paused (or with another app holding the
+sound) for 30 minutes, the player stops by itself; the Wi-Fi lock and the position tick are held only while something plays,
+and the place in the surah is saved when it pauses or stops, not every few seconds. On Android 13+ the app asks for the notification permission on first launch; playback
 works without it but the media notification is hidden.
 
 ## Right to left, and the arrows
