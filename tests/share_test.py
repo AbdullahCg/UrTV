@@ -10,6 +10,7 @@ import share
 
 ours = next(l.split()[0] for l in open(os.path.join(here, "..", "optimize", "lists", "tcl-safe.txt"))
             if l.strip() and not l.startswith("#"))
+share.live_versions = lambda: None   # no TV here: the report's own line
 share.RUN = Path(tempfile.mkdtemp())
 (share.RUN / "run.log").write_text("\n".join([
     "!! adb " + ".".join(["192", "168", "1", "23"]) + ":5555 refused",   # built apart: tests/check.py bars IPs in files
@@ -43,6 +44,24 @@ factory = [l for l in keep_off("com.tcl.smartalexa", "com.tcl.airplay2", before=
 alarm = not by_design and real == ["!! protected but off: com.tcl.airplay2"] \
     and factory == ["!! protected but off: com.tcl.airplay2"]
 print("share: " + ("off-by-design keep packages not flagged, others still are" if alarm else f"WRONG alarm {by_design} {real}"))
+# Windows 11 says «10» in platform.release(): the build number decides
+wins = [(("Windows", "10.0.22631", "10"), "11"), (("Windows", "10.0.22000", "10"), "11"), (("Windows", "10.0.21996", "10"), "10"),
+        (("Windows", "10.0.19045", "10"), "10"), (("MINGW64_NT-10.0-26100", "3.4.10", "3.4.10"), "11"),
+        (("MINGW64_NT-10.0-19045", "3.4.10", "3.4.10"), "10"), (("Windows", "6.1.7601", "7"), "7")]
+bad_win = [(a, share.windows_release(*a), want) for a, want in wins if share.windows_release(*a) != want]
+print("share: " + ("Windows 11 told from 10 by the build number" if not bad_win else f"WRONG windows {bad_win}"))
+# the Versions line: live from the TV when it answers, else the report's
+(share.RUN / "report.md").write_text("Home: h\nVersions: screensaver 3.89, home 3.89\n", encoding="utf-8")
+share.live_versions = lambda: "Versions: screensaver 3.124, home 3.124"
+live = [l for l in share.report_checks() if l.startswith("Versions:")]
+share.live_versions = lambda: None
+old = [l for l in share.report_checks() if l.startswith("Versions:")]
+(share.RUN / "report.md").write_text("Home: h\n", encoding="utf-8")
+share.live_versions = lambda: "Versions: screensaver 3.124, home 3.124"
+added = [l for l in share.report_checks() if l.startswith("Versions:")]
+share.live_versions = lambda: None
+versions_ok = live == ["Versions: screensaver 3.124, home 3.124"] and old == ["Versions: screensaver 3.89, home 3.89"] and len(added) == 1
+print("share: " + ("Versions read live, the report's line as the fallback" if versions_ok else f"WRONG versions {live} {old} {added}"))
 # --preview writes and prints the text and sends nothing; --send sends that file, or says there is none
 import contextlib, io
 run2 = Path(tempfile.mkdtemp())
@@ -79,4 +98,4 @@ plain = code == 0 and len(sent) == 1 and "an old-style note" in sent[0]
 ok = no_file and preview and sends and refuses and plain
 print("share: " + ("--preview sends nothing, --send sends the file written, plain form still sends"
                     if ok else f"WRONG preview/send {no_file} {preview} {sends} {refuses} {plain}"))
-sys.exit(1 if leaks or not counts or not alarm or not ok else 0)
+sys.exit(1 if leaks or not counts or not alarm or not ok or bad_win or not versions_ok else 0)

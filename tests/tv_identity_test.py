@@ -100,6 +100,16 @@ check("no serial anywhere, another model: refused", code == 1 and not sent(), te
 code, text = run(PUT, device={"serial": "unknown", "manufacturer": "TCL", "model": "55P735"})
 check("a serial of «unknown» counts as none", code == 0, text)
 
+# --check says so
+fresh(TV)
+code, text = run("--check", device=TV)
+check("--check on the saved TV: says OK, and no model or serial", code == 0 and text.strip() == "OK: this is the saved TV", text)
+code, text = run("--check", device=BOX)
+check("--check on another device: the refusal, no OK", code == 1 and text.startswith("!! ") and "OK:" not in text and not sent(), text)
+fresh()
+code, text = run("--check", device=TV)
+check("--check with nothing saved: saves this TV and says OK", code == 0 and "OK:" in text and saved() == TV, f"{text} {saved()}")
+
 # read-only commands need no check, and cost no getprop
 fresh(TV)
 for cmd in ("getprop ro.build.version.release", "dumpsys meminfo | grep -E 'Total RAM|Free RAM'", "pm list packages -d",

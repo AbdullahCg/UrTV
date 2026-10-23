@@ -7,10 +7,12 @@ python3 tests/check.py
 python3 tests/tilawah_test.py
 python3 tests/upload_test.py
 python3 tests/share_test.py
+python3 tests/install_versions_test.py
 python3 tests/install_retry_test.py
 python3 tests/run_lock_test.py
 python3 tests/reboot_test.py
 python3 tests/tv_identity_test.py
+python3 tests/key_home_test.py
 python3 tests/dock_names_test.py
 python3 tests/dock_sleep_test.py
 python3 tests/find_tv_test.py
@@ -29,4 +31,6 @@ python3 tests/photos_sh_test.py
 python3 tests/greeting_test.py
 python3 tests/card_box_test.py
 python3 tests/adhan_bar_test.py
+python3 tests/clock_zone_test.py
+python3 tests/countdown_text_test.py
 node tests/page.test.mjs

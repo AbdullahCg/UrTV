@@ -132,6 +132,8 @@ def scan():
         with open(HOST_FILE, "w") as f:
             f.write(adb[0] + "\n")
         print(f"Saved {adb[0]} to optimize/.tv_host. Next: optimize/venv/bin/python -I optimize/tv.py --probe")
+        print("The ADB key the TV trusts is in " + ("%USERPROFILE%\\.urtv" if os.name == "nt" else "~/.urtv")
+              + ", outside this folder: if --probe waits with no «Allow USB debugging?» on the TV, see docs/SETUP-PROMPT.md.")
         return 0
     print("No TV with ADB open. On the TV: Developer options → USB debugging (and Network debugging) on, TV awake.")
     if cast:

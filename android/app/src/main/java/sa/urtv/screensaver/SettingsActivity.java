@@ -278,7 +278,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void searchTeam(final int slot) {
-        ask("اسم الفريق بالعربية أو الإنجليزية (مثل الهلال أو Real Madrid)", q -> {
+        ask("اسم الفريق بالعربية أو الإنجليزية (مثل الهلال أو \u2066Real Madrid\u2069)", q -> {
             List<TeamSearch.Team> found = Teams.search(this, q);
             if (!found.isEmpty()) showOurs(found.subList(0, Math.min(found.size(), 30)), "اختر الفريق", true);
             else if (!Arabic.hasArabic(q))   // a club outside our list: TheSportsDB's search, in English only
@@ -422,8 +422,8 @@ public class SettingsActivity extends Activity {
                 ids[i] = String.valueOf(s.optInt("id"));
                 names[i] = s.optString("name").replace("|", " ").replace(";", " ");
                 String year = s.optString("premiered", "");
-                rows[i] = names[i] + (year.length() >= 4 ? "  ·  " + year.substring(0, 4) : "")
-                    + "  ·  " + labelOf(Prefs.LANGS, s.optString("language", ""));
+                rows[i] = names[i] + (year.length() >= 4 ? " (" + year.substring(0, 4) + ")" : "")
+                    + "، " + labelOf(Prefs.LANGS, s.optString("language", ""));
             }
             new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر المسلسل")
                 .setItems(rows, (d, i) -> {
@@ -518,19 +518,21 @@ public class SettingsActivity extends Activity {
 
         final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
         final android.webkit.WebView[] web = new android.webkit.WebView[1];
-        final int[] shown = {-1};
+        final int[] shown = {-1}, loads = {0};
         final Runnable update = new Runnable() { public void run() {
             int i = lv.getSelectedItemPosition();
             if (i < 0) i = Math.max(0, selected);   // nothing selected yet (touch mode): the current choice
             if (i == shown[0]) return;
             shown[0] = i;
             String u = urlFor.of(values[i]);
+            // a different query each time makes it a real navigation: with only the #fragment changed it is the same document
+            int hash = u.indexOf('#');
+            u = hash < 0 ? u + "?p=" + (++loads[0]) : u.substring(0, hash) + "?p=" + (++loads[0]) + u.substring(hash);
             if (web[0] == null) {
                 web[0] = ScreenView.createPreview(SettingsActivity.this, u);
                 stage.addView(web[0], new android.widget.FrameLayout.LayoutParams(-1, -1));
-            } else {   // the page reads its settings once, when it starts: a new #fragment alone would not start it again
+            } else {   // the page reads its settings once, when it starts: load it again, no reload() (that would redo the old URL)
                 web[0].loadUrl(u);
-                web[0].reload();
             }
         } };
         lv.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -598,7 +600,7 @@ public class SettingsActivity extends Activity {
     /** Codes (2222 = أرامكو) and US tickers (AAPL), separated by spaces or commas. */
     private void askStocks() {
         final EditText in = new EditText(this);
-        in.setHint("مثال: 2222 1120 AAPL NVDA");
+        in.setHint("مثال: \u20662222 1120 AAPL NVDA\u2069");
         in.setText(Prefs.join(prefs.stocks(), " "));
         in.setSingleLine(true);
         in.setInputType(InputType.TYPE_CLASS_TEXT);
@@ -664,7 +666,7 @@ public class SettingsActivity extends Activity {
     private String countdownLabel() {
         if (prefs.countdownDate().isEmpty()) return "لم يُحدَّد";
         String name = prefs.countdownName();
-        return arabicDigits(prefs.countdownDate()) + (name.isEmpty() ? "" : " · " + name);
+        return CountdownText.label(prefs.countdownDate(), name);
     }
 
     /** The date is set from the computer (optimize/saver.sh countdown); here it can be cleared. */

@@ -18,13 +18,14 @@ here = os.path.dirname(os.path.abspath(__file__))
 script = os.path.join(here, "..", "optimize", "photos.sh")
 tmp = tempfile.mkdtemp()
 log = os.path.join(tmp, "sent.txt")
+slept = os.path.join(tmp, "slept.txt")   # every `sleep N` the scripts ran
 kept = os.path.join(tmp, "pushed")
 os.makedirs(kept)
 fake = os.path.join(tmp, "fakepy")
 nobin = os.path.join(tmp, "bin")
 os.makedirs(nobin)
 with open(os.path.join(nobin, "sleep"), "w") as f:   # shot.sh waits 34 s for the screensaver
-    f.write("#!/bin/sh\nexit 0\n")
+    f.write("#!/bin/sh\necho \"$1\" >> \"$SLEPT\"\nexit 0\n")
 os.chmod(os.path.join(nobin, "sleep"), 0o755)
 with open(fake, "w") as f:
     f.write(r'''#!/usr/bin/env bash
@@ -52,9 +53,10 @@ os.chmod(fake, 0o755)
 failed = 0
 def run(*args, n=0, mode="mix", fail=None, screen=None):
     open(log, "w").close()
+    open(slept, "w").close()
     for f in os.listdir(kept):
         os.remove(os.path.join(kept, f))
-    env = {**os.environ, "PY": fake, "SENT": log, "KEPT": kept, "FAKE_N": str(n), "FAKE_MODE": mode,
+    env = {**os.environ, "PY": fake, "SENT": log, "SLEPT": slept, "KEPT": kept, "FAKE_N": str(n), "FAKE_MODE": mode,
            "PATH": nobin + os.pathsep + os.environ["PATH"]}
     env.pop("FAKE_ADD_FAIL", None)
     if fail:
@@ -151,6 +153,7 @@ rc, out, sent = run("show", n=3, mode="mix")
 modes = [s.split("--es mode ")[1] for s in sent if "op mode" in s]
 check("show: sets only, then puts the mode back", rc == 0 and modes == ["only", "mix"], (modes, out))
 check("show: screenshots the screensaver", any("--shot" in s or "screencap" in s for s in sent) or "own-photo" in out, out)
+check("show: waits 70 s for the page, not 34", "70" in open(slept).read().split() and "34" not in open(slept).read().split(), open(slept).read())
 rc, out, sent = run("show", n=3, mode="only")
 check("show: already only: mode left alone", rc == 0 and not [s for s in sent if "op mode" in s], sent)
 shutil.rmtree(tmp, ignore_errors=True)

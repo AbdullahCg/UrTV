@@ -181,6 +181,7 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | no output for several minutes | a restart, or the 3-minute settle before measuring | wait; don't interrupt |
 | the first connection hangs for up to 2 minutes | the TV is showing «Allow USB debugging?» | ask me to press Allow and tick «Always allow» |
 | `--probe` silent for 5 minutes and the TV shows no «Allow USB debugging?» | the first connection to a TCL sometimes just hangs | stop it and run the same command again: the second time it connects at once |
+| `--probe` times out and the TV shows no «Allow USB debugging?» after a new clone of the repo | the ADB key the TV trusted stayed in the older folder's `optimize/adbkey`; a new clone makes a new key and the TV never saw it | the key now lives outside any clone, in `~/.urtv` (Windows: `%USERPROFILE%\.urtv`), and `tv.py` moves an older `optimize/adbkey` there by itself. If the older folder is not the one you are in, copy its `optimize/adbkey/adbkey` and `adbkey.pub` into `~/.urtv`, then the same command. Never print or paste that path: it holds my user name. The saved TV (`tv-id.json`) is there too |
 | `reset.sh`: `mv: cannot move 'optimize/run' … Permission denied` (Windows) | something holds a file open inside `optimize/run` (a log you write there, an editor, an image viewer) | close it, never write your own logs into `optimize/run`; the same command again (the apps are already removed, it carries on) |
 | `!! This terminal cannot reach the home network` | your commands run in a cloud, sandbox or virtual machine | stop, tell me (step 0) |
 | `Don't know your TV's IP` | `find-tv.sh` was not run or found nothing | `optimize/find-tv.sh`, or ask me for the IP (TV: Settings → Network → the Wi-Fi) and save it: `echo <ip> > optimize/.tv_host` |
@@ -206,6 +207,7 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `!! The stock home is not on screen` (reset) | the stock home was slow to start | ask me to press Home, then `optimize/reset.sh` again |
 | `!! still off` (keep.sh) | a protected feature would not turn back on | **stop**, show me; don't continue |
 | `left off by the TV itself` (keep.sh) | a protected package was already off before UrTV and the TV won't turn it on (TCL ships Alexa off outside its regions) | nothing to do: go on |
+| `start-saver.sh --preview` prints `dream` on some runs and `preview` on others on the same TV | the real screensaver starts sometimes, the app's preview the other times; both draw the same page | nothing to fix, either shot is good |
 | the TV's own screensaver screenshot is black | Android hides it from screenshots | expected; ours can be shot |
 | our screensaver shot has no weather or matches yet | data still loading | `optimize/saver.sh update`, wait a minute, shoot again |
 | `find-team` finds nothing | a spelling our list doesn't have, or a club outside the app's leagues | once with the English name; or `optimize/saver.sh find-team --list <league word>` (e.g. `Saudi`, `Premier`) and pick it from there |

@@ -56,7 +56,7 @@ public class DockActivity extends Activity {
         frame.addView(col, new FrameLayout.LayoutParams(dp(600), -2, Gravity.CENTER_HORIZONTAL));
 
         col.addView(text("ترتيب المفضلة", 26, "Medium", TEXT), right(0));
-        col.addView(text("OK على تطبيق لتحريكه بالأسهم ▲▼ ثم OK لتثبيته. من " + ar(Dock.MIN) + " إلى "
+        col.addView(text("\u2066OK\u2069 على تطبيق لتحريكه بالأسهم ▲▼ ثم \u2066OK\u2069 لتثبيته. من " + ar(Dock.MIN) + " إلى "
             + ar(Dock.MAX) + " تطبيقات.", 14, "Regular", DIM), right(dp(6)));
         count = text("", 13, "Medium", GOLD);
         col.addView(count, right(dp(24)));
@@ -73,7 +73,7 @@ public class DockActivity extends Activity {
         list.removeAllViews();
         cards.clear();
         removes.clear();
-        count.setText("المفضلة · " + ar(row.size()) + " من " + ar(Dock.MAX));
+        count.setText("المفضلة " + ar(row.size()) + " من " + ar(Dock.MAX));
         for (int i = 0; i < row.size(); i++) list.addView(favouriteRow(i), rowParams());
 
         List<String> others = new ArrayList<>(apps.keySet());
