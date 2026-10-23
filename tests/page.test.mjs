@@ -899,6 +899,36 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 // the matches timers and requests belong to the matches slot (and to the card beside the clock)
+// slot none, the two panels left mirror each other: the prayer at the right edge, the occasion at the left, the same width, each text
+// on its outer edge, the same lines at the same heights (a countdown to Ramadan, and the National Day greeting)
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const [label, now] of [['a countdown', '2026-10-23T10:00:00Z'], ['the National Day', '2026-09-23T10:00:00Z']]) {
+    const { p, ctx, errors } = await open('tv.html', 'slot=none&teams=136013', { width, height, now: new Date(now) });
+    const r = await p.evaluate(() => {
+      Object.assign(document.querySelector('.stage').style, { transition: 'none', transform: 'none' });   // the burn-in shift moves the whole page by up to 3 px
+      const pr = document.querySelector('.p-prayer'), mid = document.querySelector('.p-mid'), W = innerWidth;
+      const box = e => e.getBoundingClientRect();
+      const ink = (e, side) => { const rg = document.createRange(); rg.selectNodeContents(e); const b = rg.getBoundingClientRect(); return side === 'left' ? b.left : b.right; };
+      const top = (p, q) => Math.round(box(p.querySelector(q)).top);
+      return { edgeR: W - box(pr).right, edgeL: box(mid).left, wP: box(pr).width, wM: box(mid).width,
+        inkP: Math.round(box(pr).right - ink(pr.querySelector('.label'), 'right')), inkM: Math.round(ink(mid.querySelector('.label'), 'left') - box(mid).left),
+        inkSubP: Math.round(box(pr).right - ink(pr.querySelector('.sub'), 'right')), inkSubM: mid.querySelector('.sub').scrollWidth > mid.querySelector('.sub').clientWidth ? 0 : Math.round(ink(mid.querySelector('.sub'), 'left') - box(mid).left),   // a clipped line ends in «…»
+        tops: [['.label', '.label'], ['.big', '.big'], ['.sub', '.sub']].map(([a, b]) => [top(pr, a), top(mid, b)]),
+        textInside: [pr, mid].every(e => [...e.children].every(c => box(c).right <= box(e).right + 1 && box(c).left >= box(e).left - 1)) };
+    });
+    const tag = `slot none at ${width}px, ${label}`;
+    check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+    check(`${tag}: the two panels' outer edges are as far from the screen's edges (±2 px), the same width`,
+      Math.abs(r.edgeR - r.edgeL) <= 2 && Math.abs(r.wP - r.wM) <= 2, JSON.stringify(r));
+    check(`${tag}: each text sits on its outer edge (prayer right, occasion left)`,
+      r.inkP <= 2 && r.inkM <= 2 && r.inkSubP <= 2 && r.inkSubM <= 2, JSON.stringify(r));
+    check(`${tag}: the same vertical rhythm: label, big line and small line at the same heights (±2 px)`,
+      r.tops.every(([a, b]) => Math.abs(a - b) <= 2) && r.textInside, JSON.stringify(r.tops));
+    const lab = label === 'a countdown' ? 'countdown' : 'national';
+    // SHOT item5-after-${lab}-${width} | 0
+    await ctx.close();
+  }
+}
 for (const [hash, asks] of [['teams=136013', true], ['teams=136013&slot=weather', false], ['teams=136013&slot=none', false], ['teams=', false], ['teams=136013&slot=weather&panel=matches', true]]) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   let sports = 0;

@@ -412,9 +412,13 @@
   .stage{transition:transform 3s ease}
   .sc{color:var(--gold-3);letter-spacing:.02em}
 
-  /* #slot=none: the left panel is gone and the other two share the row */
+  /* #slot=none: the left panel is gone and the other two mirror each other: the prayer at the right edge, the occasion at the left edge,
+     the same width, each text on its outer edge and the same lines (label, big line, small line) at the same heights */
   html.slot-none .p-match{display:none}
-  html.slot-none .bottom{grid-template-columns:1fr .9fr}
+  html.slot-none .bottom{grid-template-columns:1fr 1fr}
+  html.slot-none .p-mid,html.slot-none .p-mid .big{text-align:left}
+  html.slot-none .p-mid .big{line-height:1.1}
+  html.slot-none .p-mid .num{font-size:1.12em;line-height:inherit}
 
   @media (max-aspect-ratio:5/4){
     .top{flex-direction:column-reverse;gap:1.4vh}
