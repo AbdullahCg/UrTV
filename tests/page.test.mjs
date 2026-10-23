@@ -142,10 +142,10 @@ const atRiyadh = (p, hhmm) => p.evaluate(([hhmm, sample]) => {
   window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
   ADHKAR.length = 0; ADHKAR.push(...sample);
   buildPrayers({ Fajr: '04:40', Sunrise: '06:00', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:30', Isha: '19:00' });
-  clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_I = 0; ADHKAR_MODE = '';
+  clearTimeout(CARDS[0].ad.t); CARDS[0].ad.t = 0; CARDS[0].ad.i = 0; CARDS[0].ad.mode = '';
   renderPanel(false);
   const hd = document.getElementById('week-hd');
-  return { hd: hd.textContent.replace(/\s+/g, ' ').trim(), icon: !!hd.querySelector('svg'), timer: ADHKAR_T !== 0,
+  return { hd: hd.textContent.replace(/\s+/g, ' ').trim(), icon: !!hd.querySelector('svg'), timer: CARDS[0].ad.t !== 0,
     text: document.querySelector('#week-list .quote')?.textContent, foot: document.querySelector('#week-list .adf')?.textContent || '',
     dots: [...document.querySelectorAll('#week-list .adf .d i')].map(i => i.classList.contains('on') ? 1 : 0).join('') };
 }, [hhmm, ADHKAR_SAMPLE]);
@@ -174,12 +174,12 @@ const atRiyadh = (p, hhmm) => p.evaluate(([hhmm, sample]) => {
     window.setTimeout = (f, t) => { ms.push(t); return st(f, t); };
     const Dt = window.Date, T = Date.parse('2026-10-22T06:00:00+03:00');
     window.Date = class extends Dt { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
-    clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_I = 0; ADHKAR_MODE = ''; renderPanel(false);
+    clearTimeout(CARDS[0].ad.t); CARDS[0].ad.t = 0; CARDS[0].ad.i = 0; CARDS[0].ad.mode = ''; renderPanel(false);
     for (let k = 0; k < 5; k++) {
       const li = document.querySelectorAll('#week-list li'), ft = li[1].textContent.replace(/\s+/g, ' ');
       out.push([li[0].textContent.replace(/[\u064B-\u065F﴿]/g, '').split(' ')[0], ft, [...li[1].querySelectorAll('.d i')].map(i => +i.classList.contains('on')).join(''),
                 document.querySelector('#week-list').classList.contains('flip')]);
-      adhkarNext();
+      adhkarNext(CARDS[0]);
     }
     window.setTimeout = st;
     return { out, ms: ms.filter(t => t >= 20000) };
@@ -194,8 +194,8 @@ const atRiyadh = (p, hhmm) => p.evaluate(([hhmm, sample]) => {
   const w = await p.evaluate(() => {   // the window closes while a dhikr is on screen: the next turn shows the verse card and stops the timer
     const T = Date.parse('2026-10-22T11:41:00+03:00'), Dt = window.Date;
     window.Date = class extends Dt { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
-    adhkarNext();
-    return [document.getElementById('week-hd').textContent, ADHKAR_T];
+    adhkarNext(CARDS[0]);
+    return [document.getElementById('week-hd').textContent, CARDS[0].ad.t];
   });
   check('adhkar: when the window closes the card turns to the verse card and the timer stops', /^(آية|حديث) اليوم$/.test(w[0]) && w[1] === 0, JSON.stringify(w));
   check('adhkar: no script errors', !errors.length, errors.join('; '));
@@ -221,13 +221,13 @@ for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 5
     for (const [hhmm, i] of ADHKAR.map((d, i) => ['06:00', i]).concat([['22:00', 0]])) {   // each morning dhikr, then the night one
       const T = Date.parse('2026-10-22T' + hhmm + ':00+03:00');
       window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
-      ADHKAR_MODE = ''; ADHKAR_I = i; clearTimeout(ADHKAR_T); ADHKAR_T = 0; renderPanel(false);
+      CARDS[0].ad.mode = ''; CARDS[0].ad.i = i; clearTimeout(CARDS[0].ad.t); CARDS[0].ad.t = 0; renderPanel(false);
       const c = card.getBoundingClientRect(), ft = card.querySelector('.adf'), f = ft.getBoundingClientRect();
       const wide = [...card.querySelectorAll('.hd *, .adf *')].some(e => e.getBoundingClientRect().right > c.right + 1 || e.getBoundingClientRect().left < c.left - 1);
       if (c.top < top.bottom || c.bottom > bar.top - 4 || c.right > clock.left - 4 || c.height > 0.42 * innerHeight || f.bottom > c.bottom + 1
           || ft.scrollWidth > ft.clientWidth + 1 || wide) bad.push(i + ':' + Math.round(c.height) + '/' + Math.round(0.42 * innerHeight));
     }
-    ADHKAR_T && clearTimeout(ADHKAR_T);
+    CARDS[0].ad.t && clearTimeout(CARDS[0].ad.t);
     return { n: ADHKAR.length, bad };
   }, [ADHKAR_SAMPLE, LONG_DHIKR]);
   check(`adhkar card fits at ${width}x${height}${style ? ' ' + style : ''} (${r.n} dhikr, longest included)`, !errors.length && !r.bad.length, JSON.stringify(r.bad) + errors.join('; '));
@@ -305,7 +305,7 @@ for (const [hash, on] of [['panel=verse', false], ['panel=verse&tafsir=1', true]
       at(1); const hadith = !!tafsir();
       ADHKAR.length = 0; ADHKAR.push({ when: 'both', text: 'قُلْ هُوَ اللَّهُ أَحَدٌ', count: 3, source: 'سورة الإخلاص · 1–4', quran: true });
       buildPrayers({ Fajr: '00:00', Sunrise: '00:01', Dhuhr: '23:58', Asr: '00:00', Maghrib: '23:59', Isha: '23:59' });
-      CONFIG.panel = 'adhkar'; renderPanel(false);
+      CARDS[0].kind = 'adhkar'; renderPanel(false);
       return { long1, lines, after, short, none, hadith, adhkar: !!tafsir(), words: long.split(' ').length };
     }, TAFSIR_3X);
     const ok = on
@@ -390,7 +390,7 @@ for (const [hash, latin] of [['', false], ['digits=hindi', false], ['digits=lati
   await ctx.close();
 }
 
-// ---- card style: #cardstyle=current|dark1|glass1|dark3|glass3, anything else = current; the launcher's card keeps its look
+// ---- card style: #cardstyle=current|dark1|glass1|dark3|glass3, anything else = current; the launcher's cards follow it too
 for (const [hash, want] of [['', 'current'], ['cardstyle=current', 'current'], ['cardstyle=dark1', 'dark1'], ['cardstyle=glass1', 'glass1'],
                              ['cardstyle=dark3', 'dark3'], ['cardstyle=glass3', 'glass3'], ['cardstyle=bogus', 'current'], ['cardstyle=DARK1', 'current']]) {
   const { p, ctx, errors } = await open('tv.html', 'panel=verse&' + hash);
@@ -403,7 +403,8 @@ for (const [hash, want] of [['', 'current'], ['cardstyle=current', 'current'], [
 }
 {
   const { p, ctx, errors } = await open('tv.html', 'panel=verse&cardstyle=glass3&widget=1');
-  check('card-only mode ignores the card style', !errors.length && await p.evaluate(() => !/cs-/.test(document.documentElement.className)));
+  check('card-only mode follows the card style', !errors.length && await p.evaluate(() => /cs-glass3/.test(document.documentElement.className)
+    && getComputedStyle(document.querySelector('.week')).borderTopLeftRadius === '30px'));
   await ctx.close();
 }
 for (const style of ['dark1', 'glass1', 'dark3', 'glass3', 'current']) {
@@ -436,7 +437,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const dot = (cs => ({ backgroundColor: cs.backgroundColor, borderRadius: cs.borderRadius }))(getComputedStyle(ul.querySelector('li'), '::before'));
     const rows = () => [...ul.querySelectorAll('li')].map(li => li.textContent);
     const page1 = rows();
-    LIST_PAGE++; renderPanel(false);
+    CARDS[0].page++; renderPanel(false);
     const c = card.getBoundingClientRect();
     return { hd: document.getElementById('week-hd').textContent, page1, page2: rows(), html: ul.innerHTML,
              injected: !!ul.querySelector('b, [onclick]'), dotBg: dot.backgroundColor, dotRadius: dot.borderRadius,
@@ -762,7 +763,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
       const rows = [...card.querySelectorAll('li.stk')], lc = card.getBoundingClientRect();
       const clipped = rows.filter(li => [...li.children].some(e => e.scrollWidth > e.clientWidth + 1 && e.classList.contains('nm'))
         || li.getBoundingClientRect().right > lc.right || li.getBoundingClientRect().left < lc.left).length;
-      LIST_PAGE = 1; renderPanel(false);
+      CARDS[0].page = 1; renderPanel(false);
       const page2 = [...card.querySelectorAll('li.stk .nm')].map(e => e.firstChild.textContent).join();
       return { n: rows.length, clipped, fit: c.top >= top.bottom && c.bottom <= bar.top - 4 && c.right <= clock.left - 4 && c.left >= 0 && c.height <= 0.5 * innerHeight, page2, h: c.height / innerHeight };
     });
@@ -1079,7 +1080,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
       const card = matchRows().map(h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); });
       const shown = [], cut = [];
       for (let k = 0; k < card.length; k++) {   // every page of the card
-        LIST_PAGE = k; renderPanel(false);
+        CARDS[0].page = k; renderPanel(false);
         document.querySelectorAll('#week-list li > span:first-child').forEach(sp => { shown.push(sp.textContent); if (!fits(sp)) cut.push(sp.textContent); });
       }
       return { seen, bad, card, cardRows: new Set(shown).size, cardCut: [...new Set(cut)] };
@@ -1527,7 +1528,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
       const card = [], cut = [];
       const rows = matchRows().length;
       for (let k = 0; k * MATCH_ROWS < rows; k++) {   // every page of the card
-        LIST_PAGE = k; renderPanel(false);
+        CARDS[0].page = k; renderPanel(false);
         document.querySelectorAll('#week-list li > span:first-child').forEach(sp => { card.push(sp.textContent.replace(/\s+/g, ' ').trim()); if (!fits(sp)) cut.push(sp.textContent); });
       }
       const turn = CONFIG.leagues.length && MATCH_PAGES > 3 ? CONFIG.matchPageFastMs : CONFIG.matchPageMs;
@@ -1690,6 +1691,146 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     check('own photos, mix, no hosted set yet: theirs join the bundled photos', all.includes('own.urtv.invalid/1.jpg') && seen.size > 1, all.slice(0, 300));
     await o.ctx.close();
   }
+}
+
+// ---- up to three cards on the home screen: one WebView, the box grows with the number of cards (HomeCard / MainActivity.homeCardBox).
+// One card is the size it always was (461 x 250); two or three share a box 58% of the screen wide (1122 px at 1920: 560 + 22 + 540),
+// as tall as 250 dp of 540 (a third card has 253 or, when a long app title is in the way, 193).
+const homeBox = (cards, W, tight = false) => cards <= 1 ? [461, 250] : [Math.round(W * 0.5844), Math.round(W * 9 / 16 * (tight ? 0.346 : 0.463))];
+// what the cards need, put in by hand: the app asks the network for these (here cut)
+const HOME_SEED = ({ isha = '19:15' } = {}) => `
+  buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '${isha}' });
+  FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: new Date(Date.now() + i * 864e5).toISOString().slice(0, 10), code: 2, hi: 37 - i, lo: 24 - i }));
+  HOURLY = [1, 2, 3, 4, 5, 6].map(i => ({ t: '2026-10-22T' + String(i + 16).padStart(2, '0') + ':00', code: [0, 2, 3, 61, 3, 0][i - 1], temp: 34 - i }));
+  STOCKS = { '2222': { p: 28.5, v: 28, c: [1, 2, 3, 2, 4] }, '1120': { p: 90, v: 91, c: [3, 2, 1, 2] }, AAPL: { p: 230, v: 229, c: [1, 2, 3] } };
+`;
+const HOME_NOW = new Date('2026-10-22T13:40:00Z');   // Thursday 16:40 in Riyadh: the evening adhkar window
+const TASKS12 = ['اتصل بالسباك', 'شراء حليب وخبز', 'موعد الأسنان الثلاثاء', 'تجديد الإقامة', 'سداد فاتورة الكهرباء', 'غسيل السيارة', 'حجز الفندق', 'الاتصال بالجد'];
+const HOME_COMBOS = [   // [name, cards, extra hash, games to put in (when it has the matches card)]
+  ['matches + prayer row + hours', 'matches,prayerrow,hourly', 'teams=136013', LONG_GAMES],
+  ['matches (short names) + prayer row + hours', 'matches,prayerrow,hourly', 'teams=136013', SHORT_GAMES],
+  ['verse + stocks', 'verse,stocks', 'stocks=2222,1120,AAPL', null],
+  ['adhkar alone', 'adhkar', '', null],
+  ['tasks + forecast', 'tasks,forecast', 'tasks=' + encodeURIComponent(TASKS12.join('\n')), null],
+];
+const homeCards = async (cards, W, { style = 'current', tight = false, extra = '', games = null, digits = 'hindi', isha = '19:15', width, height } = {}) => {
+  const n = cards.split(',').length, [bw, bh] = homeBox(n, W, tight), seen = [];
+  const o = await open('tv.html', `home_panel=${cards}&widget=1&cardstyle=${style}&digits=${digits}&${extra}`,
+    { width: width || bw, height: height || bh, now: HOME_NOW, net: crestNet(seen) });
+  await o.p.evaluate(HOME_SEED({ isha }) + (games ? CREST_GAMES(games) : '') + ' renderPanel(false);');
+  if (games) { await o.p.evaluate(() => { for (let k = 0; k < 6; k++) { for (const c of CARDS) if (c.eff === 'matches') { c.ul.__h = null; } } renderPanel(false, 'matches'); }); }
+  await o.p.waitForTimeout(150);
+  return { ...o, n, bw: width || bw, bh: height || bh };
+};
+// everything the eye would object to: overlapping cards, text cut off or ending in «…», anything past the box
+const homeProbe = p => p.evaluate(() => {
+  const rect = c => { const b = c.el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+  const rs = CARDS.map(rect), overlap = [];
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++)
+    if (rs[i].l < rs[j].r - .5 && rs[j].l < rs[i].r - .5 && rs[i].t < rs[j].b - .5 && rs[j].t < rs[i].b - .5) overlap.push([i, j]);
+  const outside = rs.map((r, i) => r.l < -.5 || r.r > innerWidth + .5 || r.b > innerHeight + .5 || r.t < -.5 ? i : -1).filter(i => i >= 0);
+  const cut = CARDS.filter(c => [...c.el.querySelectorAll('li, li *, .hd > span')].some(e => e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1)).map(c => c.eff);
+  const dots = CARDS.filter(c => c.el.innerText.includes('…')).map(c => c.eff);
+  const tooSmall = CARDS.filter(c => [...c.el.querySelectorAll('li, li *')].some(e => e.children.length === 0 && e.textContent.trim() && parseFloat(getComputedStyle(e).fontSize) < 7.5)).map(c => c.eff);
+  const text = CARDS.map(c => c.el.innerText).join(' ');
+  return { n: CARDS.length, kinds: CARDS.map(c => c.eff), overlap, outside, cut, dots, tooSmall, latin: (text.match(/[0-9]+/g) || []), arabic: /[٠-٩]/.test(text),
+    z: CARDS.map(c => c.z), empty: CARDS.filter(c => c.ul.querySelector('li.empty')).map(c => c.eff), heights: rs.map(r => Math.round(r.b - r.t)), mid: Math.round(document.querySelector('.mid').getBoundingClientRect().height) };
+});
+for (const style of ['glass1', 'dark3']) {
+  for (const W of [1920, 1280, 960]) {
+    for (const [name, cards, extra, games] of HOME_COMBOS) {
+      const o = await homeCards(cards, W, { style, extra, games }), r = await homeProbe(o.p);
+      const tag = `home cards ${name}, ${style}, screen ${W}`;
+      check(`${tag}: ${o.n} card${o.n > 1 ? 's' : ''} in a ${o.bw}x${o.bh} box, no script errors, none empty`,
+        !o.errors.length && r.n === o.n && r.kinds.join() === cards && !r.empty.length, JSON.stringify(r) + o.errors.join('; '));
+      check(`${tag}: no overlap, inside the box, no «…», nothing cut off`, !r.overlap.length && !r.outside.length && !r.dots.length && !r.cut.length && r.mid <= o.bh + 1,
+        JSON.stringify(r));
+      check(`${tag}: Arabic digits only, none of them under 7.5 px`, !r.latin.length && r.arabic && !r.tooSmall.length, JSON.stringify(r));
+      await o.ctx.close();
+    }
+  }
+}
+
+// the third card has less room when a long app title is in the way (193 dp of 540): the cards step down and still fit
+for (const style of ['current', 'glass1', 'dark3']) {
+  for (const W of [1920, 1280, 960]) {
+    const [name, cards, extra, games] = HOME_COMBOS[0];
+    const o = await homeCards(cards, W, { style, extra, games, tight: true }), r = await homeProbe(o.p);
+    check(`home cards ${name}, ${style}, screen ${W}, a short box (${o.bh}): no overlap, inside it, no «…», nothing cut off, no script errors`,
+      !o.errors.length && !r.overlap.length && !r.outside.length && !r.dots.length && !r.cut.length && r.mid <= o.bh + 1 && !r.empty.length, JSON.stringify(r) + o.errors.join('; '));
+    await o.ctx.close();
+  }
+}
+// the narrow prayer row (a card of a pair is about half the box): «العشاء ٦:٥١ م» still fits its cell, on one line, at every size
+for (const [style, W] of [['current', 960], ['glass1', 1280], ['dark3', 960], ['current', 1920]]) {
+  const o = await homeCards('matches,prayerrow,hourly', W, { style, extra: 'teams=136013', games: SHORT_GAMES, isha: '18:51' });
+  const r = await o.p.evaluate(() => { const card = CARDS[1].el.getBoundingClientRect(), cells = [...CARDS[1].ul.querySelectorAll('.pc')], last = cells[cells.length - 1];
+    const b = last.querySelector('b'), i = last.querySelector('i'), cell = last.getBoundingClientRect();
+    return { name: b.textContent, time: i.textContent, one: [b, i].every(x => x.getClientRects().length === 1), inCell: [b, i].every(x => x.scrollWidth <= last.clientWidth + 1),
+      inCard: cell.left >= card.left - 1 && cell.right <= card.right + 1, z: CARDS[1].z, size: parseFloat(getComputedStyle(i).fontSize) }; });
+  check(`home prayer row, ${style}, screen ${W}: «العشاء ٦:٥١ م» on one line inside its cell and the card (text size ${r.size.toFixed(1)} px)`,
+    !o.errors.length && r.name === 'العشاء' && r.time === '٦:٥١ م' && r.one && r.inCell && r.inCard, JSON.stringify(r) + o.errors.join('; '));
+  await o.ctx.close();
+}
+// the list in the link: one value works, none or empty is no card, a card once, no more than three, the unknown left out
+for (const [list, want, mid] of [['verse', 'verse', 'n1'], ['prayers,hourly', 'prayers,hourly', 'n2'], ['verse,stocks,year,tasks', 'verse,stocks,year', 'n3'],
+    ['year,year,prayers', 'year,prayers', 'n2'], ['bogus,wisdom', 'wisdom', 'n1'], ['none', '', ''], ['', '', ''], ['none,verse', 'verse', 'n1']]) {
+  const o = await open('tv.html', `home_panel=${list}&widget=1`, { width: 561, height: 250 });
+  const r = await o.p.evaluate(() => ({ kinds: CARDS.map(c => c.kind).join(), cfg: CONFIG.cards.join(), mid: document.querySelector('.mid').className,
+    ids: [...document.querySelectorAll('[id=week-list]')].length, shown: [...document.querySelectorAll('.week')].filter(e => getComputedStyle(e).display !== 'none').length }));
+  check(`home_panel=${list || '(empty)'} → ${want || 'no card'}`, !o.errors.length && r.kinds === want && r.cfg === want && (mid ? r.mid.includes(mid) : r.shown === 0) && r.ids <= 1,
+    JSON.stringify(r) + o.errors.join('; '));
+  await o.ctx.close();
+}
+{   // an older launcher sends the one card as panel=; the screensaver never reads home_panel
+  const o = await open('tv.html', 'panel=wisdom&widget=1', { width: 461, height: 250 }), r = await o.p.evaluate(() => CARDS.map(c => c.kind).join());
+  check('an older launcher\'s #panel= still gives its one card', !o.errors.length && r === 'wisdom', r);
+  await o.ctx.close();
+  const q = await open('tv.html', 'panel=year&home_panel=verse,stocks'), r2 = await q.p.evaluate(() => CARDS.map(c => c.kind).join());
+  check('the screensaver ignores home_panel: its own card, one', !q.errors.length && r2 === 'year', r2);
+  await q.ctx.close();
+}
+{   // the layout follows the count: one card the box's width; two side by side (the first on the right); the third under them, full width
+  for (const [cards, cols] of [['verse', 1], ['verse,stocks', 2], ['verse,stocks,year', 2]]) {
+    const o = await homeCards(cards, 1920, { extra: 'stocks=2222,1120,AAPL' }), r = await o.p.evaluate(() => CARDS.map(c => { const b = c.el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.right), Math.round(b.top), Math.round(b.bottom)]; }));
+    const n = r.length, [w] = homeBox(n, 1920);
+    let ok = n === cards.split(',').length;
+    if (n === 1) ok = ok && r[0][0] === 0 && r[0][1] === 461;
+    if (n >= 2) ok = ok && r[0][1] === w && r[1][0] === 0 && r[0][0] - r[1][1] === 22 && Math.abs((r[0][1] - r[0][0]) - 560) <= 2 && Math.abs((r[1][1] - r[1][0]) - 540) <= 2 && r[0][2] === r[1][2];
+    if (n === 3) ok = ok && r[2][0] === 0 && r[2][1] === w && r[2][2] >= Math.max(r[0][3], r[1][3]) + 21;
+    check(`home cards ${cards}: ${n} card${n > 1 ? 's' : ''} laid out ${n === 1 ? 'alone' : n === 2 ? '560 + 22 + 540 side by side, the first on the right' : 'in a pair with the third under it, full width'}`, !o.errors.length && ok, JSON.stringify(r));
+    await o.ctx.close();
+  }
+}
+{   // one card is not changed by the sizing: full size, no steps, whatever the box
+  for (const kind of ['matches', 'verse', 'adhkar', 'tasks', 'prayerrow', 'hourly']) {
+    const o = await homeCards(kind, 1920, { extra: 'teams=136013&tasks=' + encodeURIComponent(TASKS12.join('\n')), games: kind === 'matches' ? LONG_GAMES : null });
+    const r = await o.p.evaluate(() => CARDS.map(c => [c.z, c.cap, c.maxLen]));
+    check(`home card ${kind} alone: never stepped down`, !o.errors.length && JSON.stringify(r) === '[[1,0,0]]', JSON.stringify(r));
+    await o.ctx.close();
+  }
+}
+{   // each card keeps its own page: the tasks card turns pages, the stocks card beside it stays on its one
+  const o = await homeCards('tasks,stocks', 960, { extra: 'stocks=2222,1120,AAPL&tasks=' + encodeURIComponent(TASKS12.join('\n')) });
+  const r = await o.p.evaluate(() => { const first = () => CARDS[0].ul.textContent, a = first(), st = CARDS[1].ul.textContent;
+    CARDS[0].page++; renderCard(CARDS[0], false); fitCards(); return { moved: first() !== a, same: CARDS[1].ul.textContent === st, pages: CARDS.map(c => c.page) }; });
+  check('home cards: a page turn of one card does not touch the other', !o.errors.length && r.moved && r.same && r.pages.join() === '1,0', JSON.stringify(r));
+  await o.ctx.close();
+}
+{   // the saved copy is per card, and each card takes back only what its own kind drew
+  const ctx = await browser.newContext({ viewport: { width: 561, height: 250 } });
+  await ctx.route(/^https?:/, r => r.abort());
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#home_panel=shows,tasks&widget=1');
+  await p.waitForTimeout(800);
+  await p.evaluate(() => { CARDS[0].ul.innerHTML = '<li>SAVED A</li>'; CARDS[1].ul.innerHTML = '<li>SAVED B</li>'; saveSnap(); });
+  await p.goto(page('tv.html') + '#home_panel=shows,tasks&widget=1'); await p.reload();
+  const same = await p.evaluate(() => CARDS.map(c => c.ul.textContent).join('|'));
+  await p.goto(page('tv.html') + '#home_panel=tasks,shows&widget=1'); await p.reload();
+  const swapped = await p.evaluate(() => CARDS.map(c => c.ul.textContent).join('|'));
+  check('home cards: the last drawn cards come back at once, each its own', same === 'SAVED A|لا مهام اليوم' || same === 'SAVED A|SAVED B', same);
+  check('home cards: a card in another place does not take another kind\'s saved copy', !swapped.includes('SAVED'), swapped);
+  await ctx.close();
 }
 
 await browser.close();

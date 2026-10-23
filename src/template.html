@@ -38,7 +38,11 @@
   html.widget .photo,html.widget .veil,html.widget .grain,html.widget .top-veil,html.widget .bottom-veil,
   html.widget .dimmer,html.widget #credit,html.widget .top,html.widget .clockwrap,html.widget .bottom{display:none}
   html.widget .stage{height:auto;padding:0;display:block;transition:none}
-  html.widget .mid{display:block}
+  /* the launcher's cards, up to three: one fills the box; two side by side (the first on the right, as Arabic reads);
+     three: two side by side and the third the full width under them. At 1920 a pair is about 560 + 540 px with a 22 px gap. */
+  html.widget .mid{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--cg,clamp(8px,2vw,22px));align-items:start}
+  html.widget .mid.n2,html.widget .mid.n3{grid-template-columns:minmax(0,560fr) minmax(0,540fr)}
+  html.widget .mid .week.w3{grid-column:1/-1}
   html.widget .week{width:100%}
   html,body{
     height:100%;overflow:hidden;background:#040E09;color:var(--sand);
@@ -101,13 +105,13 @@
   }
   .week .hd{
     display:flex;align-items:center;gap:.7em;margin-bottom:1vh;
-    font-size:clamp(12px,1vw,18px);font-weight:500;letter-spacing:.18em;color:var(--gold-2);
+    font-size:calc(clamp(12px,1vw,18px)*var(--z,1));font-weight:500;letter-spacing:.18em;color:var(--gold-2);
   }
   .week .hd::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(var(--gold-rgb),.5),transparent)}
   .week ul{list-style:none;display:flex;flex-direction:column;gap:0}
   .week li{
     display:flex;align-items:baseline;gap:1.05em;
-    font-size:clamp(14px,1.16vw,22px);font-weight:400;color:#F6EEDC;
+    font-size:calc(clamp(14px,1.16vw,22px)*var(--z,1));font-weight:400;color:#F6EEDC;
     white-space:nowrap;line-height:1.3;
     padding:.8vh 0;border-bottom:1px solid rgba(var(--gold-rgb),.13);
   }
@@ -145,7 +149,7 @@
   .week li.past{color:#8F8670}
   .week li.next{color:var(--gold-hi)}
   .week li.next .dt{color:var(--gold-3)}
-  .week li.quote{white-space:normal;display:block;font-size:clamp(17px,1.5vw,29px);line-height:1.75;
+  .week li.quote{white-space:normal;display:block;font-size:calc(clamp(17px,1.5vw,29px)*var(--z,1));line-height:1.75;
     border-bottom:none;padding:.4vh 0 0;color:#FFF7E6}
   /* Thmanyah draws ﴿﴾ as small angle marks: they come from the NotoMarks subset */
   .week li.quote .orn{font-family:'NotoMarks','Noto Naskh Arabic',serif;color:var(--gold-2);
@@ -155,25 +159,25 @@
   /* the Uthmanic Hafs face is small for its size and its marks stack high: larger, with more leading */
   .week li.quote .qt{font-family:'UthmanicHafs','Thmanyah',serif;font-size:1.32em}
   .week li.quote.quran{line-height:1.95}
-  .week li.quote.quran.q1{font-size:clamp(13px,1.3vw,25px);line-height:1.85}   /* the Hafs face is wide: a lower floor than the other cards' */
+  .week li.quote.quran.q1{font-size:calc(clamp(13px,1.3vw,25px)*var(--z,1));line-height:1.85}   /* the Hafs face is wide: a lower floor than the other cards' */
   .week li.quote.quran.q2{line-height:1.8}
   .week li.quote.quran.q3,.week li.quote.quran.q4{line-height:1.55}   /* the longest verses, on the smallest screens, must still fit the card */
   /* «التفسير الميسر» under the verse (#tafsir=1): small and dim, three lines at most (fitTafsir) */
   .week li.tafsir{white-space:normal;display:block;border-bottom:none;padding:.5vh 0 0;line-height:1.65;
-    font-size:clamp(11px,.92vw,17px);color:#B9AE96}
+    font-size:calc(clamp(11px,.92vw,17px)*var(--z,1));color:#B9AE96}
   /* a full hadith: the isnad and the narration small and muted, the Prophet's words ﷺ at full size */
-  .week li.quote.hadith{font-size:clamp(15px,1.3vw,25px);line-height:1.7}
+  .week li.quote.hadith{font-size:calc(clamp(15px,1.3vw,25px)*var(--z,1));line-height:1.7}
   /* long texts a step smaller (by length, see quoteSize()), so the card never grows past the clock row */
-  .week li.quote.q1{font-size:clamp(15px,1.3vw,25px)}
-  .week li.quote.q2{font-size:clamp(14px,1.16vw,22px)}
-  .week li.quote.q3{font-size:clamp(13px,1.04vw,20px)}
-  .week li.quote.q4{font-size:clamp(11px,.88vw,17px)}   /* the adhkar card's longest, the end of al-Baqara with harakat */
-  .week li.quote.hadith.q1{font-size:clamp(14px,1.16vw,22px)}
-  .week li.quote.hadith.q2{font-size:clamp(13px,1.04vw,20px)}
-  .week li.quote.hadith.q3{font-size:clamp(12px,.94vw,18px)}
+  .week li.quote.q1{font-size:calc(clamp(15px,1.3vw,25px)*var(--z,1))}
+  .week li.quote.q2{font-size:calc(clamp(14px,1.16vw,22px)*var(--z,1))}
+  .week li.quote.q3{font-size:calc(clamp(13px,1.04vw,20px)*var(--z,1))}
+  .week li.quote.q4{font-size:calc(clamp(11px,.88vw,17px)*var(--z,1))}   /* the adhkar card's longest, the end of al-Baqara with harakat */
+  .week li.quote.hadith.q1{font-size:calc(clamp(14px,1.16vw,22px)*var(--z,1))}
+  .week li.quote.hadith.q2{font-size:calc(clamp(13px,1.04vw,20px)*var(--z,1))}
+  .week li.quote.hadith.q3{font-size:calc(clamp(12px,.94vw,18px)*var(--z,1))}
   .week li.quote .nar{font-size:.66em;color:#B9AE96}
   .week li.quote .nar .saw{font-size:1.45em}
-  .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:var(--gold-2)}
+  .week li.src{border-bottom:none;padding:.6vh 0 0;font-size:calc(clamp(12px,.95vw,18px)*var(--z,1));color:var(--gold-2)}
   /* «أذكار الصباح والمساء»: the header takes a line icon and the window's end; the footer holds source, count and dots */
   .week .hd::after{order:1}
   .week .hd svg{flex:0 0 auto;width:1.5em;height:1.5em;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
@@ -188,7 +192,7 @@
   .week li.stk .up{color:#79D6A0}
   .week li.stk .down{color:#EE8B70}
   .week li.adf{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:.8em;align-items:center;
-    border-bottom:none;padding:.6vh 0 0;font-size:clamp(12px,.95vw,18px);color:var(--gold-2)}
+    border-bottom:none;padding:.6vh 0 0;font-size:calc(clamp(12px,.95vw,18px)*var(--z,1));color:var(--gold-2)}
   .week li.adf .s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-bottom:.3em;margin-bottom:-.3em}
   .week li.adf .c{color:#B9AE96;font-size:.92em;white-space:nowrap}
   .week li.adf .d{justify-self:end;display:flex;gap:.4em}
@@ -197,7 +201,7 @@
   /* «السنة»: one dot a day in a single SVG; the days gone rise from dim to gold, today is the brightest with a halo */
   .week li.yr{display:block;white-space:normal;border-bottom:none;padding:.3vh 0 0;text-align:center}
   .week li.yr .yn{font-size:1.3em;font-weight:500;color:var(--gold-hi);line-height:1.1;font-variant-numeric:tabular-nums}
-  .week li.yr svg{display:block;width:100%;height:auto;margin:.6vh 0 .5vh}
+  .week li.yr svg{display:block;width:calc(100%*var(--z,1));height:auto;margin:.6vh auto .5vh}
   .week li.yr .on{fill:rgb(var(--gold-rgb))}
   .week li.yr .off{fill:rgb(var(--gold-rgb));fill-opacity:.14}
   .week li.yr .now{fill:var(--gold-hi)}
@@ -208,7 +212,7 @@
     .week li.yr.fill .r{animation:yrIn .7s ease both;animation-delay:calc(var(--i) * 70ms)}
     @keyframes yrIn{from{opacity:0}to{opacity:1}}
   }
-  .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
+  .week .empty{color:#9A9078;font-size:calc(clamp(14px,1.1vw,21px)*var(--z,1));font-weight:300;margin-top:1vh}
 
   /* ===== card styles (#cardstyle=; the default keeps the plain card above) =====
      The blur is never a live backdrop-filter: a pre-blurred copy of the photo is drawn once per photo
@@ -234,6 +238,12 @@
 
   /* framed: an inner gold frame with a diamond on its top and bottom edge, the header centred */
   html.cs-dark3 .week,html.cs-glass3 .week{padding:calc(1.7vh + 8px) calc(1.4vw + 8px)}
+  /* the launcher's box is short: the header must clear the diamond on the top edge whatever its height (vh is the box's) */
+  html.widget.cs-dark3 .week,html.widget.cs-glass3 .week{padding:calc(24px*var(--z,1)) calc(1.4vw + 8px) calc(18px*var(--z,1))}
+  html.widget.cs-dark3 .week .frm,html.widget.cs-glass3 .week .frm{inset:calc(12px*var(--z,1))}
+  html.widget.cs-dark3 .week .dia,html.widget.cs-glass3 .week .dia{width:calc(18px*var(--z,1));height:calc(18px*var(--z,1))}
+  html.widget.cs-dark3 .week .dia.t,html.widget.cs-glass3 .week .dia.t{top:calc(12px*var(--z,1))}
+  html.widget.cs-dark3 .week .dia.b,html.widget.cs-glass3 .week .dia.b{bottom:calc(12px*var(--z,1))}
   html.cs-dark3 .week .frm,html.cs-glass3 .week .frm{display:block;position:absolute;inset:12px;z-index:0;pointer-events:none;
     border:1px solid rgba(var(--gold-rgb),.55);border-radius:14px}
   html.cs-dark3 .week .dia,html.cs-glass3 .week .dia{display:block;position:absolute;left:50%;width:18px;height:18px;z-index:0;
@@ -465,6 +475,8 @@ const _list = k => (_Q.get(k) || '').split(',').map(x=>x.trim()).filter(Boolean)
 const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : v; };
 // the city's time zone, #tz=: the clock, prayers, matches and dates all go by it; one this browser does not know is Riyadh
 const _tzOk = z => { try{ new Intl.DateTimeFormat('en',{timeZone:z}); return true; }catch(e){ return false; } };
+// the cards a slot can show (Prefs.PANELS in the app is the same list); «none» is the absence of one
+const CARD_KINDS = ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year'];
 const CONFIG = {
   city: _Q.get('city') || 'الرياض',
   latitude: _num('lat', 24.7136),
@@ -481,8 +493,8 @@ const CONFIG = {
   // other sports beside the teams' games: #events=f1,ufc,boxing (default none)
   events: _list('events').filter(k => ['f1','ufc','boxing'].includes(k)),
   eventWindowDays: 14,
-  // the card beside the clock: shows | prayers | forecast | hourly | prayerrow | matches | verse | wisdom | adhkar | stocks | tasks | year | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: one of CARD_KINDS or none (#week=0 from older builds = none)
+  panel: (p => CARD_KINDS.includes(p) || p === 'none' ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   // #tasks=: the open tasks, one per line (the app drops done ones), at most 12 of 60 characters
   tasks: (_Q.get('tasks') || '').split('\n').map(x=>x.trim().slice(0, 60)).filter(Boolean).slice(0, 12),
@@ -525,9 +537,18 @@ const CONFIG = {
   cdName: (_Q.get('cdname') || '').trim().slice(0, 40),
   // «التفسير الميسر» under the verse of the day: #tafsir=1 (anything else = off)
   tafsir: _Q.get('tafsir') === '1',
-  // #widget=1: only the card, on a transparent page (the launcher's home screen shows it)
+  // #widget=1: only the cards, on a transparent page (the launcher's home screen shows them)
   widget: _Q.get('widget') === '1',
 };
+// The cards on this page: the screensaver's one (#panel=); the launcher's up to three (#home_panel=a,b,c, none or empty = no card;
+// an older launcher sends the one card as #panel=). Each kind once, in order.
+CONFIG.cards = (CONFIG.widget && _Q.has('home_panel') ? _list('home_panel') : [CONFIG.panel])
+  .filter((k, i, a) => CARD_KINDS.includes(k) && a.indexOf(k) === i).slice(0, 3);
+CONFIG.panel = CONFIG.cards[0] || 'none';   // the first one, for what only needs to know "the card"
+// does a card on this page need that kind's data? The smart card reads what the matches, the adhkar, the prayers and the hours load;
+// «يومك» what the prayers, the matches and the tasks do
+const USES_OF = {smart:['matches','adhkar','prayers','prayerrow','hourly'], today:['prayers','matches','tasks']};
+const USES = k => CONFIG.cards.some(c => c === k || (USES_OF[c] || []).includes(k));
 
 // every number on the screen goes through ar() or a formatter built on NU, so CONFIG.digits decides them all
 const LATIN = CONFIG.digits === 'latin', NU = LATIN ? 'latn' : 'arab';
@@ -673,7 +694,7 @@ async function loadPrayers(){
   }
   tickPrayer();
   tickOccasion();   // Ramadan mode needs the prayer times
-  if(CONFIG.panel === 'prayers' || CONFIG.panel === 'adhkar' || CONFIG.panel === 'prayerrow') renderPanel(false);
+  renderPanel(false, 'prayers', 'adhkar', 'prayerrow');
 }
 
 const UNIT = {
@@ -926,7 +947,7 @@ function arName(en, kind, id){
       try{
         AR_NAMES[key] = await wikidataArabic(en, kind);   // '' = Wikidata has none: keep the transliteration
         try{ localStorage.setItem('arNames', JSON.stringify(AR_NAMES)); }catch(e){}
-        if(AR_NAMES[key]){ renderMatches(); renderPanel(false); }
+        if(AR_NAMES[key]){ renderMatches(); renderPanel(false, 'matches'); }
       }catch(e){}                                    // offline: try again next time
       AR_PENDING.delete(key);
     });
@@ -1233,7 +1254,7 @@ async function loadEvents(){
     if(answered) EVENT_NEXT[key] = got;   // a failed refresh keeps the last events
   }
   renderMatches();
-  if(CONFIG.panel === 'matches') renderPanel(false);
+  renderPanel(false, 'matches');
 }
 
 // Every followed team with something to show, two at a time; the page turns every 15 s.
@@ -1336,7 +1357,7 @@ async function loadMatches(){
   MATCHES_LOADED = true;
   loadEvents();
   renderMatches();
-  if(CONFIG.panel === 'matches') renderPanel(false);
+  renderPanel(false, 'matches');
   loadCrests();
 }
 
@@ -1375,7 +1396,7 @@ function num(v, dec){
 // ---- the bottom-left slot: matches, weather, fasting, a countdown, or nothing (#slot=) ----
 // Matches are the default; with no team or other sport followed the slot shows the weather instead of an empty line.
 const SLOT_MATCHES = CONFIG.slot === 'matches' && (CONFIG.teamIds.length > 0 || CONFIG.leagues.length > 0 || CONFIG.events.length > 0);   // teams, leagues or other sports
-const NEEDS_MATCHES = SLOT_MATCHES || CONFIG.panel === 'matches';   // the slot or the card beside the clock
+const NEEDS_MATCHES = SLOT_MATCHES || USES('matches');   // the slot or a card
 const SLOT_LABEL = {matches:'المباريات', weather:'الطقس', fasting:'الصيام', countdown:'عدّ تنازلي', markets:'الأسواق'};
 
 // All the fasting wording is here. FAST_NAMES: the big text per day; the small line below says when.
@@ -1601,29 +1622,31 @@ async function loadWeek(){
   }
 
   // nothing answered (offline): keep the saved list if one is shown
-  if(NET_OK === answered && document.querySelector('#week-list li:not(.empty)')) return;
+  if(NET_OK === answered && CARDS.some(c => c.kind === 'shows' && c.ul.querySelector('li:not(.empty)'))) return;
   if(out.length){                                   // keep the last good list on a failed refresh
     WEEK_POOL = out.sort((a,b)=> (b.picked - a.picked) || (b.prem - a.prem) || a.date.localeCompare(b.date)).slice(0, 50);
-    WEEK_PAGE = 0;
+    CARDS.forEach(c => { if(c.kind === 'shows') c.page = 0; });
   }
-  renderWeekPage(false);
+  WEEK_LOADED = true;
+  renderPanel(false, 'shows');
 }
 
 const WEEK_ROWS = 5;
 const MATCH_ROWS = 4;   // the games card: each game takes two lines (teams, date and time)
-let WEEK_POOL = [];
-let WEEK_PAGE = 0;
+let WEEK_POOL = [], WEEK_LOADED = false;
 
-function renderWeekPage(animate){
-  const ul = document.getElementById('week-list');
+// «جديد المسلسلات»: this card's page of the pool (card.page counts pages of card.cap, or WEEK_ROWS, rows)
+function renderWeekPage(card, animate){
+  const ul = card.ul;
   if(!WEEK_POOL.length){
+    if(!WEEK_LOADED) return;   // the saved list stays until the first answer
     ul.classList.remove('flip');
     setHTML(ul, '<li class="empty">لا جديد هذا الأسبوع</li>');
     return;
   }
-  const start = (WEEK_PAGE * WEEK_ROWS) % WEEK_POOL.length;
+  const per = card.cap || WEEK_ROWS, start = (card.page * per) % WEEK_POOL.length;
   const rows = [];
-  for(let i = 0; i < Math.min(WEEK_ROWS, WEEK_POOL.length); i++){
+  for(let i = 0; i < Math.min(per, WEEK_POOL.length); i++){
     rows.push(WEEK_POOL[(start + i) % WEEK_POOL.length]);
   }
   setHTML(ul, rows.map(o=>{
@@ -1637,54 +1660,133 @@ function renderWeekPage(animate){
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
 }
 
-// ---- the card beside the clock: one of several contents, picked in the app
+// ---- the cards: the screensaver has one beside the clock, the launcher's page up to three (CONFIG.cards, one kind each).
+// Each is its own element with its own page, timers and size: renderCard(card) draws one kind into that card, nothing else is shared
+// but the data the kinds load. card.z is its text size (1 = full), card.cap the rows a page of a list may hold; the launcher
+// steps both down until the cards fit their box (fitCards).
+const CARDS = [];
+function buildCards(){
+  const first = document.querySelector('.week'), mid = document.querySelector('.mid');
+  if(!CONFIG.cards.length){ first.style.display = 'none'; return; }
+  CONFIG.cards.forEach((kind, i) => {
+    let el = first;
+    if(i){
+      el = first.cloneNode(true);
+      el.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+      CARDS[i - 1].el.after(el);
+    }
+    CARDS.push({i, kind, eff: kind, el, hd: el.querySelector('.hd'), ul: el.querySelector('ul'),
+      page: 0, z: 1, zi: 0, ri: 0, cap: 0, maxLen: 0, base: 0, len0: 0, ad: {i: 0, t: 0, mode: '', n: 0}, yearShown: false});
+  });
+  mid.classList.add('n' + CARDS.length);
+  if(CARDS.length === 3) CARDS[2].el.classList.add('w3');
+}
+
 let FORECAST = [];
 try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
-let LIST_PAGE = 0;
 const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
+const LISTS = ['matches', 'stocks', 'tasks', 'shows'];   // the kinds that page through their rows
 
-function renderPanel(animate){
-  const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
-  const P = CONFIG.panel;
-  if(P === 'shows'){ renderWeekPage(animate); return; }
+// the header: HTML when the kind has icons or a note in it, else its title (the two never share a stale copy)
+function paintHd(hd, title, html){
+  if(html) setHTML(hd, html); else { setText(hd, title); hd.__h = null; }
+}
+
+// Draw the cards of these kinds (none given = all). A kind may sit in a smart or «يومك» card, which follow the same data.
+function renderPanel(animate, ...kinds){
+  for(const c of CARDS){
+    if(kinds.length && !kinds.includes(c.kind) && c.kind !== 'smart' && c.kind !== 'today') continue;
+    renderCard(c, animate);
+  }
+  fitCards();
+}
+
+function renderCard(card, animate, keepSize){
+  const ul = card.ul, hd = card.hd;
+  const was = card.eff;
+  card.eff = card.kind === 'smart' ? smartKind() : card.kind;
+  const P = card.eff;
+  if(P !== was){   // the smart card changed its mind: a fresh page of the new kind
+    card.page = 0; card.skip = 0; card.maxLen = 0; ul.__h = null;
+    if(was === 'adhkar'){ clearTimeout(card.ad.t); card.ad.t = 0; card.ad.mode = ''; }
+  }
+  if(!keepSize){ card.z = 1; card.cap = 0; card.maxLen = 0; card.zi = 0; card.ri = 0; card.el.style.removeProperty('--z'); }
+  if(P === 'shows'){ paintHd(hd, PANEL_TITLE.shows); renderWeekPage(card, animate); return; }
   let rows = [];
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
   else if(P === 'hourly') rows = hourlyRows();
-  else if(P === 'prayerrow'){ const q = prayerRowCard(); setText(hd, q.title); rows = q.rows; }
-  else if(P === 'matches') rows = matchRows();
-  else if(P === 'year') rows = [yearCard()];
+  else if(P === 'prayerrow'){ const q = prayerRowCard(); paintHd(hd, q.title); rows = q.rows; }
+  else if(P === 'matches') rows = matchRows(card);
+  else if(P === 'year') rows = [yearCard(card)];
   else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
-  else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
-  else if(P === 'wisdom'){ const q = wisdomOfDay(); setText(hd, q.title); rows = q.rows; }
-  else if(P === 'adhkar'){
-    const q = adhkarCard();
-    if(q.hd) setHTML(hd, q.hd); else { setText(hd, q.title); hd.__h = null; }
-    rows = q.rows;
-  }
-  else if(P === 'stocks'){ const q = stocksCard(); setHTML(hd, q.hd); rows = q.rows; }
-  if(PANEL_TITLE[P]) setText(hd, PANEL_TITLE[P]);
+  else if(P === 'verse'){ const q = quoteOfDay(card); paintHd(hd, q.title); rows = q.rows; }
+  else if(P === 'wisdom'){ const q = wisdomOfDay(); paintHd(hd, q.title); rows = q.rows; }
+  else if(P === 'adhkar'){ const q = adhkarCard(card); paintHd(hd, q.title, q.hd); rows = q.rows; }
+  else if(P === 'stocks'){ const q = stocksCard(); paintHd(hd, '', q.hd); rows = q.rows; }
+  if(PANEL_TITLE[P]) paintHd(hd, PANEL_TITLE[P]);
   if(!rows.length){
     if(P === 'matches' && !MATCHES_LOADED && ul.firstElementChild && !ul.firstElementChild.classList.contains('empty')) return;   // the saved games stay until the first answer
     ul.classList.remove('flip');
     setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : P === 'tasks' ? 'لا مهام اليوم' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
   }
-  const per = P === 'matches' ? MATCH_ROWS : WEEK_ROWS;
+  const per = card.cap || (P === 'matches' ? MATCH_ROWS : WEEK_ROWS);
   if((P === 'matches' || P === 'stocks' || P === 'tasks') && rows.length > per){        // page through, like the shows
-    const start = (LIST_PAGE * per) % rows.length;
+    const start = (card.page * per) % rows.length;
     rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
   }
   const wrote = setHTML(ul, rows.join(''), animate);
+  if(!keepSize){ card.base = rows.length; card.len0 = card.len || 0; }   // what full size holds: the rows of a page, the length of the text
   if(P === 'matches'){ fillCrests(ul); if(wrote) shortenRows(ul); }
   if(CONFIG.tafsir) fitTafsir(ul);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
 }
 
+// ---- sizing in the launcher. The cards share the box of the WebView (two or three of them). A card that does not fit steps
+// down in text size, then in rows per page (a list), then picks a shorter text (a verse, a hadith, a dhikr); the one that is
+// cut off or tallest goes first. One card keeps the box to itself and is never changed, as it always was.
+// How a card gets smaller, one step at a time. Its text size comes from Z_STEPS (card.zi); a list may also give rows (card.ri
+// of them gone: the pages are shorter, and every row still comes round), a verse or a dhikr ask for a shorter text (card.ri
+// times a fifth shorter than the day's). A card that is too tall gives rows first, a quote comes down to .82 before a shorter
+// text is looked for; one that is too wide (a name that would end in «…») can only give text size.
+const Z_STEPS = [1, .94, .88, .82, .76, .7, .64];
+function cardCut(card){   // a name or a cell wider than its place: it would end in «…» or run into the next
+  for(const e of card.el.querySelectorAll('li, li *, .hd > span')){
+    if(e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1) return true;
+  }
+  return false;
+}
+function shrinkCard(c, tooWide){   // false when there is no step left
+  const list = LISTS.includes(c.eff), quote = c.eff === 'verse' || c.eff === 'adhkar', zLeft = c.zi < Z_STEPS.length - 1;
+  if(tooWide){ if(!zLeft) return false; c.zi++; }
+  else if(list && c.ri < c.base - 1) c.ri++;
+  else if(quote && c.zi < 3) c.zi++;
+  else if(quote && c.ri < 6) c.ri++;
+  else if(zLeft) c.zi++;
+  else return false;
+  const cap = list && c.ri ? c.base - c.ri : 0, maxLen = quote && c.ri ? Math.max(20, Math.floor(c.len0 * Math.pow(.8, c.ri))) : 0;
+  c.z = Z_STEPS[c.zi];
+  c.el.style.setProperty('--z', c.z);
+  if(cap !== c.cap || maxLen !== c.maxLen){ c.cap = cap; c.maxLen = maxLen; renderCard(c, false, true); }
+  return true;
+}
+function fitCards(){
+  if(!CONFIG.widget || CARDS.length < 2) return;
+  const mid = document.querySelector('.mid');
+  for(let g = 0; g < 120; g++){
+    const tall = mid.getBoundingClientRect().height > innerHeight + .5;
+    const cut = CARDS.filter(cardCut);
+    if(!tall && !cut.length) return;
+    // the cut-off cards first; then, only if the box is too tall, the tallest that can still give something
+    if(cut.some(c => shrinkCard(c, true))) continue;
+    if(!tall || !CARDS.slice().sort((a, b) => b.el.offsetHeight - a.el.offsetHeight).some(c => shrinkCard(c))) return;
+  }
+}
+
 // ---- «السنة»: a dot for every day of this Gregorian year (Riyadh time). Drawn again only when the day changes.
-let YEAR_SHOWN = false;
-function yearCard(){
+function yearCard(card){
   const p = riyadhParts(new Date(Date.now())), y = p.y;
   const total = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
   const day = Math.round((Date.UTC(y, p.mo - 1, p.d) - Date.UTC(y, 0, 1)) / 864e5) + 1;
@@ -1702,8 +1804,8 @@ function yearCard(){
     }
     rows.push(`<g class="r" style="--i:${r}">${g}</g>`);
   }
-  const pct = Math.round(100 * day / total), anim = !YEAR_SHOWN;
-  YEAR_SHOWN = true;
+  const pct = Math.round(100 * day / total), anim = !card.yearShown;
+  card.yearShown = true;
   const svg = `<svg viewBox="-10 -10 ${COLS * PITCH + 20} ${ROWS * PITCH + 20}" role="img" aria-label="${ar(day)} / ${ar(total)}">${rows.join('')}</svg>`;
   return `<li class="yr${anim ? ' fill' : ''}"><div class="yn">${ar(y)}</div>${svg}`
        + `<div class="yt">اليوم <b>${ar(day)}</b> من ${ar(total)} · ${ar(pct)}${LATIN ? '%' : '٪'}</div></li>`;
@@ -1735,7 +1837,7 @@ function forecastRows(){
 // ---- club crests on the launcher's matches card: TheSportsDB's badge, which the events already carry
 // (strHomeTeamBadge / strAwayTeamBadge, with idHomeTeam / idAwayTeam). No request of its own except the picture,
 // once per club: kept as a 48 px copy in localStorage and fetched again only when the badge's address changes.
-const CRESTS_ON = CONFIG.widget && CONFIG.panel === 'matches';
+const CRESTS_ON = CONFIG.widget && USES('matches');
 const CREST_PX = 48, CREST_KEEP = 60, CREST_PER_ROUND = 10, CREST_RETRY_MS = 6 * 3600000;
 let CRESTS = {};   // team id -> {u: badge address, d: data: URI of the small copy}
 try{ CRESTS = JSON.parse(localStorage.getItem('crests') || '{}') || {}; }catch(e){}
@@ -1797,7 +1899,7 @@ async function loadCrests(){
     if(!got) return;
     Object.keys(CRESTS).slice(0, Math.max(0, Object.keys(CRESTS).length - CREST_KEEP)).forEach(k => delete CRESTS[k]);
     try{ localStorage.setItem('crests', JSON.stringify(CRESTS)); }catch(e){}
-    renderPanel(false);
+    renderPanel(false, 'matches');
   }finally{ CREST_BUSY = false; }
 }
 
@@ -1870,7 +1972,7 @@ function matchEvents(){
   return evs;
 }
 // ... in time order
-function matchRows(){
+function matchRows(card){
   const now = Date.now(), evs = matchEvents();
   const others = eventRows(now);
   return [...evs.map(ev => ({ev, t: toDate(ev).getTime()}))
@@ -1923,7 +2025,7 @@ async function loadStocks(){
   }
   if(!got) return;                   // offline: keep what is shown
   try{ localStorage.setItem('stocks:' + location.hash, JSON.stringify(STOCKS)); }catch(e){}
-  if(CONFIG.panel === 'stocks') renderPanel(false);
+  renderPanel(false, 'stocks');
 }
 // a small line of the day's closes, 60 x 16, drawn only when the card's markup changes
 function spark(c, up){
@@ -1974,14 +2076,29 @@ function fitTafsir(ul){
   }
   el.remove();
 }
-function quoteOfDay(){
+// A card in a small place (the launcher's second or third) asks for a text no longer than card.maxLen: the first that short from the
+// day's own, going on from it; none that short, the shortest.
+function pickShort(list, at, len, card){
+  card = card || {};
+  card.len = len(list[at % list.length]);
+  if(!card.maxLen) return list[at % list.length];
+  let best = list[at % list.length];
+  for(let k = 0; k < list.length; k++){
+    const x = list[(at + k) % list.length];
+    if(len(x) <= card.maxLen){ best = x; break; }
+    if(len(x) < len(best)) best = x;
+  }
+  card.len = len(best);
+  return best;
+}
+function quoteOfDay(card){
   const n = riyadhDayNumber(), half = Math.floor(n / 2);
   if(VERSES.length && n % 2 === 0){
-    const v = VERSES[half % VERSES.length];
+    const v = pickShort(VERSES, half, x => x.text.length, card);
     return {title:'آية اليوم', rows:[`<li class="quote quran${v.text.length > 330 ? ' q4' : quoteSize(v.text.length)}"><span class="orn">﴿</span><span class="qt">${esc(v.text)}</span><span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]
       .concat(CONFIG.tafsir && v.tafsir ? [`<li class="tafsir">${esc(v.tafsir)}</li>`] : [])};
   }
-  const h = HADITH[half % HADITH.length];
+  const h = pickShort(HADITH, half, x => x.parts.reduce((m, [, t]) => m + t.length, 0), card);
   const saw = s => s.replace(/ﷺ/g, '<span class="saw">ﷺ</span>').replace(/[﴿﴾]/g, m => `<span class="orn">${m}</span>`);
   const body = h.parts.map(([k, t]) => k === 'q' ? `«${saw(esc(t))}»` : `<span class="nar">${saw(esc(t))}</span>`).join(' ');
   return {title:'حديث اليوم', rows:[`<li class="quote hadith${quoteSize(h.parts.reduce((n, [, t]) => n + t.length, 0))}">${body}</li>`, `<li class="src">${esc(h.source)}</li>`]};
@@ -2006,7 +2123,7 @@ const ADHKAR_ICON = {
   night:'<svg viewBox="0 0 24 24"><path d="M19 13.5A7.5 7.5 0 0 1 9.5 4.4a7.5 7.5 0 1 0 9.5 9.1z"/><path d="M16.5 3.5v3M15 5h3"/></svg>',
 };
 const ADHKAR_HEAD = {morning:['أذكار الصباح', 'حتى الظهر'], evening:['أذكار المساء', 'حتى المغرب'], night:['الآيتان من آخر سورة البقرة', 'حتى الفجر']}   // the hadith's own words, no new category name;
-let ADHKAR_I = 0, ADHKAR_T = 0, ADHKAR_MODE = '', ADHKAR_N = 0;
+// the adhkar's place in a card: card.ad = {i: which, t: the timer, mode: morning|evening|night, n: how many}
 function adhkarWindow(){
   if(!DAY_TIMES) return '';
   const p = riyadhParts(), now = p.h * 60 + p.mi;
@@ -2016,21 +2133,26 @@ function adhkarWindow(){
   if(now >= at('Isha') || now < at('Fajr')) return 'night';   // after midnight it is still the night before
   return '';
 }
-function adhkarNext(){
-  ADHKAR_T = 0;
-  ADHKAR_I++;
-  renderPanel(ADHKAR_N > 1);
+function adhkarNext(card){
+  card.ad.t = 0;
+  card.ad.i++;
+  renderCard(card, card.ad.n > 1);
+  fitCards();
 }
-function adhkarCard(){
-  const mode = adhkarWindow(), list = mode ? ADHKAR.filter(d => d.when === mode || (d.when === 'both' && mode !== 'night')) : [];
+function adhkarCard(card){
+  const ad = card.ad, mode = adhkarWindow(), list = mode ? ADHKAR.filter(d => d.when === mode || (d.when === 'both' && mode !== 'night')) : [];
   if(!list.length){
-    clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_MODE = '';
-    return quoteOfDay();
+    clearTimeout(ad.t); ad.t = 0; ad.mode = '';
+    return quoteOfDay(card);
   }
-  if(mode !== ADHKAR_MODE){ ADHKAR_MODE = mode; ADHKAR_I = 0; clearTimeout(ADHKAR_T); ADHKAR_T = 0; }
-  const i = ADHKAR_I % list.length, d = list[i];
-  ADHKAR_N = list.length;
-  if(!ADHKAR_T) ADHKAR_T = setTimeout(adhkarNext, Math.min(60, 20 + .1 * d.text.length) * 1000);
+  if(mode !== ad.mode){ ad.mode = mode; ad.i = 0; clearTimeout(ad.t); ad.t = 0; }
+  let i = ad.i % list.length;
+  // a card in a small place skips the dhikr that is too long for it (card.maxLen), if a shorter one follows
+  if(card.maxLen) for(let k = 0; k < list.length && list[i].text.length > card.maxLen; k++){ ad.i++; i = ad.i % list.length; }
+  const d = list[i];
+  card.len = d.text.length;
+  ad.n = list.length;
+  if(!ad.t) ad.t = setTimeout(() => adhkarNext(card), Math.min(60, 20 + .1 * d.text.length) * 1000);
   const dots = Math.min(list.length, 12), on = Math.floor(i * dots / list.length);
   const text = d.quran ? `<span class="orn">﴿</span><span class="qt">${esc(d.text)}</span><span class="orn">﴾</span>` : esc(d.text);
   const [title, until] = ADHKAR_HEAD[mode];
@@ -2055,7 +2177,7 @@ async function loadWeather(){
   const q = `latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}&timezone=${encodeURIComponent(CONFIG.timezone)}`;
   try{
     // the hours card asks in the same request: its hourly values, and sunrise and sunset for the day or night icon
-    const hours = CONFIG.panel === 'hourly';
+    const hours = USES('hourly');
     const r = await fetchT(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,weather_code`
                          + `&daily=temperature_2m_max,temperature_2m_min,weather_code${hours ? ',sunrise,sunset' : ''}&forecast_days=5`
                          + (hours ? '&hourly=temperature_2m,weather_code' : ''), 12000);
@@ -2079,7 +2201,7 @@ async function loadWeather(){
       (dl.time || []).forEach((d, i) => { const up = dl.sunrise?.[i], down = dl.sunset?.[i]; if(up && down) SUN[d] = [up.slice(11, 16), down.slice(11, 16)]; });
       try{ localStorage.setItem('hourly:' + location.hash, JSON.stringify({h:HOURLY, s:SUN})); }catch(e){}
     }
-    if(CONFIG.panel === 'forecast' || hours) renderPanel(false);
+    renderPanel(false, 'forecast', 'hourly');
     if(slotNow() === 'weather') renderSlot();
   }catch(e){ return; }   // keep the last reading; with none only the city shows
 
@@ -2295,11 +2417,13 @@ function applyBackground(force){
 }
 
 // Last painted panels, shown at once on the next start while fresh data loads.
-const SNAP_KEY = 'snap5:' + location.hash;   // bump when the panels' markup changes
-const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
+const SNAP_KEY = 'snap6:' + location.hash;   // bump when the panels' markup changes
+const SNAP_SEL = ['.markets', '#match-row'];
 let SNAP_LAST = null;   // what is stored now: the panels rarely change, so most saves have nothing to write
+const noCrestData = h => (h || '').replace(/ src="data:[^"]*"/g, '');   // the crests are kept apart
 function saveSnap(){
-  const s = JSON.stringify(SNAP_SEL.map(q => ((document.querySelector(q)||{}).innerHTML || '').replace(/ src="data:[^"]*"/g, '')));   // the crests are kept apart
+  const s = JSON.stringify([SNAP_SEL.map(q => noCrestData((document.querySelector(q)||{}).innerHTML)),
+    CARDS.map(c => [c.kind, noCrestData(c.ul.innerHTML), c.hd.innerHTML])]);
   if(s === SNAP_LAST) return;
   try{ localStorage.setItem(SNAP_KEY, s); SNAP_LAST = s; }catch(e){}
 }
@@ -2307,20 +2431,43 @@ function restoreSnap(){
   try{
     SNAP_LAST = localStorage.getItem(SNAP_KEY);
     const v = JSON.parse(SNAP_LAST || 'null');
-    if(v) SNAP_SEL.forEach((q, i) => { const el = document.querySelector(q); if(el && v[i]) el.innerHTML = v[i]; });
-    fillCrests(document.getElementById('week-list'));
+    if(!v) return;
+    SNAP_SEL.forEach((q, i) => { const el = document.querySelector(q); if(el && v[0][i]) el.innerHTML = v[0][i]; });
+    CARDS.forEach((c, i) => {   // a card gets only what its own kind drew
+      const saved = v[1][i];
+      if(saved && saved[0] === c.kind){ c.ul.innerHTML = saved[1]; c.hd.innerHTML = saved[2]; fillCrests(c.ul); }
+    });
   }catch(e){}
+}
+
+// What the cards need to be redrawn on, one place for the screensaver and the launcher: pages turn every 25 s, the clock-driven kinds
+// every 15 s (prayers, the row, the hours, the smart card, «يومك»), the windows and markets every minute.
+function cardTimers(){
+  const clocked = ['prayers', 'hourly', 'prayerrow', 'smart', 'today'];
+  setInterval(() => renderPanel(false, ...clocked), 15000);
+  setInterval(() => {
+    for(const c of CARDS){
+      if(c.eff === 'shows' && WEEK_POOL.length > (c.cap || WEEK_ROWS)){ c.page++; renderCard(c, true); }
+      else if(c.eff === 'matches'){ c.page++; renderCard(c, matchRows(c).length > (c.cap || MATCH_ROWS)); }
+      else if(c.eff === 'stocks' && CONFIG.stocks.length > (c.cap || WEEK_ROWS)){ c.page++; renderCard(c, true); }
+      else if(c.eff === 'tasks' && CONFIG.tasks.length > (c.cap || WEEK_ROWS)){ c.page++; renderCard(c, true); }
+    }
+    fitCards();
+  }, 25*1000);
+  setInterval(() => renderPanel(false, 'adhkar', 'stocks', ...clocked), 60*1000);   // a window may have opened; a market opened or closed
 }
 
 function boot(){
   if(CONFIG.widget){ bootWidget(); return; }
+  buildCards();
   if(document.fonts) document.fonts.ready.then(() => {   // widths change once the fonts are in
     fitMatches(document.getElementById('match-row'));
-    if(CONFIG.panel === 'matches' && MATCHES_LOADED){ document.getElementById('week-list').__h = null; renderPanel(false); }   // whole names again where they now fit
+    if(MATCHES_LOADED) CARDS.forEach(c => { if(c.eff === 'matches') c.ul.__h = null; });   // whole names again where they now fit
+    renderPanel(false, 'matches');
   });
   if(CONFIG.slot === 'none') document.documentElement.classList.add('slot-none');
   if(!SLOT_MATCHES) document.getElementById('match-row').textContent = '';   // not «لا شيء هذا الأسبوع»: that is the matches slot's
-  if(CONFIG.cardStyle !== 'current') document.documentElement.classList.add('cs-' + CONFIG.cardStyle);   // the launcher's card keeps its look
+  if(CONFIG.cardStyle !== 'current') document.documentElement.classList.add('cs-' + CONFIG.cardStyle);
   buildMarkets();
   restoreSnap();
   setTimeout(saveSnap, 15*1000);   // the dream can be killed before pagehide
@@ -2336,15 +2483,14 @@ function boot(){
   setInterval(() => applyBackground(false), 60*1000);
   tickClock(); tickDates(); tickOccasion(); renderSlot();
   TICKERS.forEach(loadTicker);
-  if(CONFIG.panel === 'stocks') loadStocks();
-  if(CONFIG.panel === 'none') document.querySelector('.week').style.display = 'none';
-  else if(CONFIG.panel !== 'shows') renderPanel(false);   // its own data arrives with prayers, weather, matches
+  if(USES('stocks')) loadStocks();
+  renderPanel(false, ...CARD_KINDS.filter(k => k !== 'shows'));   // shows: its own data arrives with prayers, weather, matches
   if(NEEDS_MATCHES) loadMatches();
-  loadPrayers(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather();
+  loadPrayers(); if(USES('shows')) loadWeek(); loadWeather();
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers' || CONFIG.panel === 'hourly' || CONFIG.panel === 'prayerrow') renderPanel(false); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); }, 15000);
   if(SLOT_MATCHES){   // the matches timers run only while the slot shows matches
     setInterval(() => renderMatches(false), 60000);
     // 15 s a page (two games), 10 s once a league makes more than 3 pages: a round of 9 games passes in 50 s, not 75
@@ -2353,50 +2499,41 @@ function boot(){
   }
   if(NEEDS_MATCHES){ setInterval(loadLive, 2*60000); setInterval(loadMatches, 30*60*1000); }
   setInterval(loadPrayers, 6*3600*1000);
-  setInterval(()=>{ TICKERS.forEach(loadTicker); if(CONFIG.panel === 'stocks') loadStocks(); }, 15*60*1000);
-  if(CONFIG.panel === 'shows') setInterval(loadWeek, 6*3600*1000);
+  setInterval(()=>{ TICKERS.forEach(loadTicker); if(USES('stocks')) loadStocks(); }, 15*60*1000);
+  if(USES('shows')) setInterval(loadWeek, 6*3600*1000);
   setInterval(loadWeather, 30*60*1000);
-  setInterval(()=>{
-    if(CONFIG.panel === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
-    if(CONFIG.panel === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > MATCH_ROWS); }
-    if(CONFIG.panel === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
-    if(CONFIG.panel === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
-  }, 25*1000);
+  cardTimers();
   setInterval(applyNight, 60*1000);
   setInterval(pixelShift, 4*60*1000);
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickOccasion(); loadPrayers(); if(NEEDS_MATCHES) loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
-    else if(CONFIG.panel === 'adhkar' || CONFIG.panel === 'stocks') renderPanel(false);   // a window may have opened; a market opened or closed
+    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickOccasion(); loadPrayers(); if(NEEDS_MATCHES) loadMatches(); if(USES('shows')) loadWeek(); loadWeather(); renderPanel(false); }
   }, 60*1000);
 }
 
-// The launcher's card: the chosen panel only, refreshed like on the screensaver, nothing else loaded.
+// The launcher's cards: the chosen ones only (up to three), refreshed like on the screensaver, nothing else loaded.
 function bootWidget(){
   document.documentElement.classList.add('widget');
+  if(CONFIG.cardStyle !== 'current') document.documentElement.classList.add('cs-' + CONFIG.cardStyle);   // «شكل البطاقة» applies to each of them
+  buildCards();
   restoreSnap();
   setTimeout(saveSnap, 15*1000);
   setInterval(saveSnap, 60*1000);
   addEventListener('pagehide', saveSnap);
-  const P = CONFIG.panel;
-  if(P === 'matches' && document.fonts) document.fonts.ready.then(() => { document.getElementById('week-list').__h = null; renderPanel(false); });   // widths change once the fonts are in
-  if(P === 'shows'){ loadWeek(); setInterval(loadWeek, 6*3600*1000); }
-  else renderPanel(false);
-  if(P === 'adhkar'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); }
-  if(P === 'prayers' || P === 'prayerrow'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
-  if(P === 'forecast' || P === 'hourly'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
-  if(P === 'hourly') setInterval(() => renderPanel(false), 60*1000);   // the next hour comes round
-  if(P === 'matches'){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
-  if(P === 'stocks'){ loadStocks(); setInterval(loadStocks, 15*60*1000); }
-  setInterval(() => {
-    if(P === 'shows' && WEEK_POOL.length > WEEK_ROWS){ WEEK_PAGE++; renderWeekPage(true); }
-    if(P === 'matches'){ LIST_PAGE++; renderPanel(matchRows().length > MATCH_ROWS); }
-    if(P === 'stocks' && CONFIG.stocks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
-    if(P === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
-  }, 25*1000);
+  if(document.fonts) document.fonts.ready.then(() => {   // widths change once the fonts are in: the cards are fitted again
+    CARDS.forEach(c => { if(c.eff === 'matches') c.ul.__h = null; });
+    if(CARDS.length > 1) renderPanel(false); else renderPanel(false, 'matches');
+  });
+  if(USES('shows')){ loadWeek(); setInterval(loadWeek, 6*3600*1000); }
+  renderPanel(false, ...CARD_KINDS.filter(k => k !== 'shows'));
+  if(USES('adhkar') || USES('prayers') || USES('prayerrow')){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); }
+  if(USES('forecast') || USES('hourly')){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
+  if(USES('matches')){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
+  if(USES('stocks')){ loadStocks(); setInterval(loadStocks, 15*60*1000); }
+  cardTimers();
   let lastDay = riyadhDayNumber();
-  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers' || P === 'prayerrow') loadPrayers(); renderPanel(false); } else if(P === 'adhkar' || P === 'stocks') renderPanel(false); }, 60*1000);
+  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(USES('prayers') || USES('prayerrow') || USES('adhkar')) loadPrayers(); renderPanel(false); } }, 60*1000);
   reveal();
 }
 

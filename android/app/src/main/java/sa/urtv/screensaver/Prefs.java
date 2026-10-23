@@ -200,6 +200,11 @@ final class Prefs {
         return PANELS[0][1];
     }
 
+    /** The label of a card for a place that may be empty: «none» reads as emptyLabel there. */
+    static String panelLabel(String v, String emptyLabel) {
+        return "none".equals(v) ? emptyLabel : panelLabel(v);
+    }
+
     List<String> list(String key) {
         List<String> out = new ArrayList<>();
         for (String s : sp.getString(key, "").split(";")) if (!s.isEmpty()) out.add(s);
@@ -424,9 +429,45 @@ final class Prefs {
         return open.isEmpty() ? "" : "&tasks=" + Uri.encode(join(open, "\n"));
     }
 
-    /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */
-    String homePanel() { return sp.getString("homePanel", "none"); }
-    void setHomePanel(String v) { sp.edit().putString("homePanel", v).apply(); }
+    /** The cards on the launcher's home screen: up to HOME_CARDS of PANELS, none until the user picks one. */
+    static final int HOME_CARDS = 3;
+
+    /**
+     * "prayers,hourly" (a single "prayers" is what older builds stored) as the cards it names, in order: each once, "none" and
+     * anything unknown left out, at most HOME_CARDS. An empty list is no card.
+     */
+    static List<String> parseHomePanels(String raw) {
+        List<String> out = new ArrayList<>();
+        if (raw == null) return out;
+        for (String s : raw.split(",")) {
+            s = s.trim();
+            boolean known = false;
+            for (String[] p : PANELS) if (p[0].equals(s) && !"none".equals(s)) known = true;
+            if (known && !out.contains(s) && out.size() < HOME_CARDS) out.add(s);
+        }
+        return out;
+    }
+
+    List<String> homePanels() { return parseHomePanels(sp.getString("homePanel", "none")); }
+    void setHomePanels(List<String> v) {
+        List<String> ok = parseHomePanels(join(v, ","));
+        sp.edit().putString("homePanel", ok.isEmpty() ? "none" : join(ok, ",")).apply();
+    }
+    /** What the page and saver.sh see: "none", or the cards joined by commas. */
+    String homePanel() { List<String> v = homePanels(); return v.isEmpty() ? "none" : join(v, ","); }
+    /** The card in place i (0 to 2) of the home screen, or "none". */
+    String homePanelAt(int i) { List<String> v = homePanels(); return i < v.size() ? v.get(i) : "none"; }
+    /** Place i gets that card ("none" empties it and the ones after it move up); a card already in another place moves here. */
+    void setHomePanelAt(int i, String card) {
+        List<String> now = homePanels();
+        String[] slot = new String[HOME_CARDS];
+        for (int k = 0; k < slot.length && k < now.size(); k++) slot[k] = now.get(k);
+        for (int k = 0; k < slot.length; k++) if (k != i && card.equals(slot[k])) slot[k] = null;
+        slot[i] = "none".equals(card) ? null : card;
+        List<String> v = new ArrayList<>();
+        for (String c : slot) if (c != null) v.add(c);
+        setHomePanels(v);
+    }
 
     /** The greeting and the weather line on the launcher's home screen (default on). Off: the plain good-morning it had. */
     boolean greeting() { return sp.getBoolean("greeting", true); }

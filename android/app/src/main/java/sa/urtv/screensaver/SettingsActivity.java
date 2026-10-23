@@ -121,19 +121,23 @@ public class SettingsActivity extends Activity {
             new Runnable() { public void run() { pickMkStyle(); } });
 
         header("بجانب الساعة");
-        row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(false); } });
+        row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(-1); } });
         row("شكل البطاقة", Prefs.cardStyleLabel(prefs.cardStyle()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickCardStyle(); } });
 
         header("الشاشة الرئيسية (تلفزيونك)");
-        row("بطاقة على الشاشة الرئيسية", Prefs.panelLabel(prefs.homePanel()), R.drawable.ic_eye,
-            new Runnable() { public void run() { pickPanel(true); } });
+        // up to three cards left of the clock; each place takes any card, or «بدون» (the ones after it move up)
+        for (int k = 0; k < Prefs.HOME_CARDS; k++) {
+            final int place = k;
+            row(HOME_CARD_NAMES[k], Prefs.panelLabel(prefs.homePanelAt(k), "بدون"), R.drawable.ic_eye,
+                new Runnable() { public void run() { pickPanel(place); } });
+        }
         row("التحية والطقس", prefs.greeting() ? "تعمل" : "متوقفة", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setGreeting(!prefs.greeting()); render(); } });
         row("ترتيب التطبيقات المفضلة", "قائمة ترتّب فيها المفضلة بالأسهم", R.drawable.ic_star,
             new Runnable() { public void run() { openDockSettings(); } });
 
-        if ("shows".equals(prefs.panel()) || "shows".equals(prefs.homePanel())) {   // only matter for the shows card
+        if ("shows".equals(prefs.panel()) || prefs.homePanels().contains("shows")) {   // only matter for the shows card
         header("جديد المسلسلات");
         row("التصنيفات", labels(Prefs.GENRES, prefs.list("genres"), "الكل"),
             R.drawable.ic_category, new Runnable() { public void run() { pickMany("genres", "التصنيفات", Prefs.GENRES); } });
@@ -144,7 +148,7 @@ public class SettingsActivity extends Activity {
             R.drawable.ic_star, new Runnable() { public void run() { pickRating(); } });
         }
 
-        if ("stocks".equals(prefs.panel()) || "stocks".equals(prefs.homePanel())) {   // only matters for the stocks card
+        if ("stocks".equals(prefs.panel()) || prefs.homePanels().contains("stocks")) {   // only matters for the stocks card
         header("الأسهم");
         row("قائمة الأسهم (" + arabicNum(prefs.stocks().size()) + "/" + arabicNum(Prefs.MAX_STOCKS) + ")", stocksLabel(),
             R.drawable.ic_star, new Runnable() { public void run() { askStocks(); } });
@@ -440,18 +444,22 @@ public class SettingsActivity extends Activity {
         }
     }
 
-    /** The card beside the screensaver's clock, or (home) the one on the launcher's home screen. */
-    private void pickPanel(final boolean home) {
+    private static final String[] HOME_CARD_NAMES = {"البطاقة الأولى", "البطاقة الثانية", "البطاقة الثالثة"};
+
+    /** The card beside the screensaver's clock (place -1), or place 0 to 2 of the cards on the launcher's home screen. */
+    private void pickPanel(final int place) {
+        final boolean home = place >= 0;
+        String current = home ? prefs.homePanelAt(place) : prefs.panel();
+        // the home places can also be left empty; «لا شيء» is that choice there, so it is «بدون» in the list
         String[] labels = new String[Prefs.PANELS.length];
-        String current = home ? prefs.homePanel() : prefs.panel();
         int sel = 0;
         for (int i = 0; i < labels.length; i++) {
-            labels[i] = Prefs.PANELS[i][1];
+            labels[i] = home && "none".equals(Prefs.PANELS[i][0]) ? "بدون" : Prefs.PANELS[i][1];
             if (Prefs.PANELS[i][0].equals(current)) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(home ? "بطاقة على الشاشة الرئيسية" : "بجانب الساعة")
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(home ? HOME_CARD_NAMES[place] : "بجانب الساعة")
             .setSingleChoiceItems(labels, sel, (d, i) -> {
-                if (home) prefs.setHomePanel(Prefs.PANELS[i][0]); else prefs.setPanel(Prefs.PANELS[i][0]);
+                if (home) prefs.setHomePanelAt(place, Prefs.PANELS[i][0]); else prefs.setPanel(Prefs.PANELS[i][0]);
                 d.dismiss();
                 render();
             })

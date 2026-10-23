@@ -23,4 +23,5 @@ python3 tests/task_voice_test.py
 python3 tests/photo_prep_test.py
 python3 tests/photos_sh_test.py
 python3 tests/greeting_test.py
+python3 tests/card_box_test.py
 node tests/page.test.mjs

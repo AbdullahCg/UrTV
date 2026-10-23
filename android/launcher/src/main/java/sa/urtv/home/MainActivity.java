@@ -114,6 +114,7 @@ public class MainActivity extends Activity {
     private int packageSeq;
     private PopupWindow inputsPopup;
     private HomeCard homeCard;
+    private View clockBlock, bottomBlock;   // the greeting, clock and date; the app title and the dock under it
 
     private final BroadcastReceiver tick = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
@@ -261,13 +262,15 @@ public class MainActivity extends Activity {
 
         hero.addView(buildHeader(), lp(-1, -2, Gravity.TOP, dp(48), dp(36), dp(48), 0));
         // optional card under the pills, same size as beside the screensaver's clock
-        homeCard = new HomeCard(this, hero, lp(dp(461), dp(250), Gravity.LEFT | Gravity.TOP, dp(48), dp(84), 0, 0));
+        homeCard = new HomeCard(this, hero, lp(dp(461), dp(250), Gravity.LEFT | Gravity.TOP, dp(48), dp(84), 0, 0), this::homeCardBox);
+        hero.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> homeCard.fit());
 
         LinearLayout bottom = new LinearLayout(this);
         bottom.setOrientation(LinearLayout.VERTICAL);
         bottom.setClipChildren(false);
         bottom.setClipToPadding(false);
         hero.addView(bottom, lp(-1, -2, Gravity.BOTTOM, dp(48), 0, dp(48), dp(30)));
+        bottomBlock = bottom;
 
         title = text(34, "sans-serif-light", Color.WHITE);
         title.setShadowLayer(dp(18), 0, 0, 0x66000000);
@@ -299,6 +302,24 @@ public class MainActivity extends Activity {
         grid.setClipToPadding(false);
         content.addView(grid, llp(-1, -2, dp(68), 0, dp(68), dp(160)));
         return root;
+    }
+
+    /**
+     * The WebView's box for that many cards, in pixels. One card is the size it always was. Two or three need room: a pair is
+     * 58% of the screen wide (at 1920 that is 560 + 22 + 540), kept clear of the greeting and clock block at the right; the third
+     * card goes under the pair. The box ends above the dock, or above the app title when the longest title of the favourites
+     * would reach into it. Before the screen is laid out the numbers come from the screen's size alone.
+     */
+    private int[] homeCardBox(int cards) {
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int clockLeft = 0, titleTop = 0, dockTop = 0, wide = 0;
+        if (clockBlock != null && clockBlock.getWidth() > 0) clockLeft = ((View) clockBlock.getParent()).getLeft() + clockBlock.getLeft();
+        if (bottomBlock != null && bottomBlock.getHeight() > 0 && dockRow != null) {
+            titleTop = bottomBlock.getTop();
+            dockTop = titleTop + dockRow.getTop();
+            for (View c : dockCards) wide = Math.max(wide, Math.round(title.getPaint().measureText(((App) c.getTag()).label)));
+        }
+        return CardBox.box(cards, dm.widthPixels, dm.heightPixels, dm.density, clockLeft, titleTop, dockTop, wide);
     }
 
     private View buildHeader() {
@@ -336,6 +357,7 @@ public class MainActivity extends Activity {
         left.setGravity(Gravity.RIGHT);
         for (TextView t : new TextView[]{greeting, weatherLine, date}) t.setGravity(Gravity.RIGHT);
         header.addView(left, new FrameLayout.LayoutParams(-2, -2, Gravity.RIGHT | Gravity.TOP));
+        clockBlock = left;
 
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);

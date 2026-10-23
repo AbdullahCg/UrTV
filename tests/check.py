@@ -214,8 +214,9 @@ missing = sorted(f"{sc} {c}" for sc in ("saver.sh", "dock.sh", "music.sh", "phot
                  if c not in ("help", "-h", "--help")
                  and not re.search(rf"{re.escape(sc)} {re.escape(c)}\b|`{re.escape(c)}\b|, {re.escape(c)}\b", settings_md))
 tpl_src = (ROOT / "src/template.html").read_text(encoding="utf-8")
+CARD_RE = {"panel": r"const CARD_KINDS = \[([^\]]+)\]", "slot": r"  slot: \(\w+ => \[([^\]]+)\]"}   # the page's lists of cards and slot choices
 for key in ("panel", "slot"):
-    m = re.search(rf"  {key}: \(\w+ => \[([^\]]+)\]", tpl_src)
+    m = re.search(CARD_RE[key], tpl_src)
     missing += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", m.group(1) if m else "") if v not in settings_md]
 check("docs/SETTINGS.md: every saver.sh / dock.sh / music.sh / photos.sh command and every card and slot choice", not missing, missing)
 # docs/FEATURES.md explains each feature to people: every saver.sh / photos.sh command and every card and slot choice
@@ -224,13 +225,13 @@ unexplained = sorted(f"{sc} {c}" for sc in ("saver.sh", "photos.sh") if (ROOT / 
                      if c not in ("help", "-h", "--help")
                      and not re.search(rf"{re.escape(sc)} {re.escape(c)}\b|`{re.escape(c)}\b|، {re.escape(c)}\b", features_md))
 for key in ("panel", "slot"):
-    mm = re.search(rf"  {key}: \(\w+ => \[([^\]]+)\]", tpl_src)
+    mm = re.search(CARD_RE[key], tpl_src)
     unexplained += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", mm.group(1) if mm else "") if v not in features_md]
 check("docs/FEATURES.md: every saver.sh / photos.sh command and every card and slot choice is explained", not unexplained, unexplained)
 
 # the app's list of cards (Prefs.PANELS: what settings and saver.sh accept) and the page's must be the same words
-page_panels = re.search(r"  panel: \(\w+ => \[([^\]]+)\]", tpl_src)
-page_panels = re.findall(r"'([a-z]+)'", page_panels.group(1) if page_panels else "")
+page_panels = re.search(CARD_RE["panel"], tpl_src)
+page_panels = re.findall(r"'([a-z]+)'", page_panels.group(1) if page_panels else "") + ["none"]   # «none»: no card, not a kind
 app_panels = re.findall(r'\{"([a-z]+)", "[^"]+"\}', re.search(r"PANELS = \{(.*?)\n    \};", (ROOT / "android/app/src/main/java/sa/urtv/screensaver/Prefs.java").read_text(encoding="utf-8"), re.S).group(1))
 check("cards: Prefs.PANELS and the page's #panel= list name the same cards", sorted(page_panels) == sorted(app_panels),
       f"page only {sorted(set(page_panels) - set(app_panels))}, app only {sorted(set(app_panels) - set(page_panels))}")
