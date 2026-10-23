@@ -201,6 +201,9 @@ bad = [f"{f.name}: {m.group(0)}" for f, src in java.items()
        for m in re.finditer(r"for \(String (\w+) : (\w+)\)", src)
        if re.search(r"String\[\]\[\] " + m.group(2) + r"\b", src)]
 check("java: no table looped over as single strings", not bad, bad)
+# the TV's font size setting scales WebView text; our pages size their own, so every WebView pins it at 100
+loose = [f.name for f, src in java.items() if "getSettings()" in src and "setTextZoom(100)" not in src]
+check("java: every WebView ignores the TV's font size (setTextZoom(100))", not loose, loose)
 
 # ---- launcher config
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()
