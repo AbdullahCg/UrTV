@@ -14,6 +14,7 @@ STUB_PY = r'''#!/usr/bin/env bash
 # fake: python -I optimize/tv.py <args>; state files live in $T
 shift 2
 log() { echo "$*" >> "$T/log"; }
+[ "$1" = --bg ] && { shift 2; set -- "$*"; case "$1" in "pm install"*) log bg ;; esac; }   # --bg NAME 'cmd': runs on the TV in the background
 case "$1" in
   --push-b64) exit 0 ;;
   --batch)
@@ -89,7 +90,7 @@ def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None,
 AGAIN = "the TV is back, trying the switch again"
 CHECK = "already set: checking it"
 cases = [
-    ("no drop", run("a", 0, ""), lambda c, o, l: c == 0 and "ADB dropped" not in o and l.count("arm") == 1),
+    ("no drop", run("a", 0, ""), lambda c, o, l: c == 0 and "ADB dropped" not in o and l.count("arm") == 1 and l.count("bg") == 1 and l.count("installed") == 1),
     ("drop, stock home back: switch again", run("b", 1, "stock", down_polls=2),
      lambda c, o, l: c == 0 and AGAIN in o and l.count("arm") == 2 and l.count("drop") == 1 and "Launcher is home" in o),
     ("drop, new home already set: only verify", run("c", 1, "ours"),

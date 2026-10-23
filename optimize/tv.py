@@ -7,6 +7,7 @@
     tv.py --pull /sdcard/x.png x.png
     tv.py --push-b64 local.apk /data/local/tmp/x.apk   chunked base64 upload with md5 check
     tv.py --shot out.png                     screenshot from the TV
+    tv.py --bg NAME 'cmd'                    a long command, run in the background on the TV and polled (no 60 s silence)
     tv.py --reboot                           restart the TV (sent once, never retried) and wait until it is back from a new boot
     tv.py --wait                             wait until the TV answers again (after a reboot), up to 5 min
 
@@ -108,6 +109,53 @@ def is_git_folder(folder):   # Git Bash's own folder is the one with its bash in
     return os.path.exists(folder + "/usr/bin/bash.exe") or os.path.exists(folder + "/bin/bash.exe")
 
 
+JOB = "/data/local/tmp/urtv-job-"
+POLL_S = 3                                              # between two looks at a background job
+LIMIT_S = int(os.environ.get("TV_JOB_LIMIT_S", "600"))  # a job silent for longer than this is given up on
+
+
+def run_bg(tv, name, cmd, progress=None, limit_s=None):
+    """Run a command that can take minutes on a weak TV (decoding or installing a big APK) in the background on the TV,
+    then look at it every few seconds with short commands: a shell command that prints nothing for 60 s fails, even
+    though the TV is still working. Its output and exit code land in /data/local/tmp/urtv-job-<name>.out / .rc.
+    Safe to repeat: a job still running is joined, not started twice. Returns (exit code, output).
+    `progress` is a TV command that prints how far it is (a number); it is shown as a percentage of 100 if given."""
+    assert "'" not in cmd and re.fullmatch(r"[\w.-]+", name), "background command: no quote marks"
+    j = JOB + name
+    alive = f"grep -q {JOB}{name} /proc/$(cat {j}.pid)/cmdline 2>/dev/null"   # our own sh -c, not a recycled pid
+    started = tv.shell(
+        f"if {alive}; then echo joined; else rm -f {j}.rc {j}.out; "
+        f"nohup sh -c '({cmd}) > {j}.out 2>&1; echo $? > {j}.rc.x; mv {j}.rc.x {j}.rc; rm -f {j}.pid' "
+        f"> /dev/null 2>&1 & echo $! > {j}.pid; echo started; fi").strip()
+    if started == "joined":
+        print(f"   ({name} is already running on the TV: waiting for it)", file=sys.stderr)
+    waited = 0
+    limit = LIMIT_S if limit_s is None else limit_s
+    while True:
+        # alive is checked first: the job writes .rc before it lets go of .pid, so "not alive, no .rc" means it died
+        state = tv.shell(f"if {alive}; then echo running $({progress or 'echo'}); elif [ -f {j}.rc ]; then echo done; "
+                         f"else echo dead; fi").split()
+        if state[:1] == ["done"]:
+            break
+        if state[:1] != ["running"]:
+            sys.exit(f"!! The {name} job on the TV stopped without an answer (a restart of the TV?). Run the same command again.")
+        if waited >= limit:
+            sys.exit(f"!! The {name} job on the TV is still running after {limit // 60} minutes. It is left running there: "
+                     "run the same command again to wait for it.")
+        shown = f"{waited}s"
+        if progress and len(state) > 1 and state[1].isdigit():
+            shown = f"{state[1]}%"
+        print(f"\r   {name}: {shown}   ", end="", file=sys.stderr, flush=True)
+        time.sleep(POLL_S)
+        waited += POLL_S
+    if waited:
+        print(file=sys.stderr)
+    rc = tv.shell(f"cat {j}.rc").strip()
+    out = tv.shell(f"cat {j}.out").rstrip()
+    tv.shell(f"rm -f {j}.rc {j}.out {j}.pid")
+    return (int(rc) if rc.lstrip("-").isdigit() else 1), out
+
+
 def push_b64(tv, local, remote, chunk=96_000):   # one argument may not exceed 128 KB on Android
     """Upload in base64 pieces; on a retry, pieces already on the TV are kept (resumes, not restarts)."""
     data = open(local, "rb").read()
@@ -139,7 +187,14 @@ def push_b64(tv, local, remote, chunk=96_000):   # one argument may not exceed 1
                      f"space there: {free}). Run the same command again.")
         print(f"\r   uploading {Path(local).name}: {int(want) * 100 // len(enc)}%", end="", flush=True)
     print()
-    tv.shell(f"[ -f {tmp} ] && base64 -d {tmp} > {remote} && rm -f {tmp}")   # safe to repeat if the reply is lost
+    # the decode of a big file is the slowest step on a weak TV and prints nothing: run it in the background and watch it
+    if tv.shell(f"[ -f {tmp} ] && echo y").strip():   # not there: an earlier run decoded it already (md5 below decides)
+        rc, out = run_bg(tv, "decode", f"base64 -d {tmp} > {remote}.part",
+                         progress=f"echo $(( $(wc -c < {remote}.part 2>/dev/null || echo 0) / {len(data) // 100 + 1} ))")   # no 32-bit overflow
+        if rc != 0:
+            tv.shell(f"rm -f {remote}.part")
+            sys.exit(f"!! The decode on the TV failed (exit {rc}: {out or 'no message'}). Run the same command again.")
+        tv.shell(f"[ -f {remote}.part ] && mv {remote}.part {remote}; rm -f {tmp}")   # safe to repeat if the reply is lost
     remote_md5 = tv.shell(f"md5sum {remote}").split()[0] if tv.shell(f"[ -f {remote} ] && echo y").strip() else ""
     local_md5 = hashlib.md5(data).hexdigest()
     if remote_md5 != local_md5:
@@ -231,6 +286,8 @@ def main():
                 print(f"$ {line}\n{tv.shell(line).rstrip()}")
     elif a[0] == "--pull":
         tv.call("pull", tv_path(a[1]), a[2])
+    elif a[0] == "--bg":   # prints the command's own output; the exit code stays on the TV side
+        print(run_bg(tv, a[1], " ".join(tv_path(x) for x in a[2:]))[1])
     elif a[0] == "--push-b64":
         push_b64(tv, a[1], tv_path(a[2]))
     elif a[0] == "--shot":

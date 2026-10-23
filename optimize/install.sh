@@ -52,19 +52,24 @@ restore_verifier() {
 }
 trap restore_verifier EXIT
 
+pm_install() {   # $1 file name in /data/local/tmp: pm's answer. A big APK can install silently for over a minute,
+  # which ADB takes for a dead TV: it runs in the background on the TV and is polled (tv.py --bg)
+  "$PY" -I optimize/tv.py --bg install "pm install -r /data/local/tmp/$1"
+}
+
 push_install() {   # $1 apk name, $2 package
   if ! curl_get -fsSL -o "optimize/$1" "$REL/$1"; then
     echo "!! Could not download $REL/$1 (tag ${APK_TAG:-apk-latest}): no such build, or no internet"; exit 1
   fi
   "$PY" -I optimize/tv.py --push-b64 "optimize/$1" "/data/local/tmp/$1"
   local out
-  out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1")
+  out=$(pm_install "$1")
   if grep -q INSTALL_FAILED_VERIFICATION_FAILURE <<< "$out"; then
     verifier_old=$("$PY" -I optimize/tv.py "settings get global $VERIFIER" | tr -d '\r\n' || true)
     echo "Play Protect refused the install over ADB: its ADB check is off for this install only, and put back right after (was: ${verifier_old:-not set})."
     verifier_set=1
     "$PY" -I optimize/tv.py "settings put global $VERIFIER 0" > /dev/null || true
-    out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1")
+    out=$(pm_install "$1")
   fi
   if ! grep -q Success <<< "$out"; then
     # only a signing-key clash justifies removing the installed app (and its settings); anything else stops here
@@ -73,7 +78,7 @@ push_install() {   # $1 apk name, $2 package
       # removing the home app while the stock one is off would leave the TV with no home at all
       [ "$2" = sa.urtv.home ] && "$PY" -I optimize/tv.py "pm enable ${STOCK%%/*}" > /dev/null || true
       "$PY" -I optimize/tv.py "pm uninstall $2" || true
-      out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$1")
+      out=$(pm_install "$1")
       grep -q Success <<< "$out" || { echo "!! Install of $1 failed again: $out"; exit 1; }
     else
       echo "!! Install of $1 failed: $out"; exit 1
@@ -106,7 +111,7 @@ for abi in [a for a in sys.argv[2].split(",") if a] + ["universal", ""]:
   name=$(basename "$url")
   if ! curl_get -fsSL -o "optimize/$name" "$url"; then echo "!! Could not download $url"; failed=1; return 0; fi
   "$PY" -I optimize/tv.py --push-b64 "optimize/$name" "/data/local/tmp/$name"
-  out=$("$PY" -I optimize/tv.py "pm install -r /data/local/tmp/$name")
+  out=$(pm_install "$name")
   "$PY" -I optimize/tv.py "rm -f /data/local/tmp/$name" > /dev/null
   rm -f "optimize/$name"
   if grep -q Success <<< "$out"; then echo "Installed $name"
