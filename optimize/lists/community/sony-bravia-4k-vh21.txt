@@ -1,0 +1,38 @@
+# UrTV community list: sony-bravia-4k-vh21
+# Packages only, from the CleanYourTV project's tested debloat list for this model: https://github.com/Gathin23/cleanyourtv
+# MIT licence, Copyright (c) 2026 Gathin: see LICENSE-CleanYourTV.txt in this folder.
+# Source: examples/sony-bravia-4k-vh21/debloat.txt at commit 6cad2be3a130a84494c3ea9b805accac6e5013e8, taken 2026-10-23.
+# Made by .github/tools/community_lists.py. Used only when this TV is matched (optimize/community.py): never for another model.
+# match-brand: SONY
+# match-model: BRAVIA4KVH21 BRAVIAVH21 KD65X85K
+# match-device: BRAVIAVH21
+
+tv.samba.ssm
+tv.samba.ssm.ui
+com.sonyericsson.idd.agent
+com.sony.dtv.usercontext
+com.qterics.da.product
+com.sony.dtv.da.service
+com.google.android.feedback
+com.sony.dtv.promos
+com.sony.dtv.sonyselect
+com.sony.dtv.sonytab
+com.sony.dtv.demosupport
+com.sony.dtv.demosystemsupport
+com.sony.dtv.multiscreendemo
+com.google.android.katniss
+com.sony.dtv.voicesearch
+com.sony.dtv.assistantadapter
+au.com.ninenow.ctv
+au.net.abc.iview
+com.swm.live
+com.apple.atve.sony.appletv
+com.google.android.videos
+com.google.android.play.games
+com.vewd.core.integration.dia
+com.vewd.core.service
+com.uei.quicksetsdk.sony
+com.google.android.tts
+com.sony.dtv.seeds.iot
+com.sony.dtv.gestureapp
+com.google.android.tungsten.setupwraith

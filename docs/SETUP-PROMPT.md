@@ -227,6 +227,7 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `UnicodeEncodeError` or `charmap` (Windows) | an old copy: Arabic text in Windows' own code page | `git pull`, then the same command |
 | `Refusing: these are in …keep.txt` | a protected package got into `mine.txt` | take that line out of `mine.txt`, run again |
 | `!! … has a package rated Unsafe` | `mine.txt` has a package the TV may need | take it out of `mine.txt`, run again |
+| `(unknown model: no optional list. …)` from the community step | our lists are TCL's and no community list fits this brand and model (or the device code is shared by several sizes: a guess is never applied) | nothing: the setup goes on without an optional list. Say in step 7 that nothing was disabled beyond the common Google extras |
 | `Unknown package` or `not installed` while disabling | that package is not on this model | nothing, normal |
 | `An older … signed with another key is installed` | an older build of our app | nothing, it reinstalls; redo step 4 for that app |
 | `!! Install of … failed` | usually storage, or a very old Android | stop and show me |
@@ -305,7 +306,10 @@ optimize/run.sh
 It saves the TV's state, measures memory and the TV's own screensaver, disables telemetry/ads/demos and my picks,
 applies the speed and memory tweaks, installs the screensaver and the home screen (behind the safety switch) and
 TV Bro and SmartTube (from their own GitHub releases, the build for this TV's processor),
-measures again and writes `optimize/run/report.md`. If it stops for any reason: `optimize/run.sh` again (it
+measures again and writes `optimize/run/report.md`. Before the optional picks, on a TV whose model our own lists do not
+know (a Sony, Hisense, Haier, Xiaomi…), `optimize/community.sh` applies the tested list for exactly that model from
+CleanYourTV (MIT, `optimize/lists/community/`) if there is one: never a list for another model, never anything in
+`keep.txt`, a launcher or a setup wizard; `report.md` shows them («Community list: …») and `optimize/keep.sh off` names them. If it stops for any reason: `optimize/run.sh` again (it
 continues), and `optimize/run.sh status` shows where it is.
 
 If the home-screen step says Home did not switch, leave the TV alone for 5 minutes (the stock home comes back by

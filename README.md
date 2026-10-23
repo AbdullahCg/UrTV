@@ -138,6 +138,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
 | `optimize/music.sh` | «تلاوة وأذان» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
+| `optimize/community.sh` | a TV our lists do not know: the tested list for exactly its model from [CleanYourTV](https://github.com/Gathin23/cleanyourtv) (MIT; `optimize/lists/community/`, made by `.github/tools/community_lists.py`) |
 | `optimize/autostart.sh` | TCL only: allows our two apps to start at boot (the adhan after a restart, the sleep service), writes it to disk, and reports it |
 | `optimize/keep.sh` | turn back on anything protected (AirPlay, casting, voice, updates…) that something turned off · `off`: what the setup turned off, by name · `restore <pkg>`: an app the person wants back, remembered so `run.sh again` leaves it on |
 | `docs/TVS.md` | what was seen on each TV model (ADB port, home switch, what to watch out for) |

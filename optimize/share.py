@@ -192,7 +192,7 @@ def packages(lines, before=None):   # what our lists turned off, what they left 
         if m:
             state.setdefault((m.group(1), m.group(3)), []).append(m.group(2))
     out = []
-    for lst in ("tcl-safe", "tcl-optional", "home-replaced"):
+    for lst in ("tcl-safe", "tcl-optional", "community", "home-replaced"):
         off, on = state.get(("off", lst), []), state.get(("on", lst), [])
         absent = len(state.get(("absent", lst), []))
         if off or on or absent:

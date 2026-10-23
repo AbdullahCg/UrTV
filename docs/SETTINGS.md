@@ -85,6 +85,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 | They ask for / it happened | Command |
 |---|---|
 | something protected went off (AirPlay, casting, voice, updates) | `optimize/keep.sh` |
+| a TV our own lists do not know | `optimize/community.sh` (a run.sh step) uses the CleanYourTV list for exactly this model if there is one (`optimize/lists/community/`, made by `.github/tools/community_lists.py`, which the owner can run again for another batch); the packages are in `report.md` under «Community list» and in `keep.sh off`; `reset.sh` turns them back on |
 | what the setup turned off, by name («تنبيهات TCL»…) | `optimize/keep.sh off` (also in `report.md`, under «Turned off by the setup») |
 | «I want this one back» (an app the cleanup turned off) | `optimize/keep.sh restore <package> …` (the package ids are in `keep.sh off`): turns it on and remembers it in `~/.urtv/kept.txt`, so a later `optimize/run.sh again` leaves it on; `optimize/keep.sh unkeep <package> …` turns it off again. The home screen's own helpers are refused (`optimize/restore.sh` is for those) |
 | TCL: the adhan alarms or the sleep timer stop after a restart | `optimize/autostart.sh` (allows auto-start for our two apps on a TCL and writes it to disk; `autostart.sh check` reads it; the setup does it already) |

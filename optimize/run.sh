@@ -52,7 +52,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 fi
 
-STEPS=(precheck probe backup keep before before-saver safe mine tweaks screensaver launcher extras autostart after after-saver report)
+STEPS=(precheck probe backup keep before before-saver safe mine community tweaks screensaver launcher extras autostart after after-saver report)
 title() {
   case "$1" in
     precheck)    echo "Check it is an Android TV with a WebView the screensaver can run on" ;;
@@ -63,6 +63,7 @@ title() {
     before-saver) echo "Measure the TV's own screensaver (1 min)" ;;
     safe)        echo "Disable telemetry, ads and demos (lists/tcl-safe.txt)" ;;
     mine)        echo "Disable the household's optional picks (lists/mine.txt)" ;;
+    community)   echo "A community list, if this model has one and ours doesn't know it" ;;
     tweaks)      echo "Speed and memory tweaks" ;;
     screensaver) echo "Install شاشة تلفزيونك" ;;
     launcher)    echo "Install the home screen (safety switch on)" ;;
@@ -147,6 +148,15 @@ report() {
   done
   echo "Turned off by the setup (name | package | list). One the person wants back: optimize/keep.sh restore <package>"
   optimize/keep.sh off 2> /dev/null | sed 's/^/- off-name: /' || true
+  if [ -s "$RUN/community-applied.txt" ]; then   # the community list (CleanYourTV, MIT) for this model, if one was used
+    echo "Community list: $(cat "$RUN/community-name.txt" 2> /dev/null) (CleanYourTV, MIT)"
+    for pkg in $(grep -vE '^\s*(#|$)' "$RUN/community-applied.txt" | awk '{print $1}'); do
+      if grep -qx "package:$pkg" <<< "$disabled"; then state=off
+      elif grep -qx "package:$pkg" <<< "$installed"; then state=on
+      else state=absent; fi
+      echo "- pkg $state: $pkg (community)"
+    done
+  fi
   echo "Left off the home screen:"
   optimize/dock.sh hidden 2> /dev/null | sed 's/^/- home hides: /' || true
   echo "Undo everything: optimize/reset.sh"
@@ -169,6 +179,7 @@ do_step() {
                  else
                    echo "   (no lists/mine.txt: nothing optional)"
                  fi ;;
+    community)   optimize/community.sh ;;
     tweaks)      optimize/tweaks.sh apply ;;
     screensaver) optimize/install.sh saver ;;
     launcher)    if [ "${SKIP_LAUNCHER:-}" = 1 ]; then echo "   skipped (SKIP_LAUNCHER=1): the TV keeps its own home screen"

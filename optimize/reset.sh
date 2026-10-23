@@ -13,6 +13,7 @@ lists=(optimize/lists/tcl-safe.txt optimize/lists/tcl-optional.txt)
 for extra in optimize/lists/mine*.txt; do   # local lists, e.g. mine-bloat.txt; absent on a fresh clone
   [ -f "$extra" ] && lists+=("$extra")
 done
+[ -s optimize/run/community-applied.txt ] && lists+=(optimize/run/community-applied.txt)   # a community list the setup used
 optimize/restore.sh "${lists[@]}" > /dev/null
 stock=no
 for _ in 1 2 3 4; do   # a cold stock home can take a while to come up
