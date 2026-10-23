@@ -2812,6 +2812,22 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
   }
 }
 
+// ---- Isha is Maghrib plus its delay, an absolute time: after midnight it reads 24:xx, not an hour that is already gone
+{
+  const { p, ctx, errors } = await open('tv.html', 'city=Oslo&lat=59.91&lon=10.75&tz=Europe%2FOslo&teams=&panel=prayers', { now: new Date('2026-06-21T10:00:00Z') });
+  const r = await p.evaluate(() => {
+    const t = computePrayers(), [mh, mm] = t.Maghrib.split(':').map(Number), [ih, im] = t.Isha.split(':').map(Number);
+    buildPrayers(t); renderPanel(false);
+    return { t, gap: (ih * 60 + im) - (mh * 60 + mm), rows: [...document.querySelectorAll('#week-list li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()),
+             f: [fmt12(24, 14), fmt12(12, 0), fmt12(0, 5), fmt12(23, 59)] };
+  });
+  check('computePrayers: Isha is 90 minutes after Maghrib even past midnight (Oslo, midsummer)', r.gap === 90 && +r.t.Isha.slice(0, 2) >= 24, JSON.stringify(r.t));
+  check('prayer times card: an Isha after midnight reads ١٢:١٤ ص', r.rows[5] && r.rows[5].includes('ص') && r.rows[5].startsWith('العشاء'), r.rows.join(' | '));
+  check('fmt12: 24:14 is 12:14 ص, noon م, 0:05 ص, 23:59 م', r.f.join() === '١٢:١٤ ص,١٢:٠٠ م,١٢:٠٥ ص,١١:٥٩ م', r.f.join());
+  check('computePrayers: no script errors', !errors.length, errors.join('; '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

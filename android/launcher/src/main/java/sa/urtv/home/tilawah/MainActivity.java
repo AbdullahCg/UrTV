@@ -4,8 +4,10 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,7 +30,7 @@ public class MainActivity extends Activity {
     private static final int TAB_RECITERS = 0, TAB_STATIONS = 1, TAB_ADHAN = 2;
 
     private static final int KIND_RESUME = 0, KIND_RECITER = 1, KIND_STATION = 2,
-            KIND_PRAYER = 3, KIND_ADHAN_TOGGLE = 4, KIND_VOICE = 5, KIND_VOLUME = 6;
+            KIND_PRAYER = 3, KIND_ADHAN_TOGGLE = 4, KIND_VOICE = 5, KIND_VOLUME = 6, KIND_EXACT = 7;
 
     private Catalog cat;
     private Prefs prefs;
@@ -94,11 +96,9 @@ public class MainActivity extends Activity {
                 focusList(list.getSelectedItemPosition());
             } else if (row.kind == KIND_VOICE) {
                 startActivity(new Intent(this, AdhanActivity.class));
-            } else if (row.kind == KIND_VOLUME) {
-                prefs.setAdhanVolume(prefs.adhanVolume() >= 100 ? 10 : prefs.adhanVolume() + 10);
-                adapter.rebuild();
-                focusList(list.getSelectedItemPosition());
-            }
+            } else if (row.kind == KIND_EXACT) {
+                openExactAlarmSettings();
+            }   // «صوت الأذان» is set with left/right (changeVolume); OK on it does nothing
         });
 
         tabs = findViewById(R.id.tabs);
@@ -124,6 +124,7 @@ public class MainActivity extends Activity {
         }
 
         // today's times from Aladhan when the network answers, and the recordings kept for offline
+        // (refresh also puts the alarm back for the new times)
         PrayerTimes.refresh(this, () -> { adapter.rebuild(); focusList(list.getSelectedItemPosition()); });
         Adhan.prefetchAll(this);
         AdhanScheduler.schedule(this);
@@ -199,6 +200,12 @@ public class MainActivity extends Activity {
     }
 
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // on «صوت الأذان» left/right are the volume: left louder, right quieter (the bar fills from the right, like the page)
+        if ((keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) && list.hasFocus()
+                && tab == TAB_ADHAN && selectedKind() == KIND_VOLUME) {
+            changeVolume(keyCode == KeyEvent.KEYCODE_DPAD_LEFT ? 10 : -10);
+            return true;
+        }
         // left/right walk the tab bar from anywhere on the screen: the sections are one key apart
         if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
             // RTL: the first tab sits on the right, so right is «previous»
@@ -245,6 +252,41 @@ public class MainActivity extends Activity {
         view.setBackgroundResource(R.drawable.row_bg);
         View cursor = view.findViewById(R.id.cursor);
         if (cursor != null) cursor.setVisibility(View.INVISIBLE);
+    }
+
+    private int selectedKind() {
+        int at = list.getSelectedItemPosition();
+        return at >= 0 && at < adapter.rows.size() ? adapter.rows.get(at).kind : -1;
+    }
+
+    /** The adhan's volume in steps of 10 (10 to 100, no wrapping), heard for two seconds at the new level. */
+    private void changeVolume(int step) {
+        int was = prefs.adhanVolume(), now = Math.max(10, Math.min(100, was + step));
+        if (now == was) return;
+        prefs.setAdhanVolume(now);
+        adapter.rebuild();
+        focusList(list.getSelectedItemPosition());
+        MusicService.adhan(this, prefs.voice(), Adhan.name(prefs.voice()), 2);
+    }
+
+    /** ٣٠٪ and a bar of ten: the filled part starts at the right, as the page does */
+    private static String volumeText(int value) {
+        int filled = Math.max(0, Math.min(10, value / 10));
+        StringBuilder bar = new StringBuilder();
+        for (int i = 0; i < 10; i++) bar.append(i < filled ? '█' : '░');
+        return percent(value) + "  " + bar;
+    }
+
+    /** From Android 12 exact alarms are the user's to allow: the system screen for it, else the app's own page. */
+    private void openExactAlarmSettings() {
+        Uri app = Uri.parse("package:" + getPackageName());
+        Intent[] tries = Build.VERSION.SDK_INT >= 31
+                ? new Intent[]{new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, app),
+                        new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, app)}
+                : new Intent[]{new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, app)};
+        for (Intent intent : tries) {
+            try { startActivity(intent); return; } catch (RuntimeException ignored) { }
+        }
     }
 
     private void openPlayer() {
@@ -317,9 +359,12 @@ public class MainActivity extends Activity {
                     toggle += "  •  " + next.name() + " " + PrayerTimes.remaining(next.at - System.currentTimeMillis());
                 }
                 rows.add(new Row(false, KIND_ADHAN_TOGGLE, getString(R.string.adhan_auto), toggle, -1));
+                if (prefs.adhanOn() && !AdhanScheduler.exactAllowed(MainActivity.this)) {   // the alarm may be minutes late
+                    rows.add(new Row(false, KIND_EXACT, getString(R.string.adhan_exact_title), getString(R.string.adhan_exact_detail), -1));
+                }
                 rows.add(new Row(false, KIND_VOICE, getString(R.string.adhan_voice), Adhan.label(prefs.voice()), -1));
                 rows.add(new Row(false, KIND_VOLUME, getString(R.string.adhan_volume),
-                        percent(prefs.adhanVolume()), -1));
+                        volumeText(prefs.adhanVolume()), -1));
             }
             notifyDataSetChanged();
         }

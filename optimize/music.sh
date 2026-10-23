@@ -11,6 +11,7 @@
 #   optimize/music.sh adhan now [voice]    play it right now
 #   optimize/music.sh adhan on | off
 #   optimize/music.sh adhan voice 3        which of the 21 recordings plays at the prayer times
+#   optimize/music.sh adhan volume 60      the adhan's own volume, 10-100 (percent of the TV's maximum)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -40,6 +41,7 @@ Usage: optimize/music.sh <command> [arguments]
   adhan [now [voice]]     the adhan: its state, play it now, on/off, or the voice
   adhan on | off
   adhan voice <1-21>
+  adhan volume <10-100>
 EOF
   exit 2
 }
@@ -128,7 +130,7 @@ PY
         out=$(tv "am broadcast -n sa.urtv.home/.tilawah.MusicReceiver -a sa.urtv.home.GET_PLAYER")
         data=$(printf '%s\n' "$out" | sed -n 's/.*data="\(.*\)"/\1/p' | tail -n 1)
         [ -n "$data" ] || { echo "No status from sa.urtv.home. Is the app installed and the TV reachable?" >&2; exit 1; }
-        printf '%s\n' "$data" | tr '|' '\n' | grep -E '^(adhan=|voice=|adhan_next|adhan_last|source=|playing=)'
+        printf '%s\n' "$data" | tr '|' '\n' | grep -E '^(adhan=|voice=|adhan_volume=|adhan_exact=|adhan_next|adhan_last|source=|playing=)'
         ;;
       now)
         [ $# -le 2 ] || usage
@@ -154,6 +156,14 @@ PY
         { [ "$voice" -ge 1 ] && [ "$voice" -le 21 ]; } || { echo "The voice is 1-21." >&2; exit 2; }
         tv "am broadcast -n sa.urtv.home/.tilawah.MusicReceiver -a sa.urtv.home.VOICE --ei voice $voice" > /dev/null
         echo "Adhan voice $voice."
+        ;;
+      volume)
+        [ $# -eq 2 ] || usage
+        percent=$2
+        case "$percent" in ''|*[!0-9]*) usage;; esac
+        { [ "$percent" -ge 10 ] && [ "$percent" -le 100 ]; } || { echo "The adhan volume is 10-100." >&2; exit 2; }
+        tv "am broadcast -n sa.urtv.home/.tilawah.MusicReceiver -a sa.urtv.home.ADHAN_VOLUME --ei percent $percent" > /dev/null
+        echo "Adhan volume $percent%."
         ;;
       *)
         usage

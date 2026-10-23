@@ -85,6 +85,8 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     private boolean resumeAfterAdhan;
     private int adhanVoice = 1;
     private boolean adhanFromCache;
+    /** the adhan on is a preview (a few seconds of a muezzin or of the volume), not the one for a prayer */
+    private boolean adhanPreview;
     /** the TV's own volume, put back when the adhan ends (-1: nothing to put back) */
     private int savedVolume = -1;
     private int pausedSource = Prefs.SOURCE_NONE, pausedReciter = -1, pausedSurah = 1, pausedStation = -1, pausedPosition;
@@ -274,19 +276,29 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     private void playAdhan(int voice, String name, int previewSeconds) {
         handler.removeCallbacks(previewStop);
-        // a second adhan on top of the first (the alarm and a preview): ignore it
-        if (source == Prefs.SOURCE_ADHAN && playing) return;
+        boolean wasAdhan = source == Prefs.SOURCE_ADHAN;
+        if (wasAdhan && playing) {
+            if (adhanPreview && previewSeconds > 0) {   // the volume row again: the new level, and the same few seconds again
+                adhanVolumeUp();
+                handler.postDelayed(previewStop, previewSeconds * 1000L);
+                return;
+            }
+            // a second adhan on top of the first is ignored (two alarms); a preview gives way to the real one
+            if (!adhanPreview || previewSeconds > 0) return;
+        }
         adhanVolumeUp();
-        resumeAfterAdhan = prepareAdhanPause();
+        boolean comeBack = prepareAdhanPause();   // false when an adhan was already on
+        if (!wasAdhan) resumeAfterAdhan = comeBack;   // the first adhan's answer stays: what it paused still waits
+        adhanPreview = previewSeconds > 0;
         source = Prefs.SOURCE_ADHAN;
         adhanVoice = voice;
         adhanFromCache = false;
         adhanName = name != null ? name : Adhan.name(voice);
         retries = 0;
         pendingSeek = 0;
-        prefs.setLastAdhan(System.currentTimeMillis());
+        prefs.setLastAdhan(System.currentTimeMillis());   // for `music.sh adhan`; the duplicate guard is the alarm's own (AdhanReceiver)
         File cached = Adhan.cached(this, voice);
-        if (cached.length() > 100_000) {
+        if (Adhan.isCached(this, voice)) {
             adhanFromCache = true;
             startUrl(cached.getAbsolutePath());
         } else {
@@ -334,9 +346,9 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
      * when the adhan ends, so a quiet TV is loud for the adhan alone and quiet again after.
      */
     private void adhanVolumeUp() {
-        if (audio == null || savedVolume >= 0) return;
+        if (audio == null) return;
         int max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-        savedVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+        if (savedVolume < 0) savedVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC);   // the TV's own, put back at the end
         int want = Math.round(max * prefs.adhanVolume() / 100f);
         audio.setStreamVolume(AudioManager.STREAM_MUSIC, Math.max(1, Math.min(max, want)), 0);
     }
@@ -408,7 +420,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         if (source == Prefs.SOURCE_ADHAN && retries >= 2) {
             // the stream failed but the background download may have finished: play the saved copy
             File cached = Adhan.cached(this, adhanVoice);
-            if (!adhanFromCache && cached.length() > 100_000) {
+            if (!adhanFromCache && Adhan.isCached(this, adhanVoice)) {
                 adhanFromCache = true;
                 retries = 0;
                 startUrl(cached.getAbsolutePath());

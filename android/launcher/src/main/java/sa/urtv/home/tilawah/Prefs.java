@@ -37,7 +37,23 @@ final class Prefs {
     int voice() { int v = sp.getInt("adhan_voice", 1); return v < 1 || v > Adhan.VOICES ? 1 : v; }
     void setVoice(int voice) { sp.edit().putInt("adhan_voice", voice).apply(); }
 
-    /** The last adhan that played, so the same one never plays twice. */
+    /** The last adhan that played (a preview too), for `music.sh adhan`. */
     long lastAdhan() { return sp.getLong("adhan_at", 0); }
     void setLastAdhan(long at) { sp.edit().putLong("adhan_at", at).apply(); }
+
+    /**
+     * The prayer time of the last adhan an alarm played, so the same adhan never plays twice (a clock change can set
+     * the alarm again). It is the alarm's own time, not the moment something played: a preview must not count.
+     */
+    long lastDue() { return sp.getLong("adhan_due", 0); }
+    void setLastDue(long due) { sp.edit().putLong("adhan_due", due).apply(); }
+    /** An alarm that came without its time (one set by an older version): when it played, for a five-minute guard. */
+    long lastAlarmAt() { return sp.getLong("adhan_alarm_at", 0); }
+    void setLastAlarmAt(long at) { sp.edit().putLong("adhan_alarm_at", at).apply(); }
+
+    /** When the chosen recording was last tried and when all of them were last asked for (a day, yyyyMMdd), so neither repeats at once. */
+    long prefetchTried() { return sp.getLong("adhan_prefetch_try", 0); }
+    void setPrefetchTried(long at) { sp.edit().putLong("adhan_prefetch_try", at).apply(); }
+    String prefetchDay() { return sp.getString("adhan_prefetch_day", ""); }
+    void setPrefetchDay(String day) { sp.edit().putString("adhan_prefetch_day", day).apply(); }
 }

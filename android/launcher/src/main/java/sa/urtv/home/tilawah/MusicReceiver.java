@@ -6,7 +6,7 @@ import android.content.Intent;
 
 /**
  * ADB control for agents and optimize/music.sh: GET_PLAYER state, play, pause, next, sleep, and the
- * adhan (play now, switch it on or off, pick the voice).
+ * adhan (play now, switch it on or off, pick the voice, set its volume).
  */
 public class MusicReceiver extends BroadcastReceiver {
 
@@ -29,6 +29,12 @@ public class MusicReceiver extends BroadcastReceiver {
                 prefs.setAdhanOn("sa.urtv.home.ADHAN_ON".equals(action));
                 AdhanScheduler.schedule(context);
                 return;
+            case "sa.urtv.home.ADHAN_VOLUME": {   // optimize/music.sh adhan volume 60
+                int percent = intent.getIntExtra("percent", -1);
+                if (percent < 10 || percent > 100) return;
+                prefs.setAdhanVolume(percent);
+                return;
+            }
             case "sa.urtv.home.VOICE": {
                 int voice = intent.getIntExtra(MusicService.EXTRA_VOICE, prefs.voice());
                 if (voice < 1 || voice > Adhan.VOICES) return;
@@ -111,6 +117,8 @@ public class MusicReceiver extends BroadcastReceiver {
                 + "|sleep=" + sleepLeft
                 + "|adhan=" + (prefs.adhanOn() ? "on" : "off")
                 + "|voice=" + prefs.voice()
+                + "|adhan_volume=" + prefs.adhanVolume()
+                + "|adhan_exact=" + (AdhanScheduler.exactAllowed(context) ? 1 : 0)
                 + "|adhan_next=" + (next == null ? 0 : next.at)
                 + "|adhan_next_name=" + (next == null ? "" : next.name())
                 + "|adhan_next_clock=" + (next == null ? "" : next.clock)

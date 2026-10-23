@@ -620,6 +620,7 @@ function tzOffsetMs(ms){
   return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - Math.floor(ms / 1000) * 1000;
 }
 function fmt12(h, mi){
+  h %= 24;   // 24:30 (an Isha after midnight) is 12:30 ص
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${ar(h12)}:${ar(pad(mi))} ${h < 12 ? 'ص' : 'م'}`;
 }
@@ -724,7 +725,10 @@ function computePrayers(){
   const maghrib = adj(angleTime(.833, 18, false));
   const isha = maghrib + (hijriMonthNow() === 9 ? 120 : 90)/60;
   const hm = h => { const m = Math.round(fix(h, 24)*60) % 1440; return pad(Math.floor(m/60)) + ':' + pad(m%60); };
-  return {Fajr:hm(fajr), Sunrise:hm(sunrise), Dhuhr:hm(dhuhr), Asr:hm(asr), Maghrib:hm(maghrib), Isha:hm(isha)};
+  // Isha is Maghrib plus its delay and stays an absolute time: past midnight (a late Maghrib at a high latitude) it reads «24:30», not an
+  // hour that has already gone today (the rest of the page counts minutes from midnight, so 1470 is after 1439)
+  const abs = h => { const m = Math.round(h*60); return pad(Math.floor(m/60)) + ':' + pad(m%60); };
+  return {Fajr:hm(fajr), Sunrise:hm(sunrise), Dhuhr:hm(dhuhr), Asr:hm(asr), Maghrib:hm(maghrib), Isha:abs(isha)};
 }
 
 async function loadPrayers(){
