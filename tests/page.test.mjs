@@ -535,6 +535,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
     document.getElementById('wx-desc').classList.add('dust');
     paintDir(TICKERS[0], true);
     document.getElementById('match-row').innerHTML = '<div class="saved-match">SAVED</div>';
+    WX.at = Date.now(); saveWx();   // (a reading fetched a moment ago: older than 3 hours it would not be shown)
     saveSnap();
   });
   await restart(p);
