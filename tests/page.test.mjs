@@ -2018,6 +2018,59 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await e.ctx.close();
 }
 
+// ---- «يومك» (today): the next prayer, the next game of a followed team, the first open task, the next occasion; a line with
+// nothing to say is left out. Beside the clock at three sizes, and in a home slot.
+const TODAY_SEED = (o = {}) => `
+  buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '19:15' });
+  MATCHES = {}; NEXT_LIST = {}; MATCHES_LOADED = true;
+  ${o.game ? `{ const ev = { idEvent: 'T1', strHomeTeam: 'Al-Hilal', strAwayTeam: 'Al-Nassr', idHomeTeam: '100', idAwayTeam: '101', strSport: 'Soccer', strTimestamp: new Date(Date.now() + ${o.game} * 60000).toISOString() }; MATCHES['136013'] = ev; NEXT_LIST['136013'] = [ev]; }` : ''}
+  renderPanel(false);`;
+const todayRows = p => p.evaluate(() => [...document.querySelectorAll('#week-list li.td')].map(li => ({ k: li.querySelector('.k').textContent, v: li.querySelector('.v').textContent.replace(/\s+/g, ' ').trim(), r: (li.querySelector('.r') || {}).textContent || '' })));
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const digits of ['hindi', 'latin']) {
+    const tasks = encodeURIComponent('اتصل بالسباك\nشراء حليب وخبز');
+    const o = await open('tv.html', `teams=136013&panel=today&digits=${digits}&tasks=${tasks}`, { width, height, now: new Date('2026-10-22T13:40:00Z') });   // 16:40 Riyadh
+    await o.p.evaluate(TODAY_SEED({ game: 150 }));
+    const rows = await todayRows(o.p), hd = await o.p.evaluate(() => document.getElementById('week-hd').textContent);
+    const fit = await o.p.evaluate(() => { const c = document.querySelector('.week').getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect(),
+      bar = document.querySelector('.bottom').getBoundingClientRect(), top = document.querySelector('.top').getBoundingClientRect();
+      return { clear: c.top >= top.bottom && c.bottom <= bar.top - 4 && c.right <= clock.left - 4, cut: [...document.querySelectorAll('#week-list li, #week-list li *')].some(e => e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1),
+        dots: document.getElementById('week-list').textContent.includes('…'), text: document.getElementById('week-list').innerText }; });
+    const tag = `today card ${width}x${height} ${digits}`, N = s => digits === 'latin' ? s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)) : s;
+    check(`${tag}: no script errors, the title`, !o.errors.length && hd === 'يومك', o.errors.join('; ') + hd);
+    check(`${tag}: four lines: the next prayer and its time, the game, the first open task, the occasion`,
+      rows.length === 4 && rows[0].k === 'الصلاة القادمة' && rows[0].v === N('المغرب · ٥:٤٥ م') && /بعد/.test(rows[0].r)
+      && rows[1].k === 'المباراة' && /الهلال/.test(rows[1].v) && /النصر/.test(rows[1].v) && /بعد ٣ ساعات|بعد 3 ساعات/.test(N(rows[1].r) + N('بعد ٣ ساعات'))
+      && rows[2].k === 'المهمة' && rows[2].v === 'اتصل بالسباك' && rows[3].k === 'المناسبة القادمة' && /يوم/.test(rows[3].r), JSON.stringify(rows));
+    check(`${tag}: fits: clear of the clock, the top and the bottom bar; no «…», nothing cut`, fit.clear && !fit.cut && !fit.dots, JSON.stringify(fit));
+    check(`${tag}: ${digits === 'latin' ? 'Latin' : 'Arabic'} digits only`, digits === 'latin' ? !/[٠-٩]/.test(fit.text) : !/[0-9]/.test(fit.text), fit.text);
+    // each line only if it has something: no game, no task
+    await o.p.evaluate(TODAY_SEED({}));
+    const a = await todayRows(o.p);
+    check(`${tag}: no game this week: that line is left out`, a.length === 3 && !a.some(x => x.k === 'المباراة'), JSON.stringify(a));
+    await o.ctx.close();
+  }
+}
+{   // no task and no game: only the prayer and the occasion (the prayer times are computed offline until the day's own arrive)
+  const o = await open('tv.html', 'panel=today', { now: new Date('2026-10-22T13:40:00Z') });
+  const before = await todayRows(o.p);
+  await o.p.evaluate(TODAY_SEED({}));
+  const after = await todayRows(o.p);
+  check('today card: no task and no game: only the prayer and the occasion, whatever the times (computed offline, then the day\'s own)',
+    before.length === 2 && after.length === 2 && after[0].k === 'الصلاة القادمة' && after[1].k === 'المناسبة القادمة', JSON.stringify([before, after]));
+  await o.ctx.close();
+}
+{   // in a home slot, next to another card, at the slot's size; the occasion's own day reads «اليوم»
+  for (const W of [1920, 1280, 960]) {
+    const [bw, bh] = homeBox(2, W);
+    const o = await open('tv.html', `teams=136013&home_panel=today,prayerrow&widget=1&tasks=${encodeURIComponent('اتصل بالسباك')}`, { width: bw, height: bh, now: new Date('2026-10-22T13:40:00Z') });
+    await o.p.evaluate(TODAY_SEED({ game: 90 }));
+    const r = await homeProbe(o.p), rows = await todayRows(o.p);
+    check(`today card in a home slot, screen ${W} (${bw}x${bh}): four lines, no overlap, no «…», nothing cut off`, !o.errors.length && rows.length === 4 && !r.overlap.length && !r.outside.length && !r.dots.length && !r.cut.length, JSON.stringify({ r, rows }) + o.errors.join('; '));
+    await o.ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

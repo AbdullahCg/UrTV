@@ -7,7 +7,7 @@
 #   optimize/saver.sh city 'الكويت' 29.37 47.98 Asia/Kuwait   ... or the one you give (a built-in city is always Asia/Riyadh)
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed)
-#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast hourly prayerrow matches verse wisdom adhkar stocks tasks year smart none
+#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast hourly prayerrow matches verse wisdom adhkar stocks tasks year smart today none
 #   optimize/saver.sh home-card verse,hourly,year  on the home screen (launcher): up to 3 cards, same choices, in this order
 #                                                  (one value works too; none = off). Two sit side by side, a third under them
 #   optimize/saver.sh greeting off                 home screen: the greeting (by prayer time) and the weather line under it: on (default) or off

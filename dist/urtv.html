@@ -156,6 +156,12 @@
   .week li.lv .lvt .tm .cr{flex:0 0 auto}
   .week li.lv .lvt .tm .cr{width:1.35em;height:1.35em;margin-block:0;margin-inline-end:.35em}
   .week li.lv .sc{color:var(--gold-hi);font-size:1.25em;font-weight:700;font-variant-numeric:tabular-nums;padding:0 .1em}
+  /* «يومك»: a small name, then the thing itself (it may wrap, never «…»), then when */
+  .week li.td{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.1em .8em;align-items:baseline;white-space:normal}
+  .week li.td > span{max-width:none;overflow:visible;text-overflow:clip;padding:0;margin:0}   /* not the list rows' first-name rule */
+  .week li.td .k{font-size:.74em;color:#9C9279;white-space:nowrap}
+  .week li.td .v{color:#F6EEDC;min-width:0;line-height:1.35}
+  .week li.td .r{font-size:.74em;color:var(--gold-3);white-space:nowrap}
   .week li.past{color:#8F8670}
   .week li.next{color:var(--gold-hi)}
   .week li.next .dt{color:var(--gold-3)}
@@ -501,7 +507,7 @@ const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : 
 // the city's time zone, #tz=: the clock, prayers, matches and dates all go by it; one this browser does not know is Riyadh
 const _tzOk = z => { try{ new Intl.DateTimeFormat('en',{timeZone:z}); return true; }catch(e){ return false; } };
 // the cards a slot can show (Prefs.PANELS in the app is the same list); «none» is the absence of one
-const CARD_KINDS = ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year','smart'];
+const CARD_KINDS = ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year','smart','today'];
 const CONFIG = {
   city: _Q.get('city') || 'الرياض',
   latitude: _num('lat', 24.7136),
@@ -1735,8 +1741,46 @@ function buildCards(){
 
 let FORECAST = [];
 try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
-const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
+const PANEL_TITLE = {today:'يومك', shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
 const LISTS = ['matches', 'stocks', 'tasks', 'shows'];   // the kinds that page through their rows
+
+// ---- «يومك» (today): the day in one card: the next prayer, the next game of a followed team, the first open task, the next
+// occasion. A line with nothing to say is left out.
+function nextFollowedGame(now){
+  const seen = new Set(), all = [];
+  CONFIG.teamIds.forEach(id => [MATCHES[id], ...(NEXT_LIST[id] || [])].forEach(ev => {
+    if(!ev || !ev.idEvent || seen.has(ev.idEvent)) return;
+    seen.add(ev.idEvent);
+    const k = toDate(ev).getTime(), st = (ev.strStatus || '').toUpperCase();
+    if(isNaN(k) || FINAL.includes(st) || CALLED_OFF.test(st) || now >= k + durMs(ev) || k - now > CONFIG.weekWindowDays * 86400000) return;
+    all.push({ev, k});
+  }));
+  all.sort((a, b) => a.k - b.k);
+  return all.length ? all[0] : null;
+}
+const tdRow = (k, v, r) => `<li class="td"><span class="k">${k}</span><span class="v">${v}</span>${r ? `<span class="r">${r}</span>` : ''}</li>`;
+function todayCard(){
+  const rows = [], now = Date.now();
+  if(PRAYERS.length){
+    const p = riyadhParts(), mins = p.h * 60 + p.mi + p.s / 60;
+    let n = PRAYERS.find(x => x.h * 60 + x.mi > mins), tomorrow = false;
+    if(!n){ n = PRAYERS[0]; tomorrow = true; }
+    rows.push(tdRow('الصلاة القادمة', `${prayerName(n)} · ${fmt12(n.h, n.mi)}`, 'بعد ' + shortHM(Math.max(0, Math.round((n.h * 60 + n.mi + (tomorrow ? 1440 : 0) - mins) * 60)))));
+  }
+  const g = nextFollowedGame(now);
+  if(g){
+    const live = now >= g.k;
+    rows.push(tdRow('المباراة', `<span class="tm">${esc(teamAr(g.ev.strHomeTeam, g.ev.idHomeTeam))}</span> × <span class="tm">${esc(teamAr(g.ev.strAwayTeam, g.ev.idAwayTeam))}</span>`,
+      live ? '<span class="live">مباشر</span>' : 'بعد ' + shortRemaining(g.k - now).split(' و ')[0]));
+  }
+  if(CONFIG.tasks.length) rows.push(tdRow('المهمة', esc(CONFIG.tasks[0])));
+  const oc = occasionNow();
+  if(oc){
+    const name = oc.o.name + (oc.o.year ? ' ' + ar(oc.hy) : '');
+    rows.push(tdRow(oc.today ? 'اليوم' : 'المناسبة القادمة', esc(name), oc.today ? '' : 'بعد ' + qty(oc.days, UNIT.day)));
+  }
+  return {title: 'يومك', rows};
+}
 
 // ---- a followed team's game under way, big: its score, the minute and «مباشر» (item 2). The matches card and the bottom slot
 // show it alone, with both crests where there are crests (the launcher's card), until it ends; then they go back to the list.
@@ -1828,6 +1872,7 @@ function renderCard(card, animate, keepSize){
   else if(P === 'prayerrow'){ const q = prayerRowCard(); paintHd(hd, q.title); rows = q.rows; }
   else if(P === 'matches') rows = matchRows(card);
   else if(P === 'year') rows = [yearCard(card)];
+  else if(P === 'today'){ const q = todayCard(); paintHd(hd, q.title); rows = q.rows; }
   else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
   else if(P === 'verse'){ const q = quoteOfDay(card); paintHd(hd, q.title); rows = q.rows; }
   else if(P === 'wisdom'){ const q = wisdomOfDay(); paintHd(hd, q.title); rows = q.rows; }
