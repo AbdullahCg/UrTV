@@ -38,7 +38,7 @@
 <sub>`optimize/reset.sh`</sub>
 
 #### نزلت نسخة جديدة؟
-حدّث التطبيقين وإعداداتك كلها باقية. الشاشة نفسها تتحدّث لحالها. وصف «تحديث الشاشة الآن» في الإعدادات يخبرك متى يوجد إصدار جديد.
+حدّث التطبيقين وإعداداتك كلها باقية. الشاشة نفسها تتحدّث لحالها. آخر الإعدادات، تحت «تحديث الشاشة الآن»، ثلاثة أسطر: الإصدار الحالي، والإصدار المتاح، وطريقة التحديث.
 <sub>`optimize/install.sh all`</sub>
 
 #### نزل تحديث للنظام وقفل تطبيقنا؟
@@ -91,7 +91,7 @@ screen: [docs/RECREATE-PROMPT.md](docs/RECREATE-PROMPT.md).
 | | | |
 |---|---|---|
 | **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, a stock watchlist, or a verse/hadith of the day, over Saudi landscapes | `urtv-screensaver.apk` |
-| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; «المهام» (tasks, by voice too), optional card from the screensaver (off by default). The «تلاوة» pill opens the Quran and the radio, with the adhan at Umm al-Qura times | `urtv-home.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; «المهام» (tasks, by voice too), optional card from the screensaver (off by default). The «تلاوة» pill opens the Quran and the radio, with the adhan at Umm al-Qura times. App names show in Arabic: the name the setup agent gave it on this TV (`optimize/dock.sh names` / `name`), else the app's own Arabic name, else the one in `res/values/app_names.xml`, else its own name | `urtv-home.apk` |
 | **Two free apps** | [TV Bro](https://github.com/truefedex/tv-bro), a web browser for the TV, and [SmartTube](https://github.com/yuliskov/SmartTube), YouTube without ads, from their own releases (skip with `SKIP_EXTRAS=1`) | `optimize/install.sh extras` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), closed apps frozen, Play Store kept from running in the background, faster animations | `optimize/` |
 
@@ -130,6 +130,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 |---|---|
 | `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
+| `docs/SETTINGS.md` | every setting and feature with its command, for agents: use these, never build your own |
 | `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `events`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `national`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
 | `optimize/music.sh` | «تلاوة» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
