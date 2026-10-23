@@ -78,7 +78,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 | a slim bar before the adhan | تنبيه قبل الأذان | on by default: on the screensaver and the home screen, «الأذان بعد ٨ دقائق» in the last 10 minutes before each prayer and «الإقامة بعد ١٢ دقيقة» from the adhan to the iqama (Fajr 25, Maghrib 10, the rest 20, none for Friday's Dhuhr); `optimize/saver.sh adhanbar off` (or `on`) |
 | the adhan at prayer times | الأذان | `optimize/music.sh adhan` (status, with the size of their own recording), `adhan on` / `off`, `adhan voice <1-21>`, `adhan now` |
 | the adhan in a recording of their own (a reciter whose recordings we can't give; the person brings the file) | أذان من ملفي | `optimize/music.sh adhan add <file>` (any audio file: made small on this computer with ffmpeg, mono AAC about 48 kbps, at most 5 minutes (longer is cut at 5:00 with a short fade, and it says so), uploaded to the TV's home app and made the voice; if ffmpeg is missing it says what to install; one file only, a new one replaces it), `adhan voice own` (`adhan voice 3` goes back to ours), `adhan own-clear` removes it; `adhan` shows its size. In «تلاوة» ← الأذان ← المؤذن a row «أذان من ملفي» is first when there is a file. **Never bundle or upload one: it is theirs, it stays on their TV only** |
-| HDMI inputs, Wi-Fi, the TV's settings | | the «المصادر», «واي فاي» and «الإعدادات» pills on the home screen |
+| HDMI inputs, Wi-Fi, the TV's settings | | the «المصادر», «واي فاي» and «الإعدادات» pills on the home screen: every pill in the top row shows its icon only, the one with the focus widens to show its name (the Wi-Fi pill: the network's name; the sleep pill: the minutes left, and a gold icon while it runs); nothing to set |
 
 ## The TV itself
 

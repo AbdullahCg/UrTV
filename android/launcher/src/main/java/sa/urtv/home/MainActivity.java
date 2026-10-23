@@ -105,7 +105,8 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
-    private TextView greeting, weatherLine, clock, ampm, date, zoneLine, title, wifiPill, appsLabel;
+    private TextView greeting, weatherLine, clock, ampm, date, zoneLine, title, appsLabel;
+    private Pill wifiPill;   // the network's name shows while it has the focus
     private Greeting greetingLine;
     private int glowColor = 0xFF3A3A3A;
     private ValueAnimator glowAnim;
@@ -114,7 +115,7 @@ public class MainActivity extends Activity {
     private int packageSeq;
     private PopupWindow inputsPopup;
     private HomeCard homeCard;
-    private TextView sleepPill;   // «مؤقت النوم», with the minutes left while it runs
+    private Pill sleepPill;   // «مؤقت النوم», with the minutes left while it runs (shown while it has the focus)
     private TextView adhanBar;   // «الأذان بعد ٨ دقائق», over the top edge
     private View clockBlock, bottomBlock;   // the greeting, clock and date; the app title and the dock under it
 
@@ -382,25 +383,25 @@ public class MainActivity extends Activity {
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
         right.setClipChildren(false);
-        TextView saver = pill("شاشة التوقف", R.drawable.ic_screensaver);
+        Pill saver = pill("شاشة التوقف", R.drawable.ic_screensaver);
         saver.setOnClickListener(v -> openPackage(SAVER_PKG));
-        TextView inputs = pill("المصادر", R.drawable.ic_input);
+        Pill inputs = pill("المصادر", R.drawable.ic_input);
         inputs.setOnClickListener(v -> showInputs(v));
         wifiPill = pill("واي فاي", R.drawable.ic_wifi);
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
-        TextView tasks = pill("المهام", R.drawable.ic_mic);   // the list lives in the screensaver app
+        Pill tasks = pill("المهام", R.drawable.ic_mic);   // the list lives in the screensaver app
         tasks.setOnClickListener(v -> launch(new Intent(this, TasksActivity.class)));
-        TextView settings = pill("الإعدادات", R.drawable.ic_settings);
+        Pill settings = pill("الإعدادات", R.drawable.ic_settings);
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
         // the «تلاوة» pill: the Quran and the radio are part of this app, so it opens them right here
-        TextView tilawah = pill("تلاوة", R.drawable.ic_listen);
+        Pill tilawah = pill("تلاوة", R.drawable.ic_listen);
         tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
         sleepPill = pill("مؤقت النوم", R.drawable.ic_sleep);
         sleepPill.setOnClickListener(v -> showSleep(v));
-        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings, sleepPill));
+        List<Pill> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings, sleepPill));
         if (isInstalled(SAVER_PKG)) { row.add(tasks); row.add(saver); }
         if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
-        for (TextView p : row) {
+        for (Pill p : row) {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
             pills.add(p);
         }
@@ -408,28 +409,11 @@ public class MainActivity extends Activity {
         return header;
     }
 
-    /** Pill button: label with a Material icon on its right (Arabic reading order), tinted with the text. */
-    private TextView pill(String label, int icon) {
-        TextView p = text(12, "sans-serif-medium", 0xE6FFFFFF);
-        p.setText(label);
-        p.setGravity(Gravity.CENTER);
-        android.graphics.drawable.Drawable ic = getDrawable(icon).mutate();
-        ic.setBounds(0, 0, dp(16), dp(16));
-        ic.setTint(0xE6FFFFFF);
-        p.setCompoundDrawables(null, null, ic, null);
-        p.setCompoundDrawablePadding(dp(8));
-        p.setPadding(dp(14), 0, dp(14), 0);
-        p.setFocusable(true);
+    /** Pill button: its icon only; the one with the focus widens to show its name (see Pill). */
+    private Pill pill(String label, int icon) {
+        Pill p = new Pill(this, label, icon, font("sans-serif-medium"));
         p.setId(View.generateViewId());
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(15));
-        bg.setColor(0x66000000);
-        bg.setStroke(dp(1), 0x33FFFFFF);
-        p.setBackground(bg);
         p.setOnFocusChangeListener((v, has) -> {
-            bg.setColor(has ? 0xF2FFFFFF : 0x66000000);
-            ((TextView) v).setTextColor(has ? 0xFF111111 : 0xE6FFFFFF);
-            ic.setTint(has ? 0xFF111111 : 0xE6FFFFFF);
             v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f)
                     .setInterpolator(new OvershootInterpolator(2f)).setDuration(220).start();
             if (has) { lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f); }
@@ -824,7 +808,8 @@ public class MainActivity extends Activity {
     private void updateSleepPill() {
         if (sleepPill == null) return;
         int left = SleepTimer.minutesLeft(this);
-        sleepPill.setText(left == 0 ? "مؤقت النوم" : "مؤقت النوم " + arabicDigits(String.valueOf(left)) + " د");
+        sleepPill.setLabel(PillText.sleep(left));
+        sleepPill.setAccent(left > 0);   // gold while it runs: the minutes show when the pill has the focus
     }
 
     private String inputLabel(TvInputInfo t) {
@@ -899,29 +884,24 @@ public class MainActivity extends Activity {
         if (words != null) adhanBar.setText(words);
     }
 
-    private static String arabicDigits(String s) {
-        StringBuilder b = new StringBuilder(s.length());
-        for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        return b.toString();
-    }
+    private static String arabicDigits(String s) { return PillText.digits(s); }
 
     /** Connected or not comes from ConnectivityManager: WifiManager hides the network (id -1, "<unknown ssid>")
      *  from apps without location access, which looked like "not connected". The name only when readable. */
     private void updateWifi() {
-        String name = "غير متصل";
+        boolean wired = false, wifi = false;
+        String ssid = null;
         try {
             android.net.ConnectivityManager cm = getSystemService(android.net.ConnectivityManager.class);
             android.net.NetworkCapabilities nc = cm == null ? null : cm.getNetworkCapabilities(cm.getActiveNetwork());
-            if (nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) {
-                name = "شبكة سلكية";
-            } else if (nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
-                name = "واي فاي";
+            wired = nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET);
+            wifi = nc != null && !wired && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI);
+            if (wifi) {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-                String s = wm == null || wm.getConnectionInfo() == null ? null : wm.getConnectionInfo().getSSID();
-                if (s != null && !s.contains("unknown ssid") && !s.replace("\"", "").isEmpty()) name = s.replace("\"", "");
+                ssid = wm == null || wm.getConnectionInfo() == null ? null : wm.getConnectionInfo().getSSID();
             }
         } catch (SecurityException ignored) { }
-        wifiPill.setText(name);
+        wifiPill.setLabel(PillText.network(wired, wifi, ssid));   // shown only while the pill has the focus
     }
 
     // ---------------------------------------------------------------- glow

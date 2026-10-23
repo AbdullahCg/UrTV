@@ -30,6 +30,7 @@ python3 tests/photo_prep_test.py
 python3 tests/photos_sh_test.py
 python3 tests/music_adhan_own_test.py
 python3 tests/own_adhan_test.py
+python3 tests/pill_text_test.py
 python3 tests/greeting_test.py
 python3 tests/card_box_test.py
 python3 tests/adhan_bar_test.py
