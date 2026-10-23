@@ -940,6 +940,7 @@ public class MainActivity extends Activity {
         String greg = gregFormat.format(now.getTime());
         date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  –  " + greg));
         updateAdhanBar(cfg);
+        sa.urtv.home.tilawah.AdhanSync.onConfig(this, cfg.fragment);   // «تعديل وقت الصلاة» changed on the TV: the alarm follows
         updateSleepPill();
     }
 

@@ -108,6 +108,9 @@ public class SettingsActivity extends Activity {
             new Runnable() { public void run() { pickDigits(); } });
         row("تنبيه قبل الأذان", prefs.adhanBar() ? "يعمل · شريط في أعلى الشاشة آخر ١٠ دقائق، ثم حتى الإقامة" : "متوقف", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setAdhanBar(!prefs.adhanBar()); render(); } });
+        row("تعديل وقت الصلاة", prefs.prayerAdjOn() ? "يعمل · لكل صلاة دقائقها، من −٢٠ إلى +٢٠ (الشروق لا يتغيّر)" : "متوقف · الأوقات كما تُحسب", R.drawable.ic_eye,
+            new Runnable() { public void run() { prefs.setPrayerAdjOn(!prefs.prayerAdjOn()); render(); } });
+        if (prefs.prayerAdjOn()) for (int k = 0; k < PrayerAdj.COUNT; k++) adjRow(k);
         row("شريط السنة تحت الساعة", prefs.yearStrip() ? "يعمل · نقاط السنة تحت الساعة، واليوم يلمع" : "متوقف", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setYearStrip(!prefs.yearStrip()); render(); } });
         row("المناسبات الوطنية", Prefs.nationalLabel(prefs.national()), R.drawable.ic_eye,
@@ -910,6 +913,28 @@ public class SettingsActivity extends Activity {
         });
     }
 
+    /**
+     * One prayer of «تعديل وقت الصلاة»: «الفجر +٢ د». Left adds a minute and right takes one off (the reading direction of an Arabic
+     * screen runs leftwards), from −20 to +20; OK puts it back to zero. The text changes where it is, so the focus and the scroll stay.
+     */
+    private void adjRow(final int k) {
+        final View card = row(PrayerAdj.label(k, prefs.prayerAdj()[k]), "يسار + · يمين − · موافق للتصفير", R.drawable.ic_eye, null);
+        final TextView name = (TextView) ((LinearLayout) ((LinearLayout) card).getChildAt(1)).getChildAt(0);
+        final Runnable show = new Runnable() { public void run() { name.setText(PrayerAdj.label(k, prefs.prayerAdj()[k])); } };
+        card.setOnClickListener(v -> { int[] a = prefs.prayerAdj(); a[k] = 0; prefs.setPrayerAdj(a); show.run(); });
+        card.setOnKeyListener((v, code, ev) -> {
+            int d = code == android.view.KeyEvent.KEYCODE_DPAD_LEFT ? 1 : code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ? -1 : 0;
+            if (d == 0) return false;
+            if (ev.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+                int[] a = prefs.prayerAdj();
+                a[k] = PrayerAdj.step(a[k], d);
+                prefs.setPrayerAdj(a);
+                show.run();
+            }
+            return true;
+        });
+    }
+
     /** A card row: icon, label and its current value on a second line, chevron; gold when focused. */
     private View row(String label, String value, int icon, final Runnable onClick) {
         final LinearLayout card = new LinearLayout(this);
@@ -960,7 +985,7 @@ public class SettingsActivity extends Activity {
         chevron.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
         card.addView(chevron);
 
-        card.setOnClickListener(v -> onClick.run());
+        if (onClick != null) card.setOnClickListener(v -> onClick.run());
         card.setOnFocusChangeListener((v, has) -> {
             // No scaling: a scaled rounded card overlapped its neighbours and blurred the text.
             bg.setColor(has ? 0x33D6AF6B : 0x14FFFFFF);

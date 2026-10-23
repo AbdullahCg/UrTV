@@ -34,6 +34,8 @@ final class PrayerTimes {
     private String tz = "Asia/Riyadh";
     private long day0;
     private boolean ramadan;
+    /** «تعديل وقت الصلاة»: minutes added to PRAYERS[k] (PrayerAdjust); the sunrise is never moved */
+    private int[] adj = new int[PrayerAdjust.COUNT];
 
     static final class Next {
         final int index;
@@ -62,7 +64,21 @@ final class PrayerTimes {
         t.ramadan = ramadan;
         t.day0 = PrayerMath.midnight(local.get(Calendar.YEAR), local.get(Calendar.MONTH) + 1, local.get(Calendar.DAY_OF_MONTH), place.tz);
         for (int i = 0; i < 6; i++) t.set(i, times[i]);
+        t.adj = place.adj;
+        t.shift();
         return t;
+    }
+
+    /**
+     * «تعديل وقت الصلاة»: each of the five prayers moved by its own minutes, once, on the times as computed or as Aladhan gave them
+     * (Isha is its own raw moment plus its own offset, not the moved Maghrib plus a delay). An Isha moved past midnight is still the
+     * moment it is: the clock text wraps, the instant does not.
+     */
+    private void shift() {
+        if (!PrayerAdjust.any(adj)) return;
+        long[] moved = at.clone();
+        PrayerAdjust.shift(moved, adj);
+        for (int i = 0; i < 6; i++) if (moved[i] != at[i]) set(i, moved[i]);
     }
 
     /** Today's times: the ones fetched from Aladhan when they are in, the computed ones otherwise. */
@@ -75,12 +91,13 @@ final class PrayerTimes {
     static synchronized PrayerTimes today(Context c, Place place) {
         Calendar day = Calendar.getInstance(TimeZone.getTimeZone(place.tz), Locale.US);
         String key = key(day, place);
-        if (todayCopy != null && key.equals(todayKey)) return todayCopy;
+        String copyKey = key + "|" + PrayerAdjust.text(place.adj);   // a change of the adjustments is a different day's copy
+        if (todayCopy != null && copyKey.equals(todayKey)) return todayCopy;
         PrayerTimes t = of(day, place);
         String saved = prefs(c).getString(key, null);
         if (saved != null) t.apply(saved);   // Aladhan's, when they came; a bad copy is ignored
         todayCopy = t;
-        todayKey = key;
+        todayKey = copyKey;
         return t;
     }
 
@@ -204,6 +221,7 @@ final class PrayerTimes {
         }
         for (int i = 0; i <= MAGHRIB; i++) set(i, parsed[i]);
         set(ISHA, parsed[MAGHRIB] + PrayerMath.ishaDelayMillis(ramadan));
+        shift();   // Aladhan's times are the raw ones: the person's minutes go on top of them
     }
 
     private void set(int i, long moment) {

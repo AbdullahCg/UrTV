@@ -620,6 +620,10 @@ const CONFIG = {
   tafsir: _Q.get('tafsir') === '1',
   // the slim bar before the adhan: #adhanbar=0 turns it off (anything else = on)
   adhanBar: _Q.get('adhanbar') !== '0',
+  // «تعديل وقت الصلاة»: #adj=0,2,0,0,-1 = minutes added to الفجر الظهر العصر المغرب العشاء (each -20..20, whole minutes; anything that is not five
+  // such numbers = none). The sunrise is not a prayer and is never moved. The screensaver sends it only while the setting is on.
+  prayerAdj: (a => a.length === 5 && a.every(x => /^-?\d{1,2}$/.test(x.trim())) ? a.map(x => Math.max(-20, Math.min(20, parseInt(x, 10)))) : [0,0,0,0,0])(
+    (_Q.get('adj') || '').split(',')),
   // the slim year strip under the clock: #yearstrip=1 turns it on (anything else = off); the screensaver only, never the widget
   yearStrip: _Q.get('yearstrip') === '1',
   // #live=1 (the launcher): the «المهام» card is a button there (OK opens the list with the mic ready), so it carries a mic mark and
@@ -744,8 +748,21 @@ const PRAYER_NAMES = {Fajr:'الفجر',Dhuhr:'الظهر',Asr:'العصر',Magh
 let PRAYERS = [];
 
 let DAY_TIMES = null;
+// «تعديل وقت الصلاة»: the five prayers moved by their minutes (CONFIG.prayerAdj); everything on the page that shows or acts on a prayer
+// time reads PRAYERS and DAY_TIMES, so this is the one place. The sunrise stays. A time past midnight (an Isha at «24:10») stays absolute.
+function adjustedTimes(t){
+  if(!CONFIG.prayerAdj.some(Boolean)) return t;
+  const out = Object.assign({}, t);
+  PRAYER_KEYS.forEach((k, i) => {
+    const d = CONFIG.prayerAdj[i], [h, mi] = String(t[k]).split(':').map(Number);
+    if(!d || !isFinite(h) || !isFinite(mi)) return;
+    const m = Math.max(0, h * 60 + mi + d);
+    out[k] = pad(Math.floor(m / 60)) + ':' + pad(m % 60);
+  });
+  return out;
+}
 function buildPrayers(t){
-  DAY_TIMES = t;
+  DAY_TIMES = t = adjustedTimes(t);
   PRAYERS = PRAYER_KEYS.map(k=>{
     const [h,mi] = String(t[k]).split(':').map(Number);
     return {key:k, name:PRAYER_NAMES[k], h, mi};

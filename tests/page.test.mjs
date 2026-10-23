@@ -3067,6 +3067,89 @@ for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await o.ctx.close();
 }
 
+// ---- «تعديل وقت الصلاة» (#adj=): each of the five prayers moved by its own minutes, −20..20, the sunrise never. Everything that shows or
+// acts on a prayer time reads PRAYERS / DAY_TIMES: the next prayer, the card of the day's prayers, the row, the adhan bar, the iqama
+// countdown, the smart card, «يومك». Times held with Date.now (barAt/ADHAN_TIMES above: Fajr 04:50, Dhuhr 11:40, Asr 15:00, Maghrib
+// 17:45, Isha 19:15; Thursday 2026-10-22, Friday the 23rd).
+{
+  const at = (p, day, hhmm, ss, times) => p.evaluate(([iso, t]) => {
+    const R = window.__R || (window.__R = Date), T = Date.parse(iso);
+    window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+    eval(t); tickPrayer();
+    const b = document.getElementById('adbar');
+    return { bar: b.hidden || getComputedStyle(b).display === 'none' ? '' : b.textContent, name: document.getElementById('prayer-name').textContent,
+             time: document.getElementById('prayer-time').textContent, count: document.getElementById('prayer-count').textContent.trim(),
+             label: document.getElementById('prayer-label').textContent };
+  }, [`${day}T${hhmm}:${ss || '00'}+03:00`, times || ADHAN_TIMES]);
+  const N = s => s;
+  {
+    const { p, ctx, errors } = await open('tv.html', 'panel=prayers&adj=0,2,0,0,-1');
+    check('adj: no script errors', !errors.length, errors.join('; '));
+    check('adj: the offsets are read, in the order الفجر الظهر العصر المغرب العشاء', JSON.stringify(await p.evaluate(() => CONFIG.prayerAdj)) === '[0,2,0,0,-1]');
+    const r = await p.evaluate(t => { eval(t); return { dh: PRAYERS.find(x => x.key === 'Dhuhr'), is: PRAYERS.find(x => x.key === 'Isha'), fa: PRAYERS.find(x => x.key === 'Fajr'),
+      sun: DAY_TIMES.Sunrise, rows: prayerRows().join('') }; }, ADHAN_TIMES);
+    check('adj: Dhuhr +2 is 11:42, Isha −1 is 19:14, the others as they were, the sunrise untouched',
+      r.dh.h === 11 && r.dh.mi === 42 && r.is.h === 19 && r.is.mi === 14 && r.fa.h === 4 && r.fa.mi === 50 && r.sun === '06:05', JSON.stringify(r));
+    check('adj: the prayers card lists the moved times and the sunrise as it was', /(الظهر|الجمعة)<\/span><span class="dt">١١:٤٢ ص/.test(r.rows) && /العشاء<\/span><span class="dt">٧:١٤ م/.test(r.rows) && /الشروق<\/span><span class="dt">٦:٠٥ ص/.test(r.rows), r.rows);
+    const before = await at(p, '2026-10-22', '11:31', '59');
+    const m10 = await at(p, '2026-10-22', '11:32', '00');
+    check('adj: the adhan bar starts 10 minutes before the MOVED Dhuhr (11:42), not before 11:40', before.bar === '' && m10.bar === 'الأذان بعد ١٠ دقائق', JSON.stringify([before.bar, m10.bar]));
+    const q = await at(p, '2026-10-22', '11:42', '00'), old = await at(p, '2026-10-22', '11:40', '30');
+    check('adj: the iqama countdown runs from the moved Dhuhr: «الإقامة بعد ٢٠ دقيقة» at 11:42, only the adhan bar before it at 11:40:30',
+      q.bar === 'الإقامة بعد ٢٠ دقيقة' && old.bar === 'الأذان بعد ١ دقيقة', JSON.stringify([q.bar, old.bar]));
+    const nxt = await at(p, '2026-10-22', '11:00');
+    check('adj: the next prayer card says Dhuhr at the moved time, and how long is left to it', nxt.name === 'الظهر' && nxt.time === '١١:٤٢ ص' && nxt.count === 'بعد ٤٢ دقيقة', JSON.stringify(nxt));
+    const row = await p.evaluate(() => { const c = prayerRowCard(); return c.rows.join('') + '|' + c.title; });
+    check('adj: the row of the five prayers shows the moved times', /(الظهر|الجمعة)<\/b><i>١١:٤٢ ص/.test(row) && /العشاء<\/b><i>٧:١٤ م/.test(row), row);
+    await ctx.close();
+  }
+  {   // the edges: −20 and +20, Isha past midnight, Friday's Dhuhr
+    const { p, ctx, errors } = await open('tv.html', 'panel=prayers&adj=-20,20,-20,20,20');
+    const late = "buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '23:50' });";
+    const r = await p.evaluate(t => { eval(t); return PRAYERS.map(x => x.key + ' ' + x.h + ':' + x.mi).join(', '); }, late);
+    check('adj: −20 and +20 at the edges; an Isha moved past midnight stays absolute («24:10»)',
+      r === 'Fajr 4:30, Dhuhr 12:0, Asr 14:40, Maghrib 18:5, Isha 24:10', r);
+    const before = await at(p, '2026-10-22', '23:55', '00', late);
+    check('adj: at 23:55 the next prayer is the moved Isha, 12:10 ص, in 15 minutes', before.name === 'العشاء' && before.time === '١٢:١٠ ص' && before.count === 'بعد ١٥ دقيقة', JSON.stringify(before));
+    const near = "buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '23:30' });";   // +20: Isha at 23:50
+    const bar = await at(p, '2026-10-22', '23:40', '00', near), early = await at(p, '2026-10-22', '23:29', '00', near);
+    check('adj: the adhan bar counts to the moved Isha (23:50): ten minutes at 23:40, nothing at 23:29', bar.bar === 'الأذان بعد ١٠ دقائق' && early.bar === '', JSON.stringify([bar.bar, early.bar]));
+    const fri = await at(p, '2026-10-23', '11:50', '00');   // Friday: Dhuhr 11:40 + 20 = 12:00
+    check("adj: Friday's Dhuhr (+20) is «الجمعة» at 12:00 with its adhan bar and no iqama countdown", fri.name === 'الجمعة' && fri.time === '١٢:٠٠ م' && fri.bar === 'الأذان بعد ١٠ دقائق', JSON.stringify(fri));
+    const friAfter = await at(p, '2026-10-23', '12:05', '00');
+    check("adj: after Friday's moved Dhuhr there is no iqama countdown", friAfter.bar === '', JSON.stringify(friAfter));
+    await p.evaluate(() => { PRAYERS.length = 0; });
+    check('adj: no script errors at the edges', !errors.length, errors.join('; '));
+    await ctx.close();
+  }
+  for (const [hash, want, why] of [['adj=99,-99,5,0,0', '[20,-20,5,0,0]', 'clamped to −20..20'], ['adj=1,2,3,4', '[0,0,0,0,0]', 'four numbers are none'],
+      ['adj=a,b,c,d,e', '[0,0,0,0,0]', 'not numbers are none'], ['adj=', '[0,0,0,0,0]', 'empty is none'], ['panel=prayers', '[0,0,0,0,0]', 'absent is none (the default)'],
+      ['adj=1.5,0,0,0,0', '[0,0,0,0,0]', 'a fraction is not whole minutes: none'], ['adj=%2B2,0,0,0,0', '[0,0,0,0,0]', 'a plus sign is not what the app sends: none']]) {
+    const { p, ctx, errors } = await open('tv.html', hash);
+    check(`adj: ${hash || '(none)'} -> ${want} (${why})`, !errors.length && JSON.stringify(await p.evaluate(() => CONFIG.prayerAdj)) === want, errors.join('; '));
+    await ctx.close();
+  }
+  {   // without the setting nothing moves
+    const { p, ctx } = await open('tv.html', 'panel=prayers');
+    const r = await p.evaluate(t => { eval(t); return PRAYERS.map(x => x.h + ':' + x.mi).join(' '); }, ADHAN_TIMES);
+    check('adj: the setting off (no #adj): the times are exactly the ones given', r === '4:50 11:40 15:0 17:45 19:15', r);
+    await ctx.close();
+  }
+  {   // the smart card (within 15 minutes of a prayer: the row of prayers) and «يومك» (the next prayer and how long)
+    const { p, ctx, errors } = await open('tv.html', 'panel=smart&adj=0,10,0,0,0');
+    const held = (iso, t, fn) => p.evaluate(([iso, t, fn]) => {
+      const R = window.__R || (window.__R = Date), T = Date.parse(iso);
+      window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+      eval(t); return eval(fn); }, [iso, t, fn]);
+    const smart = await held('2026-10-22T11:46:00+03:00', ADHAN_TIMES, 'prayerSoon(15)');
+    check('adj: the smart card sees the moved Dhuhr (11:50): at 11:46 it is 4 minutes away (unmoved, 11:40 had passed)', smart === true, String(smart));
+    const today = await held('2026-10-22T11:44:00+03:00', ADHAN_TIMES, 'todayCard().rows.join(" ")');
+    check('adj: «يومك» names the moved Dhuhr: «الظهر · ١١:٥٠ ص», in 6 minutes', /الظهر · ١١:٥٠ ص/.test(today) && /بعد ٦ دقائق|بعد ٦ د/.test(today), today);
+    check('adj: no script errors in the cards', !errors.length, errors.join('; '));
+    await ctx.close();
+  }
+}
+
 
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
