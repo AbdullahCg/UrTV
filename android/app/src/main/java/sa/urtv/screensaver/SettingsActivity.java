@@ -518,19 +518,21 @@ public class SettingsActivity extends Activity {
 
         final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
         final android.webkit.WebView[] web = new android.webkit.WebView[1];
-        final int[] shown = {-1};
+        final int[] shown = {-1}, loads = {0};
         final Runnable update = new Runnable() { public void run() {
             int i = lv.getSelectedItemPosition();
             if (i < 0) i = Math.max(0, selected);   // nothing selected yet (touch mode): the current choice
             if (i == shown[0]) return;
             shown[0] = i;
             String u = urlFor.of(values[i]);
+            // a different query each time makes it a real navigation: with only the #fragment changed it is the same document
+            int hash = u.indexOf('#');
+            u = hash < 0 ? u + "?p=" + (++loads[0]) : u.substring(0, hash) + "?p=" + (++loads[0]) + u.substring(hash);
             if (web[0] == null) {
                 web[0] = ScreenView.createPreview(SettingsActivity.this, u);
                 stage.addView(web[0], new android.widget.FrameLayout.LayoutParams(-1, -1));
-            } else {   // the page reads its settings once, when it starts: a new #fragment alone would not start it again
+            } else {   // the page reads its settings once, when it starts: load it again, no reload() (that would redo the old URL)
                 web[0].loadUrl(u);
-                web[0].reload();
             }
         } };
         lv.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
