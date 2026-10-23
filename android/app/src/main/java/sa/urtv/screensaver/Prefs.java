@@ -110,8 +110,9 @@ final class Prefs {
     }
 
     private final SharedPreferences sp;
+    private final Context ctx;
 
-    Prefs(Context c) { sp = c.getSharedPreferences("settings", Context.MODE_PRIVATE); }
+    Prefs(Context c) { ctx = c; sp = c.getSharedPreferences("settings", Context.MODE_PRIVATE); }
 
     /** {name, latitude, longitude}; Riyadh until the user picks */
     String[] city() {
@@ -285,8 +286,22 @@ final class Prefs {
             + "&slot=" + slot()
             + "&cd=" + countdownDate()
             + "&cdname=" + Uri.encode(countdownName())
-            + openTasksParam();
+            + openTasksParam()
+            + ownParam();
     }
+
+    /** The owner's own photos: how many and mix/only; nothing at all while there are none, so the page is as before. */
+    private String ownParam() {
+        int n = Own.count(ctx);
+        return n == 0 ? "" : "&own=" + n + "&ownmode=" + Own.mode(ctx);
+    }
+
+    String ownMode() { return sp.getString("ownMode", Own.MIX); }
+    void setOwnMode(String v) { sp.edit().putString("ownMode", v).apply(); }
+
+    /** counts every change to the photos, so the launcher can tell it should show them */
+    long ownRev() { return sp.getLong("ownRev", 0); }
+    void bumpOwnRev() { sp.edit().putLong("ownRev", ownRev() + 1).apply(); }
 
     static final int MAX_TASKS = 12;
     static final int TASK_CHARS = 60;

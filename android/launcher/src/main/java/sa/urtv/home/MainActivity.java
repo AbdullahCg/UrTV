@@ -23,6 +23,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -169,7 +171,10 @@ public class MainActivity extends Activity {
         if (firstShow) { firstShow = false; playEntrance(); }
         // New photo on return if the current one has been up for the full interval.
         if (wallIndex < 0 || SystemClock.elapsedRealtime() - wallChangedAt >= WALLPAPER_INTERVAL_MS) nextWallpaper();
-        else scheduleWallpaper(WALLPAPER_INTERVAL_MS - (SystemClock.elapsedRealtime() - wallChangedAt));
+        else {
+            scheduleWallpaper(WALLPAPER_INTERVAL_MS - (SystemClock.elapsedRealtime() - wallChangedAt));
+            checkOwnChanged();   // the owner added or removed photos while another app was in front
+        }
     }
 
     @Override
@@ -903,12 +908,37 @@ public class MainActivity extends Activity {
         return BitmapFactory.decodeStream(in, null, o);
     }
 
+    // The owner's own photos («صوري»), read from the screensaver app's ConfigProvider (READ_CONFIG, read only).
+    static final Uri OWN = Uri.parse("content://sa.urtv.screensaver.config/own");
+
+    /** {how many, mode, rev}: none, mix and 0 when the screensaver app has none or does not answer */
+    private Object[] ownInfo() {
+        try (Cursor c = getContentResolver().query(OWN, null, null, null, null)) {
+            // an older screensaver app answers any path with its settings instead: no "n" column, no photos
+            if (c != null && c.getColumnIndex("n") == 0 && c.moveToFirst()) return new Object[] {c.getInt(0), c.getString(1), c.getLong(2)};
+        } catch (RuntimeException ignored) { }
+        return new Object[] {0, "mix", 0L};
+    }
+
+    /** Off the main thread: when the owner's photos changed since the wallpaper was last chosen, show one now. */
+    private void checkOwnChanged() {
+        new Thread(() -> {
+            long rev = (Long) ownInfo()[2];
+            if (rev != prefs().getLong("ownRev", 0)) runOnUiThread(() -> { if (!isDestroyed()) nextWallpaper(); });
+        }).start();
+    }
+
     /** Decode the next photo off the main thread, then crossfade it in over the current one. */
     private void nextWallpaper() {
         handler.removeCallbacks(rotateWallpaper);
         if (wallpapers.length == 0) return;
-        final String[] remote = remotePhotos();
-        final int total = wallpapers.length + remote.length;
+        final Object[] own = ownInfo();
+        final int ownCount = (Integer) own[0];
+        final boolean only = ownCount > 0 && "only".equals(own[1]);
+        prefs().edit().putLong("ownRev", (Long) own[2]).apply();
+        final String[] remote = only ? new String[0] : remotePhotos();
+        final int base = only ? 0 : wallpapers.length + remote.length;   // ours come first, then the owner's
+        final int total = only ? ownCount : base + ownCount;
         if (wallIndex < 0) wallIndex = prefs().getInt("wallpaper", -1);
         wallIndex = (wallIndex + 1) % total;
         prefs().edit().putInt("wallpaper", wallIndex).apply();
@@ -916,10 +946,17 @@ public class MainActivity extends Activity {
         final int idx = wallIndex;
         final String fallback = "wallpapers/" + wallpapers[idx % wallpapers.length];
         new Thread(() -> {
-            refreshPhotoIndex();
-            pruneCachedPhotos(remotePhotos());
+            if (!only) {   // no network while only the owner's photos show
+                refreshPhotoIndex();
+                pruneCachedPhotos(remotePhotos());
+            }
             Bitmap bm = null;
-            if (idx >= wallpapers.length) {
+            if (idx >= base) {
+                try (java.io.InputStream in = getContentResolver().openInputStream(
+                        OWN.buildUpon().appendPath(String.valueOf(idx - base + 1)).build())) {
+                    if (in != null) bm = decode(in);
+                } catch (java.io.IOException | RuntimeException ignored) { }
+            } else if (idx >= wallpapers.length) {
                 java.io.File f = new java.io.File(getFilesDir(), "photos/" + remote[idx - wallpapers.length]);
                 try {
                     if (!f.isFile()) {

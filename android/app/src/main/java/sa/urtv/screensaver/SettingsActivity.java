@@ -148,6 +148,8 @@ public class SettingsActivity extends Activity {
         header("التوقيت");
         row("تبديل الصورة كل", minutesLabel(Integer.parseInt(prefs.photoMinutes())), R.drawable.ic_sync,
             new Runnable() { public void run() { pickPhotoMinutes(); } });
+        row("صوري (" + arabicNum(Own.count(this)) + "/" + arabicNum(Own.MAX) + ")", ownLabel(), R.drawable.ic_eye,
+            new Runnable() { public void run() { pickOwn(); } });
         row("بدء شاشة التوقف بعد", idleLabel(), R.drawable.ic_screensaver,
             new Runnable() { public void run() { pickIdle(); } });
 
@@ -573,6 +575,36 @@ public class SettingsActivity extends Activity {
         }
         new AlertDialog.Builder(this, DIALOG_THEME).setTitle("تبديل الصورة كل")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setPhotoMinutes(Prefs.PHOTO_MINUTES[i]); d.dismiss(); render(); })
+            .show();
+    }
+
+    private String ownLabel() {
+        if (Own.count(this) == 0) return "لا توجد صور · يضيفها مساعدك الذكي";
+        return Own.ONLY.equals(Own.mode(this)) ? "صوري فقط" : "تُضاف إلى صور التطبيق";
+    }
+
+    /** «صوري»: photos only arrive through the owner's assistant; here the owner picks how they show, or removes them all. */
+    private void pickOwn() {
+        if (Own.count(this) == 0) {
+            toast("اطلب من مساعدك الذكي إضافة صورك (حتى ١٠)");
+            return;
+        }
+        String[] items = {"تُضاف إلى صور التطبيق", "صوري فقط", "حذف كل صوري"};
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("صوري")
+            .setSingleChoiceItems(items, Own.ONLY.equals(Own.mode(this)) ? 1 : 0, (d, i) -> {
+                d.dismiss();
+                if (i == 2) { confirmClearOwn(); return; }
+                prefs.setOwnMode(i == 1 ? Own.ONLY : Own.MIX);
+                prefs.bumpOwnRev();
+                render();
+            })
+            .show();
+    }
+
+    private void confirmClearOwn() {
+        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("حذف كل صوري؟")
+            .setPositiveButton("حذف", (d, i) -> { Own.clear(this); render(); })
+            .setNegativeButton("إلغاء", null)
             .show();
     }
 

@@ -466,6 +466,9 @@ const CONFIG = {
   weekWindowDays: 7,
   // minutes between background photos: #photos=5|10|15|30|60 (anything else = 30)
   photoMinutes: (m => [5,10,15,30,60].includes(m) ? m : 30)(_num('photos', 30)),
+  // the owner's own photos («صوري»): #own=how many (0-10) and #ownmode=mix (join ours, the default) or only
+  own: Math.max(0, Math.min(10, Math.floor(_num('own', 0)))),
+  ownMode: _Q.get('ownmode') === 'only' ? 'only' : 'mix',
   // digits everywhere: #digits=hindi (١٢٣, the default) or latin (123); anything else = hindi
   digits: _Q.get('digits') === 'latin' ? 'latin' : 'hindi',
   // the look of the card beside the clock: #cardstyle=current|dark1|glass1|dark3|glass3 (anything else = current)
@@ -1800,7 +1803,13 @@ function pixelShift(){
 const PHOTO_BASE = 'https://raw.githubusercontent.com/tshi-dev/UrTV/master/photos/';
 let REMOTE_BGS = (()=>{ try{ return JSON.parse(localStorage.getItem('photoIndex') || '[]'); }catch(e){ return []; } })();
 
+// The owner's own photos: the app answers OWN_BASE N.jpg (1..CONFIG.own) from its own folder, never from the network.
+const OWN_BASE = 'https://own.urtv.invalid/';
+const OWN_ONLY = () => CONFIG.own > 0 && CONFIG.ownMode === 'only';
+const ownPhotos = () => Array.from({length: CONFIG.own}, (_, k) => ({url: OWN_BASE + (k + 1) + '.jpg', b: {}}));   // no credit: they are not ours
+
 async function loadPhotoIndex(){
+  if(OWN_ONLY()) return;   // nothing of ours is shown, so nothing is fetched
   try{
     const r = await fetchT(PHOTO_BASE + 'index.json', 15000);
     if(!r.ok) return;
@@ -1936,10 +1945,18 @@ function applyBackground(force){
     const slot = riyadhDayNumber() * (1440 / slotMin) + Math.floor((p.h * 60 + p.mi) / slotMin);
     if(slot === BG_SLOT && !force) return;
     BG_SLOT = slot;
-    const set = REMOTE_BGS.length ? photoSet(REMOTE_BGS.length).map(k => REMOTE_BGS[k]) : [];
+    const only = OWN_ONLY(), own = ownPhotos();
+    const set = !only && REMOTE_BGS.length ? photoSet(REMOTE_BGS.length).map(k => REMOTE_BGS[k]) : [];
     const local = BGS[slot % BGS.length];
-    if(!set.length){ showBackground(local.u, local); return; }
-    const b = set[slot % set.length], url = PHOTO_BASE + b.f;
+    // what rotates: ours (the hosted set, else the bundled photos once the owner has some), then the owner's; only = theirs alone
+    let pool = own;
+    if(!only){
+      const ours = set.length ? set.map(b => ({url: PHOTO_BASE + b.f, b})) : own.length ? BGS.map(b => ({url: b.u, b, bundled: true})) : [];
+      pool = ours.concat(own);
+    }
+    if(!pool.length){ showBackground(local.u, local); return; }
+    const pick = pool[slot % pool.length], url = pick.url, b = pick.b;
+    if(pick.bundled){ showBackground(url, b); return; }
     // First photo: wait briefly for the hosted one (the app serves it from disk at once) so the screen
     // doesn't flash a bundled photo first; slow network → bundled one, swapped when the hosted one arrives.
     let done = false;
@@ -1950,7 +1967,7 @@ function applyBackground(force){
     img.onerror = () => { clearTimeout(t); fallback(); done = true; };
     img.src = url;
     // fetch the rest of the set once, quietly, so the app has each one on disk before its turn
-    if(!PREFETCHED){ PREFETCHED = true; setTimeout(() => set.forEach(x => { new Image().src = PHOTO_BASE + x.f; }), 20000); }
+    if(!PREFETCHED && set.length){ PREFETCHED = true; setTimeout(() => set.forEach(x => { new Image().src = PHOTO_BASE + x.f; }), 20000); }
   } catch(e) {}
 }
 

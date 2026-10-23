@@ -28,7 +28,12 @@ import java.util.Locale;
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.TASKS
  *       --es op list | add --es text 'نص' | done --ei n 1 | del --ei n 1 | clear
+ *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.PHOTOS
+ *       --es op list | add --ei size BYTES | add --ei size BYTES --es path /data/local/tmp/urtv-own/in.jpg | del --ei n 1 | clear | mode --es mode mix|only
  *
+ * PHOTOS = «صوري», the owner's own photos (Own, up to 10; optimize/photos.sh): "add" keeps the photo the shell just wrote
+ * through ConfigProvider (.../own-in), or, with path, one in /data/local/tmp/urtv-own/ (only where the app may read it);
+ * mode = mix (they join ours, as always) or only.
  * slot = what the bottom-left slot shows (Prefs.SLOTS). countdown = the date (YYYY-MM-DD) slot=countdown counts down to, or
  * "clear"; cdname = its name (up to 40 characters).
  * national = auto (as always from now: the quiet green look on National Day, 21-25 September, and Founding Day, 20-24 February) or off.
@@ -76,6 +81,9 @@ public class SaverReceiver extends BroadcastReceiver {
                 return;
             case "sa.urtv.screensaver.TASKS":
                 setResultData(tasks(p, i));
+                return;
+            case "sa.urtv.screensaver.PHOTOS":
+                setResultData(photos(c, p, i));
                 return;
             default:
                 setResultData("error: unknown action " + action);
@@ -232,6 +240,56 @@ public class SaverReceiver extends BroadcastReceiver {
             default:
                 return "error: op is one of list add done del clear";
         }
+    }
+
+    /** «صوري»: n is the number list shows (from 1). */
+    private static String photos(Context c, Prefs p, Intent i) {
+        String op = String.valueOf(i.getStringExtra("op"));
+        switch (op) {
+            case "list":
+                return photoListing(c, p);
+            case "add": {
+                String path = i.getStringExtra("path");
+                java.io.File src = Own.incoming(c);
+                if (path != null) {
+                    if (!path.matches("/data/local/tmp/urtv-own/[A-Za-z0-9_.-]+") || path.contains(".."))
+                        return "error: path must be a file in /data/local/tmp/urtv-own/";
+                    src = new java.io.File(path);
+                }
+                int size = i.getIntExtra("size", -1);   // what the shell sent: a short or stale file is refused
+                String why = size >= 0 && src.length() != size ? "the file is not the one sent (" + src.length() + " of " + size + " bytes)"
+                    : Own.add(c, src);
+                if (why != null && src.equals(Own.incoming(c))) src.delete();
+                return why != null ? "error: " + why : "saved\n" + photoListing(c, p);
+            }
+            case "del": {
+                int n = i.getIntExtra("n", 0);
+                return !Own.delete(c, n) ? "error: no photo number " + n + " (list shows the numbers)"
+                    : "saved\n" + photoListing(c, p);
+            }
+            case "clear":
+                Own.clear(c);
+                return "saved\n" + photoListing(c, p);
+            case "mode": {
+                String m = i.getStringExtra("mode");
+                if (!Own.MIX.equals(m) && !Own.ONLY.equals(m)) return "error: mode is mix or only";
+                p.setOwnMode(m);
+                p.bumpOwnRev();
+                return "saved\n" + photoListing(c, p);
+            }
+            default:
+                return "error: op is one of list add del clear mode";
+        }
+    }
+
+    private static String photoListing(Context c, Prefs p) {
+        int n = Own.count(c);
+        StringBuilder b = new StringBuilder("photos: " + n + " of " + Own.MAX + "\nmode: " + p.ownMode());
+        if (n == 0) b.append(" (no photos: ours only)");
+        else if (!Own.ONLY.equals(Own.mode(c))) b.append(" (they join ours)");
+        else b.append(" (only theirs)");
+        for (int k = 1; k <= n; k++) b.append('\n').append(k).append(". ").append(Own.describe(c, k));
+        return b.toString();
     }
 
     private static String listing(Prefs p) {

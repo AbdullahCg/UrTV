@@ -131,6 +131,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 | `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
 | `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `events`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `national`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
+| `optimize/photos.sh` | the owner's own photos, 1 to 10: `add FILE...`, `list`, `del N`, `clear`, `mode mix\|only`, `show` |
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
 | `optimize/music.sh` | «تلاوة» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
@@ -187,6 +188,20 @@ one done, «حذف» removes it) and its «🎤 تكلّم» button uses the TV'
 through the screensaver's ConfigProvider (`/tasks`), writes guarded by the signature permission `WRITE_TASKS`.
 *Where a sync would plug in (not built):* Microsoft To Do or Todoist would read and write the same list through
 `Prefs.tasks()/addTask()/doneTask()/deleteTask()`; the calls belong on a background thread like the one `Updater.checkIfDue` starts, with the owner's own app registration kept out of the repository.
+**«صوري»**, your own photos behind the screen (a favourite player, your country, your family): 1 to 10 JPEGs, put on
+the TV only by your agent, `optimize/photos.sh add FILE...`. Each is made ready on the computer first (turned upright by its
+EXIF orientation, shrunk to the TV's screen, at most 1920 px wide, JPEG quality 85, and **all metadata removed**: no location,
+camera or date), so the TV decodes a small picture. `mode mix` (default) lets them join our Saudi photos in the rotation,
+`mode only` shows only yours, on the screensaver and on the home screen's wallpaper; with none added nothing changes.
+`list`, `del N`, `clear` and `show` (a screenshot of the screensaver with them) are there too, and the screensaver app's
+settings row «صوري» shows the count and the mode and can remove them all.
+*Where they live:* in the screensaver app's private folder `files/own/` (`1.jpg`…`N.jpg`, each checked on arrival: a JPEG,
+at most 3 MB and 3840×2160). The screensaver page asks for `https://own.urtv.invalid/N.jpg` and `PhotoCache` answers it from
+that folder (never the network); the page gets `#own=N&ownmode=mix|only` only when there are some. The home app reads them
+through the same `ConfigProvider` that serves `/tasks`: `/own` says how many, in which mode, and a revision; `/own/N` opens
+photo N read-only, behind the signature permission `READ_CONFIG` (no world-readable file). Photos arrive through
+`/own-in`, which only the shell may write (`content write`, behind `DUMP` like `SaverReceiver`), then `SaverReceiver PHOTOS`
+checks and keeps them (where a TV lacks `content write` it reads the staged file in `/data/local/tmp/urtv-own/` itself).
 `slot`: what the bottom-left slot shows: `matches` (default; the weather when no team is
 followed), `weather` (the next three days), `fasting` (the next recommended voluntary fast, from the Umm al-Qura calendar),
 `countdown` (days to `cd=YYYY-MM-DD`, named `cdname`; the weather once it has passed), `markets` (the chosen markets with price and change) or `none` (the slot is hidden).
