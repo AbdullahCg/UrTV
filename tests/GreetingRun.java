@@ -21,7 +21,7 @@ public final class GreetingRun {
                     r = GreetingText.greeting(GreetingText.part(m[0], m[1], m[2], m[3], m[4]));
                     break;
                 }
-                case "weather": r = GreetingText.weather(Integer.parseInt(f[1]), f[2], Double.parseDouble(f[3]), "latin".equals(f[4])); break;
+                case "weather": r = GreetingText.weather(Integer.parseInt(f[1]), Double.parseDouble(f[2]), f[3], Double.parseDouble(f[4]), "latin".equals(f[5])); break;
                 case "sun": r = GreetingText.sun(f[1], f[2], "latin".equals(f[3])); break;
                 default: r = "?";
             }

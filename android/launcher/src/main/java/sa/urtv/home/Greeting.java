@@ -26,7 +26,7 @@ import sa.urtv.home.tilawah.DayParts;
  * «تصبح على خير» after) and under it the weather of the screensaver's city and the next sunrise or sunset.
  *
  * Settings come from the screensaver's ConfigProvider (city, digits and «التحية والطقس»). The weather is asked of
- * Open-Meteo at most once every 30 minutes (one request: the current temperature and weather code), and only while the greeting is on; the last answer is kept, so a TV that
+ * Open-Meteo at most once every 30 minutes (the current temperature and weather code, and the air's dust as the screensaver's page asks it: two requests), and only while the greeting is on; the last answer is kept, so a TV that
  * is offline shows the greeting alone. With the setting off the line is the plain good-morning it always was.
  */
 final class Greeting {
@@ -63,7 +63,7 @@ final class Greeting {
         long at = sp.getLong("at", 0);
         boolean sameCity = s.lat.equals(sp.getString("lat", "")) && s.lon.equals(sp.getString("lon", ""));
         if (sameCity && sp.contains("code") && System.currentTimeMillis() - at < STALE_MS && d != null) {
-            String line = GreetingText.weather(sp.getInt("code", -1), s.city, sp.getFloat("temp", 0), s.latin)
+            String line = GreetingText.weather(sp.getInt("code", -1), sp.getFloat("dust", 0), s.city, sp.getFloat("temp", 0), s.latin)
                     + "\n" + GreetingText.sun(d.sunLabel, d.sunClock, s.latin);
             weather.setText(line);
             weather.setVisibility(android.view.View.VISIBLE);
@@ -96,15 +96,40 @@ final class Greeting {
                     con.disconnect();
                 }
                 JSONObject cur = new JSONObject(body.toString()).getJSONObject("current");
+                float dust = dust(s);
                 prefs().edit().putLong("at", System.currentTimeMillis())
                         .putString("lat", s.lat).putString("lon", s.lon)
                         .putFloat("temp", (float) cur.getDouble("temperature_2m"))
+                        .putFloat("dust", dust)
                         .putInt("code", cur.getInt("weather_code")).apply();
                 main.post(() -> { fetching = false; update(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)); });
             } catch (Exception e) {
                 main.post(() -> fetching = false);   // offline or Open-Meteo is down: the last answer, if fresh, stays
             }
         }, "greeting-weather").start();
+    }
+
+    /** The larger of the air's pm10 and dust (µg/m³), as the page reads them to say «غبار»; 0 when the request fails. */
+    private static float dust(Config s) {
+        try {
+            String url = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + s.lat + "&longitude=" + s.lon
+                    + "&timezone=" + URLEncoder.encode(s.tz, "UTF-8") + "&current=pm10,dust";
+            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            con.setConnectTimeout(6000);
+            con.setReadTimeout(8000);
+            con.setRequestProperty("User-Agent", "urtv-home");
+            StringBuilder body = new StringBuilder();
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = in.readLine()) != null) body.append(line);
+            } finally {
+                con.disconnect();
+            }
+            JSONObject cur = new JSONObject(body.toString()).getJSONObject("current");
+            return (float) Math.max(cur.optDouble("pm10", 0), cur.optDouble("dust", 0));
+        } catch (Exception e) {
+            return 0;   // no answer: the sky's own word
+        }
     }
 
     private SharedPreferences prefs() {
