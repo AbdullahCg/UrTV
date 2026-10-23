@@ -495,7 +495,7 @@
     <div class="panel p-match">
       <div class="label" id="slot-label">المباريات</div>
       <div class="mrow" id="match-row">
-        <div class="none-week">لا شيء هذا الأسبوع</div>
+        <div class="none-week">جارٍ التحميل…</div>
       </div>
     </div>
   </footer>
@@ -543,6 +543,11 @@ const CONFIG = {
   matchesPerPage: 2,
   matchPageMs: 15000,
   matchPageFastMs: 10000,   // the page turn once a followed league makes more than 3 pages
+  // politeness to the free services: a pause between two requests of one loader, and the retry after a first load that got no answer
+  // (#gap= and #retry=, in ms, only so the tests need not wait)
+  queueGapMs: Math.max(0, Math.min(5000, _num('gap', 400))),
+  weekGapMs: Math.max(0, Math.min(5000, _num('gap', 500))),
+  retryMs: Math.max(1000, _num('retry', 120000)),
   // minutes from adhan to iqama (Ministry of Islamic Affairs defaults); Friday Dhuhr has none
   iqama: {Fajr:25, Dhuhr:20, Asr:20, Maghrib:10, Isha:20},
   // "new this week" filters from the app: TVMaze genres, languages, countries, picked show ids
@@ -945,11 +950,36 @@ let MATCHES_LOADED = false;   // a refresh answered; until then the saved row st
 let MATCHES = {};   // team id -> next event
 let RESULTS = {};   // team id -> recent events
 let NEXT_LIST = {};   // team id -> upcoming events
+let MATCH_OK_AT = 0, MATCH_FAIL_AT = 0;   // when a refresh last answered, and when the last one got no answer at all (0 = never)
+try{ MATCH_OK_AT = +localStorage.getItem('matchesOk') || 0; }catch(e){}
+
+// ---------- politeness: one request at a time, a pause between, one run of a loader at a time, a per-TV offset ----------
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const BUSY = {};   // loader name -> true while a run is going: a new run never starts on top of it
+const guarded = (name, fn) => async (...a) => {
+  if(BUSY[name]) return;
+  BUSY[name] = true;
+  try{ return await fn(...a); }finally{ BUSY[name] = false; }
+};
+// 0-29 minutes, drawn once per TV and kept: TVs that boot or cross midnight together do not call the services in the same minute
+const JITTER_MS = (()=>{
+  try{
+    let v = parseInt(localStorage.getItem('jitter'), 10);
+    if(!(v >= 0 && v < 30)){ v = Math.floor(Math.random() * 30); localStorage.setItem('jitter', String(v)); }
+    return v * 60000;
+  }catch(e){ return 0; }
+})();
+const periodic = (fn, ms) => setTimeout(() => { fn(); setInterval(fn, ms); }, ms + JITTER_MS);   // the first periodic run is late by the offset
+const later = fn => setTimeout(fn, JITTER_MS);   // the same offset for the refresh at midnight
+const fmtAgo = ms => { const p = riyadhParts(new Date(ms)); return 'آخر تحديث ' + fmt12(p.h, p.mi); };
 
 // ---------- team names in Arabic ----------
 // 1) built-in table, 2) the Arabic label on Wikidata (cached on the device), 3) transliteration meanwhile
 const AR_NAMES = (()=>{ try{ return JSON.parse(localStorage.getItem('arNames') || '{}'); }catch(e){ return {}; } })();
 const AR_PENDING = new Set();
+// a lookup that failed (offline, Wikidata slow) is not repeated for an hour; kept on the device with its time
+const AR_FAIL = (()=>{ try{ return JSON.parse(localStorage.getItem('arFail') || '{}') || {}; }catch(e){ return {}; } })();
+const AR_RETRY_MS = 3600000;
 const AR_KIND = {team:/football|soccer|club|team|منتخب|نادي/i, show:/television|series|sitcom|anime|miniseries|show|مسلسل/i};
 const hasArabic = s => /[؀-ۿ]/.test(s);
 
@@ -1010,15 +1040,20 @@ function arName(en, kind, id){
   }
   const key = kind + ':' + en;
   if(AR_NAMES[key] !== undefined) return AR_NAMES[key] || translit(en);
-  if(!AR_PENDING.has(key)){
+  if(!AR_PENDING.has(key) && !(Date.now() - (AR_FAIL[key] || 0) < AR_RETRY_MS)){
     AR_PENDING.add(key);
     arQueue = arQueue.then(async ()=>{            // one lookup at a time
       try{
         AR_NAMES[key] = await wikidataArabic(en, kind);   // '' = Wikidata has none: keep the transliteration
+        delete AR_FAIL[key];
         try{ localStorage.setItem('arNames', JSON.stringify(AR_NAMES)); }catch(e){}
         if(AR_NAMES[key]){ renderMatches(); renderPanel(false, 'matches'); }
-      }catch(e){}                                    // offline: try again next time
+      }catch(e){                                     // offline: try again in an hour, not at every redraw
+        AR_FAIL[key] = Date.now();
+        try{ localStorage.setItem('arFail', JSON.stringify(AR_FAIL)); }catch(_){}
+      }
       AR_PENDING.delete(key);
+      await sleep(CONFIG.queueGapMs);
     });
   }
   return translit(en);
@@ -1026,7 +1061,7 @@ function arName(en, kind, id){
 const teamAr = (s, id) => arName(s, 'team', id);
 
 async function fetchNext(id){
-  const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventsnext.php?id=${id}`,{cache:'no-store'});
+  const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventsnext.php?id=${id}`, 12000);
   if(!r.ok) throw 0;
   const j = await r.json();
   if(j?.events) NEXT_LIST[id] = j.events;
@@ -1184,7 +1219,7 @@ function liveStatus(ev, t12){
 }
 
 // while a picked team is playing, refresh that event every 2 minutes; so is a game of a followed league (a few at most)
-async function loadLive(){
+const loadLive = guarded('live', async function(){
   const now = Date.now();
   let asked = false;
   const live = ev => { const k = toDate(ev).getTime(); return ev && ev.idEvent && now >= k - 5*60000 && now <= k + durMs(ev); };
@@ -1202,17 +1237,17 @@ async function loadLive(){
   // a game 6 h past kick-off with no result: ask once; the answer (or none) is what the screen shows from then on
   const stale = matchEvents().filter(ev => !STALE_ASKED.has(ev.idEvent) && now - toDate(ev).getTime() > STALE_ASK_H * 3600000 && pendingResult(ev, now)).slice(0, LEAGUE_LIVE_MAX);
   stale.forEach(ev => STALE_ASKED.add(ev.idEvent));
-  await Promise.all([
-    ...Object.entries(MATCHES).map(async ([id, ev])=>{
+  const jobs = [   // one lookup at a time, a pause between
+    ...Object.entries(MATCHES).map(([id, ev]) => async () => {
       if(!live(ev)) return;
       const fresh = await look(ev);
       if(fresh){ MATCHES[id] = Object.assign({}, ev, fresh); keepResult(id, MATCHES[id]); }
     }),
-    ...theirs.map(async ev => {
+    ...theirs.map(ev => async () => {
       const fresh = await look(ev);
       if(fresh) LIVE_PATCH[ev.idEvent] = {at: Date.now(), ev: fresh};
     }),
-    ...stale.map(async ev => {
+    ...stale.map(ev => async () => {
       const fresh = await look(ev);
       if(!fresh) return;
       LIVE_PATCH[ev.idEvent] = {at: Date.now(), ev: fresh};   // a league's copy
@@ -1221,9 +1256,14 @@ async function loadLive(){
       Object.keys(NEXT_LIST).forEach(id => { NEXT_LIST[id] = mend(NEXT_LIST[id]); });
       Object.keys(RESULTS).forEach(id => { RESULTS[id] = mend(RESULTS[id]); });
     }),
-  ]);
+  ];
+  for(const job of jobs){
+    const before = asked;
+    await job();
+    if(asked !== before && job !== jobs[jobs.length - 1]) await sleep(CONFIG.queueGapMs);
+  }
   if(asked) renderMatches();   // outside a match window nothing was asked, nothing changed
-}
+});
 
 // ---------- other sports: Formula 1, UFC, boxing (events, not teams) ----------
 // Each has TheSportsDB leagues, found by CI (assets/shared/events.json); the next events of each are asked for every
@@ -1334,17 +1374,19 @@ function eventRows(now){   // for the card: a Formula 1 weekend's sessions, else
   return rows;
 }
 async function loadEvents(){
+  let asked = 0;
   for(const key of CONFIG.events){
     const got = [];
     let answered = false;
-    await Promise.all((EVENT_LEAGUES[key] || []).map(async l => {
+    for(const l of EVENT_LEAGUES[key] || []){   // one league at a time
+      if(asked++) await sleep(CONFIG.queueGapMs);
       try{
         const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventsnextleague.php?id=${l.id}`, 10000);
-        if(!r.ok) return;
+        if(!r.ok) continue;
         const j = await r.json(); answered = true;
         got.push(...(j.events || []));
       }catch(e){}
-    }));
+    }
     if(answered) EVENT_NEXT[key] = got;   // a failed refresh keeps the last events
   }
   renderMatches();
@@ -1366,6 +1408,12 @@ function packPages(slots, per){
   }
   return pages;
 }
+// loading, failed and empty are three different things: «لا مباريات» only after an answer that had none
+function matchesEmptyText(){
+  return MATCHES_LOADED ? 'لا مباريات هذا الأسبوع' : MATCH_FAIL_AT ? 'تعذّر التحديث' : 'جارٍ التحميل…';
+}
+// when the last refresh failed and older games are on screen: «آخر تحديث …», else ''
+const matchesStaleNote = () => MATCH_OK_AT && MATCH_FAIL_AT > MATCH_OK_AT ? fmtAgo(MATCH_OK_AT) : '';
 function renderMatches(turn){
   if(!SLOT_MATCHES) return;
   const now = Date.now(), shown = new Set();
@@ -1375,7 +1423,11 @@ function renderMatches(turn){
   const slots = live.length ? live.map(ev => gameBlock(ev, now, true))
     : [...games.map(g => g.html), ...CONFIG.events.map(k => eventSlot(k, now))].filter(Boolean);
   const row = document.getElementById('match-row');
-  if(!slots.length){ if(!MATCHES_LOADED && row.firstElementChild) return; setHTML(row, '<div class="none-week">لا شيء هذا الأسبوع</div>'); return; }
+  if(!slots.length){
+    if(!MATCHES_LOADED && row.firstElementChild && !row.querySelector('.none-week')) return;   // the saved games stay until the first answer
+    setHTML(row, `<div class="none-week">${matchesEmptyText()}</div>`);
+    return;
+  }
   const per = live.length ? 1 : CONFIG.matchesPerPage;
   let pages = packPages(slots, per);
   if(turn) MATCH_PAGE++;
@@ -1434,30 +1486,40 @@ function shortenRows(ul){
 }
 
 async function fetchLast(id){
-  const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventslast.php?id=${id}`,{cache:'no-store'});
+  const r = await fetchT(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventslast.php?id=${id}`, 12000);
   if(!r.ok) throw 0;
   const j = await r.json();
   return j.results || [];
 }
-async function loadMatches(){
+// One request at a time, CONFIG.queueGapMs apart, and never two runs at once (a slow answer would pile them up).
+const loadMatches = guarded('matches', async function(){
   // never throw away a good fixture or result on a failed refresh
-  let answered = 0;
-  const leagues = CONFIG.leagues.length ? loadLeagues() : 0;
-  await Promise.all(CONFIG.teamIds.map(async id=>{
+  let answered = 0, asked = 0;
+  const leagues = CONFIG.leagues.length ? loadLeagues() : 0;   // a file on GitHub, not the sports server
+  const step = async () => { if(asked++) await sleep(CONFIG.queueGapMs); };
+  for(const id of CONFIG.teamIds){
+    await step();
     try{
       const ev = await fetchNext(id); answered++;
       if(ev){ if(MATCHES[id] && MATCHES[id].idEvent !== ev.idEvent) keepResult(id, MATCHES[id]); MATCHES[id] = ev; }
     }catch(e){}
+    await step();
     try{ const l = await fetchLast(id); answered++; if(l.length) RESULTS[id] = l; }catch(e){}
-  }));
+  }
   answered += await leagues;
-  if(!answered && (CONFIG.teamIds.length || CONFIG.leagues.length)) return;    // offline: keep what is shown (the saved panels)
-  MATCHES_LOADED = true;
-  loadEvents();
+  if(!answered && (CONFIG.teamIds.length || CONFIG.leagues.length)){   // no answer: keep what is shown, and say so when there is nothing else
+    MATCH_FAIL_AT = Date.now();
+    if(!MATCHES_LOADED) setTimeout(loadMatches, CONFIG.retryMs);   // a first load that failed tries again soon, then the normal period
+    renderMatches(); renderPanel(false, 'matches'); renderSlot();
+    return;
+  }
+  MATCHES_LOADED = true; MATCH_OK_AT = Date.now(); MATCH_FAIL_AT = 0;
+  try{ localStorage.setItem('matchesOk', String(MATCH_OK_AT)); }catch(e){}
   renderMatches();
   renderPanel(false, 'matches');
   loadCrests();
-}
+  if(CONFIG.events.length) await loadEvents();   // the other sports, after the games, one league at a time
+});
 
 // what the top-left can show: Yahoo symbol or CoinGecko id, decimals for the price, unit after it, and for
 // gold and silver the factor from USD per troy ounce to riyals per gram (3.75 riyals to the dollar, 31.1035 g)
@@ -1593,7 +1655,7 @@ function renderSlot(){
   const s = slotNow();
   if(s === 'none') return;
   setText(document.getElementById('slot-label'), SLOT_LABEL[s]);
-  if(s === 'matches'){ renderMatches(); return; }
+  if(s === 'matches'){ renderMatches(); setText(document.getElementById('slot-label'), SLOT_LABEL.matches + (matchesStaleNote() ? ' · ' + matchesStaleNote() : '')); return; }
   const row = document.getElementById('match-row'), h = slotHTML(s);
   if(h !== null && setHTML(row, h)) fitMatches(row);
 }
@@ -1647,6 +1709,13 @@ async function yahooChart(sym, q = 'interval=1d&range=5d'){
   throw 0;
 }
 
+// the markets line, one market at a time
+const loadTickers = guarded('tickers', async function(){
+  for(const t of TICKERS){
+    if(t !== TICKERS[0]) await sleep(CONFIG.queueGapMs);
+    await loadTicker(t);
+  }
+});
 async function loadTicker(t){
   try{
     if(t.cg){                                  // crypto: CoinGecko, CORS friendly
@@ -1670,13 +1739,16 @@ async function loadTicker(t){
 }
 
 const SKIP_TYPES = ['News','Talk Show','Sports','Game Show'];
-let NET_OK = 0;   // answers received; a refresh that got none must not replace what is on screen
-async function getJSON(url, fallback){
-  try{ const r = await fetchT(url, 12000); if(!r.ok) return fallback; const j = await r.json(); NET_OK++; return j; }
-  catch(e){ return fallback; }
-}
-async function loadWeek(){
-  const F = CONFIG.shows, seen = new Set(), out = [], answered = NET_OK;
+let WEEK_OK_AT = 0, WEEK_FAIL_AT = 0;   // the last refresh that kept its answer, and the last one that failed (0 = never)
+// TVmaze, one request at a time CONFIG.weekGapMs apart. null = no answer (a failed request), [] = an answer with nothing in it.
+const loadWeek = guarded('week', async function(){
+  const F = CONFIG.shows, seen = new Set(), out = [];
+  let asked = 0, failed = 0, answered = 0;
+  const ask = async url => {
+    if(asked++) await sleep(CONFIG.weekGapMs);
+    try{ const r = await fetchT(url, 12000); if(!r.ok) throw 0; const j = await r.json(); answered++; return j; }
+    catch(e){ failed++; return null; }
+  };
   const days = [];
   for(let i=0;i<7;i++) days.push(new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(Date.now()+i*86400000)));
   const inWeek = d => d && d >= days[0] && d <= days[6];
@@ -1694,19 +1766,20 @@ async function loadWeek(){
   };
 
   // shows picked one by one: their next episode, if it airs this week
-  const picked = await Promise.all(F.ids.map(id => getJSON(`https://api.tvmaze.com/shows/${id}?embed=nextepisode`, null)));
-  picked.forEach(s => {
+  for(const id of F.ids){
+    const s = await ask(`https://api.tvmaze.com/shows/${id}?embed=nextepisode`);
     const e = s && s._embedded && s._embedded.nextepisode;
     if(e && inWeek(e.airdate)) add(s, e, true);
-  });
+  }
 
   // the schedule, narrowed by genre and language; skipped when only picked shows were chosen
   if(!F.ids.length || F.genres.length || F.langs.length){
-    const lists = await Promise.all(days.flatMap(dt => [
-      getJSON(`https://api.tvmaze.com/schedule/web?date=${dt}`, []),
-      ...F.countries.map(c => getJSON(`https://api.tvmaze.com/schedule?country=${encodeURIComponent(c)}&date=${dt}`, []))
-    ]));
-    lists.flat().forEach(e => {
+    const lists = [];
+    for(const dt of days){
+      lists.push(await ask(`https://api.tvmaze.com/schedule/web?date=${dt}`));
+      for(const c of F.countries) lists.push(await ask(`https://api.tvmaze.com/schedule?country=${encodeURIComponent(c)}&date=${dt}`));
+    }
+    lists.filter(Array.isArray).flat().forEach(e => {
       const s = e.show || (e._embedded && e._embedded.show) || {};
       if(s.type && SKIP_TYPES.includes(s.type)) return;
       if(s.genres && s.genres.includes('Soap')) return;   // no daytime soaps
@@ -1719,15 +1792,20 @@ async function loadWeek(){
     });
   }
 
-  // nothing answered (offline): keep the saved list if one is shown
-  if(NET_OK === answered && CARDS.some(c => c.kind === 'shows' && c.ul.querySelector('li:not(.empty)'))) return;
-  if(out.length){                                   // keep the last good list on a failed refresh
-    WEEK_POOL = out.sort((a,b)=> (b.picked - a.picked) || (b.prem - a.prem) || a.date.localeCompare(b.date)).slice(0, 50);
-    CARDS.forEach(c => { if(c.kind === 'shows') c.page = 0; });
+  // The pool is replaced only when every day answered: a list made of some days is a wrong list. With no list yet, some is better than none.
+  const whole = answered > 0 && failed === 0;
+  if(!whole && !(answered > 0 && !WEEK_POOL.length && out.length)){
+    WEEK_FAIL_AT = Date.now();
+    if(!WEEK_OK_AT) setTimeout(loadWeek, CONFIG.retryMs);   // a first load that failed tries again soon
+    renderPanel(false, 'shows');
+    return;
   }
+  WEEK_POOL = out.sort((a,b)=> (b.picked - a.picked) || (b.prem - a.prem) || a.date.localeCompare(b.date)).slice(0, 50);
+  CARDS.forEach(c => { if(c.kind === 'shows') c.page = 0; });
+  WEEK_OK_AT = Date.now(); WEEK_FAIL_AT = 0;
   WEEK_LOADED = true;
   renderPanel(false, 'shows');
-}
+});
 
 const WEEK_ROWS = 5;
 const MATCH_ROWS = 4;   // the games card: each game takes two lines (teams, date and time)
@@ -1737,9 +1815,10 @@ let WEEK_POOL = [], WEEK_LOADED = false;
 function renderWeekPage(card, animate){
   const ul = card.ul;
   if(!WEEK_POOL.length){
-    if(!WEEK_LOADED) return;   // the saved list stays until the first answer
+    if(!WEEK_LOADED && !WEEK_FAIL_AT) return;   // the saved list stays until the first answer
+    if(!WEEK_LOADED && ul.firstElementChild && !ul.firstElementChild.classList.contains('empty')) return;
     ul.classList.remove('flip');
-    setHTML(ul, '<li class="empty">لا جديد هذا الأسبوع</li>');
+    setHTML(ul, `<li class="empty">${WEEK_LOADED ? 'لا جديد هذا الأسبوع' : 'تعذّر التحديث'}</li>`);
     return;
   }
   const per = card.cap || WEEK_ROWS, start = (card.page * per) % WEEK_POOL.length;
@@ -1906,7 +1985,11 @@ function renderCard(card, animate, keepSize){
     if(was === 'adhkar'){ clearTimeout(card.ad.t); card.ad.t = 0; card.ad.mode = ''; }
   }
   if(!keepSize){ card.z = 1; card.cap = 0; card.maxLen = 0; card.zi = 0; card.ri = 0; card.el.style.removeProperty('--z'); }
-  if(P === 'shows'){ paintHd(hd, PANEL_TITLE.shows); renderWeekPage(card, animate); return; }
+  if(P === 'shows'){
+    if(WEEK_OK_AT && WEEK_FAIL_AT > WEEK_OK_AT) paintHd(hd, '', `<span>${PANEL_TITLE.shows}</span><span class="until">${fmtAgo(WEEK_OK_AT)}</span>`);
+    else paintHd(hd, PANEL_TITLE.shows);
+    renderWeekPage(card, animate); return;
+  }
   let rows = [];
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
@@ -1920,11 +2003,13 @@ function renderCard(card, animate, keepSize){
   else if(P === 'wisdom'){ const q = wisdomOfDay(); paintHd(hd, q.title); rows = q.rows; }
   else if(P === 'adhkar'){ const q = adhkarCard(card); paintHd(hd, q.title, q.hd); rows = q.rows; }
   else if(P === 'stocks'){ const q = stocksCard(); paintHd(hd, '', q.hd); rows = q.rows; }
-  if(PANEL_TITLE[P]) paintHd(hd, PANEL_TITLE[P]);
+  if(P === 'matches' && matchesStaleNote()) paintHd(hd, '', `<span>${PANEL_TITLE.matches}</span><span class="until">${matchesStaleNote()}</span>`);
+  else if(PANEL_TITLE[P]) paintHd(hd, PANEL_TITLE[P]);
   if(!rows.length){
-    if(P === 'matches' && !MATCHES_LOADED && ul.firstElementChild && !ul.firstElementChild.classList.contains('empty')) return;   // the saved games stay until the first answer
+    if(P === 'matches' && !MATCHES_LOADED && ul.firstElementChild && !ul.firstElementChild.classList.contains('empty')) return;
+    if(P === 'matches' && ul.firstElementChild && ul.firstElementChild.classList.contains('empty') && ul.firstElementChild.textContent === matchesEmptyText()) return;   // the saved games stay until the first answer
     ul.classList.remove('flip');
-    setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : P === 'tasks' ? 'لا مهام اليوم' : 'لا تتوفر بيانات الآن'}</li>`);
+    setHTML(ul, `<li class="empty">${P === 'matches' ? matchesEmptyText() : P === 'tasks' ? 'لا مهام اليوم' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
   }
   const per = card.cap || (P === 'matches' ? MATCH_ROWS : WEEK_ROWS);
@@ -2225,9 +2310,10 @@ function marketOpen(sa, ms = Date.now()){
 }
 let STOCKS = {};   // code -> {p: price, v: previous close or null, c: the day's closes}
 try{ STOCKS = JSON.parse(localStorage.getItem('stocks:' + location.hash) || '{}') || {}; }catch(e){}
-async function loadStocks(){
+const loadStocks = guarded('stocks', async function(){
   let got = 0;
   for(const k of CONFIG.stocks){
+    if(got) await sleep(CONFIG.queueGapMs);
     try{
       const res = (await yahooChart(isSA(k) ? k + '.SR' : k, 'interval=15m&range=1d')).chart.result[0];
       const price = res.meta.regularMarketPrice;
@@ -2241,7 +2327,7 @@ async function loadStocks(){
   if(!got) return;                   // offline: keep what is shown
   try{ localStorage.setItem('stocks:' + location.hash, JSON.stringify(STOCKS)); }catch(e){}
   renderPanel(false, 'stocks');
-}
+});
 // a small line of the day's closes, 60 x 16, drawn only when the card's markup changes
 function spark(c, up){
   if(c.length < 2) return '<svg viewBox="0 0 60 16" preserveAspectRatio="none"></svg>';
@@ -2716,7 +2802,7 @@ function boot(){
   loadPhotoIndex().then(() => applyBackground(true));
   setInterval(() => applyBackground(false), 60*1000);
   tickClock(); tickDates(); tickOccasion(); renderSlot();
-  TICKERS.forEach(loadTicker);
+  loadTickers();
   if(USES('stocks')) loadStocks();
   renderPanel(false, ...CARD_KINDS.filter(k => k !== 'shows'));   // shows: its own data arrives with prayers, weather, matches
   if(NEEDS_MATCHES) loadMatches();
@@ -2731,18 +2817,21 @@ function boot(){
     const turn = () => { renderMatches(true); setTimeout(turn, CONFIG.leagues.length && MATCH_PAGES > 3 ? CONFIG.matchPageFastMs : CONFIG.matchPageMs); };
     setTimeout(turn, CONFIG.matchPageMs);
   }
-  if(NEEDS_MATCHES){ setInterval(loadLive, 2*60000); setInterval(loadMatches, 30*60*1000); }
-  setInterval(loadPrayers, 6*3600*1000);
-  setInterval(()=>{ TICKERS.forEach(loadTicker); if(USES('stocks')) loadStocks(); }, 15*60*1000);
-  if(USES('shows')) setInterval(loadWeek, 6*3600*1000);
-  setInterval(loadWeather, 30*60*1000);
+  if(NEEDS_MATCHES){ periodic(loadLive, 2*60000); periodic(loadMatches, 30*60*1000); }
+  periodic(loadPrayers, 6*3600*1000);
+  periodic(() => { loadTickers(); if(USES('stocks')) loadStocks(); }, 15*60*1000);
+  if(USES('shows')) periodic(loadWeek, 6*3600*1000);
+  periodic(loadWeather, 30*60*1000);
   cardTimers();
   setInterval(applyNight, 60*1000);
   setInterval(pixelShift, 4*60*1000);
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickOccasion(); loadPrayers(); if(NEEDS_MATCHES) loadMatches(); if(USES('shows')) loadWeek(); loadWeather(); renderPanel(false); }
+    if(d !== lastDay){
+      lastDay = d; tickDates(); tickOccasion(); renderPanel(false);
+      later(() => { loadPhotoIndex().then(() => applyBackground(true)); loadPrayers(); if(NEEDS_MATCHES) loadMatches(); if(USES('shows')) loadWeek(); loadWeather(); });   // each TV at its own minute
+    }
   }, 60*1000);
 }
 
@@ -2759,15 +2848,15 @@ function bootWidget(){
     CARDS.forEach(c => { if(c.eff === 'matches') c.ul.__h = null; });
     if(CARDS.length > 1) renderPanel(false); else renderPanel(false, 'matches');
   });
-  if(USES('shows')){ loadWeek(); setInterval(loadWeek, 6*3600*1000); }
+  if(USES('shows')){ loadWeek(); periodic(loadWeek, 6*3600*1000); }
   renderPanel(false, ...CARD_KINDS.filter(k => k !== 'shows'));
-  if(USES('adhkar') || USES('prayers') || USES('prayerrow')){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); }
-  if(USES('forecast') || USES('hourly')){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
-  if(USES('matches')){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
-  if(USES('stocks')){ loadStocks(); setInterval(loadStocks, 15*60*1000); }
+  if(USES('adhkar') || USES('prayers') || USES('prayerrow')){ loadPrayers(); periodic(loadPrayers, 6*3600*1000); }
+  if(USES('forecast') || USES('hourly')){ loadWeather(); periodic(loadWeather, 30*60*1000); }
+  if(USES('matches')){ loadMatches(); periodic(loadMatches, 30*60*1000); periodic(loadLive, 2*60000); }
+  if(USES('stocks')){ loadStocks(); periodic(loadStocks, 15*60*1000); }
   cardTimers();
   let lastDay = riyadhDayNumber();
-  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(USES('prayers') || USES('prayerrow') || USES('adhkar')) loadPrayers(); renderPanel(false); } }, 60*1000);
+  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); renderPanel(false); if(USES('prayers') || USES('prayerrow') || USES('adhkar')) later(loadPrayers); } }, 60*1000);
   reveal();
 }
 
