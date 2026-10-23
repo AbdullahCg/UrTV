@@ -38,6 +38,10 @@ case "$1" in
   "settings get global verifier_verify_adb_installs") cat "$T/verifier" 2>/dev/null || echo null ;;
   "settings put global verifier_verify_adb_installs"*) log "put-${1##* }"; echo "${1##* }" > "$T/verifier" ;;
   "settings delete global verifier_verify_adb_installs") log delete; rm -f "$T/verifier" ;;
+  "pm install -i com.android.vending"*) log vending; touch "$T/stays"; echo Success ;;
+  "pm list packages sa.urtv."*)
+    pkg=${1##* }
+    if [ -n "$VANISH" ] && { [ "$VANISH" = always ] || [ ! -f "$T/stays" ]; }; then log gone; else echo "package:$pkg"; fi ;;
   "pm install"*)
     if [ -n "$VERIFY" ] && { [ "$VERIFY" = always ] || [ "$(cat "$T/verifier" 2>/dev/null)" != 0 ]; }; then
       log refused; echo "Failure [INSTALL_FAILED_VERIFICATION_FAILURE: Install not allowed]"
@@ -66,7 +70,7 @@ while [ $# -gt 0 ]; do [ "$1" = -o ] && : > "$2"; shift; done
 '''
 
 
-def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None, curl_mode=""):
+def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None, curl_mode="", vanish=""):
     t = Path(tempfile.mkdtemp())
     tree, bin_ = t / "tree", t / "bin"
     (tree / "optimize" / "lists").mkdir(parents=True); bin_.mkdir()
@@ -78,7 +82,7 @@ def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None,
         (bin_ / f).write_text(body); (bin_ / f).chmod(0o755)
     if verifier is not None:
         (t / "verifier").write_text(verifier + "\n")
-    env = dict(os.environ, VERIFY=verify, CURL_MODE=curl_mode, PATH=f"{bin_}:{os.environ['PATH']}", PY=str(bin_ / "py"), T=str(t),
+    env = dict(os.environ, VERIFY=verify, VANISH=vanish, CURL_MODE=curl_mode, PATH=f"{bin_}:{os.environ['PATH']}", PY=str(bin_ / "py"), T=str(t),
                FAIL_SWITCHES=str(fail_switches), FIRST_DROP=first_drop, DOWN_POLLS=str(down_polls))
     r = subprocess.run(["bash", str(tree / "optimize" / "install.sh"), "launcher"], env=env, capture_output=True, text=True)
     log = (t / "log").read_text().split() if (t / "log").exists() else []
@@ -108,6 +112,13 @@ cases = [
      lambda c, o, l: c == 1 and l.count("refused") == 2 and "Install of urtv-home.apk failed" in o and l[-1] == "final-1"),
     ("Windows revocation error: retried with --ssl-revoke-best-effort", run("j", 0, "", curl_mode="revoke"),
      lambda c, o, l: c == 0 and "without that check" in o and "Play Protect" not in o),
+    ("the TV removes the app after a plain install: once more as the Play Store", run("k", 0, "", vanish="plain"),
+     lambda c, o, l: c == 0 and "installing it again as if from the Play Store" in o and l.count("installed") == 1
+     and l.count("vending") == 1 and l.count("gone") == 1 and "Launcher is home" in o),
+    ("the TV removes it every time: one retry, then it says so", run("l", 0, "", vanish="always"),
+     lambda c, o, l: c == 1 and l.count("vending") == 1 and "Install of urtv-home.apk failed" in o and "removed by this TV" in o),
+    ("a normal install: no Play Store installer, no second install", run("m", 0, ""),
+     lambda c, o, l: c == 0 and "vending" not in l and l.count("installed") == 1 and "Play Store" not in o),
     ("no refusal: the setting is never touched", run("i", 0, "", verifier="1"),
      lambda c, o, l: c == 0 and "put-0" not in l and "Play Protect" not in o),
 ]
