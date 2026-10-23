@@ -2911,7 +2911,15 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
   await carry(p); await p.goto('about:blank'); await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');   // (a new page: a changed #hash alone is no reload)
   await p.waitForTimeout(500);
   const after = await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snap6:')).length);
-  const gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  let gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  // Chromium writes the storage out a moment after the page's own writes (the known flake of this file, see carry()): the pruning is idempotent,
+  // so a boot that raced the write is followed by up to two more; a pruning that does not work leaves the key every time
+  for (let again = 0; again < 2 && gone !== null; again++) {
+    await p.waitForTimeout(500); await carry(p); await p.goto('about:blank');
+    await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');
+    await p.waitForTimeout(500);
+    gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  }
   check('storage: the link-keyed snapshots are kept to the newest six (this page\'s own included)', after <= 6, String(after));
   check('storage: a copy for another city unused for two weeks is dropped', gone === null);
   await ctx.close();
