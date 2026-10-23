@@ -209,6 +209,22 @@ in «كل التطبيقات». Full reference: [TILAWAH.md](TILAWAH.md).
 
 ---
 
+## 12. The owner's asks (year strip, dates beside clubs, own adhan, compact pills, the tasks card)
+
+| ID | Action | Expected |
+|---|---|---|
+| Y1 | `optimize/saver.sh yearstrip on`, `optimize/shot.sh screensaver` | Under «بتوقيت الرياض» a slim strip of 365 dots in 8 rows (from the right, top row first), today white and glowing, the passed days gold, and «اليوم ٢٩٦ من ٣٦٥ · ٨١٪» under it; the clock has not moved and the strip is no wider than it; at 10:00–12:59 it still clears the bottom row or is not there |
+| Y2 | `optimize/saver.sh yearstrip off`, then the settings row «شريط السنة تحت الساعة» on and off | Off (the default): nothing under the clock; the row toggles it and the screen follows |
+| Y3 | `optimize/saver.sh home-card matches` with a game this week (the wide card), look at the home screen | Each game is one line: clubs, then the date in the middle, then «بعد …» on the far left; a game whose names need the whole line has its date under it; crests stay; the screensaver's own matches card still has two lines |
+| Y4 | Make a short clip (with a reciter's adhan you own) and `optimize/music.sh adhan add clip.mp3` | «prepared … KB», «added …: it is the adhan now»; `optimize/music.sh adhan` shows `voice=own` and `own=… KB`; a file over 5 minutes is cut at 5:00 and it says so; with no ffmpeg it says what to install |
+| Y5 | `optimize/music.sh adhan now`, then «تلاوة» ← الأذان ← المؤذن | Your recording plays from the TV (no network needed); «أذان من ملفي» is the first row, in gold; picking one of the 21 switches back (`voice=N`) and `adhan voice own` returns |
+| Y6 | `optimize/music.sh adhan own-clear` | `own=none`; the list has no «أذان من ملفي»; the alarm uses the numbered voice |
+| Y7 | The home screen's top row, all seven pills | Each shows its icon only; the one with the focus widens (~150 ms) to its name, the others stay icons; nothing else moves, the row only grows sideways; ◀ ▶ walk them in the old order, to the ends |
+| Y8 | Focus the Wi-Fi pill; start the sleep timer (15 min) and focus its pill | Wi-Fi: the network's name (or «شبكة سلكية»/«غير متصل»); sleep: «مؤقت النوم ١٥ د», and its icon is gold when not focused |
+| Y9 | `optimize/saver.sh home-card tasks,prayerrow,hourly` (then with tasks second and third), look at the home screen | A small mic mark in the «المهام» card's corner, none on the other cards |
+| Y10 | ▼ from the pills | The «المهام» card takes the focus with a gold ring; ▼ goes to the dock, ▲ from the dock to the card, ▲ again to the pill; ◀ ▶ stay on it; the other cards never take the focus |
+| Y11 | OK on the card | «المهام» opens with the focus on «🎤 تكلّم»; OK again starts the voice adding («أضف مهمة …»); Back returns to the home screen with the card still focused |
+
 ## Report format
 
 ```
