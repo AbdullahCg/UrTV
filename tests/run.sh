@@ -12,6 +12,7 @@ python3 tests/run_lock_test.py
 python3 tests/reboot_test.py
 python3 tests/tv_identity_test.py
 python3 tests/dock_names_test.py
+python3 tests/dock_sleep_test.py
 python3 tests/find_tv_test.py
 python3 tests/find_team_test.py
 python3 tests/team_search_test.py
@@ -26,4 +27,6 @@ python3 tests/task_voice_test.py
 python3 tests/photo_prep_test.py
 python3 tests/photos_sh_test.py
 python3 tests/greeting_test.py
+python3 tests/card_box_test.py
+python3 tests/adhan_bar_test.py
 node tests/page.test.mjs

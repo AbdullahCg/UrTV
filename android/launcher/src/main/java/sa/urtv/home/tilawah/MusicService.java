@@ -161,6 +161,8 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     static void nextAction(Context c) { start(c, intent(c, ACTION_NEXT)); }
     static void prevAction(Context c) { start(c, intent(c, ACTION_PREV)); }
     static void stopAction(Context c) { start(c, intent(c, ACTION_STOP)); }
+    /** For the TV's sleep timer (outside this package): stops whatever is playing; does nothing when nothing is. */
+    public static void stopIfPlaying(Context c) { if (playing || buffering) stopAction(c); }
     static void sleep(Context c, int minutes) { start(c, intent(c, ACTION_SLEEP).putExtra(EXTRA_MINUTES, minutes)); }
     static void seekBy(Context c, int delta) { start(c, intent(c, ACTION_SEEK_BY).putExtra(EXTRA_DELTA, delta)); }
 

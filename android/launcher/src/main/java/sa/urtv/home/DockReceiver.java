@@ -23,6 +23,7 @@ import java.util.Map;
  *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.NAMES                  pkg | shown | own | from
  *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.SET_NAMES --es names 'pkg|الاسم;pkg2|'   (empty: back)
  *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.CLEAR_NAMES
+ *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.SLEEP_TV [--ei minutes 30 | 0 = cancel]   «مؤقت النوم» for the whole TV
  *
  * The answer is in the "data" of am's output. optimize/dock.sh wraps them all. People use «ترتيب المفضلة»
  * (DockActivity) instead.
@@ -76,6 +77,15 @@ public class DockReceiver extends BroadcastReceiver {
                 c.sendBroadcast(new Intent(Dock.CHANGED).setPackage(c.getPackageName()));
                 setResultData("names: back to each app's usual name");
                 return;
+            case "sa.urtv.home.SLEEP_TV": {   // the sleep timer: no extra = how it stands; minutes = start it; 0 = cancel
+                if (i.hasExtra("minutes")) {
+                    int m = i.getIntExtra("minutes", -1);
+                    if (m < 0 || m > 600) { setResultData("error: minutes is 1 to 600, or 0 to cancel"); return; }
+                    SleepTimer.start(c, m);
+                }
+                setResultData(SleepTimer.status(c));
+                return;
+            }
             case "sa.urtv.home.GET_DOCK":
                 setResultData("dock: " + String.join(",", Dock.shown(c, apps)));
                 return;

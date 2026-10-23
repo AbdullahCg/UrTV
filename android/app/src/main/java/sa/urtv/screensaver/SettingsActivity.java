@@ -106,6 +106,8 @@ public class SettingsActivity extends Activity {
         header("العرض");
         row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
             new Runnable() { public void run() { pickDigits(); } });
+        row("تنبيه قبل الأذان", prefs.adhanBar() ? "يعمل · شريط في أعلى الشاشة آخر ١٠ دقائق، ثم حتى الإقامة" : "متوقف", R.drawable.ic_eye,
+            new Runnable() { public void run() { prefs.setAdhanBar(!prefs.adhanBar()); render(); } });
         row("المناسبات الوطنية", Prefs.nationalLabel(prefs.national()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickNational(); } });
         row("الخانة اليسرى", Prefs.slotLabel(prefs.slot()), R.drawable.ic_eye,
@@ -121,19 +123,23 @@ public class SettingsActivity extends Activity {
             new Runnable() { public void run() { pickMkStyle(); } });
 
         header("بجانب الساعة");
-        row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(false); } });
+        row("المحتوى", Prefs.panelLabel(prefs.panel()), R.drawable.ic_eye, new Runnable() { public void run() { pickPanel(-1); } });
         row("شكل البطاقة", Prefs.cardStyleLabel(prefs.cardStyle()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickCardStyle(); } });
 
         header("الشاشة الرئيسية (تلفزيونك)");
-        row("بطاقة على الشاشة الرئيسية", Prefs.panelLabel(prefs.homePanel()), R.drawable.ic_eye,
-            new Runnable() { public void run() { pickPanel(true); } });
+        // up to three cards left of the clock; each place takes any card, or «بدون» (the ones after it move up)
+        for (int k = 0; k < Prefs.HOME_CARDS; k++) {
+            final int place = k;
+            row(HOME_CARD_NAMES[k], Prefs.panelLabel(prefs.homePanelAt(k), "بدون"), R.drawable.ic_eye,
+                new Runnable() { public void run() { pickPanel(place); } });
+        }
         row("التحية والطقس", prefs.greeting() ? "تعمل" : "متوقفة", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setGreeting(!prefs.greeting()); render(); } });
         row("ترتيب التطبيقات المفضلة", "قائمة ترتّب فيها المفضلة بالأسهم", R.drawable.ic_star,
             new Runnable() { public void run() { openDockSettings(); } });
 
-        if ("shows".equals(prefs.panel()) || "shows".equals(prefs.homePanel())) {   // only matter for the shows card
+        if ("shows".equals(prefs.panel()) || prefs.homePanels().contains("shows")) {   // only matter for the shows card
         header("جديد المسلسلات");
         row("التصنيفات", labels(Prefs.GENRES, prefs.list("genres"), "الكل"),
             R.drawable.ic_category, new Runnable() { public void run() { pickMany("genres", "التصنيفات", Prefs.GENRES); } });
@@ -144,7 +150,7 @@ public class SettingsActivity extends Activity {
             R.drawable.ic_star, new Runnable() { public void run() { pickRating(); } });
         }
 
-        if ("stocks".equals(prefs.panel()) || "stocks".equals(prefs.homePanel())) {   // only matters for the stocks card
+        if ("stocks".equals(prefs.panel()) || prefs.homePanels().contains("stocks")) {   // only matters for the stocks card
         header("الأسهم");
         row("قائمة الأسهم (" + arabicNum(prefs.stocks().size()) + "/" + arabicNum(Prefs.MAX_STOCKS) + ")", stocksLabel(),
             R.drawable.ic_star, new Runnable() { public void run() { askStocks(); } });
@@ -440,22 +446,114 @@ public class SettingsActivity extends Activity {
         }
     }
 
-    /** The card beside the screensaver's clock, or (home) the one on the launcher's home screen. */
-    private void pickPanel(final boolean home) {
+    private static final String[] HOME_CARD_NAMES = {"البطاقة الأولى", "البطاقة الثانية", "البطاقة الثالثة"};
+
+    /** The card beside the screensaver's clock (place -1), or place 0 to 2 of the cards on the launcher's home screen. */
+    private void pickPanel(final int place) {
+        final boolean home = place >= 0;
+        String current = home ? prefs.homePanelAt(place) : prefs.panel();
+        // the home places can also be left empty; «لا شيء» is that choice there, so it is «بدون» in the list
         String[] labels = new String[Prefs.PANELS.length];
-        String current = home ? prefs.homePanel() : prefs.panel();
         int sel = 0;
         for (int i = 0; i < labels.length; i++) {
-            labels[i] = Prefs.PANELS[i][1];
+            labels[i] = home && "none".equals(Prefs.PANELS[i][0]) ? "بدون" : Prefs.PANELS[i][1];
             if (Prefs.PANELS[i][0].equals(current)) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle(home ? "بطاقة على الشاشة الرئيسية" : "بجانب الساعة")
-            .setSingleChoiceItems(labels, sel, (d, i) -> {
-                if (home) prefs.setHomePanel(Prefs.PANELS[i][0]); else prefs.setPanel(Prefs.PANELS[i][0]);
-                d.dismiss();
-                render();
-            })
-            .show();
+        String[] values = new String[labels.length], about = new String[labels.length];
+        for (int i = 0; i < labels.length; i++) { values[i] = Prefs.PANELS[i][0]; about[i] = Prefs.about(Prefs.PANEL_ABOUT, values[i]); }
+        pickWithPreview(home ? HOME_CARD_NAMES[place] : "بجانب الساعة", values, labels, about, sel,
+            v -> prefs.previewUrl(this, v, prefs.cardStyle()),
+            v -> { if (home) prefs.setHomePanelAt(place, v); else prefs.setPanel(v); });
+    }
+
+    private interface Url { String of(String value); }
+    private interface Pick { void on(String value); }
+
+    /**
+     * A picker with the list on one side, one plain line under each name, and on the other side the focused choice drawn live by the
+     * page itself. The WebView is made when the picker opens and destroyed when it closes; it keeps the TV's text size out of it
+     * (setTextZoom(100) in ScreenView) like every other one of ours.
+     */
+    private void pickWithPreview(String title, final String[] values, final String[] labels, final String[] about, int selected,
+                                 final Url urlFor, final Pick onPick) {
+        final int previewW = 400, previewH = 260;   // dp: about the size of the card on the home screen
+        final LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        box.setPadding(dp(16), dp(8), dp(16), dp(8));
+        final android.widget.ListView lv = new android.widget.ListView(this);
+        lv.setDividerHeight(0);
+        lv.setSelector(new android.graphics.drawable.ColorDrawable(0x33D6AF6B));
+        lv.setAdapter(new android.widget.BaseAdapter() {
+            @Override public int getCount() { return values.length; }
+            @Override public Object getItem(int i) { return values[i]; }
+            @Override public long getItemId(int i) { return i; }
+            @Override public View getView(int i, View old, android.view.ViewGroup parent) {
+                LinearLayout r = new LinearLayout(SettingsActivity.this);
+                r.setOrientation(LinearLayout.VERTICAL);
+                r.setPadding(dp(12), dp(8), dp(12), dp(8));
+                TextView n = new TextView(SettingsActivity.this);
+                n.setText(labels[i]);
+                n.setTextColor(0xFFF6EFE0);
+                n.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+                n.setTypeface(font("Thmanyah-Medium"));
+                r.addView(n);
+                TextView a = new TextView(SettingsActivity.this);
+                a.setText(about[i]);
+                a.setTextColor(0xFFC6BBA4);
+                a.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                a.setTypeface(font("Thmanyah-Regular"));
+                r.addView(a);
+                return r;
+            }
+        });
+        box.addView(lv, new LinearLayout.LayoutParams(0, dp(previewH + 60), 1f));
+        final android.widget.FrameLayout stage = new android.widget.FrameLayout(this);
+        stage.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+            new int[]{0xFF14382A, 0xFF07150E}));   // the home screen's dark wallpaper, so glass and dark cards show as they will
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(dp(previewW), dp(previewH));
+        sp.setMarginStart(dp(16));
+        sp.gravity = Gravity.CENTER_VERTICAL;
+        box.addView(stage, sp);
+
+        final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+        final android.webkit.WebView[] web = new android.webkit.WebView[1];
+        final int[] shown = {-1};
+        final Runnable update = new Runnable() { public void run() {
+            int i = lv.getSelectedItemPosition();
+            if (i < 0) i = Math.max(0, selected);   // nothing selected yet (touch mode): the current choice
+            if (i == shown[0]) return;
+            shown[0] = i;
+            String u = urlFor.of(values[i]);
+            if (web[0] == null) {
+                web[0] = ScreenView.createPreview(SettingsActivity.this, u);
+                stage.addView(web[0], new android.widget.FrameLayout.LayoutParams(-1, -1));
+            } else {   // the page reads its settings once, when it starts: a new #fragment alone would not start it again
+                web[0].loadUrl(u);
+                web[0].reload();
+            }
+        } };
+        lv.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> p, View v, int pos, long id) {
+                handler.removeCallbacks(update);
+                handler.postDelayed(update, 200);   // a long press of the arrow key goes past choices without drawing each
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> p) { }
+        });
+        final AlertDialog dialog = new AlertDialog.Builder(this, DIALOG_THEME).setTitle(title).setView(box)
+            .setNegativeButton("إلغاء", null).create();
+        lv.setOnItemClickListener((p, v, pos, id) -> { onPick.on(values[pos]); dialog.dismiss(); render(); });
+        dialog.setOnShowListener(d -> {
+            dialog.getWindow().setLayout(Math.min(getResources().getDisplayMetrics().widthPixels - dp(48), dp(940)), android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            lv.requestFocus();
+            lv.setSelection(Math.max(0, selected));
+            handler.postDelayed(update, 50);
+        });
+        dialog.setOnDismissListener(d -> {   // nothing of the preview outlives the picker
+            handler.removeCallbacks(update);
+            if (web[0] != null) { ScreenView.release(web[0]); web[0] = null; }
+        });
+        dialog.show();
     }
 
     private void pickRating() {
@@ -544,9 +642,11 @@ public class SettingsActivity extends Activity {
             labels[i] = Prefs.CARD_STYLES[i][1];
             if (Prefs.CARD_STYLES[i][0].equals(prefs.cardStyle())) sel = i;
         }
-        new AlertDialog.Builder(this, DIALOG_THEME).setTitle("شكل البطاقة")
-            .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setCardStyle(Prefs.CARD_STYLES[i][0]); d.dismiss(); render(); })
-            .show();
+        String[] values = new String[labels.length], about = new String[labels.length];
+        for (int i = 0; i < labels.length; i++) { values[i] = Prefs.CARD_STYLES[i][0]; about[i] = Prefs.about(Prefs.CARD_STYLE_ABOUT, values[i]); }
+        // the preview is the card you have now, in the style under the cursor (the prayer times when there is no card)
+        final String card = "none".equals(prefs.panel()) ? "prayers" : prefs.panel();
+        pickWithPreview("شكل البطاقة", values, labels, about, sel, v -> prefs.previewUrl(this, card, v), v -> prefs.setCardStyle(v));
     }
 
     private void pickSlot() {

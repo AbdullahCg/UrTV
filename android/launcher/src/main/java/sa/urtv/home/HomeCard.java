@@ -19,25 +19,42 @@ import android.widget.FrameLayout;
 import java.util.Collections;
 
 /**
- * The optional card on the home screen: the screensaver's page in card-only mode (#widget=1), showing
- * the panel picked in the screensaver's settings («بطاقة على الشاشة الرئيسية»). Off by default; while
- * off no WebView is created. Settings come from the screensaver app's ConfigProvider (same signing key).
+ * The optional cards on the home screen: the screensaver's page in card-only mode (#widget=1), showing
+ * up to three cards picked in the screensaver's settings («البطاقة الأولى» … «الثالثة»), all in one WebView
+ * whose box grows with their number (see Sizer). Off by default; while off no WebView is created. Settings
+ * come from the screensaver app's ConfigProvider (same signing key).
  */
 final class HomeCard {
     private static final Uri CONFIG = Uri.parse("content://sa.urtv.screensaver.config");
     private static final String PREFS = "homecard";   // the last settings read from the screensaver
     private static final String FONTS = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/assets/fonts/";
 
+    /** The box in pixels, {width, height}, for that many cards; asked again whenever the screen is laid out. */
+    interface Sizer { int[] box(int cards); }
+
     private final Activity activity;
     private final ViewGroup parent;
     private final FrameLayout.LayoutParams params;
+    private final Sizer sizer;
     private WebView web;
     private String url;
+    private int cards;   // how many the page in `web` shows
 
-    HomeCard(Activity activity, ViewGroup parent, FrameLayout.LayoutParams params) {
+    HomeCard(Activity activity, ViewGroup parent, FrameLayout.LayoutParams params, Sizer sizer) {
         this.activity = activity;
         this.parent = parent;
         this.params = params;
+        this.sizer = sizer;
+    }
+
+    /** The screen was laid out again (the dock's names, the clock's width): the box may have to move. */
+    void fit() {
+        if (web == null) return;
+        int[] b = sizer.box(cards);
+        if (b[0] == params.width && b[1] == params.height) return;
+        params.width = b[0];
+        params.height = b[1];
+        web.setLayoutParams(params);
     }
 
     /** onResume: follow the current settings; a changed choice gets a fresh page. */
@@ -65,7 +82,12 @@ final class HomeCard {
     private String readUrl() {
         String frag = null, panel = null;
         try (Cursor c = activity.getContentResolver().query(CONFIG, null, null, null, null)) {
-            if (c != null && c.moveToFirst()) { frag = c.getString(0); panel = c.getString(1); }
+            if (c != null && c.moveToFirst()) {
+                frag = c.getString(0);
+                panel = c.getString(1);
+                int all = c.getColumnIndex("home_panels");   // "a,b,c": every card; an older screensaver has only the first
+                if (all >= 0 && c.getString(all) != null) panel = c.getString(all);
+            }
         } catch (RuntimeException e) {
             // the screensaver's settings are out of reach
         }
@@ -74,8 +96,10 @@ final class HomeCard {
             sp.edit().putString("frag", frag).putString("panel", panel).apply();
         }
         // Unreadable settings (the screensaver is missing, too old, or signed with another key, e.g. reinstalled
-        // before this app): keep the last card chosen, «بدون» included. Only with nothing remembered, the prayers.
-        return HomeCardChoice.url(HomeCardChoice.pick(frag, panel, sp.getString("frag", null), sp.getString("panel", null)));
+        // before this app): keep the last cards chosen, «بدون» included. Only with nothing remembered, the prayers.
+        String[] choice = HomeCardChoice.pick(frag, panel, sp.getString("frag", null), sp.getString("panel", null));
+        cards = HomeCardChoice.count(choice);
+        return HomeCardChoice.url(choice);
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -118,6 +142,9 @@ final class HomeCard {
         // The page sizes its text to the screen; the TV's font size setting (Android scales WebView text by it) made
         // it larger than its boxes, so the left column spilled off screen and moved as the clock and the matches changed.
         s.setTextZoom(100);
+        int[] b = sizer.box(cards);
+        params.width = b[0];
+        params.height = b[1];
         parent.addView(web, params);
         url = u;
         web.loadUrl(u);

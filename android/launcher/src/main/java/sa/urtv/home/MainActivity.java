@@ -114,12 +114,19 @@ public class MainActivity extends Activity {
     private int packageSeq;
     private PopupWindow inputsPopup;
     private HomeCard homeCard;
+    private TextView sleepPill;   // «مؤقت النوم», with the minutes left while it runs
+    private TextView adhanBar;   // «الأذان بعد ٨ دقائق», over the top edge
+    private View clockBlock, bottomBlock;   // the greeting, clock and date; the app title and the dock under it
 
     private final BroadcastReceiver tick = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
             updateClock();
             updateWifi();
         }
+    };
+    // the sleep timer started, ended or was cancelled (here, or from the computer): the pill follows at once
+    private final BroadcastReceiver sleepChanged = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) { updateSleepPill(); }
     };
     private final BroadcastReceiver packages = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { buildApps(); }
@@ -151,6 +158,7 @@ public class MainActivity extends Activity {
         pf.addDataScheme("package");
         registerReceiver(packages, pf);
         registerReceiver(dockChanged, new IntentFilter(Dock.CHANGED));
+        registerReceiver(sleepChanged, new IntentFilter(SleepTimer.CHANGED));
     }
 
     @Override
@@ -191,6 +199,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         unregisterReceiver(packages);
         unregisterReceiver(dockChanged);
+        unregisterReceiver(sleepChanged);
         homeCard.destroy();
         super.onDestroy();
     }
@@ -253,6 +262,13 @@ public class MainActivity extends Activity {
         content.setClipToPadding(false);
         scroll.addView(content, new FrameLayout.LayoutParams(-1, -2));
 
+        // the slim bar before the adhan, over the home screen's top edge (the header starts 36 dp down)
+        adhanBar = text(12, "sans-serif-medium", 0xFFFFE9B8);
+        adhanBar.setGravity(Gravity.CENTER);
+        adhanBar.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0x00DCB86F, 0x57DCB86F, 0x57DCB86F, 0x00DCB86F}));
+        adhanBar.setVisibility(View.GONE);
+        root.addView(adhanBar, new FrameLayout.LayoutParams(-1, dp(26), Gravity.TOP));
+
         // Hero: exactly one screen tall, header on top, title + dock at the bottom.
         hero = new FrameLayout(this);
         hero.setClipChildren(false);
@@ -261,13 +277,15 @@ public class MainActivity extends Activity {
 
         hero.addView(buildHeader(), lp(-1, -2, Gravity.TOP, dp(48), dp(36), dp(48), 0));
         // optional card under the pills, same size as beside the screensaver's clock
-        homeCard = new HomeCard(this, hero, lp(dp(461), dp(250), Gravity.LEFT | Gravity.TOP, dp(48), dp(84), 0, 0));
+        homeCard = new HomeCard(this, hero, lp(dp(461), dp(250), Gravity.LEFT | Gravity.TOP, dp(48), dp(84), 0, 0), this::homeCardBox);
+        hero.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> homeCard.fit());
 
         LinearLayout bottom = new LinearLayout(this);
         bottom.setOrientation(LinearLayout.VERTICAL);
         bottom.setClipChildren(false);
         bottom.setClipToPadding(false);
         hero.addView(bottom, lp(-1, -2, Gravity.BOTTOM, dp(48), 0, dp(48), dp(30)));
+        bottomBlock = bottom;
 
         title = text(34, "sans-serif-light", Color.WHITE);
         title.setShadowLayer(dp(18), 0, 0, 0x66000000);
@@ -299,6 +317,24 @@ public class MainActivity extends Activity {
         grid.setClipToPadding(false);
         content.addView(grid, llp(-1, -2, dp(68), 0, dp(68), dp(160)));
         return root;
+    }
+
+    /**
+     * The WebView's box for that many cards, in pixels. One card is the size it always was. Two or three need room: a pair is
+     * 58% of the screen wide (at 1920 that is 560 + 22 + 540), kept clear of the greeting and clock block at the right; the third
+     * card goes under the pair. The box ends above the dock, or above the app title when the longest title of the favourites
+     * would reach into it. Before the screen is laid out the numbers come from the screen's size alone.
+     */
+    private int[] homeCardBox(int cards) {
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int clockLeft = 0, titleTop = 0, dockTop = 0, wide = 0;
+        if (clockBlock != null && clockBlock.getWidth() > 0) clockLeft = ((View) clockBlock.getParent()).getLeft() + clockBlock.getLeft();
+        if (bottomBlock != null && bottomBlock.getHeight() > 0 && dockRow != null) {
+            titleTop = bottomBlock.getTop();
+            dockTop = titleTop + dockRow.getTop();
+            for (View c : dockCards) wide = Math.max(wide, Math.round(title.getPaint().measureText(((App) c.getTag()).label)));
+        }
+        return CardBox.box(cards, dm.widthPixels, dm.heightPixels, dm.density, clockLeft, titleTop, dockTop, wide);
     }
 
     private View buildHeader() {
@@ -336,6 +372,7 @@ public class MainActivity extends Activity {
         left.setGravity(Gravity.RIGHT);
         for (TextView t : new TextView[]{greeting, weatherLine, date}) t.setGravity(Gravity.RIGHT);
         header.addView(left, new FrameLayout.LayoutParams(-2, -2, Gravity.RIGHT | Gravity.TOP));
+        clockBlock = left;
 
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
@@ -353,7 +390,9 @@ public class MainActivity extends Activity {
         // the «تلاوة» pill: the Quran and the radio are part of this app, so it opens them right here
         TextView tilawah = pill("تلاوة", R.drawable.ic_listen);
         tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
-        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings));
+        sleepPill = pill("مؤقت النوم", R.drawable.ic_sleep);
+        sleepPill.setOnClickListener(v -> showSleep(v));
+        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings, sleepPill));
         if (isInstalled(SAVER_PKG)) { row.add(tasks); row.add(saver); }
         if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
         for (TextView p : row) {
@@ -741,6 +780,48 @@ public class MainActivity extends Activity {
         rows.get(0).requestFocus();
     }
 
+    /** «مؤقت النوم»: 15, 30, 60, 90 minutes, or cancel; at the end the TV goes to sleep (SleepTimer says how). */
+    private void showSleep(View anchor) {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(8), dp(8), dp(8), dp(8));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(16));
+        bg.setColor(0xF02A2A2E);
+        bg.setStroke(dp(1), 0x26FFFFFF);
+        list.setBackground(bg);
+        PopupWindow pw = new PopupWindow(list, dp(220), -2, true);
+        List<TextView> rows = new ArrayList<>();
+        for (int m : SleepTimer.MINUTES) rows.add(inputRow(arabicDigits(String.valueOf(m)) + " دقيقة", () -> SleepTimer.start(this, m)));
+        if (SleepTimer.minutesLeft(this) > 0) rows.add(inputRow("إلغاء", () -> SleepTimer.start(this, 0)));
+        if (!SleepService.enabled()) {   // without it the end only stops the sound and brings the screensaver: say so, and where to turn it on
+            rows.add(inputRow("لإطفاء الشاشة: فعّل «تلفزيونك: إطفاء الشاشة»", () -> launch(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))));
+        }
+        for (TextView r : rows) {
+            r.setOnClickListener(v -> { pw.dismiss(); ((Runnable) v.getTag()).run(); });
+            list.addView(r, new LinearLayout.LayoutParams(-1, dp(36)));
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            TextView r = rows.get(i);
+            r.setNextFocusUpId(rows.get(Math.max(0, i - 1)).getId());
+            r.setNextFocusDownId(rows.get(Math.min(rows.size() - 1, i + 1)).getId());
+            r.setNextFocusLeftId(r.getId());
+            r.setNextFocusRightId(r.getId());
+        }
+        pw.setOutsideTouchable(true);
+        pw.setElevation(dp(16));
+        pw.setOnDismissListener(() -> anchor.requestFocus());
+        pw.showAsDropDown(anchor, 0, dp(8), Gravity.START);
+        rows.get(0).requestFocus();
+    }
+
+    /** The pill says how long is left while the timer runs: «مؤقت النوم · ٢٣ د». */
+    private void updateSleepPill() {
+        if (sleepPill == null) return;
+        int left = SleepTimer.minutesLeft(this);
+        sleepPill.setText(left == 0 ? "مؤقت النوم" : "مؤقت النوم · " + arabicDigits(String.valueOf(left)) + " د");
+    }
+
     private String inputLabel(TvInputInfo t) {
         CharSequence c = t.loadCustomLabel(this);
         if (c == null || c.length() == 0) c = t.loadLabel(this);
@@ -783,6 +864,15 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
         String greg = new SimpleDateFormat("d MMMM", new Locale("ar")).format(now.getTime());
         date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  ·  " + greg));
+        updateAdhanBar();
+        updateSleepPill();
+    }
+
+    /** Once a minute with the clock: the bar before the adhan shows in the last 10 minutes, and until the iqama. */
+    private void updateAdhanBar() {
+        String words = AdhanBar.text(this);
+        adhanBar.setVisibility(words == null ? View.GONE : View.VISIBLE);
+        if (words != null) adhanBar.setText(words);
     }
 
     private static String arabicDigits(String s) {

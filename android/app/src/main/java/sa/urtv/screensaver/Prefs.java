@@ -188,6 +188,7 @@ final class Prefs {
         {"shows", "جديد المسلسلات"}, {"prayers", "مواقيت الصلاة اليوم"}, {"forecast", "طقس الأيام القادمة"}, {"hourly", "طقس الساعات القادمة"}, {"prayerrow", "الصلوات في صف"},
         {"matches", "مباريات فرقك القادمة"}, {"verse", "آية أو حديث اليوم"}, {"wisdom", "حكمة اليوم"},
         {"adhkar", "أذكار الصباح والمساء"}, {"stocks", "الأسهم"}, {"tasks", "المهام"}, {"year", "السنة"},
+        {"smart", "البطاقة الذكية"}, {"today", "يومك"},
         {"none", "لا شيء"},
     };
 
@@ -195,9 +196,45 @@ final class Prefs {
     String panel() { return sp.getString("panel", sp.getBoolean("showWeek", true) ? "verse" : "none"); }
     void setPanel(String v) { sp.edit().putString("panel", v).apply(); }
 
+    // One plain line about each card, in the words of docs/FEATURES.md (tests/check.py compares them): the pickers show it under the name
+    static final String[][] PANEL_ABOUT = {
+        {"shows", "حلقات هذا الأسبوع"},
+        {"prayers", "الست أوقات، والجاية مميّزة"},
+        {"forecast", "خمسة أيام"},
+        {"hourly", "الست ساعات الجاية بالساعة والأيقونة والحرارة، وقمر بعد الغروب"},
+        {"prayerrow", "الخمس صلوات في صف واحد، والجاية مضيئة"},
+        {"matches", "مباريات الأسبوع ونتائج آخر يوم لفرقك، وكل مباراة بسطر واحد"},
+        {"verse", "آية يوم، وحديث صحيح من الكتب الستة اليوم اللي بعده، ومعه مصدره"},
+        {"wisdom", "مثل أو قول عربي معروف مع مصدره"},
+        {"adhkar", "من الفجر للظهر أذكار الصباح، ومن العصر للمغرب أذكار المساء"},
+        {"stocks", "أسهمك بالسعر والتغيّر"},
+        {"tasks", "قائمة مهامك"},
+        {"year", "٣٦٥ نقطة، الأيام اللي راحت تولّع من الغامق للذهبي"},
+        {"smart", "تختار لك البطاقة المناسبة للوقت"},
+        {"today", "الصلاة القادمة ووقتها، والمباراة القادمة لفرقك، وأول مهمة مفتوحة، والمناسبة القادمة وكم يوم باقي"},
+        {"none", "بدون بطاقة"},
+    };
+    static final String[][] CARD_STYLE_ABOUT = {
+        {"current", "البطاقة كما كانت، بخلفية داكنة شفافة"},
+        {"dark1", "داكنة بزوايا مدوّرة وخط ذهبي على جهة الساعة"},
+        {"glass1", "زجاجية ضبابية فوق الصورة"},
+        {"dark3", "داكنة بإطار ذهبي داخلي ومعيّن على الحافتين"},
+        {"glass3", "زجاجية بإطار ذهبي داخلي ومعيّن على الحافتين"},
+    };
+
+    static String about(String[][] table, String v) {
+        for (String[] r : table) if (r[0].equals(v)) return r[1];
+        return "";
+    }
+
     static String panelLabel(String v) {
         for (String[] p : PANELS) if (p[0].equals(v)) return p[1];
         return PANELS[0][1];
+    }
+
+    /** The label of a card for a place that may be empty: «none» reads as emptyLabel there. */
+    static String panelLabel(String v, String emptyLabel) {
+        return "none".equals(v) ? emptyLabel : panelLabel(v);
     }
 
     List<String> list(String key) {
@@ -279,22 +316,37 @@ final class Prefs {
     String photoMinutes() { return sp.getString("photoMinutes", "30"); }
     void setPhotoMinutes(String v) { sp.edit().putString("photoMinutes", v).apply(); }
 
+    /** The slim bar before the adhan, on the screensaver and on the home screen (default on); sent to the page as #adhanbar=. */
+    boolean adhanBar() { return sp.getBoolean("adhanBar", true); }
+    void setAdhanBar(boolean v) { sp.edit().putBoolean("adhanBar", v).apply(); }
+
     boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
     SharedPreferences raw() { return sp; }
 
     /** The page reads its settings from the fragment; a ?query fails on file:// in WebView. */
-    String dashboardUrl(Context c) {
+    String dashboardUrl(Context c) { return pageBase(c) + "#" + fragment(); }
+
+    /**
+     * The page for a preview in the settings: the card alone (#widget=1) with the current settings, but this card in this style.
+     * panel= and cardstyle= are taken out of the fragment first: the page reads the first one it finds.
+     */
+    String previewUrl(Context c, String panel, String cardStyle) {
+        String frag = fragment().replaceAll("(^|&)(panel|week|cardstyle|home_panel)=[^&]*", "");
+        return pageBase(c) + "#" + frag + "&panel=" + panel + "&cardstyle=" + cardStyle + "&widget=1";
+    }
+
+    /** The page without its settings: the downloaded copy when it is newer than the app, else the one the app carries. */
+    private String pageBase(Context c) {
         File remote = Updater.pageFile(c);
         // A downloaded page older than the installed app is stale: the APK carries a newer copy.
         long installed = 0;
         try { installed = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).lastUpdateTime; }
         catch (Exception ignored) { }
-        String base = autoUpdate() && remote.isFile() && remote.lastModified() > installed
+        return autoUpdate() && remote.isFile() && remote.lastModified() > installed
             ? Uri.fromFile(remote).toString()
             : "file:///android_asset/tv.html";
-        return base + "#" + fragment();
     }
 
     /** Everything the page needs, as "city=..&lat=..&..."; also read by the launcher (ConfigProvider). */
@@ -316,6 +368,7 @@ final class Prefs {
             + "&photos=" + photoMinutes()
             + "&digits=" + digits()
             + "&cardstyle=" + cardStyle()
+            + "&adhanbar=" + (adhanBar() ? "1" : "0")
             + "&national=" + national()
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()
@@ -424,9 +477,45 @@ final class Prefs {
         return open.isEmpty() ? "" : "&tasks=" + Uri.encode(join(open, "\n"));
     }
 
-    /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */
-    String homePanel() { return sp.getString("homePanel", "none"); }
-    void setHomePanel(String v) { sp.edit().putString("homePanel", v).apply(); }
+    /** The cards on the launcher's home screen: up to HOME_CARDS of PANELS, none until the user picks one. */
+    static final int HOME_CARDS = 3;
+
+    /**
+     * "prayers,hourly" (a single "prayers" is what older builds stored) as the cards it names, in order: each once, "none" and
+     * anything unknown left out, at most HOME_CARDS. An empty list is no card.
+     */
+    static List<String> parseHomePanels(String raw) {
+        List<String> out = new ArrayList<>();
+        if (raw == null) return out;
+        for (String s : raw.split(",")) {
+            s = s.trim();
+            boolean known = false;
+            for (String[] p : PANELS) if (p[0].equals(s) && !"none".equals(s)) known = true;
+            if (known && !out.contains(s) && out.size() < HOME_CARDS) out.add(s);
+        }
+        return out;
+    }
+
+    List<String> homePanels() { return parseHomePanels(sp.getString("homePanel", "none")); }
+    void setHomePanels(List<String> v) {
+        List<String> ok = parseHomePanels(join(v, ","));
+        sp.edit().putString("homePanel", ok.isEmpty() ? "none" : join(ok, ",")).apply();
+    }
+    /** What the page and saver.sh see: "none", or the cards joined by commas. */
+    String homePanel() { List<String> v = homePanels(); return v.isEmpty() ? "none" : join(v, ","); }
+    /** The card in place i (0 to 2) of the home screen, or "none". */
+    String homePanelAt(int i) { List<String> v = homePanels(); return i < v.size() ? v.get(i) : "none"; }
+    /** Place i gets that card ("none" empties it and the ones after it move up); a card already in another place moves here. */
+    void setHomePanelAt(int i, String card) {
+        List<String> now = homePanels();
+        String[] slot = new String[HOME_CARDS];
+        for (int k = 0; k < slot.length && k < now.size(); k++) slot[k] = now.get(k);
+        for (int k = 0; k < slot.length; k++) if (k != i && card.equals(slot[k])) slot[k] = null;
+        slot[i] = "none".equals(card) ? null : card;
+        List<String> v = new ArrayList<>();
+        for (String c : slot) if (c != null) v.add(c);
+        setHomePanels(v);
+    }
 
     /** The greeting and the weather line on the launcher's home screen (default on). Off: the plain good-morning it had. */
     boolean greeting() { return sp.getBoolean("greeting", true); }

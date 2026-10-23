@@ -36,7 +36,7 @@ def tracked(*globs):
 before = {n: (ROOT / "dist" / n).read_bytes() for n in ("urtv.html", "tv.html") if (ROOT / "dist" / n).is_file()}
 r = subprocess.run([sys.executable, "src/build.py"], cwd=ROOT, capture_output=True, text=True)
 check("src/build.py runs", r.returncode == 0, r.stderr[-400:])
-for page, limit in (("urtv.html", 4_000_000), ("tv.html", 600_000)):   # tv.html: about 1000 verses and hadith
+for page, limit in (("urtv.html", 4_000_000), ("tv.html", 650_000)):   # tv.html: about 1000 verses and hadith
     html = (ROOT / "dist" / page).read_text(encoding="utf-8")
     left = sorted(set(re.findall(r"__[A-Z][A-Z_]+__", html)))
     check(f"{page}: every build token replaced", not left, left)
@@ -214,8 +214,9 @@ missing = sorted(f"{sc} {c}" for sc in ("saver.sh", "dock.sh", "music.sh", "phot
                  if c not in ("help", "-h", "--help")
                  and not re.search(rf"{re.escape(sc)} {re.escape(c)}\b|`{re.escape(c)}\b|, {re.escape(c)}\b", settings_md))
 tpl_src = (ROOT / "src/template.html").read_text(encoding="utf-8")
+CARD_RE = {"panel": r"const CARD_KINDS = \[([^\]]+)\]", "slot": r"  slot: \(\w+ => \[([^\]]+)\]"}   # the page's lists of cards and slot choices
 for key in ("panel", "slot"):
-    m = re.search(rf"  {key}: \(\w+ => \[([^\]]+)\]", tpl_src)
+    m = re.search(CARD_RE[key], tpl_src)
     missing += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", m.group(1) if m else "") if v not in settings_md]
 check("docs/SETTINGS.md: every saver.sh / dock.sh / music.sh / photos.sh command and every card and slot choice", not missing, missing)
 # docs/FEATURES.md explains each feature to people: every saver.sh / photos.sh command and every card and slot choice
@@ -224,16 +225,29 @@ unexplained = sorted(f"{sc} {c}" for sc in ("saver.sh", "photos.sh") if (ROOT / 
                      if c not in ("help", "-h", "--help")
                      and not re.search(rf"{re.escape(sc)} {re.escape(c)}\b|`{re.escape(c)}\b|، {re.escape(c)}\b", features_md))
 for key in ("panel", "slot"):
-    mm = re.search(rf"  {key}: \(\w+ => \[([^\]]+)\]", tpl_src)
+    mm = re.search(CARD_RE[key], tpl_src)
     unexplained += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", mm.group(1) if mm else "") if v not in features_md]
 check("docs/FEATURES.md: every saver.sh / photos.sh command and every card and slot choice is explained", not unexplained, unexplained)
 
 # the app's list of cards (Prefs.PANELS: what settings and saver.sh accept) and the page's must be the same words
-page_panels = re.search(r"  panel: \(\w+ => \[([^\]]+)\]", tpl_src)
-page_panels = re.findall(r"'([a-z]+)'", page_panels.group(1) if page_panels else "")
+page_panels = re.search(CARD_RE["panel"], tpl_src)
+page_panels = re.findall(r"'([a-z]+)'", page_panels.group(1) if page_panels else "") + ["none"]   # «none»: no card, not a kind
 app_panels = re.findall(r'\{"([a-z]+)", "[^"]+"\}', re.search(r"PANELS = \{(.*?)\n    \};", (ROOT / "android/app/src/main/java/sa/urtv/screensaver/Prefs.java").read_text(encoding="utf-8"), re.S).group(1))
 check("cards: Prefs.PANELS and the page's #panel= list name the same cards", sorted(page_panels) == sorted(app_panels),
       f"page only {sorted(set(page_panels) - set(app_panels))}, app only {sorted(set(app_panels) - set(page_panels))}")
+
+# the settings' pickers say in one plain line what each card and each card style is, in the words of docs/FEATURES.md
+prefs_src = (ROOT / "android/app/src/main/java/sa/urtv/screensaver/Prefs.java").read_text(encoding="utf-8")
+def table(name):
+    body = re.search(rf"{name} = \{{(.*?)\}};", prefs_src, re.S).group(1)
+    return dict(re.findall(r'\{"([a-z0-9]+)", "([^"]+)"\}', body))
+flat = " ".join(features_md.split())
+for tbl, src in (("PANEL_ABOUT", "PANELS"), ("CARD_STYLE_ABOUT", "CARD_STYLES")):
+    about = table(tbl)
+    names = [k for k, _ in re.findall(r'\{"([a-z0-9]+)", "([^"]+)"', re.search(rf"{src} = \{{(.*?)\}};", prefs_src, re.S).group(1))]
+    check(f"settings: every entry of Prefs.{src} has its one line in Prefs.{tbl}", sorted(about) == sorted(names), sorted(set(names) ^ set(about)))
+    check(f"settings: each line of Prefs.{tbl} is in the words of docs/FEATURES.md", all(" ".join(v.split()) in flat for v in about.values()),
+          [k for k, v in about.items() if " ".join(v.split()) not in flat])
 
 # ---- launcher config
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()

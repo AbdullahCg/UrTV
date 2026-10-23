@@ -20,7 +20,7 @@ import java.util.Locale;
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.CITIES
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.SET
  *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49 [--es tz Asia/Kuwait]] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
- *       [--es panel prayers] [--es home_panel none] [--es greeting on|off] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
+ *       [--es panel prayers] [--es home_panel prayers,hourly,verse|none] [--es greeting on|off] [--es adhanbar on|off] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3] [--es national auto|off]
  *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices] [--es stocks 2222,1120,AAPL]
@@ -143,7 +143,20 @@ public class SaverReceiver extends BroadcastReceiver {
         }
         String panel = i.getStringExtra("panel"), home = i.getStringExtra("home_panel");
         if (panel != null && !isPanel(panel)) return "error: panel is one of " + panels();
-        if (home != null && !isPanel(home)) return "error: home_panel is one of " + panels();
+        List<String> homeCards = null;
+        if (home != null) {
+            homeCards = new ArrayList<>();
+            for (String h : home.split(",")) {
+                h = h.trim();
+                if (h.isEmpty() || "none".equals(h)) continue;
+                if (!isPanel(h)) return "error: home_panel is up to " + Prefs.HOME_CARDS + " of " + panels() + ", separated by commas";
+                if (!homeCards.contains(h)) homeCards.add(h);
+            }
+            if (homeCards.size() > Prefs.HOME_CARDS) return "error: home_panel is at most " + Prefs.HOME_CARDS + " cards";
+        }
+        String adhanBar = i.getStringExtra("adhanbar");
+        if (adhanBar != null && !"on".equals(adhanBar) && !"off".equals(adhanBar))
+            return "error: adhanbar is one of on off";
         String greeting = i.getStringExtra("greeting");
         if (greeting != null && !"on".equals(greeting) && !"off".equals(greeting))
             return "error: greeting is one of on off";
@@ -229,8 +242,9 @@ public class SaverReceiver extends BroadcastReceiver {
         if (city != null) p.setCity(city[0], city[1], city[2], tz == null ? "" : tz);
         if (teams != null) p.setList("teams", teams);
         if (panel != null) p.setPanel(panel);
-        if (home != null) p.setHomePanel(home);
+        if (homeCards != null) p.setHomePanels(homeCards);
         if (greeting != null) p.setGreeting("on".equals(greeting));
+        if (adhanBar != null) p.setAdhanBar("on".equals(adhanBar));
         if (rating != null) p.setMinRating(rating);
         if (photos != null) p.setPhotoMinutes(photos);
         if (digits != null) p.setDigits(digits);
@@ -344,6 +358,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\nteams: " + Prefs.join(p.teams(), ", ")
             + "\npanel: " + p.panel() + "\nhome_panel: " + p.homePanel()
             + "\ngreeting: " + (p.greeting() ? "on" : "off")
+            + "\nadhanbar: " + (p.adhanBar() ? "on" : "off")
             + "\nminrating: " + p.minRating()
             + "\nphotos: " + p.photoMinutes()
             + "\ndigits: " + p.digits()

@@ -20,11 +20,21 @@ final class HomeCardChoice {
         return null;
     }
 
-    /** The card's page for a pick: null when the user turned the card off («بدون»), the prayers when nothing is known. */
+    /** How many cards a pick shows (1 to 3); the prayers alone when nothing is known. */
+    static int count(String[] choice) {
+        if (choice == null) return 1;
+        return Math.max(1, Math.min(3, choice[1].split(",").length));
+    }
+
+    /**
+     * The cards' page for a pick: null when the user turned them off («بدون»), the prayers when nothing is known. The panel is the
+     * cards in order, "a,b,c" (a single "a" is what older screensavers said): panel= carries the first, for a page that knows
+     * only one, and home_panel= all of them.
+     */
     static String url(String[] choice) {
         if (choice == null) return PRAYERS;
-        if ("none".equals(choice[1])) return null;
+        if ("none".equals(choice[1]) || choice[1].isEmpty()) return null;
         String frag = choice[0].replaceAll("(^|&)(panel|week)=[^&]*", "");   // the screensaver's own card choice
-        return BASE + frag + "&panel=" + choice[1] + "&widget=1";
+        return BASE + frag + "&panel=" + choice[1].split(",")[0] + "&home_panel=" + choice[1] + "&widget=1";
     }
 }

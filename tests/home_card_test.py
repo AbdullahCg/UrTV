@@ -13,15 +13,17 @@ SRC = ROOT / "android/launcher/src/main/java/sa/urtv/home/HomeCardChoice.java"
 B = "file:///android_asset/web/tv.html#"
 # frag, panel (read now), saved frag, saved panel ("-" = nothing) -> the page
 CASES = [
-    ("city=Riyadh&panel=old&week=1", "matches", "-", "-", B + "city=Riyadh&panel=matches&widget=1"),   # read: its own panel/week dropped
+    ("city=Riyadh&panel=old&week=1", "matches", "-", "-", B + "city=Riyadh&panel=matches&home_panel=matches&widget=1"),   # read: its own panel/week dropped
     ("city=Riyadh", "none", "-", "-", "off"),                                                          # read: «بدون»
     ("-", "-", "-", "-", B + "panel=prayers&widget=1"),                                                # unreadable, nothing remembered
-    ("-", "-", "city=Riyadh", "forecast", B + "city=Riyadh&panel=forecast&widget=1"),                  # unreadable: the last card
+    ("-", "-", "city=Riyadh", "forecast", B + "city=Riyadh&panel=forecast&home_panel=forecast&widget=1"),                  # unreadable: the last card
     ("-", "-", "city=Riyadh", "none", "off"),                                                          # unreadable: «بدون» stays «بدون»
-    ("city=Abha", "verse", "city=Riyadh", "none", B + "city=Abha&panel=verse&widget=1"),               # readable wins over the saved
-    ("city=Abha", "-", "city=Riyadh", "verse", B + "city=Riyadh&panel=verse&widget=1"),                # half read: the saved one
+    ("city=Abha", "verse", "city=Riyadh", "none", B + "city=Abha&panel=verse&home_panel=verse&widget=1"),               # readable wins over the saved
+    ("city=Abha", "-", "city=Riyadh", "verse", B + "city=Riyadh&panel=verse&home_panel=verse&widget=1"),                # half read: the saved one
     ("-", "verse", "-", "-", B + "panel=prayers&widget=1"),                                            # half read, nothing saved
     ("-", "-", "city=Riyadh", "-", B + "panel=prayers&widget=1"),                                      # half saved: not used
+    ("city=Riyadh&panel=old", "verse,hourly,year", "-", "-", B + "city=Riyadh&panel=verse&home_panel=verse,hourly,year&widget=1"),   # up to three: the first as panel=, all as home_panel=
+    ("-", "-", "city=Riyadh", "prayers,stocks", B + "city=Riyadh&panel=prayers&home_panel=prayers,stocks&widget=1"),  # unreadable: the last cards
 ]
 
 javac, java = shutil.which("javac"), shutil.which("java")
