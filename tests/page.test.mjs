@@ -3180,7 +3180,7 @@ for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
 
 // ---- «يُتلى الآن» on the screensaver: while the Quran or a station plays in the launcher (window.UrtvNative.nowPlaying(), mocked here) a small
 // card at the top centre says «يُتلى الآن · سورة الكهف · ماهر المعيقلي», in the style of the card beside the clock; it goes when the answer is empty
-const NP_MOCK = answer => `window.__np = ${JSON.stringify(answer)}; window.UrtvNative = { nowPlaying: () => window.__np };`;
+const NP_MOCK = answer => `window.__np = ${JSON.stringify(answer)}; window.UrtvNative = { nowPlaying: () => window.__np ? JSON.stringify(window.__np) : '' };`;
 const npState = p => p.evaluate(() => {
   const n = document.getElementById('np'), b = n.getBoundingClientRect(), main = document.querySelector('.week:not(.np)').getBoundingClientRect(), hijri = document.querySelector('.dates').getBoundingClientRect();
   const mk = document.querySelector('.markets').getBoundingClientRect();
