@@ -37,6 +37,8 @@ def ev(i, home, away, hours, league="4668", season="2026-2027", **extra):
     return {"idEvent": str(i), "idLeague": league, "strSeason": season, "idHomeTeam": str(100 + i), "strHomeTeam": home,
             "idAwayTeam": str(200 + i), "strAwayTeam": away, "strTimestamp": k.strftime("%Y-%m-%dT%H:%M:%S"),
             "dateEvent": k.strftime("%Y-%m-%d"), "strStatus": "NS", "intHomeScore": None, "intAwayScore": None,
+            "strHomeTeamBadge": f"https://r2.thesportsdb.com/images/media/team/badge/h{i}.png",
+            "strAwayTeamBadge": f"https://r2.thesportsdb.com/images/media/team/badge/a{i}.png",
             "strThumb": "x" * 50, **extra}
 
 
@@ -52,6 +54,8 @@ got = lf.pick(raw, "4668", NOW)
 check("pick: the window, this league's, this season's, once each, soonest first", [e["idEvent"] for e in got] == ["2", "1", "5"],
       [e["idEvent"] for e in got])
 check("pick: only the fields the page reads", all(set(e) <= set(lf.KEEP) for e in got) and "strThumb" not in got[0], got[0])
+check("pick: both clubs' badge addresses and ids are kept (the crests of the launcher's card)",
+      all(e.get(k) for e in got for k in ("strHomeTeamBadge", "strAwayTeamBadge", "idHomeTeam", "idAwayTeam")), got[0])
 check("pick: an event of no league id is taken as this league's", [e["idEvent"] for e in lf.pick([{**ev(1, "A", "B", 3), "idLeague": None}], "4668", NOW)] == ["1"])
 check("days(): the last 36 hours to a week ahead, 9 days", len(lf.days(NOW)) == 9 and lf.days(NOW)[0] == "2026-10-22" and lf.days(NOW)[-1] == "2026-10-30", lf.days(NOW))
 

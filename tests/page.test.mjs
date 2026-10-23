@@ -899,6 +899,36 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 // the matches timers and requests belong to the matches slot (and to the card beside the clock)
+// slot none, the two panels left mirror each other: the prayer at the right edge, the occasion at the left, the same width, each text
+// on its outer edge, the same lines at the same heights (a countdown to Ramadan, and the National Day greeting)
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const [label, now] of [['a countdown', '2026-10-23T10:00:00Z'], ['the National Day', '2026-09-23T10:00:00Z']]) {
+    const { p, ctx, errors } = await open('tv.html', 'slot=none&teams=136013', { width, height, now: new Date(now) });
+    const r = await p.evaluate(() => {
+      Object.assign(document.querySelector('.stage').style, { transition: 'none', transform: 'none' });   // the burn-in shift moves the whole page by up to 3 px
+      const pr = document.querySelector('.p-prayer'), mid = document.querySelector('.p-mid'), W = innerWidth;
+      const box = e => e.getBoundingClientRect();
+      const ink = (e, side) => { const rg = document.createRange(); rg.selectNodeContents(e); const b = rg.getBoundingClientRect(); return side === 'left' ? b.left : b.right; };
+      const top = (p, q) => Math.round(box(p.querySelector(q)).top);
+      return { edgeR: W - box(pr).right, edgeL: box(mid).left, wP: box(pr).width, wM: box(mid).width,
+        inkP: Math.round(box(pr).right - ink(pr.querySelector('.label'), 'right')), inkM: Math.round(ink(mid.querySelector('.label'), 'left') - box(mid).left),
+        inkSubP: Math.round(box(pr).right - ink(pr.querySelector('.sub'), 'right')), inkSubM: mid.querySelector('.sub').scrollWidth > mid.querySelector('.sub').clientWidth ? 0 : Math.round(ink(mid.querySelector('.sub'), 'left') - box(mid).left),   // a clipped line ends in «…»
+        tops: [['.label', '.label'], ['.big', '.big'], ['.sub', '.sub']].map(([a, b]) => [top(pr, a), top(mid, b)]),
+        textInside: [pr, mid].every(e => [...e.children].every(c => box(c).right <= box(e).right + 1 && box(c).left >= box(e).left - 1)) };
+    });
+    const tag = `slot none at ${width}px, ${label}`;
+    check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+    check(`${tag}: the two panels' outer edges are as far from the screen's edges (±2 px), the same width`,
+      Math.abs(r.edgeR - r.edgeL) <= 2 && Math.abs(r.wP - r.wM) <= 2, JSON.stringify(r));
+    check(`${tag}: each text sits on its outer edge (prayer right, occasion left)`,
+      r.inkP <= 2 && r.inkM <= 2 && r.inkSubP <= 2 && r.inkSubM <= 2, JSON.stringify(r));
+    check(`${tag}: the same vertical rhythm: label, big line and small line at the same heights (±2 px)`,
+      r.tops.every(([a, b]) => Math.abs(a - b) <= 2) && r.textInside, JSON.stringify(r.tops));
+    const lab = label === 'a countdown' ? 'countdown' : 'national';
+    // SHOT item5-after-${lab}-${width} | 0
+    await ctx.close();
+  }
+}
 for (const [hash, asks] of [['teams=136013', true], ['teams=136013&slot=weather', false], ['teams=136013&slot=none', false], ['teams=', false], ['teams=136013&slot=weather&panel=matches', true]]) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   let sports = 0;
@@ -1252,6 +1282,94 @@ for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]
     check(`${tag}: digits in ${digits}`, digits === 'latin' ? r.latin && !r.ar : r.ar && !r.latin, r.text);
     await ctx.close();
   }
+}
+
+// ---- the same crests where the badge host sends no Access-Control-Allow-Origin (the launcher's WebView page is a file:// document):
+// fetch() cannot read the picture, so the plain <img> shows it from its address, and only the address is kept
+const crestNetNoCors = seen => r => {
+  const u = r.request().url();
+  if (!/thesportsdb\.com\/images\//.test(u)) return false;
+  seen.push(u + (r.request().resourceType() === 'image' ? ' [img]' : ' [fetch]'));
+  // no CORS header: an <img> shows it, a fetch() from the file:// page is refused (Playwright adds the header to a fulfilled answer, so refuse here)
+  if (r.request().resourceType() !== 'image') r.abort('failed');
+  else r.fulfill({ contentType: 'image/png', body: badgePng });
+  return true;
+};
+const crestNetNotAPicture = seen => r => {
+  const u = r.request().url();
+  if (!/thesportsdb\.com\/images\//.test(u)) return false;
+  seen.push(u);
+  r.fulfill({ contentType: 'text/html', headers: { 'Access-Control-Allow-Origin': '*' }, body: '<html>not a badge</html>' });
+  return true;
+};
+for (const [width, height] of [[461, 250], [1920, 1080], [960, 540]]) {
+  const tag = `launcher matches card ${width}x${height}, badge host without CORS`;
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width, height, net: crestNetNoCors(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false);');
+  await p.evaluate(() => loadCrests());
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => {
+    const imgs = [...document.querySelectorAll('#week-list img.cr')], rows = [...document.querySelectorAll('#week-list li > span:first-child')];
+    const kept = JSON.parse(localStorage.getItem('crests') || '{}');
+    return { n: imgs.length, plain: imgs.every(i => /^https:\/\/r2\.thesportsdb\.com\/images\/media\/team\/badge\/club10[0-9]\.png$/.test(i.getAttribute('src'))
+        && i.getAttribute('width') === '48' && i.getAttribute('height') === '48' && i.getAttribute('loading') === 'lazy'),
+      loaded: imgs.every(i => i.complete && i.naturalWidth > 0 && i.getBoundingClientRect().width > 8),
+      kept: Object.keys(kept).sort().join(), onlyUrls: Object.values(kept).every(e => e.u && !e.d), bytes: (localStorage.getItem('crests') || '').length,
+      noCrestHasName: rows[1].querySelectorAll('.tm')[1].querySelector('img') === null && rows[1].querySelectorAll('.tm')[1].textContent.trim().length > 2,
+      oneLine: rows.every(sp => fits(sp) && [...sp.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1)),
+      cut: document.getElementById('week-list').textContent.includes('…') };
+  });
+  check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+  check(`${tag}: the crests still show, as plain 48 px images from the badge address`, r.n === 3 && r.plain && r.loaded && r.noCrestHasName, JSON.stringify(r));
+  check(`${tag}: only the address is kept (no picture), ${r.bytes} bytes for 3`, r.kept === '100,101,102' && r.onlyUrls && r.bytes < 600, JSON.stringify(r));
+  check(`${tag}: each game on one line, nothing cut`, r.oneLine && !r.cut, JSON.stringify(r));
+  const first = seen.length;
+  await p.evaluate(() => loadCrests()); await p.waitForTimeout(300);
+  check(`${tag}: the same crests asked for again: no new request`, first >= 3 && seen.length === first && seen.filter(u => u.endsWith('[img]')).length === 3, JSON.stringify(seen));
+  const before = seen.length;
+  await p.evaluate(() => saveSnap());
+  await restart(p);
+  await p.waitForTimeout(600);
+  const back = await p.evaluate(() => [...document.querySelectorAll('#week-list img.cr')].filter(i => i.getAttribute('src').startsWith('https://') && i.complete && i.naturalWidth > 0).length);
+  check(`${tag}: after a restart the crests are back, and the fetch is not tried again`, back === 3 && seen.slice(before).every(u => u.endsWith('[img]')), back + ' ' + seen.slice(before).join());
+  // SHOT item3-nocors-${width} | 0
+  await ctx.close();
+}
+for (const [width, height] of [[461, 250], [1920, 1080], [960, 540]]) {   // long names beside plain images: still one line, never «…»
+  const tag = `launcher matches card ${width}x${height}, long names, badge host without CORS`;
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width, height, net: crestNetNoCors(seen) });
+  await p.evaluate(CREST_GAMES(LONG_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => {
+    const rows = [...document.querySelectorAll('#week-list li > span:first-child')];
+    return { n: rows.length, imgs: document.querySelectorAll('#week-list img.cr').length, text: document.getElementById('week-list').innerText.replace(/\s+/g, ' '),
+      oneLine: rows.every(sp => [...sp.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1) && fits(sp)) };
+  });
+  check(`${tag}: each game on one line, never «…»`, !errors.length && r.n >= 2 && r.oneLine && !r.text.includes('…'), JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+{   // the answer is not a picture: nothing broken stays on the card, only the address is kept, the name shows
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { net: crestNetNotAPicture(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => ({ imgs: document.querySelectorAll('#week-list img.cr').length, kept: Object.values(JSON.parse(localStorage.getItem('crests') || '{}')).every(e => e.u && !e.d),
+    names: document.getElementById('week-list').textContent.includes('الهلال') || document.getElementById('week-list').textContent.includes('Al-Hilal') }));
+  check('a badge that is not a picture: no script errors, no broken image left on the card, the names show', !errors.length && r.imgs === 0 && r.names, JSON.stringify(r) + errors.join('; '));
+  check('a badge that is not a picture: only its address is kept', r.kept, JSON.stringify(r));
+  await ctx.close();
+}
+{   // with the header: the shrunk copy, as before (one run, the launcher's size)
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { net: crestNet(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => ({ srcs: [...document.querySelectorAll('#week-list img.cr')].map(i => i.src.slice(0, 15)),
+    kept: Object.values(JSON.parse(localStorage.getItem('crests') || '{}')).every(e => e.u && e.d && e.d.startsWith('data:image/png')) }));
+  check('a badge host with CORS: the shrunk copy (data: URI) is shown and kept, as before', !errors.length && r.srcs.length === 3 && r.srcs.every(s => s === 'data:image/png;') && r.kept, JSON.stringify(r));
+  await ctx.close();
 }
 
 // ---- «طقس الساعات القادمة»: the next six hours beside the clock and on the launcher's card, one request with the forecast
@@ -1615,6 +1733,144 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- the real league file at the TV's time (Friday 2026-10-23 13:00 in Riyadh): every game once across the pages of the card
+// and of the bottom slot, no page repeating part of another, and after the last page the first again
+const TV_NOW = new Date('2026-10-23T10:00:00Z');
+const SAUDI_FILE = JSON.parse(readFileSync(path.join(ROOT, 'tests/fixtures/saudi-pro-league.json'), 'utf8'));
+const tvMock = (extra = () => false) => r => {
+  const u = new URL(r.request().url()), hdr = { 'Access-Control-Allow-Origin': '*' }, id = u.searchParams.get('id');
+  const at = h => new Date(TV_NOW.getTime() + h * 36e5).toISOString().slice(0, 19);
+  if (extra(r, u)) return true;
+  if (u.host === 'raw.githubusercontent.com' && u.pathname.endsWith('/data-leagues/leagues/saudi-arabian-pro-league.json'))
+    { r.fulfill({ json: SAUDI_FILE, headers: hdr }); return true; }
+  if (!/thesportsdb/.test(u.host)) return false;
+  const F1 = [['Saudi Arabian Grand Prix Practice 1', 30]]
+    .map(([n, h], i) => ({ idEvent: 'r' + i, strEvent: n, strCountry: 'Saudi Arabia', strTimestamp: at(h), strStatus: 'NS' }));
+  const UFC = [{ idEvent: 'u1', strEvent: 'UFC 333 Volkanovski vs Evloev', strCountry: 'United Arab Emirates', strTime: '16:00:00', strTimestamp: at(60), strStatus: 'NS' }];
+  const BOX = [{ idEvent: 'b1', strEvent: 'Dalton Smith vs Alberto Puello', strCountry: 'United Kingdom', strTime: '00:00:00',
+                strTimestamp: at(40).slice(0, 10) + 'T00:00:00', dateEvent: at(40).slice(0, 10), strStatus: 'NS' }];
+  const body = j => { r.fulfill({ json: j, headers: hdr }); return true; };
+  if (u.pathname.endsWith('eventsnext.php')) return body({ events: id === '136013' ? [SAUDI_FILE.events.find(e => e.idEvent === '2573394')] : null });
+  if (u.pathname.endsWith('eventsnextleague.php')) return body({ events: { E1: F1, E2: UFC, E3: BOX }[id] || null });
+  return body({ results: null });
+};
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&leagues=' + encodeURIComponent('Saudi-Arabian Pro League') + '&events=f1,ufc,boxing&panel=matches',
+    { width, height, now: TV_NOW, net: tvMock() });
+  await p.evaluate(() => { EVENT_LEAGUES.f1 = [{ id: 'E1', name: 'Formula 1' }]; EVENT_LEAGUES.ufc = [{ id: 'E2', name: 'UFC' }];
+                           EVENT_LEAGUES.boxing = [{ id: 'E3', name: 'Boxing' }]; });
+  await p.evaluate(() => loadMatches());
+  await p.waitForTimeout(800);
+  const r = await p.evaluate(() => {
+    const txt = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); };
+    const all = matchRows().map(txt), card = CARDS[0], lap = [], pageRows = [];
+    const read = () => [...document.querySelectorAll('#week-list li')].map(li => li.textContent.replace(/\s+/g, ' ').trim());
+    // the card turns the way its timer does (page++), three laps of it
+    const pages = Math.ceil(all.length / MATCH_ROWS);
+    card.page = 0; renderCard(card, false);
+    for (let k = 0; k < pages * 3 + 1; k++) { pageRows.push(read()); card.page++; renderCard(card, false); }
+    // the bottom slot: a lap to learn the pairs that do not fit side by side, then three laps
+    const row = document.getElementById('match-row'), slotPages = [];
+    for (let k = 0; k < 40; k++) renderMatches(true);
+    MATCH_PAGE = -1;
+    renderMatches(true);
+    const n = MATCH_PAGES;
+    for (let k = 0; k < n * 3; k++) {
+      slotPages.push([...row.querySelectorAll('.mblock .big')].map(b => b.innerText.replace(/\s+/g, ' ').trim()));
+      renderMatches(true);
+    }
+    return { all, pages, pageRows, n, slotPages };
+  });
+  const tag = `league file at the TV's time, ${width}x${height}`;
+  const lap1 = r.pageRows.slice(0, r.pages), flat = lap1.flat(), strip = s => s.replace(/\s+/g, '');
+  check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+  check(`${tag}: the card has ${r.all.length} rows in ${r.pages} fixed pages`, r.all.length % 4 !== 0 && r.all.length >= 12 && r.pages === Math.ceil(r.all.length / 4), r.all.length);
+  check(`${tag}: the card shows every game exactly once over its pages, in order, no page repeating part of another`,
+    flat.length === r.all.length && flat.every((t, i) => strip(t) === strip(r.all[i])), JSON.stringify({ flat, all: r.all }));
+  check(`${tag}: after the last page of the card the first again, three laps alike`,
+    r.pageRows.every((pg, i) => JSON.stringify(pg) === JSON.stringify(r.pageRows[i % r.pages])), r.pageRows.map(x => x.length).join());
+  const slotLap = r.slotPages.slice(0, r.n), slotFlat = slotLap.flat();
+  check(`${tag}: the bottom slot shows every game once per lap of ${r.n} pages`, new Set(slotFlat).size === slotFlat.length && slotFlat.length >= 10, slotFlat.join(' | '));
+  check(`${tag}: the bottom slot's laps are alike`, r.slotPages.every((pg, i) => JSON.stringify(pg) === JSON.stringify(r.slotPages[i % r.n])), JSON.stringify(r.slotPages));
+  // SHOT item1-card-last-${width} | CARDS[0].page = 3; renderCard(CARDS[0], false);
+  await ctx.close();
+}
+
+// ---- a game past its end that the file still calls «NS» (the CI file is 6 h old, the API slow to post): shown at its own time among
+// the results, with no score and no «بعد …»; results, then live, then the rest; one lookupevent for a game 6 h past kick-off
+{
+  const GAME = '2573391';   // Al-Ahli × Al-Khaleej, 22 Oct 18:00 UTC, NS in the file
+  const open2 = async (now, answer, width = 960, height = 540) => {
+    const asked = [];
+    const extra = (r, u) => {
+      if (!u.pathname.endsWith('lookupevent.php')) return false;
+      asked.push(u.searchParams.get('id'));
+      const ev = answer && SAUDI_FILE.events.find(e => e.idEvent === u.searchParams.get('id'));
+      r.fulfill({ json: { events: ev ? [{ ...ev, ...answer }] : null }, headers: { 'Access-Control-Allow-Origin': '*' } });
+      return true;
+    };
+    const o = await open('tv.html', 'teams=136013&leagues=' + encodeURIComponent('Saudi-Arabian Pro League') + '&events=f1,ufc,boxing&panel=matches',
+      { width, height, now, net: tvMock(extra) });
+    await o.p.evaluate(() => { EVENT_LEAGUES.f1 = [{ id: 'E1', name: 'Formula 1' }]; EVENT_LEAGUES.ufc = [{ id: 'E2', name: 'UFC' }];
+                               EVENT_LEAGUES.boxing = [{ id: 'E3', name: 'Boxing' }]; });
+    await o.p.evaluate(() => loadMatches());
+    await o.p.waitForTimeout(800);
+    await o.p.evaluate(() => loadLive());   // the page's own timer does it every 2 minutes
+    await o.p.waitForTimeout(400);
+    return { ...o, asked };
+  };
+  const rowsOf = p => p.evaluate(() => matchRows().map(h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); }));
+  const slotOf = p => p.evaluate(() => { const out = []; MATCH_PAGE = -1; for (let k = 0; k < 40; k++) renderMatches(true);
+    for (let k = 0; k < MATCH_PAGES; k++) { renderMatches(true); document.querySelectorAll('#match-row .mblock').forEach(b => out.push(b.innerText.replace(/\s+/g, ' ').trim())); } return out; });
+  for (const [width, height] of [[1920, 1080], [960, 540]]) {
+    const tag = `a past game still «NS», ${width}x${height}`;
+    // Friday 13:00 in Riyadh: 16 h after kick-off. The lookup says nothing new (still NS): the game stays, without a score
+    const o = await open2(TV_NOW, { strStatus: 'NS' }, width, height);
+    const rows = await rowsOf(o.p), slot = await slotOf(o.p);
+    { const p = o.p;
+    // SHOT item2-card-${width} | 0
+    }
+    check(`${tag}: no script errors`, !o.errors.length, o.errors.join('; '));
+    check(`${tag}: the card: the two results, then the unscored game at its own time (no score, no «بعد»), then the rest by time`,
+      rows[0].startsWith('الحزم ٢ - ٢') && rows[1].startsWith('الفتح ١ - ٣') && rows[2].startsWith('الأهلي × الخليج')
+      && !/[٠-٩] - [٠-٩]|بعد|انتهت|مباشر/.test(rows[2]) && rows[3].startsWith('الفيصلي × النصر'), rows.slice(0, 5).join(' | '));
+    check(`${tag}: the slot shows it too, in the same place`,
+      slot.findIndex(b => b.startsWith('الأهلي × الخليج')) === slot.findIndex(b => b.startsWith('الفتح')) + 1
+      && !/بعد/.test(slot.find(b => b.startsWith('الأهلي × الخليج')) || 'بعد'), slot.slice(0, 4).join(' | '));
+    check(`${tag}: ONE lookupevent for it (16 h past), and not again`, o.asked.join() === GAME, o.asked.join());
+    await o.p.evaluate(() => loadLive()); await o.p.evaluate(() => loadLive()); await o.p.waitForTimeout(300);
+    check(`${tag}: asked once per game however often the page looks`, o.asked.join() === GAME, o.asked.join());
+    await o.ctx.close();
+  }
+  {   // the lookup brings the result: shown as a result at its own time
+    const o = await open2(TV_NOW, { strStatus: 'FT', intHomeScore: '3', intAwayScore: '1' });
+    const rows = await rowsOf(o.p);
+    check('a past game still «NS»: when lookupevent has its result, the result shows in its place (٣ - ١ انتهت)',
+      rows[2].startsWith('الأهلي ٣ - ١ الخليج') && rows[2].includes('انتهت'), rows.slice(0, 4).join(' | '));
+    await o.ctx.close();
+  }
+  {   // 4.5 h after kick-off (Thursday 22:30 UTC): shown with no score, not asked for yet (under 6 h)
+    const o = await open2(new Date('2026-10-22T22:30:00Z'), { strStatus: 'NS' });
+    const rows = await rowsOf(o.p);
+    check('a past game still «NS» under 6 h after kick-off: shown with no score, no lookup yet',
+      rows.some(t => t.startsWith('الأهلي × الخليج') && !/بعد|[٠-٩] - [٠-٩]/.test(t)) && !o.asked.length, o.asked.join() + ' / ' + rows.slice(0, 4).join(' | '));
+    await o.ctx.close();
+  }
+  {   // the order: results, the unscored past game, live, then the rest by time
+    const o = await open2(TV_NOW, { strStatus: 'NS' });
+    const rows = await o.p.evaluate(() => {
+      LEAGUE_DATA['Saudi-Arabian Pro League'].events.push({ idEvent: 'LIVE1', idLeague: '4668', idHomeTeam: '136012', idAwayTeam: '136016', strHomeTeam: 'Al-Ettifaq', strAwayTeam: 'Damac',
+        strStatus: '2H', strTimestamp: '2026-10-23T09:00:00', dateEvent: '2026-10-23', strTime: '09:00:00', strSport: 'Soccer', intHomeScore: '1', intAwayScore: '0', strProgress: '60' });
+      return matchRows().map(h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); });
+    });
+    const kind = t => /انتهت/.test(t) ? 'result' : /مباشر/.test(t) ? 'live' : t.startsWith('الأهلي × الخليج') ? 'pending' : 'next';
+    const seq = rows.map(kind).join(' ');
+    check('order: results, the unscored past game, live, then the rest (no past game after a coming one)',
+      /^result result pending live( next)+$/.test(seq), seq + ' / ' + rows.join(' | '));
+    await o.ctx.close();
+  }
+}
+
 // ---- the two longest games of every league side by side: each fits its line (or the pair goes one to a page), at three sizes
 for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const clubs = JSON.parse(readFileSync(path.join(ROOT, 'assets/shared/teams.json'), 'utf8'));
@@ -1743,6 +1999,66 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     }
     const all = [...seen].join(' ');
     check('own photos, mix, no hosted set yet: theirs join the bundled photos', all.includes('own.urtv.invalid/1.jpg') && seen.size > 1, all.slice(0, 300));
+    await o.ctx.close();
+  }
+}
+
+// ---- «صوري»: the first photo on screen obeys the mode. The app answers the owner's photos from disk but a cold start can take longer than
+// the page's 1.2 s; the page then showed a bundled photo of ours first (and theirs only at the next change)
+{
+  const OWNU = 'https://own.urtv.invalid/';
+  // how(n): ms to answer the owner's photo n, or 'fail'; every background the page ever shows is logged, in order
+  const start = async (hash, how, now = null) => {
+    const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
+    await ctx.route(/^https?:/, r => {
+      const u = r.request().url();
+      if (u.startsWith(OWNU)) {
+        const h = how(+u.slice(OWNU.length).replace('.jpg', ''));
+        return h === 'fail' ? r.abort() : void setTimeout(() => r.fulfill({ contentType: 'image/jpeg', body: badgePng }).catch(() => {}), h);
+      }
+      const i = u.indexOf('/master/'), rel = i > 0 ? u.slice(i + 8) : '';
+      if (/^(assets\/(backgrounds|fonts)|photos)\//.test(rel)) return r.fulfill({ path: path.join(ROOT, rel), headers: { 'Access-Control-Allow-Origin': '*' } });
+      return r.abort();
+    });
+    await ctx.addInitScript(i => { localStorage.setItem('photoIndex', i); window.__bg = [];
+      setInterval(() => { const ph = document.querySelector('.photo'), b = ph && ph.style.backgroundImage.replace(/^url\("?|"?\)$/g, '');
+        if (b && window.__bg[window.__bg.length - 1] !== b) window.__bg.push(b); }, 20); }, INDEX);
+    const p = await ctx.newPage(), errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    if (now) await p.clock.setFixedTime(now);
+    await p.goto(page('tv.html') + '#' + hash);
+    return { p, ctx, errors, log: ms => p.waitForTimeout(ms).then(() => p.evaluate(() => window.__bg)) };
+  };
+  const isOwn = u => u.startsWith(OWNU), ours = log => log.filter(u => !isOwn(u));
+  for (const [label, how, want] of [
+    ['the first photo of theirs is slow (2 s)', () => 2000, 'slow'],
+    ['the first photo of theirs fails, the second answers', n => n === 1 ? 'fail' : 20, 'second'],
+    ['the photos answer at once', () => 0, 'fast'],
+  ]) {
+    // photos=60 and one hour that is not 7:00..: the pick of an `only` page is theirs whatever the hour
+    const o = await start('own=2&ownmode=only&photos=60', how);
+    const log = await o.log(want === 'slow' ? 3200 : 1800);
+    check(`own photos, only, ${label}: the first photo is theirs, nothing of ours before it`, !o.errors.length && log.length >= 1 && isOwn(log[0]) && !ours(log).length, log.join(' | ') + o.errors.join(';'));
+    await o.ctx.close();
+  }
+  {   // theirs never load: one of ours after all of theirs were tried, the screen is not left empty
+    const o = await start('own=2&ownmode=only&photos=60', () => 'fail');
+    const log = await o.log(2000);
+    check('own photos, only, none loads: a bundled photo shows in the end (never empty)', log.length === 1 && !isOwn(log[0]), log.join(' | '));
+    await o.ctx.close();
+  }
+  {   // mix: at an hour whose turn is one of theirs (the pool is our 5 hosted photos, then theirs), a slow photo is waited for too
+    const riyadhDay = Math.floor(Date.UTC(2026, 9, 23) / 864e5);
+    const hour = [...Array(24).keys()].find(h => (riyadhDay * 24 + h) % 7 >= 5);
+    const now = new Date(Date.UTC(2026, 9, 23, hour - 3, 10));
+    const slow = await start('own=2&ownmode=mix&photos=60', () => 2000, now);
+    const log = await slow.log(3200);
+    check(`own photos, mix, at an hour of theirs (${hour}:10 Riyadh) and slow: theirs first, no flash of ours`, !slow.errors.length && log.length >= 1 && isOwn(log[0]) && !ours(log).length, log.join(' | '));
+    await slow.ctx.close();
+    const ourTurn = [...Array(24).keys()].find(h => (riyadhDay * 24 + h) % 7 < 5);
+    const o = await start('own=2&ownmode=mix&photos=60', () => 2000, new Date(Date.UTC(2026, 9, 23, ourTurn - 3, 10)));
+    const log2 = await o.log(1800);
+    check(`own photos, mix, at an hour of ours (${ourTurn}:10): ours at once, theirs do not hold it back`, log2.length >= 1 && !isOwn(log2[0]) && /\/photos\//.test(log2[0]), log2.join(' | '));
     await o.ctx.close();
   }
 }
@@ -2032,7 +2348,7 @@ const barAt = (p, day, hhmm, ss = '00') => p.evaluate(([iso, times]) => {
   window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
   eval(times); tickPrayer();
   const b = document.getElementById('adbar'), cs = getComputedStyle(b), r = b.getBoundingClientRect();
-  return { hidden: b.hidden || cs.display === 'none', text: b.textContent, top: r.top, h: r.height, w: r.width };
+  return { hidden: b.hidden || cs.display === 'none', text: b.textContent, top: r.top, h: r.height, w: r.width, panel: document.getElementById('prayer-count').textContent };
 }, [`${day}T${hhmm}:${ss}+03:00`, ADHAN_TIMES]);
 for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   for (const digits of ['hindi', 'latin']) {
@@ -2046,7 +2362,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const tag = `adhan bar ${width}x${height} ${digits}`;
     check(`${tag}: no script errors`, !errors.length, errors.join('; '));
     check(`${tag}: the last 10 minutes: «الأذان بعد …», shown from exactly 10 minutes before, not 11`,
-      !r.m10.hidden && r.m10.text === N('الأذان بعد ١٠ دقائق') && !r.m8.hidden && r.m8.text === N('الأذان بعد ٨ دقائق') && r.m1.text === N('الأذان بعد ١ دقيقة') && r.over10.hidden, JSON.stringify([r.m10, r.m8, r.m1, r.over10]));
+      !r.m10.hidden && r.m10.text === N('الأذان بعد ١٠ دقائق') && !r.m8.hidden && r.m8.text === N('الأذان بعد ٧ دقائق') && r.m1.text === N('الأذان بعد ١ دقيقة') && r.over10.hidden, JSON.stringify([r.m10, r.m8, r.m1, r.over10]));
     check(`${tag}: from the adhan to the iqama: «الإقامة بعد …» (Maghrib 10, Fajr 25, Asr and Isha 20, Dhuhr 20)`,
       r.at.text === N('الإقامة بعد ١٠ دقائق') && r.q5.text === N('الإقامة بعد ٥ دقائق') && r.end.hidden && r.fajr.text === N('الإقامة بعد ٢٥ دقيقة') && r.asr.text === N('الإقامة بعد ١٥ دقيقة')
       && r.isha.text === N('الإقامة بعد ١٥ دقيقة') && r.dhuhr.text === N('الإقامة بعد ٢٠ دقيقة'), JSON.stringify([r.at.text, r.q5.text, r.end.hidden, r.fajr.text, r.asr.text, r.isha.text, r.dhuhr.text]));
@@ -2058,6 +2374,30 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     await ctx.close();
   }
 }
+// the bar and the panel below say the same time at the same second (the bar rounded up, the panel's minutes went down: «بعد ٥» and «بعد ٤»)
+{
+  for (const [width, height] of [[1920, 1080], [960, 540]]) {
+    const { p, ctx, errors } = await open('tv.html', 'panel=prayers', { width, height });
+    const at = (hhmmss) => p.evaluate(([iso, times]) => {
+      const R = window.__R || (window.__R = Date), T = Date.parse(iso);
+      window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+      eval(times); tickPrayer();
+      return { bar: document.getElementById('adbar').textContent, panel: document.getElementById('prayer-count').textContent.trim() };
+    }, [`2026-10-22T${hhmmss}+03:00`, ADHAN_TIMES]);
+    const half = await at('17:40:30');   // 4 min 30 s before Maghrib
+    check(`bar and panel at 4 min 30 s before the prayer, ${width}x${height}: both say ٤ دقائق`,
+      !errors.length && half.bar === 'الأذان بعد ٤ دقائق' && half.panel === 'بعد ٤ دقائق', JSON.stringify(half));
+    const apart = [];
+    for (let s = 0; s < 600; s += 3) {   // the last 10 minutes, every 3 seconds
+      const t = 17 * 3600 + 35 * 60 + s, hh = [Math.floor(t / 3600), Math.floor(t % 3600 / 60), t % 60].map(n => String(n).padStart(2, '0')).join(':');
+      const r = await at(hh);
+      if (r.bar.replace('الأذان ', '') !== r.panel) apart.push(hh + ' ' + r.bar + ' / ' + r.panel);
+    }
+    check(`bar and panel, every 3 seconds of the last 10 minutes, ${width}x${height}: always the same time`, !apart.length, apart.slice(0, 4).join(' | '));
+    await ctx.close();
+  }
+}
+
 {   // off: never shown; the launcher's card mode never shows it; not before the times are known
   const off = await open('tv.html', 'panel=prayers&adhanbar=0');
   const a = await barAt(off.p, '2026-10-22', '17:37', '10');

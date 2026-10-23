@@ -416,9 +416,13 @@
   .stage{transition:transform 3s ease}
   .sc{color:var(--gold-3);letter-spacing:.02em}
 
-  /* #slot=none: the left panel is gone and the other two share the row */
+  /* #slot=none: the left panel is gone and the other two mirror each other: the prayer at the right edge, the occasion at the left edge,
+     the same width, each text on its outer edge and the same lines (label, big line, small line) at the same heights */
   html.slot-none .p-match{display:none}
-  html.slot-none .bottom{grid-template-columns:1fr .9fr}
+  html.slot-none .bottom{grid-template-columns:1fr 1fr}
+  html.slot-none .p-mid,html.slot-none .p-mid .big{text-align:left}
+  html.slot-none .p-mid .big{line-height:1.1}
+  html.slot-none .p-mid .num{font-size:1.12em;line-height:inherit}
 
   @media (max-aspect-ratio:5/4){
     .top{flex-direction:column-reverse;gap:1.4vh}
@@ -766,12 +770,15 @@ function prayerName(x){ return x.key === 'Dhuhr' && isFriday() ? 'الجمعة' 
 // ---- the bar before the adhan: in the last 10 minutes before each prayer «الأذان بعد ٨ دقائق», from the adhan to the iqama
 // «الإقامة بعد ١٢ دقيقة» (the iqama minutes of CONFIG.iqama, none for a Friday's Dhuhr). #adhanbar=0 turns it off.
 const ADHAN_BAR_MIN = 10;
+// «٤ دقائق»: what is left to an adhan, in the same words at the same second on the bar and in the panel below (whole minutes of the
+// rounded second; never less than one)
+const untilAdhan = leftMin => humanRemaining(Math.max(60, Math.round(leftMin * 60)));
 function adhanBarText(){
   if(!CONFIG.adhanBar || !PRAYERS.length) return '';
   const p = riyadhParts(), mins = p.h*60 + p.mi + p.s/60;
   for(const x of PRAYERS){
     const at = x.h*60 + x.mi, toAdhan = at - mins;
-    if(toAdhan > 0 && toAdhan <= ADHAN_BAR_MIN) return 'الأذان بعد ' + humanRemaining(Math.max(60, Math.ceil(toAdhan)*60));
+    if(toAdhan > 0 && toAdhan <= ADHAN_BAR_MIN) return 'الأذان بعد ' + untilAdhan(toAdhan);
     const gap = x.key === 'Dhuhr' && isFriday() ? 0 : (CONFIG.iqama[x.key] || 0);
     if(mins >= at && mins < at + gap) return 'الإقامة بعد ' + humanRemaining(Math.max(60, Math.ceil(at + gap - mins)*60));
   }
@@ -819,7 +826,7 @@ function tickPrayer(){
   if(!next) next = PRAYERS[0];
   setText(elN, prayerName(next));
   setText(elT, fmt12(next.h, next.mi));
-  setHTML(elC, 'بعد <b>' + humanRemaining(Math.max(0, Math.round(leftM*60))) + '</b>');
+  setHTML(elC, 'بعد <b>' + untilAdhan(leftM) + '</b>');
 }
 
 // ---- «المناسبة القادمة»: the card in the middle of the bottom row follows the Hijri year ----
@@ -1038,6 +1045,16 @@ function finishedRecently(ev, now){
   const over = FINAL.includes((ev.strStatus || '').toUpperCase()) ? now >= k : now >= end;
   return over && now - end < 86400000;
 }
+// A game past its end with no result in the data (the CI file is refreshed every 6 h and the API is slow to post a score): it stays,
+// at its own time among the results and with no score, for a day after its end. Asked for once, 6 h after kick-off (loadLive).
+function pendingResult(ev, now){
+  if(!ev || ev.intHomeScore != null && ev.intAwayScore != null) return false;
+  const st = (ev.strStatus || '').toUpperCase(), k = toDate(ev).getTime(), end = k + durMs(ev);
+  return !FINAL.includes(st) && !CALLED_OFF.test(st) && !isNaN(k) && now >= end && now - end < 86400000;
+}
+// the order of the screen: results (and a past game with no result yet) in time order, then live, then the rest by time
+const gameRank = (ev, now) => finishedRecently(ev, now) || pendingResult(ev, now) ? 0 : now >= toDate(ev).getTime() ? 1 : 2;
+const byRank = (a, b) => a.r - b.r || a.t - b.t;
 // Keep a score seen at the final whistle: the free API's "last games" list can lag, and "next game"
 // moves on to the following fixture right away. Saved, so a restart within the day still shows it.
 const KEPT = (()=>{ try{ return JSON.parse(localStorage.getItem('keptResults') || '{}'); }catch(e){ return {}; } })();
@@ -1071,6 +1088,8 @@ function resultBlock(done){
 function gameBlock(ev, now, big){
   const home = esc(teamAr(ev.strHomeTeam, ev.idHomeTeam)), away = esc(teamAr(ev.strAwayTeam, ev.idAwayTeam));
   const d = toDate(ev), diff = d - now;
+  if(pendingResult(ev, now))   // over, no result yet: the teams and when they played
+    return `<div class="mblock"><div class="big"><span><span class="tm">${home}</span> × <span class="tm">${away}</span></span></div><div class="sub">${matchWhen(d)}</div></div>`;
   if(diff < -durMs(ev) || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
   const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
     .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
@@ -1091,14 +1110,14 @@ function matchSlot(id, now, shown){
   if(done){
     if(shown.has(done.idEvent)) return null;          // both teams in the same game
     shown.add(done.idEvent);
-    return {t: toDate(done).getTime(), html: resultBlock(done)};
+    return {t: toDate(done).getTime(), r: 0, html: resultBlock(done)};
   }
   const ev = MATCHES[id];
   if(!ev || shown.has(ev.idEvent)) return null;
   const html = gameBlock(ev, now);
   if(!html) return null;
   shown.add(ev.idEvent);
-  return {t: toDate(ev).getTime(), html};
+  return {t: toDate(ev).getTime(), r: gameRank(ev, now), html};
 }
 
 // ---------- whole leagues: #leagues= ----------
@@ -1110,6 +1129,7 @@ const LEAGUE_BASE = 'https://raw.githubusercontent.com/tshi-dev/UrTV/data-league
 const LEAGUE_LIVE_MAX = 6;
 const leagueSlug = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');   // team_ids.slug()
 let LEAGUE_DATA = (()=>{ try{ return JSON.parse(localStorage.getItem('leagueData') || '{}') || {}; }catch(e){ return {}; } })();   // name -> its file
+const STALE_ASK_H = 6, STALE_ASKED = new Set();   // a past game with no result: asked for once, 6 h after its kick-off
 let LIVE_PATCH = {};   // idEvent -> {at, ev}: lookupevent's newer word on a game, used while newer than the league's file
 async function loadLeagues(){
   let got = 0;
@@ -1147,8 +1167,8 @@ function leagueShow(now, shown){
   return leagueGames().filter(ev => !CALLED_OFF.test(ev.strStatus || '') && !shown.has(ev.idEvent)).map(ev => {
     const done = finishedRecently(ev, now);
     const html = done ? resultBlock(ev) : FINAL.includes((ev.strStatus || '').toUpperCase()) ? '' : gameBlock(ev, now);
-    return html ? {t: toDate(ev).getTime(), ev, done, html} : null;
-  }).filter(Boolean).sort((a, b) => a.t - b.t);
+    return html ? {t: toDate(ev).getTime(), r: gameRank(ev, now), ev, done, html} : null;
+  }).filter(Boolean).sort(byRank);
 }
 
 function liveStatus(ev, t12){
@@ -1175,6 +1195,9 @@ async function loadLive(){
     }catch(e){ return null; }
   };
   const theirs = CONFIG.leagues.length ? leagueGames().filter(ev => live(ev) && !own.has(ev.idEvent)).slice(0, LEAGUE_LIVE_MAX) : [];
+  // a game 6 h past kick-off with no result: ask once; the answer (or none) is what the screen shows from then on
+  const stale = matchEvents().filter(ev => !STALE_ASKED.has(ev.idEvent) && now - toDate(ev).getTime() > STALE_ASK_H * 3600000 && pendingResult(ev, now)).slice(0, LEAGUE_LIVE_MAX);
+  stale.forEach(ev => STALE_ASKED.add(ev.idEvent));
   await Promise.all([
     ...Object.entries(MATCHES).map(async ([id, ev])=>{
       if(!live(ev)) return;
@@ -1184,6 +1207,15 @@ async function loadLive(){
     ...theirs.map(async ev => {
       const fresh = await look(ev);
       if(fresh) LIVE_PATCH[ev.idEvent] = {at: Date.now(), ev: fresh};
+    }),
+    ...stale.map(async ev => {
+      const fresh = await look(ev);
+      if(!fresh) return;
+      LIVE_PATCH[ev.idEvent] = {at: Date.now(), ev: fresh};   // a league's copy
+      const mend = list => (list || []).map(x => x && x.idEvent === ev.idEvent ? Object.assign({}, x, fresh) : x);
+      Object.keys(MATCHES).forEach(id => { MATCHES[id] = mend([MATCHES[id]])[0]; });   // a followed team's copies
+      Object.keys(NEXT_LIST).forEach(id => { NEXT_LIST[id] = mend(NEXT_LIST[id]); });
+      Object.keys(RESULTS).forEach(id => { RESULTS[id] = mend(RESULTS[id]); });
     }),
   ]);
   if(asked) renderMatches();   // outside a match window nothing was asked, nothing changed
@@ -1334,7 +1366,7 @@ function renderMatches(turn){
   if(!SLOT_MATCHES) return;
   const now = Date.now(), shown = new Set();
   let games = CONFIG.teamIds.map(id => matchSlot(id, now, shown)).filter(Boolean);
-  if(CONFIG.leagues.length) games = [...games, ...leagueShow(now, shown)].sort((a, b) => a.t - b.t);   // one time order
+  if(CONFIG.leagues.length) games = [...games, ...leagueShow(now, shown)].sort(byRank);   // one order
   const live = focusGames(now, true);   // a followed team is playing: that game alone, big, until it ends
   const slots = live.length ? live.map(ev => gameBlock(ev, now, true))
     : [...games.map(g => g.html), ...CONFIG.events.map(k => eventSlot(k, now))].filter(Boolean);
@@ -1893,8 +1925,13 @@ function renderCard(card, animate, keepSize){
   }
   const per = card.cap || (P === 'matches' ? MATCH_ROWS : WEEK_ROWS);
   if((P === 'matches' || P === 'stocks' || P === 'tasks') && rows.length > per){        // page through, like the shows
-    const start = (card.page * per) % rows.length;
-    rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
+    if(P === 'matches'){   // fixed pages, each game once a lap; the last holds what is left
+      const pages = Math.ceil(rows.length / per), start = (card.page % pages) * per;
+      rows = rows.slice(start, start + per);
+    }else{
+      const start = (card.page * per) % rows.length;
+      rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
+    }
   }
   const wrote = setHTML(ul, rows.join(''), animate);
   if(!keepSize){ card.base = rows.length; card.len0 = card.len || 0; }   // what full size holds: the rows of a page, the length of the text
@@ -1997,21 +2034,30 @@ function forecastRows(){
 // ---- club crests on the launcher's matches card: TheSportsDB's badge, which the events already carry
 // (strHomeTeamBadge / strAwayTeamBadge, with idHomeTeam / idAwayTeam). No request of its own except the picture,
 // once per club: kept as a 48 px copy in localStorage and fetched again only when the badge's address changes.
+// The launcher's page is a file:// document and the badge host may send no Access-Control-Allow-Origin: fetch() is then refused (or
+// the answer is no picture). The club keeps its address alone and the row shows a plain <img> of it, which needs no CORS.
 const CRESTS_ON = CONFIG.widget && USES('matches');
-const CREST_PX = 48, CREST_KEEP = 60, CREST_PER_ROUND = 10, CREST_RETRY_MS = 6 * 3600000;
-let CRESTS = {};   // team id -> {u: badge address, d: data: URI of the small copy}
+const CREST_PX = 48, CREST_KEEP = 60, CREST_PER_ROUND = 10;
+let CRESTS = {};   // team id -> {u: badge address, d: data: URI of the small copy, none when only the address could be kept}
 try{ CRESTS = JSON.parse(localStorage.getItem('crests') || '{}') || {}; }catch(e){}
-const CREST_TRIED = {};   // team id -> when a fetch last failed
 function crestOf(ev, side){
   const u = String(ev['str' + side + 'TeamBadge'] || ''), id = String(ev['id' + side + 'Team'] || '');
   return /^https:\/\/[a-z0-9.-]+\.thesportsdb\.com\/\S+$/i.test(u) && /^\d+$/.test(id) ? {id, u} : null;
 }
 const crestImg = (ev, side) => {
   const c = CRESTS_ON && crestOf(ev, side);
-  return c && CRESTS[c.id] && CRESTS[c.id].d ? `<img class="cr" data-t="${c.id}" alt="">` : '';   // no crest: the name alone
+  const k = c && CRESTS[c.id];
+  if(!k) return '';   // no crest: the name alone
+  return k.d ? `<img class="cr" data-t="${c.id}" alt="">`
+    : `<img class="cr" data-t="${c.id}" src="${esc(k.u)}" width="${CREST_PX}" height="${CREST_PX}" loading="lazy" alt="">`;
 };
 function fillCrests(root){   // the rows carry the club's id only; the picture is put in here (a saved row has none)
-  root.querySelectorAll('img.cr').forEach(i => { const c = CRESTS[i.dataset.t]; if(c && c.d && i.getAttribute('src') !== c.d) i.src = c.d; });
+  root.querySelectorAll('img.cr').forEach(i => {
+    const c = CRESTS[i.dataset.t], src = c && (c.d || c.u);
+    if(!src) return;
+    if(!c.d) i.onerror = () => i.remove();   // an address that shows nothing (gone, or no picture): the name alone
+    if(i.getAttribute('src') !== src) i.src = src;
+  });
 }
 function crestShrink(blob){   // -> a data: URI no larger than CREST_PX, '' when it is not a picture
   return new Promise(done => {
@@ -2045,16 +2091,15 @@ async function loadCrests(){
   if(!CRESTS_ON || CREST_BUSY) return;
   CREST_BUSY = true;
   try{
-    const want = {}, now = Date.now();
+    const want = {};
     for(const ev of matchEvents()) for(const side of ['Home', 'Away']){
       const c = crestOf(ev, side);
-      if(c && !(CRESTS[c.id] && CRESTS[c.id].u === c.u) && now - (CREST_TRIED[c.id] || 0) > CREST_RETRY_MS) want[c.id] = c.u;
+      if(c && !(CRESTS[c.id] && CRESTS[c.id].u === c.u)) want[c.id] = c.u;
     }
     let got = 0;
     for(const [id, u] of Object.entries(want).slice(0, CREST_PER_ROUND)){
       const d = await crestFetch(u);
-      if(!d){ CREST_TRIED[id] = now; continue; }
-      delete CRESTS[id]; CRESTS[id] = {u, d}; got++;
+      delete CRESTS[id]; CRESTS[id] = d ? {u, d} : {u}; got++;   // no copy: the address alone, asked for once
     }
     if(!got) return;
     Object.keys(CRESTS).slice(0, Math.max(0, Object.keys(CRESTS).length - CREST_KEEP)).forEach(k => delete CRESTS[k]);
@@ -2140,22 +2185,23 @@ function matchRows(card){
   const smart = card && card.kind === 'smart';
   if(smart){ const ids = new Set(focusGames(now).map(ev => ev.idEvent)); evs = evs.filter(ev => ids.has(ev.idEvent)); }   // only the game that brought the smart card here
   const others = smart ? [] : eventRows(now);
-  return [...evs.map(ev => ({ev, t: toDate(ev).getTime()}))
-    .filter(x => finishedRecently(x.ev, now)
+  return [...evs.map(ev => ({ev, t: toDate(ev).getTime(), r: gameRank(ev, now)}))
+    .filter(x => finishedRecently(x.ev, now) || pendingResult(x.ev, now)
       || (now < x.t + durMs(x.ev) && !FINAL.includes((x.ev.strStatus || '').toUpperCase())
           && x.t - now <= CONFIG.weekWindowDays * 86400000))
-    .sort((a, b) => a.t - b.t)
-    .map(({ev, t}) => {
+    .sort(byRank)
+    .map(({ev, t, r}) => {
       const d = new Date(t), scored = ev.intHomeScore != null && ev.intAwayScore != null;
       const mid = scored && now >= t ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
-      const upcoming = !finishedRecently(ev, now) && now < t;
+      const upcoming = !finishedRecently(ev, now) && now < t, pending = r === 0 && !finishedRecently(ev, now);
       const when = finishedRecently(ev, now) ? 'انتهت'
+        : pending ? ''   // over with no result yet: no score, no «بعد …»
         : now >= t ? '<span class="live">مباشر</span>'
         : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
       // an upcoming game has its date and time under the teams, as in the bottom row
-      const dateLine = upcoming ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
-      return {t, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
-    }), ...others].sort((a, b) => a.t - b.t).map(x => x.html);
+      const dateLine = upcoming || pending ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
+      return {t, r, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
+    }), ...others.map(o => ({...o, r: o.t <= now ? 1 : 2}))].sort(byRank).map(x => x.html);
 }
 
 // ---- «الأسهم»: the watchlist card. A Tadawul code (4 digits) is asked of Yahoo as CODE.SR, letters are a US ticker.
@@ -2547,14 +2593,32 @@ function photoSet(n){
   }
   return pick;
 }
-let BG_SLOT = -1, PREFETCHED = false;
+// One of the owner's photos is due. The app answers it from disk, yet on a cold start that can take more than the 1.2 s the page gives
+// a hosted photo, and a photo of ours must not show first (only) or in its place (mix). So it is waited for, up to OWN_WAIT_MS; one that
+// fails gives way to the next of theirs; none loads, or none in time: a bundled one, so the screen is never empty (theirs still replace
+// it when they arrive).
+const OWN_WAIT_MS = 6000;
+let BG_SLOT = -1, PREFETCHED = false, BG_TURN = 0;
+function showOwn(pick, own, local){
+  const at = own.indexOf(pick), order = own.slice(at).concat(own.slice(0, at)), turn = ++BG_TURN;
+  const bundled = () => { if(turn === BG_TURN && !document.querySelector('.photo').style.backgroundImage) showBackground(local.u, local); };
+  const t = setTimeout(bundled, OWN_WAIT_MS);
+  const next = i => {
+    if(i >= order.length){ clearTimeout(t); bundled(); return; }
+    const img = new Image();
+    img.onload = () => { clearTimeout(t); if(turn === BG_TURN) showBackground(order[i].url, order[i].b); };
+    img.onerror = () => next(i + 1);
+    img.src = order[i].url;
+  };
+  next(0);
+}
 function applyBackground(force){
   try {
     const p = riyadhParts();
     const slotMin = CONFIG.photoMinutes;   // divides 1440, so slots count on across midnight
     const slot = riyadhDayNumber() * (1440 / slotMin) + Math.floor((p.h * 60 + p.mi) / slotMin);
     if(slot === BG_SLOT && !force) return;
-    BG_SLOT = slot;
+    BG_SLOT = slot; BG_TURN++;   // a photo of theirs still on its way for an earlier turn is dropped
     const only = OWN_ONLY(), own = ownPhotos();
     const set = !only && REMOTE_BGS.length ? photoSet(REMOTE_BGS.length).map(k => REMOTE_BGS[k]) : [];
     const local = BGS[slot % BGS.length];
@@ -2566,6 +2630,7 @@ function applyBackground(force){
     }
     if(!pool.length){ showBackground(local.u, local); return; }
     const pick = pool[slot % pool.length], url = pick.url, b = pick.b;
+    if(own.includes(pick)){ showOwn(pick, own, local); return; }
     if(pick.bundled){ showBackground(url, b); return; }
     // First photo: wait briefly for the hosted one (the app serves it from disk at once) so the screen
     // doesn't flash a bundled photo first; slow network → bundled one, swapped when the hosted one arrives.
