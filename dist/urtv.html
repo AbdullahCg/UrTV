@@ -123,6 +123,13 @@
   .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .rt{flex:0 0 auto;color:var(--gold-3);font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .mwhen{display:block;font-style:normal;margin-top:.15em;font-size:.68em;font-weight:300;color:#A79C85;overflow:hidden;text-overflow:ellipsis}
+  /* the launcher's matches card: the date shares the first line, between the clubs and «بعد ٧ ساعات», when it all fits (rowFits());
+     else it drops under the clubs, as it always did (and as the screensaver's card keeps it) */
+  html.widget .week li.mg{flex-wrap:wrap}
+  html.widget .week li.mg .mwhen{order:3;flex:0 0 100%;margin-top:.15em}
+  html.widget .week li.mg.inl{flex-wrap:nowrap}
+  html.widget .week li.mg.inl > span:first-child{max-width:none}
+  html.widget .week li.mg.inl .mwhen{order:0;flex:1 1 auto;min-width:0;margin:0;text-align:center;white-space:nowrap}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
   .week li .tm .cr{width:1.25em;height:1.25em;object-fit:contain;vertical-align:middle;margin-block:-.25em;margin-inline-end:.3em}
   .week li .tm .cr:not([src]){visibility:hidden}   /* a restored row waits for its picture: the same room */
@@ -1438,12 +1445,22 @@ function fitMatches(row){
   size(FIT_STEPS[FIT_STEPS.length - 1]);
   return false;   // the caller may show these games apart
 }
+// the launcher's rows put the date in the empty middle of the first line when everything fits there
+const rowFits = li => li.scrollWidth <= li.clientWidth + .5 && [...li.children].every(fits);
+function inlineDate(li){
+  li.classList.add('inl');
+  if(rowFits(li)) return true;
+  li.classList.remove('inl');
+  return false;
+}
 // the card beside the clock has room for a whole game; only a row that would end in «…» takes the short names
 // with crests (the launcher's card) the next step is the short names, then no crests: the names alone, as before
 // still too long (a narrow card: beside a wide clock, or in the TV's own font when ours didn't load): a little smaller, never «…»
 function shortenRows(ul){
-  ul.querySelectorAll('li > span:first-child').forEach(sp => {
-    if(fits(sp)) return;
+  ul.querySelectorAll('li').forEach(li => {
+    if(li.classList.contains('mg') && inlineDate(li)) return;   // one line: the names keep their whole form
+    const sp = li.firstElementChild;
+    if(!sp || !sp.matches('span') || fits(sp)) return;
     shorten(sp);
     if(!fits(sp)) sp.querySelectorAll('img.cr').forEach(i => i.remove());
     if(!fits(sp)) FIT_STEPS.slice(1).find(k => { sp.style.fontSize = k + 'em'; return fits(sp); });
@@ -1987,6 +2004,7 @@ function shrinkCard(c, tooWide){   // false when there is no step left
   const cap = list && c.ri ? c.base - c.ri : 0, maxLen = quote && c.ri ? Math.max(20, Math.floor(c.len0 * Math.pow(.8, c.ri))) : 0;
   c.z = Z_STEPS[c.zi];
   c.el.style.setProperty('--z', c.z);
+  if(c.eff === 'matches') c.ul.querySelectorAll('li.mg:not(.inl)').forEach(inlineDate);   // smaller text: a date may fit beside the clubs now
   if(cap !== c.cap || maxLen !== c.maxLen){ c.cap = cap; c.maxLen = maxLen; renderCard(c, false, true); }
   return true;
 }
@@ -2262,7 +2280,8 @@ function matchRows(card){
         : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
       // an upcoming game has its date and time under the teams, as in the bottom row
       const dateLine = upcoming || pending ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
-      return {t, r, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
+      const wide = CONFIG.widget && dateLine;   // the launcher's card: the date is the row's own item, beside the clubs or under them
+      return {t, r, html: `<li${wide ? ' class="mg"' : ''}><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${wide ? '' : dateLine}</span>${wide ? dateLine : ''}<span class="dt">${when}</span></li>`};
     }), ...others.map(o => ({...o, r: o.t <= now ? 1 : 2}))].sort(byRank).map(x => x.html);
 }
 
