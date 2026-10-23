@@ -194,6 +194,20 @@
   .week li.adf .d{justify-self:end;display:flex;gap:.4em}
   .week li.adf .d i{width:.48em;height:.48em;border-radius:50%;background:rgba(var(--gold-rgb),.26)}
   .week li.adf .d i.on{background:var(--gold-3)}
+  /* «السنة»: one dot a day in a single SVG; the days gone rise from dim to gold, today is the brightest with a halo */
+  .week li.yr{display:block;white-space:normal;border-bottom:none;padding:.3vh 0 0;text-align:center}
+  .week li.yr .yn{font-size:1.3em;font-weight:500;color:var(--gold-hi);line-height:1.1;font-variant-numeric:tabular-nums}
+  .week li.yr svg{display:block;width:100%;height:auto;margin:.6vh 0 .5vh}
+  .week li.yr .on{fill:rgb(var(--gold-rgb))}
+  .week li.yr .off{fill:rgb(var(--gold-rgb));fill-opacity:.14}
+  .week li.yr .now{fill:var(--gold-hi)}
+  .week li.yr .halo{fill:rgb(var(--gold-rgb))}
+  .week li.yr .yt{font-size:.74em;color:#B9AE96;line-height:1.4}
+  .week li.yr .yt b{font-weight:500;color:var(--gold-3)}
+  @media (prefers-reduced-motion:no-preference){
+    .week li.yr.fill .r{animation:yrIn .7s ease both;animation-delay:calc(var(--i) * 70ms)}
+    @keyframes yrIn{from{opacity:0}to{opacity:1}}
+  }
   .week .empty{color:#9A9078;font-size:clamp(14px,1.1vw,21px);font-weight:300;margin-top:1vh}
 
   /* ===== card styles (#cardstyle=; the default keeps the plain card above) =====
@@ -453,11 +467,13 @@ const BGS = [
 const _Q = new URLSearchParams((location.hash || '').replace(/^#/, ''));
 const _list = k => (_Q.get(k) || '').split(',').map(x=>x.trim()).filter(Boolean);
 const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : v; };
+// the city's time zone, #tz=: the clock, prayers, matches and dates all go by it; one this browser does not know is Riyadh
+const _tzOk = z => { try{ new Intl.DateTimeFormat('en',{timeZone:z}); return true; }catch(e){ return false; } };
 const CONFIG = {
   city: _Q.get('city') || 'الرياض',
   latitude: _num('lat', 24.7136),
   longitude: _num('lon', 46.6753),
-  timezone: _Q.get('tz') || 'Asia/Riyadh',
+  timezone: _tzOk(_Q.get('tz') || 'Asia/Riyadh') ? (_Q.get('tz') || 'Asia/Riyadh') : 'Asia/Riyadh',
   prayerMethod: 4,
   // followed teams in priority order: #teams=id,id,... (up to 20); older builds send team1/team2
   teamIds: (_Q.has('teams') ? _Q.get('teams').split(',')
@@ -467,8 +483,8 @@ const CONFIG = {
   // other sports beside the teams' games: #events=f1,ufc,boxing (default none)
   events: _list('events').filter(k => ['f1','ufc','boxing'].includes(k)),
   eventWindowDays: 14,
-  // the card beside the clock: shows | prayers | forecast | hourly | prayerrow | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: shows | prayers | forecast | hourly | prayerrow | matches | verse | wisdom | adhkar | stocks | tasks | year | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   // #tasks=: the open tasks, one per line (the app drops done ones), at most 12 of 60 characters
   tasks: (_Q.get('tasks') || '').split('\n').map(x=>x.trim().slice(0, 60)).filter(Boolean).slice(0, 12),
@@ -526,6 +542,11 @@ function riyadhParts(d = new Date()){
     hour:'2-digit', minute:'2-digit', second:'2-digit'
   }).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
   return { y:+f.year, mo:+f.month, d:+f.day, h:(+f.hour)%24, mi:+f.minute, s:+f.second };
+}
+// how far the city's clock is ahead of UTC at that moment, in ms (Riyadh +3 h all year; Cairo changes with summer time)
+function tzOffsetMs(ms){
+  const p = riyadhParts(new Date(ms));
+  return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - Math.floor(ms / 1000) * 1000;
 }
 function fmt12(h, mi){
   const h12 = h % 12 === 0 ? 12 : h % 12;
@@ -1084,7 +1105,7 @@ function eventInfo(key, ev){
   const country = COUNTRY_AR[c] || (c ? trl(ev.strCountry) : '');
   const dateOnly = !ev.strTime || /^00:00(:00)?$/.test(ev.strTime);   // no time of day known: only the day is told
   let t = toDate(ev).getTime();
-  if(dateOnly && !isNaN(t)) t -= 3*3600000;   // that day starts at midnight in Riyadh
+  if(dateOnly && !isNaN(t)) t -= tzOffsetMs(t);   // t is that day's midnight in UTC: it starts at midnight in the city's time zone
   return {title, head, pre, card, tag: EVENT_TAG[key], country: title.includes(country) ? '' : country, t,
           dur: dateOnly ? 24*3600000 : EVENT_DUR_H[key] * 3600000, dateOnly};
 }
@@ -1518,7 +1539,7 @@ function renderWeekPage(animate){
 let FORECAST = [];
 try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
 let LIST_PAGE = 0;
-const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:'مباريات فرقك', tasks:'المهام'};
+const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:'مباريات فرقك', tasks:'المهام', year:'السنة'};
 
 function renderPanel(animate){
   const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
@@ -1530,6 +1551,7 @@ function renderPanel(animate){
   else if(P === 'hourly') rows = hourlyRows();
   else if(P === 'prayerrow'){ const q = prayerRowCard(); setText(hd, q.title); rows = q.rows; }
   else if(P === 'matches') rows = matchRows();
+  else if(P === 'year') rows = [yearCard()];
   else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
   else if(P === 'verse'){ const q = quoteOfDay(); setText(hd, q.title); rows = q.rows; }
   else if(P === 'wisdom'){ const q = wisdomOfDay(); setText(hd, q.title); rows = q.rows; }
@@ -1556,6 +1578,33 @@ function renderPanel(animate){
   if(CONFIG.tafsir) fitTafsir(ul);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
+}
+
+// ---- «السنة»: a dot for every day of this Gregorian year (Riyadh time). Drawn again only when the day changes.
+let YEAR_SHOWN = false;
+function yearCard(){
+  const p = riyadhParts(new Date(Date.now())), y = p.y;
+  const total = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
+  const day = Math.round((Date.UTC(y, p.mo - 1, p.d) - Date.UTC(y, 0, 1)) / 864e5) + 1;
+  const COLS = 36, ROWS = Math.ceil(total / COLS), PITCH = 10, R = 3.2;
+  const rows = [];
+  for(let r = 0; r < ROWS; r++){
+    let g = '';
+    for(let c = 0; c < COLS; c++){
+      const n = r * COLS + c + 1;
+      if(n > total) break;
+      const cx = (COLS - 1 - c) * PITCH + PITCH / 2, cy = r * PITCH + PITCH / 2;   // right to left, like the page
+      if(n < day) g += `<circle class="on" cx="${cx}" cy="${cy}" r="${R}" fill-opacity="${(.28 + .72 * n / day).toFixed(2)}"/>`;
+      else if(n === day) g += `<circle class="halo" cx="${cx}" cy="${cy}" r="${R * 3}" fill-opacity=".12"/><circle class="halo" cx="${cx}" cy="${cy}" r="${R * 1.9}" fill-opacity=".28"/><circle class="now" cx="${cx}" cy="${cy}" r="${R * 1.15}"/>`;
+      else g += `<circle class="off" cx="${cx}" cy="${cy}" r="${R}"/>`;
+    }
+    rows.push(`<g class="r" style="--i:${r}">${g}</g>`);
+  }
+  const pct = Math.round(100 * day / total), anim = !YEAR_SHOWN;
+  YEAR_SHOWN = true;
+  const svg = `<svg viewBox="-10 -10 ${COLS * PITCH + 20} ${ROWS * PITCH + 20}" role="img" aria-label="${ar(day)} / ${ar(total)}">${rows.join('')}</svg>`;
+  return `<li class="yr${anim ? ' fill' : ''}"><div class="yn">${ar(y)}</div>${svg}`
+       + `<div class="yt">اليوم <b>${ar(day)}</b> من ${ar(total)} · ${ar(pct)}${LATIN ? '%' : '٪'}</div></li>`;
 }
 
 function prayerRows(){
@@ -1747,7 +1796,7 @@ const TADAWUL = {   // Arabic short names of the 30 largest companies; any other
 };
 const isSA = k => /^\d/.test(k);
 const stockName = k => isSA(k) ? (TADAWUL[k] || ar(k)) : k;
-// Riyadh is UTC+3 all year. Tadawul Sun-Thu 10:00-15:00; the US Mon-Fri 16:30-23:00 (approximate; holidays are ignored)
+// The exchanges keep their own hours whatever the city: Riyadh is UTC+3 all year. Tadawul Sun-Thu 10:00-15:00; the US Mon-Fri 16:30-23:00 (approximate; holidays are ignored)
 function marketOpen(sa, ms = Date.now()){
   const d = new Date(ms + 3*3600000), day = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes();
   return sa ? day <= 4 && m >= 600 && m < 900 : day >= 1 && day <= 5 && m >= 990 && m < 1380;

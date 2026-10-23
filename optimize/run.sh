@@ -18,6 +18,38 @@ RUN=optimize/run
 mkdir -p "$RUN"
 tv() { "$PY" -I optimize/tv.py "$@"; }
 
+# One run at a time: a second one would take the first for another TV and redo everything. The lock is a file with
+# the PID of the run; a PID that is gone means it died, and the lock is taken over.
+LOCK="$RUN/.lock"
+if [ "${1:-}" != status ]; then
+  for _ in 1 2; do
+    if ( set -C; echo $$ > "$LOCK" ) 2> /dev/null; then break; fi
+    other=$(cat "$LOCK" 2> /dev/null || true)
+    if [ -n "$other" ] && kill -0 "$other" 2> /dev/null; then
+      echo "run.sh: not started: another run is working on this TV (process $other). Wait for it to end, then run the same command again."
+      echo "(Its progress: optimize/run.sh status. If it is surely gone, delete $LOCK.)"
+      exit 1
+    fi
+    echo "(a lock left by a run that is gone: taken over)"
+    rm -f "$LOCK"
+  done
+  [ "$(cat "$LOCK" 2> /dev/null || true)" = "$$" ] || { echo "run.sh: not started: could not take the lock $LOCK"; exit 1; }
+# when each step started, ended or stopped: optimize/share.sh turns it into how long each took
+stamp() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$RUN/steps.log"; }
+current=start
+finish() {
+  local rc=$?
+  trap - EXIT
+  [ "$(cat "$LOCK" 2> /dev/null || true)" = "$$" ] && rm -f "$LOCK"
+  if [ "$rc" -eq 0 ]; then echo "run.sh: done"
+  else stamp "stopped $current (exit $rc)"; echo "run.sh: stopped at $current, run the same command again"; fi
+  exit "$rc"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+fi
+
 STEPS=(probe backup keep before before-saver safe mine tweaks screensaver launcher extras after after-saver report)
 title() {
   case "$1" in
@@ -82,7 +114,7 @@ report() {
   echo
   echo "Home: $(tv "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN" | tail -1)"
   echo "Screensaver: $(tv "settings get secure screensaver_components")"
-  echo "Versions: screensaver $(tv "dumpsys package sa.urtv.screensaver | grep -m1 versionName" | sed 's/.*=//'), home $(tv "dumpsys package sa.urtv.home | grep -m1 versionName" | sed 's/.*=//')"
+  echo "Versions: screensaver $(tv "dumpsys package sa.urtv.screensaver 2> /dev/null | grep -m1 versionName" | sed 's/.*=//'), home $(tv "dumpsys package sa.urtv.home 2> /dev/null | grep -m1 versionName" | sed 's/.*=//')"
   echo "Extras: TV Bro $([ -n "$(tv "pm list packages com.phlox.tvwebbrowser")" ] && echo yes || echo no), SmartTube $([ -n "$(tv "pm list packages org.smarttube.stable")" ] && echo yes || echo no)"
   local picks
   picks=$(grep -cvE '^\s*(#|$)' optimize/lists/mine.txt 2>/dev/null || true)
@@ -140,9 +172,6 @@ if [ -n "$tv_id" ] && [ "$(cat "$RUN/.tv" 2> /dev/null || true)" != "$tv_id" ]; 
   echo "$tv_id" > "$RUN/.tv"
 fi
 
-# when each step started, ended or stopped: optimize/share.sh turns it into how long each took
-stamp() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$RUN/steps.log"; }
-trap 'rc=$?; [ "$rc" -eq 0 ] || stamp "stopped ${current:-?} (exit $rc)"' EXIT
 for s in "${STEPS[@]}"; do
   [ -f "$RUN/.done-$s" ] && continue
   current=$s

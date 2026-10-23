@@ -23,11 +23,12 @@ something about the screensaver, the home screen or the TV, find it in the table
 
 | They ask for | The setting | Command |
 |---|---|---|
-| their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>`; not listed: `optimize/saver.sh city '<name>' <lat> <lon>` |
+| their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>` (a short form is fine if only one city matches); not listed: `optimize/saver.sh city '<name>' <lat> <lon>`, outside Saudi Arabia add its time zone: `… <lat> <lon> Asia/Kuwait` (without it, the TV's own zone) |
 | their clubs, the matches | الفرق المتابعة (up to 20) | `optimize/saver.sh find-team <club>` (Arabic or English), then `optimize/saver.sh teams <id:Name> …` in their order |
 | Formula 1, UFC, boxing | رياضات أخرى | `optimize/saver.sh events f1,ufc,boxing` (`""` = none) |
-| what shows beside the clock | المحتوى | `optimize/saver.sh card <verse, wisdom, adhkar, stocks, tasks, shows, prayers, forecast, hourly, prayerrow, matches, none>` |
+| what shows beside the clock | المحتوى | `optimize/saver.sh card <verse, wisdom, adhkar, stocks, tasks, year, shows, prayers, forecast, hourly, prayerrow, matches, none>` |
 | verse / hadith of the day | آية اليوم وحديث اليوم | `optimize/saver.sh card verse` (a verse one day, a hadith the next) |
+| the year, a dot for every day | السنة | `optimize/saver.sh card year` (365 dots, 366 in a leap year; days gone light up toward gold, today glows; «اليوم ٢٩٦ من ٣٦٥ · ٨١٪» under it; also `home-card year`) |
 | a proverb or saying | حكمة اليوم | `optimize/saver.sh card wisdom` |
 | morning and evening adhkar | أذكار الصباح والمساء | `optimize/saver.sh card adhkar` (morning Fajr–Dhuhr, evening Asr–Maghrib, end of al-Baqara at night; else the verse) |
 | today's prayer times as a list | مواقيت الصلاة اليوم | `optimize/saver.sh card prayers` (the next prayer is always at the bottom right) |
@@ -81,8 +82,8 @@ something about the screensaver, the home screen or the TV, find it in the table
 
 ## Not in تلفزيونك yet (say so, and pass it on with `--owner`)
 
-- Being built, not on TVs yet: their own background photos; following a whole league; the year card (365 dots);
-  turning our screensaver off when it is heavy for the TV; the right time for a city outside Saudi Arabia.
+- Being built, not on TVs yet: their own background photos; following a whole league;
+  turning our screensaver off when it is heavy for the TV.
 - Asked for, not planned yet: other countries' photos and prayer methods, moving cards around (layout), a news
   ticker, a flight countdown with the flight number (the countdown above can count to the trip's date).
 - Not possible: Samsung (Tizen) and LG (webOS) TVs can't run these apps.

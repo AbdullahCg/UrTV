@@ -53,7 +53,7 @@ printf '%s\n' \
   "echo '== processes'; ps -A | wc -l" \
   "echo '== cpu'; top -b -n 1 | head -14" \
   "echo '== disabled packages'; pm list packages -d | wc -l" \
-  "echo '== on screen'; dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity'; dumpsys dreams | grep -m1 -iE 'dreaming|mCurrentDream'" \
+  "echo '== on screen'; dumpsys activity activities 2> /dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity'; dumpsys dreams 2> /dev/null | grep -m1 -iE 'dreaming|mCurrentDream'" \
   "echo '== biggest'; dumpsys meminfo | sed -n '/Total [PR]SS by process/,/^$/p' | head -16" \
   "echo '== our apps'; for p in sa.urtv.screensaver sa.urtv.home; do echo \"\$p: \$(dumpsys meminfo \$p 2> /dev/null | grep -m1 -E '^ *TOTAL')\"; done" \
   | tv --batch > "$out"

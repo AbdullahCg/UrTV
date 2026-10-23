@@ -117,8 +117,22 @@ final class Prefs {
     String[] city() {
         return new String[] {sp.getString("cityName", "الرياض"), sp.getString("cityLat", "24.6877"), sp.getString("cityLon", "46.7219")};
     }
-    void setCity(String name, String lat, String lon) {
-        sp.edit().putString("cityName", name).putString("cityLat", lat).putString("cityLon", lon).apply();
+    void setCity(String name, String lat, String lon) { setCity(name, lat, lon, ""); }
+    /** tz: the place's own time zone, "" for a built-in city or when only the TV's is known (see cityTz) */
+    void setCity(String name, String lat, String lon, String tz) {
+        sp.edit().putString("cityName", name).putString("cityLat", lat).putString("cityLon", lon).putString("cityTz", tz).apply();
+    }
+
+    /** The time zone the page shows: Asia/Riyadh for a built-in (Saudi) city; a place of your own gets the one given
+     *  with it, else the TV's own. */
+    String cityTz() {
+        String own = sp.getString("cityTz", "");
+        if (!own.isEmpty()) return own;
+        String[] c = city();
+        for (Cities.Region r : Cities.REGIONS)
+            for (String[] x : r.cities)
+                if (x[0].equals(c[0]) && x[1].equals(c[1]) && x[2].equals(c[2])) return TZ;
+        return java.util.TimeZone.getDefault().getID();
     }
 
     static final int MAX_TEAMS = 20;
@@ -151,7 +165,8 @@ final class Prefs {
     static final String[][] PANELS = {
         {"shows", "جديد المسلسلات"}, {"prayers", "مواقيت الصلاة اليوم"}, {"forecast", "طقس الأيام القادمة"}, {"hourly", "طقس الساعات القادمة"}, {"prayerrow", "الصلوات في صف"},
         {"matches", "مباريات فرقك القادمة"}, {"verse", "آية أو حديث اليوم"}, {"wisdom", "حكمة اليوم"},
-        {"adhkar", "أذكار الصباح والمساء"}, {"stocks", "الأسهم"}, {"tasks", "المهام"}, {"none", "لا شيء"},
+        {"adhkar", "أذكار الصباح والمساء"}, {"stocks", "الأسهم"}, {"tasks", "المهام"}, {"year", "السنة"},
+        {"none", "لا شيء"},
     };
 
     /** Older builds had an on/off switch for the card; off becomes "none", otherwise the verse card. */
@@ -266,7 +281,7 @@ final class Prefs {
         List<String> ids = new ArrayList<>();
         for (String s : shows()) ids.add(s.split("\\|", 2)[0]);
         return "city=" + Uri.encode(city[0]) + "&lat=" + city[1] + "&lon=" + city[2]
-            + "&tz=" + Uri.encode(TZ)
+            + "&tz=" + Uri.encode(cityTz())
             + "&teams=" + join(teamIds(), ",")
             + "&events=" + join(list("events"), ",")
             + "&panel=" + panel()

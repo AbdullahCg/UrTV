@@ -2,11 +2,12 @@
 # شاشة تلفزيونك's settings, for agents: no remote, no menus.
 #   optimize/saver.sh show                         current settings
 #   optimize/saver.sh cities                       built-in Saudi cities by region
-#   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed)
-#   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude
+#   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed, or a short form of it: مكة; says if it fits several)
+#   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude; its time zone is the TV's own
+#   optimize/saver.sh city 'الكويت' 29.37 47.98 Asia/Kuwait   ... or the one you give (a built-in city is always Asia/Riyadh)
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed)
-#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast hourly prayerrow matches verse wisdom adhkar stocks tasks none
+#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast hourly prayerrow matches verse wisdom adhkar stocks tasks year none
 #   optimize/saver.sh home-card none               on the home screen (launcher): same choices, none = off
 #   optimize/saver.sh greeting off                 home screen: the greeting (by prayer time) and the weather line under it: on (default) or off
 #   optimize/saver.sh genres Drama,Comedy          episodes card: Drama Comedy Action Crime Thriller Mystery
@@ -51,9 +52,10 @@ case "${1:-}" in
   cities) send CITIES ;;
   update) send UPDATE ;;
   city)
-    [ $# -eq 2 ] || [ $# -eq 4 ] || { echo "usage: optimize/saver.sh city NAME [LAT LON]"; exit 1; }
+    [ $# -eq 2 ] || [ $# -eq 4 ] || [ $# -eq 5 ] || { echo "usage: optimize/saver.sh city NAME [LAT LON [TIMEZONE]]"; exit 1; }
     extra="--es city $(quote "$2")"
-    [ $# -eq 4 ] && extra="$extra --es lat $(quote "$3") --es lon $(quote "$4")"
+    [ $# -ge 4 ] && extra="$extra --es lat $(quote "$3") --es lon $(quote "$4")"
+    [ $# -eq 5 ] && extra="$extra --es tz $(quote "$5")"
     send SET "$extra" ;;
   teams)
     shift
@@ -111,5 +113,5 @@ case "${1:-}" in
       *) echo "usage: optimize/saver.sh tasks list | add 'نص' | done N | del N | clear"; exit 1 ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,34p' "$0"; exit 1 ;;
+  *) sed -n '2,35p' "$0"; exit 1 ;;
 esac
