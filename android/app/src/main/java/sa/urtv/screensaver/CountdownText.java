@@ -22,8 +22,6 @@ final class CountdownText {
     }
 
     static String digits(String s) {
-        StringBuilder b = new StringBuilder(s.length());
-        for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        return b.toString();
+        return DigitsText.convert(s, false);
     }
 }

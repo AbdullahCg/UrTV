@@ -32,7 +32,7 @@ check("MainActivity: every pill is a Pill with a fixed 30 dp row (the row's heig
       "right.addView(p, llp(-2, dp(Pill.HEIGHT), dp(10), 0, 0, 0))" in main and "TextView tasks" not in main and "TextView saver" not in main)
 check("MainActivity: D-pad ends and order are unchanged (wireFocus and moveFocusSideways still walk the pills list)",
       "p.setNextFocusLeftId(i == 0 ? p.getId() : pills.get(i - 1).getId())" in main and "int next = right ? index - 1 : index + 1;" in main)
-check("MainActivity: the sleep and network names are set on the pill, not drawn on the row", "sleepPill.setLabel(PillText.sleep(left))" in main
+check("MainActivity: the sleep and network names are set on the pill, not drawn on the row", "sleepPill.setLabel(Digits.of(PillText.sleep(left)))" in main
       and "wifiPill.setLabel(PillText.network(" in main)
 
 if not shutil.which("javac"):
@@ -40,7 +40,7 @@ if not shutil.which("javac"):
     sys.exit(1 if failed else 0)
 cases = [l.split("\t") for l in (ROOT / "tests/pill_text_cases.tsv").read_text(encoding="utf-8").split("\n") if l and not l.startswith("#")]
 with tempfile.TemporaryDirectory() as tmp:
-    subprocess.run(["javac", "-encoding", "UTF-8", "-d", tmp, str(HOME / "PillText.java"), str(ROOT / "tests/PillTextRun.java")], check=True,
+    subprocess.run(["javac", "-encoding", "UTF-8", "-d", tmp, str(HOME / "PillText.java"), str(HOME / "DigitsText.java"), str(ROOT / "tests/PillTextRun.java")], check=True,
                    capture_output=True)
     out = subprocess.run(["java", "-Dfile.encoding=UTF-8", "-cp", tmp, "sa.urtv.home.PillTextRun", str(ROOT / "tests/pill_text_cases.tsv")],
                          check=True, capture_output=True).stdout

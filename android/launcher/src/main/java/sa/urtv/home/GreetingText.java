@@ -74,9 +74,6 @@ final class GreetingText {
 
     /** Arabic-Indic digits (as the page's #digits=hindi), or the Latin ones left alone. */
     static String digits(String s, boolean latin) {
-        if (latin) return s;
-        StringBuilder b = new StringBuilder(s.length());
-        for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        return b.toString();
+        return DigitsText.convert(s, latin);
     }
 }

@@ -41,6 +41,7 @@ public class DockActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Digits.init(this);
         apps = Dock.launchable(this);
         row.addAll(Dock.shown(this, apps));
 
@@ -270,8 +271,6 @@ public class DockActivity extends Activity {
     private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
     private static String ar(int n) {
-        StringBuilder b = new StringBuilder();
-        for (char ch : String.valueOf(n).toCharArray()) b.append((char) ('٠' + (ch - '0')));
-        return b.toString();
+        return Digits.of(String.valueOf(n));
     }
 }

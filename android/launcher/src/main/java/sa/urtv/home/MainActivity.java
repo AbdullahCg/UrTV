@@ -149,6 +149,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Digits.init(this);   // the screensaver's «الأرقام» setting, for every number this screen writes
         dockApps = loadDock();
         liveTvPkg = getString(R.string.live_tv_package);
         inputPickerPkg = getString(R.string.input_picker_package);
@@ -866,7 +867,7 @@ public class MainActivity extends Activity {
     private void updateSleepPill() {
         if (sleepPill == null) return;
         int left = SleepTimer.minutesLeft(this);
-        sleepPill.setLabel(PillText.sleep(left));
+        sleepPill.setLabel(Digits.of(PillText.sleep(left)));
         sleepPill.setAccent(left > 0);   // gold while it runs: the minutes show when the pill has the focus
     }
 
@@ -907,6 +908,7 @@ public class MainActivity extends Activity {
         String tvTz = java.util.TimeZone.getDefault().getID();
         // one read of the screensaver's settings (its ConfigProvider, same signing key) for the whole tick; null zone = it is missing: the TV's own
         ConfigSnapshot cfg = ConfigSnapshot.read(this);
+        Digits.remember(this, cfg);   // a change of the setting reaches the next tick
         String[] zone = cfg.cityZone();
         String tz = zone == null ? tvTz : zone[1];
         Calendar now = ClockZone.at(ms, tz);   // the city's time, like the prayer times beside it
@@ -947,7 +949,7 @@ public class MainActivity extends Activity {
         if (words != null) adhanBar.setText(words);
     }
 
-    private static String arabicDigits(String s) { return PillText.digits(s); }
+    private static String arabicDigits(String s) { return Digits.of(s); }   // the setting's digits (hindi or latin)
 
     /** Connected or not comes from ConnectivityManager: WifiManager hides the network (id -1, "<unknown ssid>")
      *  from apps without location access, which looked like "not connected". The name only when readable. */

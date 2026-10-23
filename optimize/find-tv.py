@@ -310,13 +310,18 @@ the dialog is closed), then:
 
 def pair_cmd(args, run=subprocess.run, browse_fn=None):
     adb = wireless.find_adb()
-    if not adb:
+    if not args:   # the steps first (what to open on the TV, which numbers to read); a missing adb comes after them
+        print(PAIR_HELP)
+        if not adb:
+            print()
+            print(wireless.MISSING_ADB)
+            return 1
+    elif not adb:
         print(wireless.MISSING_ADB)
         return 1
     ip = local_ip()
     browse_fn = browse_fn or (lambda svc, t: wireless.browse(svc, t, wireless.UdpTransport(ip)))
     if not args:
-        print(PAIR_HELP)
         hits = browse_fn(wireless.SERVICE_PAIRING, 3.0)
         if hits:
             print(f"The pairing dialog answers at {hits[0]['host']}:{hits[0]['port']}: you only need the code from the person, then:")

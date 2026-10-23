@@ -6,6 +6,7 @@
         <item name="android:textColorPrimary">#F6EFE0</item>
         <item name="android:textColorSecondary">#C6BBA4</item>
         <item name="android:textColorAlertDialogListItem">#F6EFE0</item>
+        <item name="android:backgroundDimAmount">0.4</item>   <!-- the settings behind show through the glass -->
         <item name="android:colorAccent">#D6AF6B</item>
         <item name="android:colorControlActivated">#D6AF6B</item>
         <item name="android:colorControlNormal">#C6BBA4</item>

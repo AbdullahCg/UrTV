@@ -101,6 +101,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void render() {
+        latinDigits = DigitsText.isLatin(prefs.digits());
         list.removeAllViews();
         LinearLayout head = new LinearLayout(this);
         head.setOrientation(LinearLayout.HORIZONTAL);
@@ -139,8 +140,10 @@ public class SettingsActivity extends Activity {
             new Runnable() { public void run() { pickMany("events", "رياضات أخرى", Prefs.EVENTS, "بدون اختيار = بدون"); } });
 
         header("العرض");
+        noConv = true;
         row("الأرقام", Prefs.digitsLabel(prefs.digits()), R.drawable.ic_language,
             new Runnable() { public void run() { pickDigits(); } });
+        noConv = false;
         row("تنبيه قبل الأذان", prefs.adhanBar() ? "يعمل · شريط في أعلى الشاشة آخر ١٠ دقائق، ثم حتى الإقامة" : "متوقف", R.drawable.ic_eye,
             new Runnable() { public void run() { prefs.setAdhanBar(!prefs.adhanBar()); render(); } });
         row("تعديل وقت الصلاة", prefs.prayerAdjOn() ? "يعمل · لكل صلاة دقائقها، من −٢٠ إلى +٢٠ (الشروق لا يتغيّر)" : "متوقف · الأوقات كما تُحسب", R.drawable.ic_eye,
@@ -534,13 +537,13 @@ public class SettingsActivity extends Activity {
                 r.setOrientation(LinearLayout.VERTICAL);
                 r.setPadding(dp(16), dp(10), dp(16), dp(10));
                 TextView n = new TextView(SettingsActivity.this);
-                n.setText(labels[i]);
+                n.setText(conv(labels[i]));
                 n.setTextColor(0xFFF6EFE0);
                 n.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
                 n.setTypeface(font("Thmanyah-Medium"));
                 r.addView(n);
                 TextView a = new TextView(SettingsActivity.this);
-                a.setText(about[i]);
+                a.setText(conv(about[i]));
                 a.setTextColor(0xFFC6BBA4);
                 a.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
                 a.setTypeface(font("Thmanyah-Regular"));
@@ -763,7 +766,7 @@ public class SettingsActivity extends Activity {
             labels[i] = Prefs.DIGITS[i][1];
             if (Prefs.DIGITS[i][0].equals(prefs.digits())) sel = i;
         }
-        new Dlg(this).setTitle("الأرقام")
+        new Dlg(this).raw().setTitle("الأرقام")
             .setSingleChoiceItems(labels, sel, (d, i) -> { prefs.setDigits(Prefs.DIGITS[i][0]); d.dismiss(); render(); })
             .show();
     }
@@ -908,17 +911,13 @@ public class SettingsActivity extends Activity {
         return names.isEmpty() ? "لا شيء" : Prefs.join(names, "، ");
     }
 
-    private static String arabicDigits(String s) {
-        StringBuilder b = new StringBuilder();
-        for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        return b.toString();
-    }
+    /** the «الأرقام» setting as this screen draws it (read at every render): every number and label goes through conv() */
+    private static volatile boolean latinDigits;
+    private boolean noConv;   // the «الأرقام» row itself says «هندية ١٢٣» and «عربية 123»: both stay as they are
 
-    private static String arabicNum(int n) {
-        StringBuilder b = new StringBuilder();
-        for (char c : String.valueOf(n).toCharArray()) b.append((char) ('٠' + (c - '0')));
-        return b.toString();
-    }
+    private static String conv(String s) { return DigitsText.convert(s, latinDigits); }
+
+    private static String arabicNum(int n) { return conv(String.valueOf(n)); }
 
     private String showsLabel() {
         List<String> v = prefs.shows();
@@ -952,26 +951,38 @@ public class SettingsActivity extends Activity {
     /** the dialogs of this screen: the glass theme (styles.xml), and Thmanyah on every word of them once they show */
     private static final class Dlg extends AlertDialog.Builder {
         private final SettingsActivity owner;
+        private boolean raw;   // its words keep their own digits (the «الأرقام» picker shows both kinds)
 
         Dlg(SettingsActivity a) { super(a, R.style.UrDialog); owner = a; }
 
+        Dlg raw() { raw = true; return this; }
+
         @Override public AlertDialog create() {
             final AlertDialog d = super.create();
-            d.setOnShowListener(x -> owner.dress(d));
+            d.setOnShowListener(x -> owner.dress(d, raw));
             return d;
         }
     }
 
-    void dress(AlertDialog d) { if (d.getWindow() != null) dressView(d.getWindow().getDecorView()); }
+    void dress(AlertDialog d) { dress(d, false); }
+
+    void dress(AlertDialog d, boolean raw) { if (d.getWindow() != null) dressView(d.getWindow().getDecorView(), raw); }
 
     /** Thmanyah on every text under this view, and on the ones that come later (a list makes its rows when it is shown) */
-    private void dressView(View v) {
-        if (v instanceof TextView) ((TextView) v).setTypeface(font("Thmanyah-Medium"));
+    private void dressView(View v, final boolean raw) {
+        if (v instanceof TextView) {
+            TextView t = (TextView) v;
+            t.setTypeface(font("Thmanyah-Medium"));
+            if (!raw && !(v instanceof EditText)) {   // the numbers of the dialogs follow the «الأرقام» setting too
+                String was = t.getText().toString(), now = conv(was);
+                if (!now.equals(was)) t.setText(now);
+            }
+        }
         if (!(v instanceof ViewGroup)) return;
         ViewGroup g = (ViewGroup) v;
-        for (int i = 0; i < g.getChildCount(); i++) dressView(g.getChildAt(i));
+        for (int i = 0; i < g.getChildCount(); i++) dressView(g.getChildAt(i), raw);
         g.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener() {
-            @Override public void onChildViewAdded(View parent, View child) { dressView(child); }
+            @Override public void onChildViewAdded(View parent, View child) { dressView(child, raw); }
             @Override public void onChildViewRemoved(View parent, View child) { }
         });
     }
@@ -997,7 +1008,7 @@ public class SettingsActivity extends Activity {
 
     private void header(String text) {
         TextView t = new TextView(this);
-        t.setText(text);
+        t.setText(conv(text));
         t.setTextColor(0xFFD6AF6B);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         t.setTypeface(font("Thmanyah-Medium"));
@@ -1008,7 +1019,7 @@ public class SettingsActivity extends Activity {
     /** Plain lines at the end, in no button: nothing to focus, so the last row scrolls them into view. */
     private void note(View last, String... lines) {
         TextView t = new TextView(this);
-        t.setText(android.text.TextUtils.join("\n", lines));
+        t.setText(conv(android.text.TextUtils.join("\n", lines)));
         t.setTextColor(0xFFC6BBA4);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         t.setTypeface(font("Thmanyah-Regular"));   // a version line has digits and Latin letters: Thmanyah has them
@@ -1033,7 +1044,7 @@ public class SettingsActivity extends Activity {
     private void adjRow(final int k) {
         final View card = row(PrayerAdj.label(k, prefs.prayerAdj()[k]), "يسار + · يمين − · موافق للتصفير", R.drawable.ic_eye, null);
         final TextView name = (TextView) ((LinearLayout) ((LinearLayout) card).getChildAt(1)).getChildAt(0);
-        final Runnable show = new Runnable() { public void run() { name.setText(PrayerAdj.label(k, prefs.prayerAdj()[k])); } };
+        final Runnable show = new Runnable() { public void run() { name.setText(conv(PrayerAdj.label(k, prefs.prayerAdj()[k]))); } };
         card.setOnClickListener(v -> { int[] a = prefs.prayerAdj(); a[k] = 0; prefs.setPrayerAdj(a); show.run(); });
         card.setOnKeyListener((v, code, ev) -> {
             int d = code == android.view.KeyEvent.KEYCODE_DPAD_LEFT ? 1 : code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ? -1 : 0;
@@ -1068,7 +1079,7 @@ public class SettingsActivity extends Activity {
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
         final TextView name = new TextView(this);
-        name.setText(label);
+        name.setText(noConv ? label : conv(label));
         name.setTextColor(0xFFF6EFE0);
         name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
         name.setTypeface(font("Thmanyah-Medium"));
@@ -1076,7 +1087,7 @@ public class SettingsActivity extends Activity {
         texts.addView(name);
         final TextView val = new TextView(this);
         if (value != null) {
-            val.setText(value);
+            val.setText(noConv ? value : conv(value));
             val.setTextColor(0xFFC6BBA4);
             val.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
             val.setTypeface(font("Thmanyah-Regular"));
@@ -1152,7 +1163,7 @@ public class SettingsActivity extends Activity {
         }).start();
     }
 
-    private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
+    private void toast(String s) { Toast.makeText(this, conv(s), Toast.LENGTH_SHORT).show(); }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 }

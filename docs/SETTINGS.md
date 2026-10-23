@@ -45,7 +45,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 | their stocks | الأسهم | `optimize/saver.sh stocks 2222 1120 AAPL` (up to 8: 4 digits = Tadawul, letters = US) and `optimize/saver.sh card stocks`. A price that could not be refreshed stays, dimmed, with «آخر تحديث ٣:١٥ م» (its fetch time; «غير محدّث» after 24 hours): that is the TV's network or the price source, not the setting |
 | a to-do list | المهام | `optimize/saver.sh tasks add '<text>'` (also `list`, `done N`, `del N`, `clear`) and `optimize/saver.sh card tasks`; on the home screen the «المهام» pill, with voice; and when `home-card` has `tasks` (any of the three places) that card is itself a button: the D-pad reaches it from the pills, it shows a small mic mark and a gold ring, OK opens the list with the focus on «🎤 تكلّم» so one more OK starts adding by voice; the other cards are not focusable (nothing to set) |
 | a different look for that card | شكل البطاقة | `optimize/saver.sh cardstyle <current, dark1, glass1, dark3, glass3>` |
-| numbers as 123, not ١٢٣ | الأرقام | `optimize/saver.sh digits latin` (`hindi` = ١٢٣, the default) |
+| numbers as 123, not ١٢٣ | الأرقام | `optimize/saver.sh digits latin` (`hindi` = ١٢٣, the default); it reaches every screen of both apps, the page and the Java ones (the home clock, date, greeting, pills, «يُتلى الآن», «تلاوة وأذان», «المهام», the settings), through one helper each (`DigitsText`) |
 | no green on National / Founding Day | المناسبات الوطنية | `optimize/saver.sh national off` (`auto` is the default) |
 | what the bottom-left shows | الخانة اليسرى | `optimize/saver.sh slot <matches, weather, fasting, countdown, markets, none>` |
 | the next voluntary fast | الصيام | `optimize/saver.sh slot fasting` |

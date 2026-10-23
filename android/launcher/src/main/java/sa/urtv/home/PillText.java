@@ -25,8 +25,6 @@ final class PillText {
 
     /** 0-9 as ٠-٩, the digits the whole home screen uses */
     static String digits(String s) {
-        StringBuilder b = new StringBuilder(s.length());
-        for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        return b.toString();
+        return DigitsText.convert(s, false);
     }
 }

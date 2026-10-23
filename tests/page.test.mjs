@@ -1449,6 +1449,61 @@ for (const [width, height] of [[461, 250], [1920, 1080], [960, 540]]) {   // lon
   }
 }
 
+// ---- «مواقيت اليوم»: the six times as boxes; the lit one is the one the bottom panel names (the next prayer; during the iqama wait the one just
+// called; after Isha tomorrow's Fajr), the sunrise is never lit, the ones already gone are dimmed. Riyadh is UTC+3; 2026-10-23 is a Friday.
+{
+  const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
+  for (const [when, lit, past, label] of [   // lit: the box (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha = 0..5)
+      ['2026-10-22T17:58:00Z', 0, 5, '20:58 after Isha: tomorrow\'s Fajr'], ['2026-10-22T01:00:00Z', 0, 0, '04:00 before Fajr'],
+      ['2026-10-21T21:30:00Z', 0, 0, '00:30 after midnight'], ['2026-10-22T02:30:00Z', 2, 1, '05:30 between Fajr and sunrise'],
+      ['2026-10-22T03:30:00Z', 2, 2, '06:30 after sunrise'], ['2026-10-22T13:40:00Z', 4, 4, '16:40 Thursday'],
+      ['2026-10-23T13:40:00Z', 4, 4, '16:40 Friday (الجمعة)'], ['2026-10-22T14:50:00Z', 4, 4, '17:50 the Maghrib iqama wait'],
+      ['2026-10-22T08:50:00Z', 2, 2, '11:50 Thursday Dhuhr iqama wait'], ['2026-10-23T08:42:00Z', 3, 3, '11:42 Friday: no iqama wait for الجمعة'],
+      ['2026-10-22T16:20:00Z', 5, 5, '19:20 Isha iqama wait']]) {
+    for (const [hash, width, height] of [['panel=prayers', 1920, 1080], ['panel=prayers', 1280, 720], ['panel=prayers', 960, 540], ['panel=prayers&widget=1', 461, 250]]) {
+      const { p, ctx, errors } = await open('tv.html', hash, { width, height });
+      await p.clock.setFixedTime(new Date(when));
+      await p.evaluate(TIMES + ' renderPanel(false); tickPrayer();');
+      const r = await p.evaluate(() => { const lis = [...document.querySelectorAll('#week-list li')], card = document.querySelector('.week').getBoundingClientRect();
+        return { n: lis.length, lit: lis.map((l, i) => l.classList.contains('next') ? i : -1).filter(i => i >= 0), past: lis.filter(l => l.classList.contains('past')).length,
+          litName: (lis.find(l => l.classList.contains('next')) || { textContent: '' }).firstElementChild.textContent, panel: (document.getElementById('prayer-name') || {}).textContent || '',
+          inside: lis.every(l => { const b = l.getBoundingClientRect(); return b.left >= card.left - 1 && b.right <= card.right + 1 && b.bottom <= card.bottom + 1; }),
+          dayName: lis[2].firstElementChild.textContent }; });
+      const tag = `prayer boxes ${label} ${width}x${height}${hash.includes('widget') ? ' card' : ''}`;
+      check(`${tag}: six boxes inside the card, exactly one lit (box ${lit}), ${past} dimmed`,
+        !errors.length && r.n === 6 && r.lit.join() === String(lit) && r.past === past && r.inside, JSON.stringify(r) + errors.join('; '));
+      if (!hash.includes('widget')) check(`${tag}: the lit box is the prayer the bottom panel names, the sunrise never lit`, r.litName === r.panel && r.lit[0] !== 1, JSON.stringify(r));
+      if (when.startsWith('2026-10-23')) check(`${tag}: Friday's Dhuhr box says الجمعة`, r.dayName === 'الجمعة', r.dayName);
+      await ctx.close();
+    }
+  }
+}
+
+// ---- «تعديل وقت الصلاة» on the screensaver's page, with the fragment as the app builds it (Prefs.fragment(): the offsets come after yearstrip):
+// the card, the next-prayer panel, the adhan bar and the iqama wait all read the moved Maghrib (17:45 + 2 = 17:47), here and in the launcher's card
+{
+  const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
+  const FRAG = 'city=%D8%A7%D9%84%D8%B1%D9%8A%D8%A7%D8%B6&lat=24.7136&lon=46.6753&tz=Asia%2FRiyadh&teams=&events=&leagues=&panel=prayers&week=1&genres=&langs=&shows=&minrating=0&photos=30&digits=hindi&cardstyle=current&adhanbar=1&yearstrip=0&adj=0,0,0,2,0&national=all&markets=tasi,spx,btc&mkstyle=arrows&stocks=&slot=matches&cd=&cdname=';
+  for (const [when, label, wantCard, wantPanel, wantBar] of [
+      ['2026-10-22T13:40:00Z', '16:40', '٥:٤٧ م', 'المغرب ٥:٤٧ م', ''],
+      ['2026-10-22T14:44:00Z', '17:44, three minutes to the moved adhan', '٥:٤٧ م', 'المغرب ٥:٤٧ م', 'الأذان بعد ٣ دقائق'],
+      ['2026-10-22T14:46:00Z', '17:46: the unmoved Maghrib has passed, the moved one has not', '٥:٤٧ م', 'المغرب ٥:٤٧ م', 'الأذان بعد ١ دقيقة'],
+      ['2026-10-22T14:50:00Z', '17:50: in the iqama wait (17:47 + 10)', '٥:٤٧ م', 'المغرب ٥:٤٧ م', 'الإقامة بعد ٧ دقائق']]) {
+    for (const [hash, width, height] of [[FRAG, 1920, 1080], [FRAG + '&widget=1', 561, 253]]) {
+      const { p, ctx, errors } = await open('tv.html', hash, { width, height });
+      await p.clock.setFixedTime(new Date(when));
+      await p.evaluate(TIMES + ' renderPanel(false); tickPrayer();');
+      const r = await p.evaluate(() => ({ adj: CONFIG.prayerAdj.join(), maghrib: fmt12(...[PRAYERS.find(x => x.key === 'Maghrib')].map(x => [x.h, x.mi])[0]),
+        card: [...document.querySelectorAll('#week-list li')].map(l => l.textContent.replace(/\s+/g, ' ').trim()).find(t => t.startsWith('المغرب')) || '',
+        panel: (document.getElementById('prayer-name').textContent + ' ' + document.getElementById('prayer-time').textContent).trim(), bar: adhanBarText() || '' }));
+      const tag = `adj on the page, ${label}, ${width}x${height}${hash.includes('widget') ? ' card' : ''}`;
+      check(`${tag}: the offsets arrive with the fragment and the card, the panel${hash.includes('widget') ? '' : ', the bar'} show the moved Maghrib`,
+        !errors.length && r.adj === '0,0,0,2,0' && r.maghrib === wantCard && r.card.includes(wantCard) && (hash.includes('widget') || (r.panel === wantPanel && r.bar === wantBar)), JSON.stringify(r) + errors.join('; '));
+      await ctx.close();
+    }
+  }
+}
+
 // ---- «الصلوات في صف»: five prayers in one row, the next lit, «المغرب بعد ١ س و ٥ د» above, with the clock held still
 {
   const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
@@ -2852,10 +2907,19 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
   // the link-keyed snapshots: the newest six stay
   await p.evaluate(() => { const now = Date.now(), seen = {}; for (let i = 0; i < 9; i++) { localStorage.setItem('snap6:#n' + i, '[]'); seen['snap6:#n' + i] = now - (i + 1) * 36e5; }
     localStorage.setItem('lsSeen', JSON.stringify(seen)); localStorage.setItem('forecast:5.000,6.000', '[]'); const s2 = JSON.parse(localStorage.getItem('lsSeen')); s2['forecast:5.000,6.000'] = now - 15 * 864e5; localStorage.setItem('lsSeen', JSON.stringify(s2)); });
+  await p.waitForTimeout(500);   // Chromium writes storage out a moment after the write; the page must not start before that
   await carry(p); await p.goto('about:blank'); await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');   // (a new page: a changed #hash alone is no reload)
   await p.waitForTimeout(500);
   const after = await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snap6:')).length);
-  const gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  let gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  // Chromium writes the storage out a moment after the page's own writes (the known flake of this file, see carry()): the pruning is idempotent,
+  // so a boot that raced the write is followed by up to two more; a pruning that does not work leaves the key every time
+  for (let again = 0; again < 2 && gone !== null; again++) {
+    await p.waitForTimeout(500); await carry(p); await p.goto('about:blank');
+    await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');
+    await p.waitForTimeout(500);
+    gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  }
   check('storage: the link-keyed snapshots are kept to the newest six (this page\'s own included)', after <= 6, String(after));
   check('storage: a copy for another city unused for two weeks is dropped', gone === null);
   await ctx.close();

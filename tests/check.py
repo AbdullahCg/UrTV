@@ -46,7 +46,11 @@ for page, limit in (("urtv.html", 4_000_000), ("tv.html", 650_000)):   # tv.html
     left = sorted(set(re.findall(r"__[A-Z][A-Z_]+__", html)))
     check(f"{page}: every build token replaced", not left, left)
     check(f"{page}: size under {limit // 1000} KB", len(html.encode()) < limit, len(html.encode()))
-stale = [n for n, b in before.items() if (ROOT / "dist" / n).read_bytes() != b]
+# the build stamp is the time of the newest commit of the sources: a build before the commit carries the one before, so it is left out here
+unstamp = lambda b: re.sub(rb'(<meta name="urtv-build" content=")\d{14}', rb"\1", b)
+stale = [n for n, b in before.items() if unstamp((ROOT / "dist" / n).read_bytes()) != unstamp(b)]
+check("dist/tv.html carries the build stamp the app compares pages by (<meta name=\"urtv-build\">, 14 digits)",
+      re.search(rb'<meta name="urtv-build" content="\d{14}">', (ROOT / "dist/tv.html").read_bytes()[:4096]) is not None)
 check("dist/ matched a fresh build (run src/build.py after editing src/)", len(before) == 1 and not stale, stale)
 
 # ---- data files
@@ -221,6 +225,10 @@ okword = [f"{f.name}: {m.group(0)[:40]}" for f, src in java.items()
 okword += [f"{x.name}: {m.group(0)[:40]}" for x in (ROOT / "android").glob("*/src/main/res/values*/*.xml")
            for m in re.finditer(r"<string [^>]*>[^<]*", x.read_text(encoding="utf-8")) if re.search(r"\bOK\b", m.group(0))]
 check("java: no «OK» in an Arabic hint (use «اختيار»)", not okword, okword)
+# the digits setting (hindi or latin) reaches every Java screen through DigitsText, one helper per app: nothing turns a digit by hand
+by_hand = [f"{f.name}: {m.group(0)}" for f, src in java.items() if f.name not in ("DigitsText.java",)
+           for m in re.finditer(r"'[٠\u0660]'\s*\+|\+\s*'[٠\u0660]'|'[0-9]'\s*\+\s*\(?\w+\s*-\s*'٠'", src)]
+check("java: no digit conversion by hand outside DigitsText (Digits.of / DigitsText.convert)", not by_hand, by_hand)
 # the preview and the settings must open fresh: an open one comes back with the settings it opened with, or in front of
 # the one asked for (a TV test read the preview as the settings screen, and as the settings not working)
 starts = [f"{f.name}: {l.strip()}" for f in sorted((ROOT / "optimize").glob("*.sh"))

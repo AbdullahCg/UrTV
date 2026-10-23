@@ -21,6 +21,7 @@ public class SurahActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        sa.urtv.home.Digits.init(this);   // the screensaver's «الأرقام» setting
         cat = Catalog.get(this);
         int index = getIntent().getIntExtra("reciter", -1);
         if (index < 0 || index >= cat.reciters.size()) { finish(); return; }
