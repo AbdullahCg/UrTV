@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """src/template.html -> two pages in dist/:
 
-urtv.html           stand-alone: fonts and the bundled photos inlined, works offline from a double-click.
+urtv.html           stand-alone: fonts and the bundled photos inlined, works offline from a double-click. Not committed:
+                    it carries Thmanyah, whose licence allows the font only inside a built product.
 tv.html             for the Android app: same page, but fonts and bundled photos are URLs the app serves from
                     its own assets (PhotoCache.java). 2.2 MB less to parse, so the screensaver starts faster.
 """
@@ -293,8 +294,11 @@ def main():
     for name, inline in (("urtv.html", True), ("tv.html", False)):
         page = html
         for token, font in FONTS.items():
-            page = page.replace(token, data_uri(ROOT / "assets/fonts" / font, "font/woff2") if inline
-                                else REPO + "assets/fonts/" + font)
+            path = ROOT / "assets/fonts" / font
+            if inline and not path.is_file():   # Thmanyah comes from the private urtv-fonts repo (CI, or a copy you have):
+                page = page.replace(token, "data:,")   # without it this page falls back to the system's Arabic font
+            else:
+                page = page.replace(token, data_uri(path, "font/woff2") if inline else REPO + "assets/fonts/" + font)
         entries = []
         for bg in bgs:
             u = data_uri(bg_dir / bg["file"], "image/jpeg") if inline else REPO + "assets/backgrounds/" + bg["file"]
