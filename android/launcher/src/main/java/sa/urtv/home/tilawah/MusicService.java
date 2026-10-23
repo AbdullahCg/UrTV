@@ -535,6 +535,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         adhanName = null;
         handler.removeCallbacks(sleepStart);
         sleepUntil = 0;
+        announce();
         foregroundStarted = false;
         stopForeground(true);
         if (session != null) {
@@ -621,7 +622,17 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     // ---- MediaSession + notification ----
 
+    /** The home screen's «يُتلى الآن» card hears about it when what it shows may have changed: once per change, never on the clock's tick. */
+    private String announced = "";
+    private void announce() {
+        String now = source + "|" + playing + "|" + buffering + "|" + reciter + "|" + surah + "|" + station + "|" + (error != null) + "|" + (sleepUntil > 0);
+        if (now.equals(announced)) return;
+        announced = now;
+        sendBroadcast(new Intent(NowPlaying.CHANGED).setPackage(getPackageName()));
+    }
+
     private void updateSession() {
+        announce();
         if (session == null) return;
         String title = "تلاوة", artist = "";
         if (source == Prefs.SOURCE_SURAH && reciter >= 0 && reciter < cat.reciters.size()) {
