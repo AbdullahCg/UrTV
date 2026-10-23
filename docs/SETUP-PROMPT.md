@@ -266,6 +266,9 @@ optimize/saver.sh home-card none                  # home screen: no card
 # «المهام» (only if I ask): optimize/saver.sh tasks add 'نص' | list | done N | del N | clear, and card tasks
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
 optimize/dock.sh hidden                           # apps the home screen leaves out, and why
+optimize/dock.sh names                            # every app's name: package | shown | its own | from; then name in Arabic,
+                                                  # in ONE call, each app whose shown name has no Arabic letters (rules below):
+                                                  # optimize/dock.sh name <pkg> '<الاسم>' <pkg> '<الاسم>' ...
 optimize/saver.sh photos <5, 10, 15, 30 or 60>   # ONLY if I asked how often the photo changes (default 30 minutes: leave it)
 optimize/saver.sh idle <1, 2, 5, 10, 15 or 30>   # ONLY if I asked when the screensaver starts after the TV idles (the TV's own timer: leave it)
 optimize/saver.sh cardstyle <current, dark1, glass1, dark3 or glass3>   # ONLY if I asked for another look for the card beside the clock (default current: leave it)
@@ -285,6 +288,13 @@ stay out. Change that only by these rules: `optimize/dock.sh show <pkg>` for an 
 mine (on the step 1 screenshot) or that I asked for; `optimize/dock.sh hide <pkg>` for an app it shows that is in
 `optimize/lists/tcl-safe.txt` or `tcl-optional.txt`; never hide one in `keep.txt`. Any other you are unsure about:
 list it for me in step 7 instead of choosing.
+
+App names: the home screen shows an app's name in Arabic when the app has one or our list knows it; give every
+other app (shown name with no Arabic letters) its Arabic name yourself with `dock.sh name`. Use the name Arabic
+speakers use for it: the brand's own Arabic name if it has one (شاهد، ثمانية، أنغامي), else the usual Arabic
+spelling (نتفليكس، يوتيوب، ديزني +، ابل تي في), and for a tool, what it does (الإعدادات، الملفات، المتصفح، المصادر).
+Up to 30 characters, no ' ; or |. Leave an app whose shown name is already Arabic. In step 7, list the names you
+gave so I can change any (`dock.sh name <pkg> '<اسم آخر>'`, or `''` for its usual name).
 
 Take every id from `find-team`'s output, which comes from our list of every club in the app's leagues and the
 national teams; never guess one. If it gives several, pick the one I meant (a Saudi club before a namesake abroad).
