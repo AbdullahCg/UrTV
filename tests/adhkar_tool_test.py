@@ -32,7 +32,8 @@ SUBHAN = "قَالَ رَسُولُ اللَّهِ صلى الله عليه وس
 FAKE = {
     "ara-bukhari": book((1, "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ سُبْحَانَ اللَّهِ الْعَظِيمِ"),
                         (6306, "سَيِّدُ الاِسْتِغْفَارِ أَنْ تَقُولَ اللَّهُمَّ أَنْتَ رَبِّي لاَ إِلَهَ إِلاَّ أَنْتَ خَلَقْتَنِي وَأَنَا عَبْدُكَ وَأَبُوءُ لَكَ بِذَنْبِي فَاغْفِرْ لِي مَنْ قَالَهَا حِينَ يُمْسِي"),
-                        (6307, "كَلاَمٌ لاَ عَلاَقَةَ لَهُ")),
+                        (6307, "كَلاَمٌ لاَ عَلاَقَةَ لَهُ"),
+                        (5009, "الآيَتَانِ مِنْ آخِرِ سُورَةِ الْبَقَرَةِ مَنْ قَرَأَ بِهِمَا فِي لَيْلَةٍ كَفَتَاهُ")),
     "ara-muslim": book((2692, SUBHAN)),
     "ara-abudawud": book((5088, "قَالَ ‏\"‏ مَنْ قَالَ إِذَا أَصْبَحَ بِسْمِ اللَّهِ الَّذِي لاَ يَضُرُّ مَعَ اسْمِهِ شَىْءٌ فِي الأَرْضِ ‏\"‏"),
                          (5090, "اللَّهُمَّ عَافِنِي فِي بَدَنِي ثَلاَثًا"), (5091, "فِي الصَّبَاحِ كَلِمَةٌ لَيْسَ لَهَا غَيْرُ هَذَا الْحَدِيثِ لِلتَّجْرِبَةِ"),
@@ -64,7 +65,8 @@ entries = [
     {"when": "both", "text": "اللهم أنت ربي لا إله إلا أنت خلقتني وأنا عبدك وأبوء بذنبي فاغفر لي", "count": 1,
      "source": "صحيح البخاري · 6306"},   # «لك» missing before بذنبي
     {"when": "both", "text": "قل هو الله أحد الله الصمد لم يلد ولم يولد ولم يكن له كفوا أحد", "count": 3,
-     "source": "سورة الإخلاص · 1–4", "quran": "112:1-4"},
+     "source": "سورة الإخلاص · 1–4", "quran": "112:1-4",
+     "virtue": {"text": "من قرأ بهما في ليلة كفتاه", "source": "صحيح البخاري · 5009"}},
     {"when": "both", "text": "قل هو الله أحد الله الصمد ولم يكن له كفوا أحد", "count": 3, "source": "x", "quran": "112:1-4"},   # not the ayahs
 ]
 with tempfile.TemporaryDirectory() as tmp:
@@ -84,6 +86,10 @@ with tempfile.TemporaryDirectory() as tmp:
     check("a Quranic dhikr: the ayahs' text without the basmala, the surah and range as the source",
           pick[7] and pick[7]["source"] == "سورة الإخلاص · 1–4" and not pick[7]["text"].startswith("بِسْمِ")
           and pick[7]["text"].startswith("قُلْ هُوَ اللَّهُ أَحَدٌ"), pick[7])
+    check("a Quranic entry's `virtue` is cut from the book, harakat and all, under the number found",
+          rep[7].get("virtue", {}).get("text") == "مَنْ قَرَأَ بِهِمَا فِي لَيْلَةٍ كَفَتَاهُ" and rep[7]["virtue"]["source"] == "صحيح البخاري · 5009", rep[7].get("virtue"))
+    check("the count is reported against the narration: «مائة مرة» is there, «ثلاث مرات» is not, once is null",
+          pick[0]["count_in_narration"] is True and pick[1]["count_in_narration"] is False, [pick[0].get("count_in_narration"), pick[1].get("count_in_narration")])
     check("words that are not the ayahs in a row are not", pick[8] is None, pick[8])
     check("a narration that is not about the morning or evening is not picked, though Al-Albani grades it Sahih",
           pick[5] is None and rep[5]["found"] and rep[5]["found"][0]["accepted"] and not rep[5]["found"][0]["context"], rep[5])
@@ -100,4 +106,5 @@ with tempfile.TemporaryDirectory() as tmp:
     check("apply keeps the four found, marks them checked and drops the rest",
           len(kept) == 4 and all(k["checked"] for k in kept) and kept[0]["text"] == "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ"
           and kept[3]["quran"] == "112:1-4", [k["source"] for k in kept])
+    check("apply carries the verified `virtue` over", kept[3].get("virtue", {}).get("source") == "صحيح البخاري · 5009", kept[3])
 sys.exit(1 if fails else 0)

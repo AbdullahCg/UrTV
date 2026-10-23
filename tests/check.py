@@ -80,7 +80,7 @@ adhkar = json.loads(re.search(r"const ADHKAR = (\[.*?\]);", page, re.S).group(1)
 adhkar_raw = json.loads((ROOT / "assets/shared/adhkar.json").read_text(encoding="utf-8"))
 BOOKS_OK = ("صحيح البخاري", "صحيح مسلم", "سنن أبي داود", "جامع الترمذي", "سنن النسائي", "سنن ابن ماجه", "سورة")
 check("adhkar data: when, text, count and a source in the six books or the Quran; no text twice",
-      all(d["when"] in ("morning", "evening", "both") and d["text"] and isinstance(d["count"], int) and d["count"] > 0
+      all(d["when"] in ("morning", "evening", "night", "both") and d["text"] and isinstance(d["count"], int) and d["count"] > 0
           and d["source"].startswith(BOOKS_OK) and (not d.get("quran") or d["source"].startswith("سورة")) for d in adhkar_raw)
       and len({(d["when"], d["text"]) for d in adhkar_raw}) == len(adhkar_raw), [d["text"][:30] for d in adhkar_raw])
 check("adhkar on screen are only those the CI check found (marked checked)",

@@ -19,6 +19,13 @@ A dhikr found in none of the books gets `closest` in the report: the nearest nar
 names (and the numbers beside it) and in the other books, each with the stretch that matches best and the whole
 narration, harakat and all, so the exact wording can be taken from the book (never from memory).
 
+A hadith dhikr's `count` is only reported against the narration (`count_in_narration`: does it say ثلاث مرات, مائة مرة …;
+null for once): a count taken from حصن المسلم alone is visible there, for a human to judge.
+
+An entry may carry `virtue`: {text, source}, the hadith's own words shown on the card as its source line (the end
+of al-Baqara: «من قرأ بهما في ليلة كفتاه · صحيح البخاري 5009»). It is searched in the six books like a dhikr (no
+morning/evening context asked) and the text to show is cut from the book, harakat and all.
+
 A Quranic dhikr is searched in the text of its surah from api.alquran.cloud (the source fetch_verses.py uses), the
 ayahs of the range joined. The text to show is the API's, as fetch_verses.py would give it.
 """
@@ -35,7 +42,8 @@ MARKS = re.compile("[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]")   # 
 DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 ORDER = list(vh.BOOKS.values())
 # the narration is about the morning or the evening (letters only, as vh.norm gives them)
-CONTEXT = re.compile("صبح|صباح|مساء|امسي|امسا|مسيت|يمسي|تمسي|ممسي")
+CONTEXT = re.compile("صبح|صباح|مساء|امسي|مسيت|يمسي|تمسي")
+COUNT_WORDS = {3: "ثلاث", 7: "سبع", 10: "عشر", 33: "ثلاث وثلاثين|ثلاثا وثلاثين", 100: "مايه|ميه|ماءه"}   # as vh.norm gives them (ئ -> ي, ة -> ه)
 NEARBY = 6   # numbers either side of the cited one that `closest` lists
 
 
@@ -147,26 +155,56 @@ def closest(d, books, raw, grade_of, per_book=2):
     return out
 
 
+def search(key, book, num, books, raw, grade_of, context=True):
+    """(every narration holding `key`, the one to show or None). Accepted: Bukhari, Muslim, a Sunan one Al-Albani grades
+    Sahih or Hasan; with `context`, one that is itself about the morning or the evening too. The one the entry's own
+    `source` names comes first."""
+    found = []
+    for ed, rows in books.items():
+        for n, t in rows:
+            if key in t:
+                name = vh.BOOKS[ed]
+                hit = CONTEXT.search(vh.norm(raw[ed][n].get("text") or ""))
+                found.append({"book": name, "edition": ed, "number": n, "arabicnumber": raw[ed][n].get("arabicnumber"),
+                              "accepted": vh.albani_accepts(name, grade_of(ed, n)), "context": bool(hit),
+                              "context_hit": hit[0] if hit else None,
+                              "named": name == book and num in number_of(raw[ed][n])})
+    good = [f for f in found if f["accepted"] and (f["context"] or not context)]
+    if not good:
+        return found, None
+    f = min(good, key=lambda f: (not f["named"], ORDER.index(f["book"]), len(raw[f["edition"]][f["number"]]["text"])))
+    n = int(float(f["arabicnumber"])) if f.get("arabicnumber") else f["number"]
+    return found, {"text": cut(raw[f["edition"]][f["number"]]["text"], key), "source": f"{f['book']} · {n}", "book": f["book"],
+                   "number": n, "context_hit": f["context_hit"], "narration": raw[f["edition"]][f["number"]]["text"][:1500]}
+
+
+def count_in_narration(count, narration):
+    """Does the narration itself give the count (ثلاث مرات, مائة مرة …)? None for a dhikr said once."""
+    if count == 1:
+        return None
+    words = COUNT_WORDS.get(count)
+    return bool(words and re.search(words, vh.norm(narration)))
+
+
 def check_hadith(d, books, raw, grade_of):
     book, num = claimed(d["source"])
+    found = []
     for text in [d["text"]] + d.get("alt", []):
-        key = vh.norm(text)
-        found = []
-        for ed, rows in books.items():
-            for n, t in rows:
-                if key in t:
-                    name = vh.BOOKS[ed]
-                    found.append({"book": name, "edition": ed, "number": n, "arabicnumber": raw[ed][n].get("arabicnumber"),
-                                  "accepted": vh.albani_accepts(name, grade_of(ed, n)),
-                                  "context": bool(CONTEXT.search(vh.norm(raw[ed][n].get("text") or ""))),
-                                  "named": name == book and num in number_of(raw[ed][n])})
-        good = [f for f in found if f["accepted"] and f["context"]]
-        if good:
-            f = min(good, key=lambda f: (not f["named"], ORDER.index(f["book"]), len(raw[f["edition"]][f["number"]]["text"])))
-            shown = cut(raw[f["edition"]][f["number"]]["text"], key)
-            n = int(float(f["arabicnumber"])) if f.get("arabicnumber") else f["number"]
-            return found, {"text": shown, "source": f"{f['book']} · {n}", "book": f["book"], "number": n}
+        found, pick = search(vh.norm(text), book, num, books, raw, grade_of)
+        if pick:
+            pick["count_in_narration"] = count_in_narration(d["count"], pick["narration"])
+            return found, pick
     return found, None
+
+
+def check_virtue(d, books, raw, grade_of):
+    """The hadith's own words for a Quranic entry (`virtue`), as the book has them: {text, source} or None."""
+    v = d.get("virtue")
+    if not v or not books:
+        return None
+    book, num = claimed(v["source"])
+    found, pick = search(vh.norm(v["text"]), book, num, books, raw, grade_of, context=False)
+    return {"text": pick["text"], "source": pick["source"], "narration": pick["narration"]} if pick else {"missing": v, "found": [(f["book"], f["number"]) for f in found]}
 
 
 def ayah_range(ref):
@@ -216,6 +254,8 @@ def main():
     for d in wanted:
         found, pick = check_quran(d, surahs) if d.get("quran") else check_hadith(d, books, raw, grade_of)
         entry = {"text": d["text"], "found": found, "pick": pick}
+        if d.get("virtue"):
+            entry["virtue"] = check_virtue(d, books, raw, grade_of)
         if not pick and not d.get("quran"):
             entry["closest"] = closest(d, books, raw, grade_of)
         report.append(entry)

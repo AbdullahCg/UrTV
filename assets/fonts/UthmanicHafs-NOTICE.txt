@@ -13,8 +13,13 @@ Source of this copy: the font file UthmanicHafs-v-3.0.ttf shipped in the npm pac
 (https://registry.npmjs.org/@quran.ws/text/-/text-0.1.0.tgz, CC-BY-4.0 for the package's data; the font keeps
 KFGQPC's own licence), SHA-256 of that TTF
 5c47602425fb4190327ab9e1a2e8ed2f53dceaf595d8ccc29ac32b8b209ad398 (the hash the package records for the
-publisher's UthmanicHafs-v-3.0.zip member). The official site was not reachable when this was added;
-compare the hash against a copy from fonts.qurancomplex.gov.sa when you can.
+publisher's UthmanicHafs-v-3.0.zip member).
+
+Checked in CI (.github/tools/verify_uthmani.py, report on the data-quran-verify branch) against the publisher's own
+release, https://fonts.qurancomplex.gov.sa/ (KFGQPC-Hafs-V30.zip, KFGQPC Hafs V30.ttf, SHA-256
+c9dd7e71a454565b13d89e5e6f2663a918acb0a20a23eea31eccb32a3aeec47a): the same 611 code points with the same
+advance widths and the same outlines as this copy. The file hash differs from the one above (the two files are
+not byte for byte the same), the glyphs are the same.
 The only change: the TTF is wrapped as WOFF2 (lossless container, every glyph and table kept; no subsetting).
 
 The font's own licence (name table, id 13), in short: free of cost to use, copy and distribute; the font

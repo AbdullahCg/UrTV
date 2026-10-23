@@ -132,6 +132,9 @@
   /* the Uthmanic Hafs face is small for its size and its marks stack high: larger, with more leading */
   .week li.quote .qt{font-family:'UthmanicHafs','Thmanyah',serif;font-size:1.32em}
   .week li.quote.quran{line-height:1.95}
+  .week li.quote.quran.q1{font-size:clamp(13px,1.3vw,25px);line-height:1.85}   /* the Hafs face is wide: a lower floor than the other cards' */
+  .week li.quote.quran.q2{line-height:1.8}
+  .week li.quote.quran.q3,.week li.quote.quran.q4{line-height:1.55}   /* the longest verses, on the smallest screens, must still fit the card */
   /* «التفسير الميسر» under the verse (#tafsir=1): small and dim, three lines at most (fitTafsir) */
   .week li.tafsir{white-space:normal;display:block;border-bottom:none;padding:.5vh 0 0;line-height:1.65;
     font-size:clamp(11px,.92vw,17px);color:#B9AE96}
@@ -1485,7 +1488,7 @@ function quoteOfDay(){
   const n = riyadhDayNumber(), half = Math.floor(n / 2);
   if(VERSES.length && n % 2 === 0){
     const v = VERSES[half % VERSES.length];
-    return {title:'آية اليوم', rows:[`<li class="quote quran${v.text.length > 400 ? ' q4' : quoteSize(v.text.length)}"><span class="orn">﴿</span><span class="qt">${esc(v.text)}</span><span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]
+    return {title:'آية اليوم', rows:[`<li class="quote quran${v.text.length > 330 ? ' q4' : quoteSize(v.text.length)}"><span class="orn">﴿</span><span class="qt">${esc(v.text)}</span><span class="orn">﴾</span></li>`, `<li class="src">${esc(v.surah)} · ${ar(v.ayah)}</li>`]
       .concat(CONFIG.tafsir && v.tafsir ? [`<li class="tafsir">${esc(v.tafsir)}</li>`] : [])};
   }
   const h = HADITH[half % HADITH.length];
@@ -1503,14 +1506,16 @@ function wisdomOfDay(){
 }
 
 // «أذكار الصباح والمساء» (from حصن المسلم): only those .github/tools/verify_adhkar.py found in the six books or the Quran.
-// Morning ones from Fajr until Dhuhr, evening ones from Asr until Maghrib; outside those hours the card shows the
-// verse or hadith of the day. One timer, and only while a dhikr is on screen: 20 s + 0.1 s per character, at most 60 s.
+// Morning ones from Fajr until Dhuhr, evening ones from Asr until Maghrib, the night ones (the end of al-Baqara) from
+// Isha until Fajr; outside those hours the card shows the verse or hadith of the day. One timer, and only while a dhikr is on screen: 20 s + 0.1 s per character, at most 60 s.
 const ADHKAR = [{"when": "both", "text": "ٱللَّهُ لَآ إِلَٰهَ إِلَّا هُوَ ٱلۡحَيُّ ٱلۡقَيُّومُۚ لَا تَأۡخُذُهُۥ سِنَةٞ وَلَا نَوۡمٞۚ لَّهُۥ مَا فِي ٱلسَّمَٰوَٰتِ وَمَا فِي ٱلۡأَرۡضِۗ مَن ذَا ٱلَّذِي يَشۡفَعُ عِندَهُۥٓ إِلَّا بِإِذۡنِهِۦۚ يَعۡلَمُ مَا بَيۡنَ أَيۡدِيهِمۡ وَمَا خَلۡفَهُمۡۖ وَلَا يُحِيطُونَ بِشَيۡءٖ مِّنۡ عِلۡمِهِۦٓ إِلَّا بِمَا شَآءَۚ وَسِعَ كُرۡسِيُّهُ ٱلسَّمَٰوَٰتِ وَٱلۡأَرۡضَۖ وَلَا يَـُٔودُهُۥ حِفۡظُهُمَاۚ وَهُوَ ٱلۡعَلِيُّ ٱلۡعَظِيمُ", "count": 1, "source": "سورة البقرة · 255", "quran": true}, {"when": "both", "text": "قُلۡ هُوَ ٱللَّهُ أَحَدٌ ۝١ ٱللَّهُ ٱلصَّمَدُ ۝٢ لَمۡ يَلِدۡ وَلَمۡ يُولَدۡ ۝٣ وَلَمۡ يَكُن لَّهُۥ كُفُوًا أَحَدُۢ ۝٤", "count": 3, "source": "سورة الإخلاص · 1–4", "quran": true}, {"when": "both", "text": "قُلۡ أَعُوذُ بِرَبِّ ٱلۡفَلَقِ ۝١ مِن شَرِّ مَا خَلَقَ ۝٢ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝٣ وَمِن شَرِّ ٱلنَّفَّٰثَٰتِ فِي ٱلۡعُقَدِ ۝٤ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ ۝٥", "count": 3, "source": "سورة الفلق · 1–5", "quran": true}, {"when": "both", "text": "قُلۡ أَعُوذُ بِرَبِّ ٱلنَّاسِ ۝١ مَلِكِ ٱلنَّاسِ ۝٢ إِلَٰهِ ٱلنَّاسِ ۝٣ مِن شَرِّ ٱلۡوَسۡوَاسِ ٱلۡخَنَّاسِ ۝٤ ٱلَّذِي يُوَسۡوِسُ فِي صُدُورِ ٱلنَّاسِ ۝٥ مِنَ ٱلۡجِنَّةِ وَٱلنَّاسِ ۝٦", "count": 3, "source": "سورة الناس · 1–6", "quran": true}, {"when": "morning", "text": "اللَّهُمَّ بِكَ أَصْبَحْنَا وَبِكَ أَمْسَيْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ", "count": 1, "source": "سنن أبي داود · 5068"}, {"when": "evening", "text": "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ لاَ إِلَهَ إِلاَّ اللَّهُ وَحْدَهُ لاَ شَرِيكَ لَهُ", "count": 1, "source": "صحيح مسلم · 2723"}, {"when": "evening", "text": "رَبِّ أَعُوذُ بِكَ مِنَ الْكَسَلِ وَسُوءِ الْكِبَرِ رَبِّ أَعُوذُ بِكَ مِنْ عَذَابٍ فِي النَّارِ وَعَذَابٍ فِي الْقَبْرِ", "count": 1, "source": "صحيح مسلم · 2723"}, {"when": "both", "text": "بِسْمِ اللَّهِ الَّذِي لاَ يَضُرُّ مَعَ اسْمِهِ شَىْءٌ فِي الأَرْضِ وَلاَ فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ", "count": 3, "source": "سنن أبي داود · 5088"}, {"when": "both", "text": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "count": 100, "source": "صحيح مسلم · 2692"}, {"when": "evening", "text": "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ", "count": 3, "source": "صحيح مسلم · 2709"}, {"when": "morning", "text": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ عَدَدَ خَلْقِهِ وَرِضَا نَفْسِهِ وَزِنَةَ عَرْشِهِ وَمِدَادَ كَلِمَاتِهِ", "count": 3, "source": "صحيح مسلم · 2726"}, {"when": "morning", "text": "لاَ إِلَهَ إِلاَّ اللَّهُ وَحْدَهُ لاَ شَرِيكَ لَهُ، لَهُ الْمُلْكُ، وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَىْءٍ قَدِيرٌ", "count": 100, "source": "صحيح البخاري · 3293"}, {"when": "morning", "text": "اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا، وَرِزْقًا طَيِّبًا، وَعَمَلاً مُتَقَبَّلاً", "count": 1, "source": "سنن ابن ماجه · 925"}];   // assets/shared/adhkar.json, through src/build.py
 const ADHKAR_COUNT = {1:'مرة واحدة', 2:'مرتان', 3:'ثلاث مرات', 4:'أربع مرات', 7:'سبع مرات', 10:'عشر مرات', 33:'ثلاثاً وثلاثين مرة', 100:'مئة مرة'};
 const ADHKAR_ICON = {
   morning:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></svg>',
   evening:'<svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>',
+  night:'<svg viewBox="0 0 24 24"><path d="M19 13.5A7.5 7.5 0 0 1 9.5 4.4a7.5 7.5 0 1 0 9.5 9.1z"/><path d="M16.5 3.5v3M15 5h3"/></svg>',
 };
+const ADHKAR_HEAD = {morning:['أذكار الصباح', 'حتى الظهر'], evening:['أذكار المساء', 'حتى المغرب'], night:['الآيتان من آخر سورة البقرة', 'حتى الفجر']}   // the hadith's own words, no new category name;
 let ADHKAR_I = 0, ADHKAR_T = 0, ADHKAR_MODE = '', ADHKAR_N = 0;
 function adhkarWindow(){
   if(!DAY_TIMES) return '';
@@ -1518,6 +1523,7 @@ function adhkarWindow(){
   const at = k => { const [h, mi] = String(DAY_TIMES[k]).split(':').map(Number); return h * 60 + mi; };
   if(now >= at('Fajr') && now < at('Dhuhr')) return 'morning';
   if(now >= at('Asr') && now < at('Maghrib')) return 'evening';
+  if(now >= at('Isha') || now < at('Fajr')) return 'night';   // after midnight it is still the night before
   return '';
 }
 function adhkarNext(){
@@ -1526,7 +1532,7 @@ function adhkarNext(){
   renderPanel(ADHKAR_N > 1);
 }
 function adhkarCard(){
-  const mode = adhkarWindow(), list = mode ? ADHKAR.filter(d => d.when === mode || d.when === 'both') : [];
+  const mode = adhkarWindow(), list = mode ? ADHKAR.filter(d => d.when === mode || (d.when === 'both' && mode !== 'night')) : [];
   if(!list.length){
     clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_MODE = '';
     return quoteOfDay();
@@ -1537,12 +1543,12 @@ function adhkarCard(){
   if(!ADHKAR_T) ADHKAR_T = setTimeout(adhkarNext, Math.min(60, 20 + .1 * d.text.length) * 1000);
   const dots = Math.min(list.length, 12), on = Math.floor(i * dots / list.length);
   const text = d.quran ? `<span class="orn">﴿</span><span class="qt">${esc(d.text)}</span><span class="orn">﴾</span>` : esc(d.text);
-  const title = mode === 'morning' ? 'أذكار الصباح' : 'أذكار المساء';
+  const [title, until] = ADHKAR_HEAD[mode];
   return {
     title,
-    hd: `${ADHKAR_ICON[mode]}<span>${title}</span><span class="until">${mode === 'morning' ? 'حتى الظهر' : 'حتى المغرب'}</span>`,
+    hd: `${ADHKAR_ICON[mode]}<span>${title}</span><span class="until">${until}</span>`,
     rows: [`<li class="quote${d.quran ? ' quran' : ''}${d.text.length > 560 ? ' q4' : quoteSize(d.text.length)}">${text}</li>`,   // harakat make a dhikr long: one more step
-           `<li class="adf"><span class="s">${esc(ar(d.source))}</span><span class="c">${ADHKAR_COUNT[d.count] || ar(d.count) + ' مرة'}</span>`
+           `<li class="adf"><span class="s">${esc(ar(d.virtue ? `${d.virtue.text} · ${d.virtue.source.replace(' · ', ' ')}` : d.source))}</span><span class="c">${ADHKAR_COUNT[d.count] || ar(d.count) + ' مرة'}</span>`
            + `<span class="d">${Array.from({length: dots}, (_, k) => k === on ? '<i class="on"></i>' : '<i></i>').join('')}</span></li>`],
   };
 }

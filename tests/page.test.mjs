@@ -123,13 +123,16 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 
-// ---- «أذكار الصباح والمساء»: morning from Fajr to Dhuhr, evening from Asr to Maghrib, else the verse card; one timer, only inside
+// ---- «أذكار الصباح والمساء»: morning from Fajr to Dhuhr, evening from Asr to Maghrib, the night one (end of al-Baqara) from Isha
+// to Fajr, else the verse card; one timer, only inside
 const ADHKAR_SAMPLE = [
   { when: 'morning', text: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ', count: 1, source: 'صحيح مسلم · 2723' },
   { when: 'both', text: 'بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ', count: 3, source: 'سنن أبي داود · 5088' },
   { when: 'evening', text: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ', count: 7, source: 'صحيح مسلم · 2723' },
   { when: 'both', text: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', count: 100, source: 'صحيح مسلم · 2692' },
   { when: 'both', text: 'قُلْ هُوَ اللَّهُ أَحَدٌ', count: 3, source: 'سورة الإخلاص · 1–4', quran: true },
+  { when: 'night', text: 'آمَنَ الرَّسُولُ بِمَا أُنزِلَ إِلَيْهِ مِن رَّبِّهِ', count: 1, source: 'سورة البقرة · 285–286', quran: true,
+    virtue: { text: 'مَنْ قَرَأَ بِهِمَا فِي لَيْلَةٍ كَفَتَاهُ', source: 'صحيح البخاري · 5009' } },
 ];
 const LONG_DHIKR = { when: 'both', text: Array(68).fill('سُبْحَانَ اللَّهِ وَبِحَمْدِهِ').join(' ').split(' ').slice(0, 68).join(' '), count: 1, source: 'سنن أبي داود · 5074' };
 const atRiyadh = (p, hhmm) => p.evaluate(([hhmm, sample]) => {
@@ -146,16 +149,24 @@ const atRiyadh = (p, hhmm) => p.evaluate(([hhmm, sample]) => {
 }, [hhmm, ADHKAR_SAMPLE]);
 {
   const { p, ctx, errors } = await open('tv.html', 'panel=adhkar');
-  const m = await atRiyadh(p, '06:00'), e = await atRiyadh(p, '16:00'), noon = await atRiyadh(p, '13:00'), night = await atRiyadh(p, '22:00');
+  const m = await atRiyadh(p, '06:00'), e = await atRiyadh(p, '16:00'), noon = await atRiyadh(p, '13:00'), dusk = await atRiyadh(p, '18:30');
   const edge = [await atRiyadh(p, '04:39'), await atRiyadh(p, '04:40'), await atRiyadh(p, '11:39'), await atRiyadh(p, '11:40'),
                 await atRiyadh(p, '14:59'), await atRiyadh(p, '15:00'), await atRiyadh(p, '17:29'), await atRiyadh(p, '17:30')].map(r => /^أذكار/.test(r.hd));
+  const n = await atRiyadh(p, '22:00'), after = await atRiyadh(p, '03:00');
+  const nightEdge = [await atRiyadh(p, '18:59'), await atRiyadh(p, '19:00'), await atRiyadh(p, '23:59'), await atRiyadh(p, '00:00'), await atRiyadh(p, '04:39')].map(r => r.hd);
   check('adhkar morning (6:00): title, sun icon, «حتى الظهر», first dhikr, one timer',
     m.hd === 'أذكار الصباححتى الظهر' && m.icon && m.timer && m.text.replace(/[\u064B-\u065F]/g, '').startsWith('أصبحنا') && m.dots === '1000', JSON.stringify(m));
   check('adhkar evening (16:00): title, icon, «حتى المغرب», the evening ones only',
     e.hd === 'أذكار المساءحتى المغرب' && e.icon && e.timer && e.text.replace(/[\u064B-\u065F]/g, '').startsWith('بسم') && e.dots === '1000', JSON.stringify(e));
-  check('adhkar outside the windows: the verse or hadith of the day, no footer, no timer',
-    [noon, night].every(r => /^(آية|حديث) اليوم$/.test(r.hd) && !r.icon && !r.timer && !r.foot && r.text), JSON.stringify([noon, night]));
-  check('adhkar windows: from Fajr up to Dhuhr, from Asr up to Maghrib', edge.join() === 'false,true,true,false,false,true,true,false', edge.join());
+  check('adhkar outside the windows (13:00, 18:30): the verse or hadith of the day, no footer, no timer',
+    [noon, dusk].every(r => /^(آية|حديث) اليوم$/.test(r.hd) && !r.icon && !r.timer && !r.foot && r.text), JSON.stringify([noon, dusk]));
+  check('adhkar windows: from Fajr up to Dhuhr, from Asr up to Maghrib (and the night before Fajr)', edge.join() === 'true,true,true,false,false,true,true,false', edge.join());
+  check('adhkar night (22:00, and 03:00 after midnight): «الآيتان من آخر سورة البقرة» (the hadith\'s words, no invented name), moon icon, «حتى الفجر», only that verse (not the «both» ones), the hadith\'s own words as its source line',
+    [n, after].every(r => r.hd === 'الآيتان من آخر سورة البقرةحتى الفجر' && r.icon && r.timer && r.text.replace(/[\u064B-\u065F]/g, '').replace(/﴿/g, '').startsWith('آمن') && r.dots === '1' &&
+      r.foot.replace(/[\u064B-\u065F]/g, '').startsWith('من قرأ بهما في ليلة كفتاه · صحيح البخاري ٥٠٠٩')),
+    JSON.stringify([n, after]));
+  check('adhkar night: from Isha (19:00) until Fajr (04:40), the card in between is the verse card',
+    /^(آية|حديث) اليوم$/.test(nightEdge[0]) && nightEdge.slice(1).every(h => h === 'الآيتان من آخر سورة البقرةحتى الفجر'), nightEdge.join('|'));
   const r = await p.evaluate(() => {
     const out = [], st = window.setTimeout, ms = [];
     window.setTimeout = (f, t) => { ms.push(t); return st(f, t); };
@@ -199,16 +210,16 @@ for (const [width, height, style] of [[1920, 1080, ''], [1280, 720, ''], [960, 5
                                       [1920, 1080, 'dark3'], [1920, 1080, 'glass3'], [1280, 720, 'dark3'], [960, 540, 'glass3']]) {
   const { p, ctx, errors } = await open('tv.html', 'panel=adhkar' + (style ? '&cardstyle=' + style : ''), { width, height });
   const r = await p.evaluate(([sample, long]) => {
-    const T = Date.parse('2026-10-22T06:00:00+03:00'), R = Date;
-    window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+    const R = Date;
     ADHKAR.length = 0; ADHKAR.push(...sample, long);
     buildPrayers({ Fajr: '04:40', Sunrise: '06:00', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:30', Isha: '19:00' });
-    clearTimeout(ADHKAR_T); ADHKAR_T = 0; ADHKAR_MODE = '';
     const card = document.querySelector('.week'), bad = [];
     const top = document.querySelector('.top').getBoundingClientRect(), clock = document.querySelector('.clockwrap').getBoundingClientRect();
     const bar = document.querySelector('.bottom').getBoundingClientRect();
-    for (let i = 0; i < ADHKAR.length; i++) {
-      ADHKAR_I = i; clearTimeout(ADHKAR_T); ADHKAR_T = 0; renderPanel(false);
+    for (const [hhmm, i] of ADHKAR.map((d, i) => ['06:00', i]).concat([['22:00', 0]])) {   // each morning dhikr, then the night one
+      const T = Date.parse('2026-10-22T' + hhmm + ':00+03:00');
+      window.Date = class extends R { constructor(...a) { a.length ? super(...a) : super(T); } static now() { return T; } };
+      ADHKAR_MODE = ''; ADHKAR_I = i; clearTimeout(ADHKAR_T); ADHKAR_T = 0; renderPanel(false);
       const c = card.getBoundingClientRect(), ft = card.querySelector('.adf'), f = ft.getBoundingClientRect();
       const wide = [...card.querySelectorAll('.hd *, .adf *')].some(e => e.getBoundingClientRect().right > c.right + 1 || e.getBoundingClientRect().left < c.left - 1);
       if (c.top < top.bottom || c.bottom > bar.top - 4 || c.right > clock.left - 4 || c.height > 0.42 * innerHeight || f.bottom > c.bottom + 1

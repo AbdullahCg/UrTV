@@ -41,6 +41,11 @@ def main():
         e = {"when": d["when"], "text": pick["text"], "count": d["count"], "source": pick["source"]}
         if d.get("quran"):
             e["quran"] = d["quran"]
+        virtue = rows[d["text"]].get("virtue")
+        if d.get("virtue") and virtue and virtue.get("text"):   # the hadith's own words, as the book has them
+            e["virtue"] = {"text": virtue["text"], "source": virtue["source"]}
+        elif d.get("virtue"):
+            print(f"virtue not found in the books, left out: {d['virtue']['text']}")
         e["checked"] = True
         kept.append(e)
     DATA.write_text(json.dumps(kept, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

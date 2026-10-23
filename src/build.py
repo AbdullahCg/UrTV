@@ -229,7 +229,7 @@ def adhkar_for_screen():
     path = ROOT / "assets/shared/adhkar.json"
     out = []
     for d in json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []:
-        if not d.get("checked") or d["when"] not in ("morning", "evening", "both"):
+        if not d.get("checked") or d["when"] not in ("morning", "evening", "night", "both"):
             continue
         if d.get("quran"):
             if not d.get("uthmani"):
@@ -242,6 +242,8 @@ def adhkar_for_screen():
         e = {"when": d["when"], "text": text, "count": d["count"], "source": d["source"]}
         if d.get("quran"):
             e["quran"] = True
+        if d.get("virtue"):   # the hadith's own words, shown as the source line
+            e["virtue"] = d["virtue"]
         out.append(e)
     return out
 
