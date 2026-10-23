@@ -2542,6 +2542,65 @@ for (const width of [400, 330]) {   // a narrow box: the longest names take the 
   }
 }
 
+// ---- the launcher's «المهام» card is a button (#live=1): a mic mark in its corner, a ring while Android says it has the focus; no other
+// card has either, nothing changes size, the page never shows them without live=1 or on the screensaver. Android owns the focus and OK.
+const LIVE_EXTRA = 'tasks=' + encodeURIComponent(TASKS12.slice(0, 5).join('\n'));
+const liveRead = (p, style) => p.evaluate(() => {
+  const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+  const hdText = c => { const r = document.createRange(); r.selectNodeContents(c.hd); const b = r.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+  return { kinds: CARDS.map(c => c.kind), live: CARDS.map(c => c.el.classList.contains('live')), lf: CARDS.map(c => c.el.classList.contains('lf')),
+    marks: CARDS.map(c => c.el.querySelectorAll('.micmark').length), cards: CARDS.map(c => box(c.el)),
+    mark: CARDS.map(c => { const m = c.el.querySelector('.micmark'); return m ? box(m) : null; }), hd: CARDS.map(hdText),
+    shadow: CARDS.map(c => getComputedStyle(c.el).boxShadow), rect: liveRect(), mid: document.querySelector('.mid').getBoundingClientRect().height,
+    shown: CARDS.map(c => { const m = c.el.querySelector('.micmark'); return m ? getComputedStyle(m).display : 'none'; }) };
+});
+for (const [cards, W] of [['tasks', 1920], ['tasks,prayerrow,hourly', 1920], ['prayerrow,tasks,hourly', 1920], ['prayerrow,hourly,tasks', 1920],
+                          ['prayerrow,tasks,hourly', 960], ['prayerrow,hourly,tasks', 1280], ['verse,tasks', 1280]]) {
+  for (const style of ['current', 'glass1', 'dark3']) {
+    const on = await homeCards(cards, W, { style, extra: LIVE_EXTRA + '&live=1' }), off = await homeCards(cards, W, { style, extra: LIVE_EXTRA });
+    const a = await liveRead(on.p), b = await liveRead(off.p), probe = await homeProbe(on.p);
+    const at = a.kinds.indexOf('tasks'), tag = `home card ${cards} (${style}, ${W})`;
+    check(`${tag}: live: one mic mark, on the «المهام» card only; none without live=1`,
+      !on.errors.length && a.live.filter(Boolean).length === 1 && a.live[at] && a.marks.reduce((x, y) => x + y) === 1 && a.marks[at] === 1 && a.shown[at] !== 'none'
+      && !b.live.some(Boolean) && b.marks.every(n => n === 0), JSON.stringify([a.live, a.marks, b.live, b.marks]));
+    check(`${tag}: the mark is inside its card and clear of the card's title`,
+      a.mark[at].l >= a.cards[at].l - .5 && a.mark[at].r <= a.cards[at].r + .5 && a.mark[at].t >= a.cards[at].t - .5 && a.mark[at].b <= a.cards[at].b + .5
+      && !(a.mark[at].l < a.hd[at].r && a.hd[at].l < a.mark[at].r && a.mark[at].t < a.hd[at].b && a.hd[at].t < a.mark[at].b), JSON.stringify([a.mark[at], a.hd[at], a.cards[at]]));
+    check(`${tag}: nothing changes size or place for it (every card's box, the whole height), nothing cut or overlapping`,
+      JSON.stringify(a.cards) === JSON.stringify(b.cards) && a.mid === b.mid && !probe.overlap.length && !probe.outside.length && !probe.cut.length && !probe.dots.length,
+      JSON.stringify([a.cards, b.cards, probe]));
+    check(`${tag}: liveRect() is where the card is (what the launcher puts its focus target over)`,
+      a.rect === [a.cards[at].l, a.cards[at].t, a.cards[at].r - a.cards[at].l, a.cards[at].b - a.cards[at].t].map(v => v.toFixed(1)).join(',') && b.rect === '', a.rect + ' / ' + b.rect);
+    await on.p.evaluate(() => setLiveFocus(true));
+    const f1 = await liveRead(on.p);
+    await on.p.evaluate(() => setLiveFocus(false));
+    const f0 = await liveRead(on.p);
+    check(`${tag}: setLiveFocus(true) rings the «المهام» card inside its own box and no other; (false) takes it off`,
+      f1.lf[at] && f1.lf.filter(Boolean).length === 1 && /inset/.test(f1.shadow[at]) && !f0.lf.some(Boolean) && f0.shadow[at] === a.shadow[at]
+      && JSON.stringify(f1.cards) === JSON.stringify(a.cards), JSON.stringify([f1.lf, f1.shadow[at], f0.lf]));
+    await off.p.evaluate(() => setLiveFocus(true));
+    const nf = await liveRead(off.p);
+    check(`${tag}: without live=1 the ring call does nothing`, !nf.lf.some(Boolean));
+    await on.ctx.close(); await off.ctx.close();
+  }
+}
+{   // no «المهام» among the cards: nothing live, whatever live=1 says; the screensaver's own page never has a mark
+  const o = await homeCards('prayerrow,hourly', 1920, { extra: LIVE_EXTRA + '&live=1' });
+  const a = await liveRead(o.p);
+  check('home card without «المهام»: live=1 changes nothing (no mark, no live card, liveRect empty)', !o.errors.length && !a.live.some(Boolean) && a.marks.every(n => n === 0) && a.rect === '', JSON.stringify(a.live));
+  await o.ctx.close();
+  const t = await open('tv.html', 'panel=tasks&live=1&' + LIVE_EXTRA, { width: 1280, height: 720, now: HOME_NOW });
+  const n = await t.p.evaluate(() => ({ marks: document.querySelectorAll('.micmark').length, shown: [...document.querySelectorAll('.micmark')].some(m => getComputedStyle(m).display !== 'none'), live: document.querySelectorAll('.live').length }));
+  check('screensaver page: live=1 is ignored (no mark, no live card)', !t.errors.length && n.marks === 0 && n.live === 0, JSON.stringify(n) + t.errors.join('; '));
+  await t.ctx.close();
+}
+{   // the task rows and the title are untouched by the mark (same text with and without)
+  const on = await homeCards('prayerrow,tasks,hourly', 1920, { extra: LIVE_EXTRA + '&live=1' }), off = await homeCards('prayerrow,tasks,hourly', 1920, { extra: LIVE_EXTRA });
+  const text = p => p.evaluate(() => CARDS[1].el.innerText.replace(/\s+/g, ' ').trim());
+  check('home card «المهام»: the same words with and without the mark', (await text(on.p)) === (await text(off.p)) && (await text(on.p)).includes('اتصل بالسباك'), await text(on.p));
+  await on.ctx.close(); await off.ctx.close();
+}
+
 // ---- the slim year strip under the clock (#yearstrip=1): 8 rows of 46, day N lit up to N-1, today's dot, no wider than the clock,
 // the clock never moves for it, clear of the card and the bottom row; hidden when the room under the clock is too small
 const STRIP_BOX = p => p.evaluate(() => {

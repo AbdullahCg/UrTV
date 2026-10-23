@@ -31,6 +31,8 @@ import java.util.List;
 public class TasksActivity extends Activity {
     private static final Uri TASKS = Uri.parse("content://sa.urtv.screensaver.config/tasks");
     private static final int SPEECH = 41;
+    /** from the home screen's «المهام» card: the list opens with the focus on «🎤 تكلّم», so one more OK starts the voice adding */
+    static final String EXTRA_MIC = "mic";
     private static final int GOLD = 0xFFD6AF6B, INK = 0xFF04120C, TEXT = 0xFFF6EFE0, DIM = 0xFFC6BBA4;
     private static final int MAX_CHARS = 60;   // as the screensaver keeps them (Prefs.TASK_CHARS)
 
@@ -40,10 +42,12 @@ public class TasksActivity extends Activity {
     private TextView status, question;
     private View mic, yes, no;
     private Runnable onYes;
+    private boolean micFirst;   // the first render puts the focus on the mic (EXTRA_MIC), later ones on the list as always
 
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        micFirst = getIntent().getBooleanExtra(EXTRA_MIC, false);
         ScrollView scroll = new ScrollView(this);
         scroll.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
             new int[]{0xFF0A2016, 0xFF04120C, 0xFF020806}));
@@ -148,6 +152,8 @@ public class TasksActivity extends Activity {
             if (i == focus) wanted = card;
         }
         View f = wanted != null ? wanted : first != null ? first : mic.getVisibility() == View.VISIBLE ? mic : null;
+        if (micFirst && mic.getVisibility() == View.VISIBLE) f = mic;   // from the home card: the mic first
+        micFirst = false;
         if (f != null && confirm.getVisibility() != View.VISIBLE) f.post(f::requestFocus);
     }
 

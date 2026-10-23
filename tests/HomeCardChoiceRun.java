@@ -8,7 +8,7 @@ public final class HomeCardChoiceRun {
     public static void main(String[] args) {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i + 3 < args.length; i += 4) {
-            String url = HomeCardChoice.url(HomeCardChoice.pick(arg(args[i]), arg(args[i + 1]), arg(args[i + 2]), arg(args[i + 3])));
+            String url = HomeCardChoice.liveUrl(HomeCardChoice.pick(arg(args[i]), arg(args[i + 1]), arg(args[i + 2]), arg(args[i + 3])));
             out.append(url == null ? "off" : url).append('\n');
         }
         System.out.print(out);
