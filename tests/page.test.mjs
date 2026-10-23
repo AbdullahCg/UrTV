@@ -7,6 +7,7 @@
 // the way PhotoCache.java answers them on the TV.
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -1099,6 +1100,225 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     check(`${tag}: the card beside the clock: every row on one line, long names in their short form`, r.cardRows > 0 && !r.cardCut.length, JSON.stringify(r.cardCut));
     check(`${tag}: the card lists the F1 weekend (practice, qualifying, sprint, race)`,
       ['التجارب الحرة ١', 'التأهل', 'السبرنت', 'السباق'].every(x => r.card.some(c => c.includes('جائزة السعودية الكبرى · ' + x))), r.card.join(' | '));
+    await ctx.close();
+  }
+}
+
+// ---- club crests on the launcher's matches card (widget mode only), with the badge host mocked
+// a 120 px round badge as a PNG, so the page has a picture to shrink
+const badgePng = (() => {
+  const W = 120, raw = Buffer.alloc((W * 4 + 1) * W);
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    const o = y * (W * 4 + 1) + 1 + x * 4, inside = (x - 60) ** 2 + (y - 60) ** 2 < 56 ** 2;
+    raw.set(inside ? [30, 120, 70, 255] : [0, 0, 0, 0], o);
+  }
+  const crc = b => { let c, t = []; for (let n = 0; n < 256; n++) { c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    let r = 0xFFFFFFFF; for (const v of b) r = t[(r ^ v) & 255] ^ (r >>> 8); return (r ^ 0xFFFFFFFF) >>> 0; };
+  const chunk = (type, data) => { const h = Buffer.alloc(8); h.writeUInt32BE(data.length); h.write(type, 4);
+    const t = Buffer.concat([h.subarray(4), data]), c = Buffer.alloc(4); c.writeUInt32BE(crc(t)); return Buffer.concat([h.subarray(0, 4), t, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(W, 4); ihdr[8] = 8; ihdr[9] = 6;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+})();
+const BADGE = n => `https://r2.thesportsdb.com/images/media/team/badge/club${n}.png`;
+const crestNet = seen => r => {
+  const u = r.request().url();
+  if (!/thesportsdb\.com\/images\//.test(u)) return false;
+  seen.push(u);
+  r.fulfill({ contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: badgePng });
+  return true;
+};
+const CREST_GAMES = (names) => `NEXT_LIST = { '136013': ${JSON.stringify(names.map(([h, a, hb, ab], i) => ({
+  idEvent: 'c' + i, strHomeTeam: h, strAwayTeam: a, idHomeTeam: String(100 + 2 * i), idAwayTeam: String(101 + 2 * i),
+  strHomeTeamBadge: hb ? BADGE(100 + 2 * i) : null, strAwayTeamBadge: ab ? BADGE(101 + 2 * i) : null,
+  strTimestamp: new Date(Date.now() + (3 + 30 * i) * 36e5).toISOString() })))} };`;
+const SHORT_GAMES = [['Al-Hilal', 'Al-Nassr', true, true], ['Al-Ahli', 'Al-Ittihad', true, false]];   // the second game's guest has no crest
+const LONG_GAMES = [['Manchester United', 'Borussia Monchengladbach', true, true], ['Paris Saint-Germain', 'Bayern Munich', true, true],
+                    ['Real Madrid', 'Manchester City', true, true]];
+for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]]) {
+  const tag = `launcher matches card ${width}x${height}`;
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width, height, net: crestNet(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false);');
+  const before = await p.evaluate(() => document.querySelectorAll('#week-list img.cr').length);
+  await p.evaluate(() => loadCrests());
+  await p.waitForTimeout(200);
+  const r = await p.evaluate(() => {
+    const imgs = [...document.querySelectorAll('#week-list img.cr')];
+    const rows = [...document.querySelectorAll('#week-list li > span:first-child')];
+    return { n: imgs.length, shown: imgs.every(i => i.src.startsWith('data:image/png') && i.naturalWidth > 0 && i.naturalWidth <= 48 && i.getBoundingClientRect().width > 8),
+      stored: Object.keys(JSON.parse(localStorage.getItem('crests') || '{}')).sort().join(),
+      bytes: (localStorage.getItem('crests') || '').length,
+      names: rows.map(sp => sp.querySelectorAll('.tm').length),
+      noCrestHasName: rows[1].querySelectorAll('.tm')[1].querySelector('img') === null && rows[1].querySelectorAll('.tm')[1].textContent.trim().length > 2,
+      oneLine: rows.every(sp => { const t = [...sp.querySelectorAll('.tm')].map(x => x.getClientRects().length === 1 && Math.round(x.getBoundingClientRect().top));
+                                  return t.every(Boolean) && Math.abs(t[0] - t[1]) < 6 && fits(sp); }),
+      cut: document.getElementById('week-list').textContent.includes('…') };
+  });
+  const asked = seen.length;
+  await p.evaluate(() => loadCrests());
+  await p.waitForTimeout(100);
+  check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+  check(`${tag}: crests appear after they are fetched, small, and a club without one shows its name alone`,
+    before === 0 && r.n === 3 && r.shown && r.stored === '100,101,102' && r.noCrestHasName, JSON.stringify({ before, ...r }));
+  check(`${tag}: kept small in memory (${r.bytes} bytes for 3)`, r.bytes < 3 * 6000, String(r.bytes));
+  check(`${tag}: each game on one line, nothing cut`, r.oneLine && !r.cut, JSON.stringify(r));
+  check(`${tag}: one request per crest, none for the same crest again`, asked === 3 && seen.length === 3, JSON.stringify(seen));
+  // a restart: the rows and crests come back from the saved copy with no request
+  await p.evaluate(() => saveSnap());
+  await p.reload();
+  await p.waitForTimeout(500);
+  const back = await p.evaluate(() => [...document.querySelectorAll('#week-list img.cr')].filter(i => i.src.startsWith('data:image/png')).length);
+  check(`${tag}: after a restart the crests are back at once, from the saved copy`, back === 3 && seen.length === 3, back + ' ' + seen.length);
+  await ctx.close();
+}
+{   // the screensaver itself, and every other card, show no crest
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches', { net: crestNet(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(200);
+  check('the screensaver shows no crest and asks for none', !errors.length && seen.length === 0
+    && await p.evaluate(() => !document.querySelector('img.cr')), seen.join());
+  await ctx.close();
+}
+for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]]) {
+  for (const digits of ['hindi', 'latin']) {
+    const tag = `launcher matches card ${width}x${height} ${digits}`;
+    const seen = [];
+    const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1&digits=' + digits, { width, height, net: crestNet(seen) });
+    await p.evaluate(CREST_GAMES(LONG_GAMES) + ' renderPanel(false); loadCrests();');
+    await p.waitForTimeout(300);
+    const r = await p.evaluate(() => {
+      const rows = [...document.querySelectorAll('#week-list li > span:first-child')], text = document.getElementById('week-list').innerText;
+      return { n: rows.length, imgs: document.querySelectorAll('#week-list img.cr').length, text: text.replace(/\s+/g, ' '),
+        oneLine: rows.every(sp => [...sp.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1) && fits(sp)),
+        ar: /[٠-٩]/.test(text), latin: /[0-9]/.test(text) };
+    });
+    check(`${tag}: long names with crests, each game on one line, never «…»`, !errors.length && r.n >= 2 && r.oneLine && !r.text.includes('…'), JSON.stringify(r) + errors.join('; '));
+    check(`${tag}: digits in ${digits}`, digits === 'latin' ? r.latin && !r.ar : r.ar && !r.latin, r.text);
+    await ctx.close();
+  }
+}
+
+// ---- «طقس الساعات القادمة»: the next six hours beside the clock and on the launcher's card, one request with the forecast
+{
+  const hourlyAnswer = () => {   // Open-Meteo's answer for Riyadh (UTC+3): 48 hours from this hour, mixed weather, a sunset at 18:00
+    const t0 = Math.floor((Date.now() + 3 * 36e5) / 36e5) * 36e5, hr = { time: [], temperature_2m: [], weather_code: [] };
+    const codes = [0, 1, 2, 3, 45, 61, 71, 95, 0, 2];
+    for (let k = 0; k < 48; k++) { hr.time.push(new Date(t0 + k * 36e5).toISOString().slice(0, 16)); hr.temperature_2m.push(31.4 - k * .6); hr.weather_code.push(codes[k % codes.length]); }
+    const days = [0, 1, 2, 3, 4].map(i => new Date(t0 + i * 864e5).toISOString().slice(0, 10));
+    return JSON.stringify({ current: { temperature_2m: 31, weather_code: 0 }, hourly: hr,
+      daily: { time: days, temperature_2m_max: days.map(() => 37), temperature_2m_min: days.map(() => 24), weather_code: days.map(() => 0),
+               sunrise: days.map(d => d + 'T05:50'), sunset: days.map(d => d + 'T18:00') } });
+  };
+  const weatherNet = asked => r => {
+    const u = r.request().url();
+    if (!/api\.open-meteo\.com\/v1\/forecast/.test(u)) return false;
+    asked.push(u);
+    if (asked.off) { r.abort(); return true; }   // the network is gone
+    r.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: hourlyAnswer() });
+    return true;
+  };
+  for (const [file, hash, width, height, label] of [['tv.html', 'panel=hourly', 1920, 1080, 'beside the clock'], ['tv.html', 'panel=hourly', 1280, 720, 'beside the clock'],
+      ['tv.html', 'panel=hourly', 960, 540, 'beside the clock'], ['urtv.html', 'panel=hourly', 1920, 1080, 'screensaver page'],
+      ['tv.html', 'panel=hourly&widget=1', 461, 250, 'launcher card'], ['tv.html', 'panel=hourly&widget=1', 1920, 1080, 'launcher card'],
+      ['tv.html', 'panel=hourly&widget=1', 960, 540, 'launcher card']]) {
+    for (const digits of ['hindi', 'latin']) {
+      const asked = [];
+      const { p, ctx, errors } = await open(file, hash + '&digits=' + digits, { width, height, net: weatherNet(asked) });
+      await p.waitForTimeout(400);
+      const r = await p.evaluate(() => {
+        const cells = [...document.querySelectorAll('#week-list .hc')], card = document.querySelector('.week').getBoundingClientRect();
+        const text = document.getElementById('week-list').innerText;
+        return { n: cells.length, hd: document.getElementById('week-hd').textContent,
+          icons: cells.every(c => c.querySelector('svg path, svg circle')),
+          times: cells.map(c => c.querySelector('b').textContent), temps: cells.map(c => c.querySelector('i').textContent),
+          oneLine: cells.every(c => [...c.querySelectorAll('b,i')].every(x => x.getClientRects().length === 1)),
+          inside: cells.every(c => { const b = c.getBoundingClientRect(); return b.left >= card.left - 1 && b.right <= card.right + 1; }),
+          sameSize: new Set(cells.map(c => Math.round(c.getBoundingClientRect().width))).size <= 2,
+          ar: /[٠-٩]/.test(text), latin: /[0-9]/.test(text),
+          night: [...cells].map(c => c.querySelector('svg').innerHTML.includes('M19 14.3') || c.querySelector('svg').innerHTML.includes('M10.5 3.5')) };
+      });
+      const tag = `hourly card ${label} ${file} ${width}x${height} ${digits}`;
+      const wantAt = ms => Array.from({ length: 6 }, (_, k) => { const h = (Math.floor((ms + 3 * 36e5) / 36e5) + 1 + k) % 24; return (h % 12 || 12) + ' ' + (h < 12 ? 'ص' : 'م'); });
+      const want = wantAt(Date.now() - 3000), wantNow = wantAt(Date.now());   // the hour may have turned while the page was drawn
+      const toLatin = s => s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+      check(`${tag}: no script errors, six hours with an icon each, titled`, !errors.length && r.n === 6 && r.icons && r.hd === 'الساعات القادمة', JSON.stringify(r) + errors.join('; '));
+      check(`${tag}: the next six full hours, in order`, [want, wantNow].some(w => JSON.stringify(r.times.map(toLatin)) === JSON.stringify(w)), JSON.stringify([r.times, want]));
+      check(`${tag}: temperatures in degrees, falling as the answer says`, r.temps.every(x => /°$/.test(x)) && toLatin(r.temps[0]) !== toLatin(r.temps[5]), r.temps.join(' '));
+      check(`${tag}: one line each, inside the card, ${digits} digits`, r.oneLine && r.inside && (digits === 'latin' ? r.latin && !r.ar : r.ar && !r.latin), JSON.stringify(r));
+      check(`${tag}: one weather request, asking for the hours with the days`, asked.length === 1 && /hourly=temperature_2m,weather_code/.test(asked[0]) && /daily=[^&]*sunset/.test(asked[0]), asked.join('\n'));
+      await ctx.close();
+    }
+  }
+  {   // day and night icons follow the sun: after sunset the moon, before it the sun; the plain forecast asks for no hours
+    const asked = [];
+    const { p, ctx } = await open('tv.html', 'panel=hourly&widget=1', { width: 461, height: 250, net: weatherNet(asked) });
+    const r = await p.evaluate(() => { SUN = { '2026-10-23': ['05:50', '18:00'] }; return ['2026-10-23T17:00', '2026-10-23T18:00', '2026-10-23T04:00', '2026-10-23T06:00'].map(isNight); });
+    check('hourly icons: night after sunset and before sunrise, day between', JSON.stringify(r) === '[false,true,true,false]', JSON.stringify(r));
+    await ctx.close();
+    const plain = [];
+    const f = await open('tv.html', 'panel=forecast', { net: weatherNet(plain) });
+    await f.p.waitForTimeout(300);
+    check('forecast card: no hours asked for, as before', plain.length === 1 && !/hourly|sunset/.test(plain[0]), plain.join('\n'));
+    await f.ctx.close();
+  }
+  {   // offline start: the saved hours are shown at once
+    const asked = [];
+    const { p, ctx } = await open('tv.html', 'panel=hourly&widget=1', { width: 461, height: 250, net: weatherNet(asked) });
+    await p.waitForTimeout(400);
+    asked.off = true;
+    await p.reload();
+    await p.waitForTimeout(300);
+    check('hourly card: after a restart the hours are there at once from the saved copy', await p.evaluate(() => document.querySelectorAll('#week-list .hc').length) === 6);
+    await ctx.close();
+  }
+}
+
+// ---- «الصلوات في صف»: five prayers in one row, the next lit, «المغرب بعد ١ س و ٥ د» above, with the clock held still
+{
+  const TIMES = "buildPrayers({Fajr:'04:50',Sunrise:'06:05',Dhuhr:'11:40',Asr:'15:00',Maghrib:'17:45',Isha:'19:15'});";
+  // Riyadh is UTC+3: 13:40 UTC = 16:40 there, so Maghrib (17:45) is 1 h 5 min away; 2026-10-23 is a Friday, 2026-10-22 a Thursday
+  for (const [when, next, head, label] of [
+      ['2026-10-22T13:40:00Z', 3, 'المغرب بعد ١ س و ٥ د', 'Thursday afternoon'],
+      ['2026-10-23T13:40:00Z', 3, 'المغرب بعد ١ س و ٥ د', 'Friday afternoon'],
+      ['2026-10-22T01:00:00Z', 0, 'الفجر بعد ٥٠ د', 'Thursday 04:00 in Riyadh, before Fajr'],
+      ['2026-10-22T10:00:00Z', 2, 'العصر بعد ٢ س', 'Thursday 13:00, a whole number of hours'],
+      ['2026-10-22T17:10:00Z', 0, 'الفجر بعد ٨ س و ٤٠ د', 'after Isha: tomorrow\'s Fajr'],
+      ['2026-10-22T14:40:00Z', 3, 'المغرب بعد ٥ د', 'five minutes before Maghrib']]) {
+    for (const [file, hash, width, height] of [['tv.html', 'panel=prayerrow', 1920, 1080], ['tv.html', 'panel=prayerrow', 1280, 720], ['tv.html', 'panel=prayerrow', 960, 540],
+        ['urtv.html', 'panel=prayerrow', 1920, 1080], ['tv.html', 'panel=prayerrow&widget=1', 461, 250], ['tv.html', 'panel=prayerrow&widget=1', 960, 540]]) {
+      if (file === 'urtv.html' && label !== 'Thursday afternoon') continue;
+      for (const digits of (label === 'Thursday afternoon' || label === 'Friday afternoon') ? ['hindi', 'latin'] : ['hindi']) {
+        const { p, ctx, errors } = await open(file, hash + '&digits=' + digits, { width, height });
+        await p.clock.setFixedTime(new Date(when));
+        await p.evaluate(TIMES + ' renderPanel(false);');
+        const r = await p.evaluate(() => {
+          const cells = [...document.querySelectorAll('#week-list .pc')], card = document.querySelector('.week').getBoundingClientRect(), text = document.getElementById('week-list').innerText;
+          return { n: cells.length, hd: document.getElementById('week-hd').textContent, names: cells.map(c => c.querySelector('b').textContent),
+            next: cells.map((c, i) => c.classList.contains('next') ? i : -1).filter(i => i >= 0), past: cells.filter(c => c.classList.contains('past')).length,
+            oneLine: cells.every(c => [...c.querySelectorAll('b,i')].every(x => x.getClientRects().length === 1)),
+            inside: cells.every(c => { const b = c.getBoundingClientRect(); return b.left >= card.left - 1 && b.right <= card.right + 1; }),
+            times: cells.map(c => c.querySelector('i').textContent), ar: /[٠-٩]/.test(text), latin: /[0-9]/.test(text),
+            litBg: cells.map(c => getComputedStyle(c).backgroundColor !== 'rgba(0, 0, 0, 0)') };
+        });
+        const tag = `prayer row ${label} ${file} ${width}x${height} ${hash.includes('widget') ? 'card ' : ''}${digits}`;
+        const toLatin = s => s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        const friday = when.startsWith('2026-10-23');
+        const headWant = digits === 'latin' ? head.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)) : head;
+        check(`${tag}: five prayers in order, ${friday ? 'الجمعة for Dhuhr' : 'الظهر'}, no script errors`,
+          !errors.length && r.n === 5 && r.names.join() === ['الفجر', friday ? 'الجمعة' : 'الظهر', 'العصر', 'المغرب', 'العشاء'].join(), JSON.stringify(r) + errors.join('; '));
+        check(`${tag}: the next one lit alone, the ones before it dimmed, «${head}» above`,
+          r.next.join() === String(next) && r.hd === headWant && r.litBg[next] && r.litBg.filter(Boolean).length === 1
+          && r.past === (next === 0 ? (label.startsWith('after Isha') ? 4 : 0) : next), JSON.stringify(r));
+        check(`${tag}: one line each, inside the card, ${digits} digits`, r.oneLine && r.inside && (digits === 'latin' ? r.latin && !r.ar : r.ar && !r.latin)
+          && r.times.every(t => /[صم]$/.test(t)), JSON.stringify(r));
+        await ctx.close();
+      }
+    }
+  }
+  {   // before the times arrive: a title, no row, no errors
+    const { p, ctx, errors } = await open('tv.html', 'panel=prayerrow&widget=1', { width: 461, height: 250 });
+    check('prayer row with no times yet: no errors', !errors.length, errors.join('; '));
     await ctx.close();
   }
 }

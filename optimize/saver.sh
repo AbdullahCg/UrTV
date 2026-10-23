@@ -7,8 +7,9 @@
 #   optimize/saver.sh city 'الكويت' 29.37 47.98 Asia/Kuwait   ... or the one you give (a built-in city is always Asia/Riyadh)
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed)
-#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast matches verse wisdom adhkar stocks tasks year none
+#   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast hourly prayerrow matches verse wisdom adhkar stocks tasks year none
 #   optimize/saver.sh home-card none               on the home screen (launcher): same choices, none = off
+#   optimize/saver.sh greeting off                 home screen: the greeting (by prayer time) and the weather line under it: on (default) or off
 #   optimize/saver.sh genres Drama,Comedy          episodes card: Drama Comedy Action Crime Thriller Mystery
 #                                                  Science-Fiction Fantasy Adventure Romance Family History Horror
 #                                                  Anime Documentary Sports  ("" = all)
@@ -69,6 +70,7 @@ case "${1:-}" in
     send SET "--es teams $(quote "$(IFS=,; echo "$*")")" ;;
   card)      send SET "--es panel $(quote "${2:?usage: optimize/saver.sh card prayers}")" ;;
   home-card) send SET "--es home_panel $(quote "${2:?usage: optimize/saver.sh home-card none}")" ;;
+  greeting)  send SET "--es greeting $(quote "${2:?usage: optimize/saver.sh greeting on|off}")" ;;
   genres)    send SET "--es genres $(quote "${2-}")" ;;
   leagues)   send SET "--es leagues $(quote "${2-}")" ;;
   events)    send SET "--es events $(quote "${2-}")" ;;
@@ -114,5 +116,5 @@ case "${1:-}" in
       *) echo "usage: optimize/saver.sh tasks list | add 'نص' | done N | del N | clear"; exit 1 ;;
     esac ;;
   find-team) shift; "$PY" -I optimize/find-team.py "$@" ;;   # Arabic or English name
-  *) sed -n '2,33p' "$0"; exit 1 ;;
+  *) sed -n '2,35p' "$0"; exit 1 ;;
 esac

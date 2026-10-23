@@ -117,6 +117,8 @@
   .week li .rt{flex:0 0 auto;color:var(--gold-3);font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .mwhen{display:block;font-style:normal;margin-top:.15em;font-size:.68em;font-weight:300;color:#A79C85;overflow:hidden;text-overflow:ellipsis}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
+  .week li .tm .cr{width:1.25em;height:1.25em;object-fit:contain;vertical-align:middle;margin-block:-.25em;margin-inline-end:.3em}
+  .week li .tm .cr:not([src]){visibility:hidden}   /* a restored row waits for its picture: the same room */
   .week ul.flip li{animation:weekIn .5s ease both}
   .week ul.flip li:nth-child(2){animation-delay:.06s}
   .week ul.flip li:nth-child(3){animation-delay:.12s}
@@ -125,6 +127,21 @@
   @keyframes weekIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   .week li.task::before{content:'';flex:0 0 auto;width:.4em;height:.4em;border-radius:50%;background:var(--gold);align-self:center}
   .week li.task span{max-width:100%;min-width:0}
+  /* «الساعات القادمة»: the next six hours in one row, the earliest on the right */
+  .week li.hrs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.3em;white-space:normal;border-bottom:none;padding:1.2vh 0 .5vh;align-items:start;text-align:center}
+  .week li.hrs .hc{display:flex;flex-direction:column;align-items:center;gap:.4em;min-width:0}
+  .week li.hrs .hc b{font-weight:400;font-size:.78em;color:#B9AE96;white-space:nowrap}
+  .week li.hrs .hc svg{width:1.9em;height:1.9em;fill:none;stroke:var(--gold-3);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .week li.hrs .hc i{font-style:normal;font-variant-numeric:tabular-nums;font-size:1.05em;white-space:nowrap}
+  /* «الصلوات في صف»: the five prayers side by side, the next one lit */
+  .week li.prow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.3em;white-space:normal;border-bottom:none;padding:.9vh 0 .3vh;text-align:center;align-items:stretch}
+  .week li.prow .pc{display:flex;flex-direction:column;align-items:center;gap:.3em;padding:.55em .1em;border-radius:.7em;min-width:0}
+  .week li.prow .pc b{font-weight:500;white-space:nowrap}
+  .week li.prow .pc i{font-style:normal;font-size:.8em;color:#B9AE96;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .week li.prow .pc.past{color:#8F8670}
+  .week li.prow .pc.past i{color:#7F775F}
+  .week li.prow .pc.next{background:rgba(var(--gold-rgb),.18);box-shadow:inset 0 0 0 1px rgba(var(--gold-rgb),.45);color:var(--gold-hi)}
+  .week li.prow .pc.next i{color:var(--gold-3)}
   .week li.past{color:#8F8670}
   .week li.next{color:var(--gold-hi)}
   .week li.next .dt{color:var(--gold-3)}
@@ -464,8 +481,8 @@ const CONFIG = {
   // other sports beside the teams' games: #events=f1,ufc,boxing (default none)
   events: _list('events').filter(k => ['f1','ufc','boxing'].includes(k)),
   eventWindowDays: 14,
-  // the card beside the clock: shows | prayers | forecast | matches | verse | wisdom | adhkar | stocks | tasks | none (#week=0 from older builds = none)
-  panel: (p => ['shows','prayers','forecast','matches','verse','wisdom','adhkar','stocks','tasks','year','none'].includes(p) ? p : 'verse')
+  // the card beside the clock: shows | prayers | forecast | hourly | prayerrow | matches | verse | wisdom | adhkar | stocks | tasks | year | none (#week=0 from older builds = none)
+  panel: (p => ['shows','prayers','forecast','hourly','prayerrow','matches','verse','wisdom','adhkar','stocks','tasks','year','none'].includes(p) ? p : 'verse')
          (_Q.get('panel') || (_Q.get('week') === '0' ? 'none' : 'verse')),
   // #tasks=: the open tasks, one per line (the app drops done ones), at most 12 of 60 characters
   tasks: (_Q.get('tasks') || '').split('\n').map(x=>x.trim().slice(0, 60)).filter(Boolean).slice(0, 12),
@@ -656,7 +673,7 @@ async function loadPrayers(){
   }
   tickPrayer();
   tickOccasion();   // Ramadan mode needs the prayer times
-  if(CONFIG.panel === 'prayers' || CONFIG.panel === 'adhkar') renderPanel(false);
+  if(CONFIG.panel === 'prayers' || CONFIG.panel === 'adhkar' || CONFIG.panel === 'prayerrow') renderPanel(false);
 }
 
 const UNIT = {
@@ -1288,7 +1305,14 @@ function fitMatches(row){
   return false;   // the caller may show these games apart
 }
 // the card beside the clock has room for a whole game; only a row that would end in «…» takes the short names
-function shortenRows(ul){ ul.querySelectorAll('li > span:first-child').forEach(sp => { if(!fits(sp)) shorten(sp); }); }
+// with crests (the launcher's card) the next step is the short names, then no crests: the names alone, as before
+function shortenRows(ul){
+  ul.querySelectorAll('li > span:first-child').forEach(sp => {
+    if(fits(sp)) return;
+    shorten(sp);
+    if(!fits(sp)) sp.querySelectorAll('img.cr').forEach(i => i.remove());
+  });
+}
 
 async function fetchLast(id){
   const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventslast.php?id=${id}`,{cache:'no-store'});
@@ -1313,6 +1337,7 @@ async function loadMatches(){
   loadEvents();
   renderMatches();
   if(CONFIG.panel === 'matches') renderPanel(false);
+  loadCrests();
 }
 
 // what the top-left can show: Yahoo symbol or CoinGecko id, decimals for the price, unit after it, and for
@@ -1616,7 +1641,7 @@ function renderWeekPage(animate){
 let FORECAST = [];
 try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
 let LIST_PAGE = 0;
-const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
+const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
 
 function renderPanel(animate){
   const ul = document.getElementById('week-list'), hd = document.getElementById('week-hd');
@@ -1625,6 +1650,8 @@ function renderPanel(animate){
   let rows = [];
   if(P === 'prayers') rows = prayerRows();
   else if(P === 'forecast') rows = forecastRows();
+  else if(P === 'hourly') rows = hourlyRows();
+  else if(P === 'prayerrow'){ const q = prayerRowCard(); setText(hd, q.title); rows = q.rows; }
   else if(P === 'matches') rows = matchRows();
   else if(P === 'year') rows = [yearCard()];
   else if(P === 'tasks') rows = CONFIG.tasks.map(t => `<li class="task"><span>${esc(t)}</span></li>`);
@@ -1638,6 +1665,7 @@ function renderPanel(animate){
   else if(P === 'stocks'){ const q = stocksCard(); setHTML(hd, q.hd); rows = q.rows; }
   if(PANEL_TITLE[P]) setText(hd, PANEL_TITLE[P]);
   if(!rows.length){
+    if(P === 'matches' && !MATCHES_LOADED && ul.firstElementChild && !ul.firstElementChild.classList.contains('empty')) return;   // the saved games stay until the first answer
     ul.classList.remove('flip');
     setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : P === 'tasks' ? 'لا مهام اليوم' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
@@ -1647,7 +1675,8 @@ function renderPanel(animate){
     const start = (LIST_PAGE * per) % rows.length;
     rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
   }
-  if(setHTML(ul, rows.join(''), animate) && P === 'matches') shortenRows(ul);
+  const wrote = setHTML(ul, rows.join(''), animate);
+  if(P === 'matches'){ fillCrests(ul); if(wrote) shortenRows(ul); }
   if(CONFIG.tafsir) fitTafsir(ul);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
@@ -1703,9 +1732,133 @@ function forecastRows(){
   });
 }
 
-// every followed team's games this week, plus results from the last day, in time order
-function matchRows(){
-  const now = Date.now(), seen = new Set(), evs = [];
+// ---- club crests on the launcher's matches card: TheSportsDB's badge, which the events already carry
+// (strHomeTeamBadge / strAwayTeamBadge, with idHomeTeam / idAwayTeam). No request of its own except the picture,
+// once per club: kept as a 48 px copy in localStorage and fetched again only when the badge's address changes.
+const CRESTS_ON = CONFIG.widget && CONFIG.panel === 'matches';
+const CREST_PX = 48, CREST_KEEP = 60, CREST_PER_ROUND = 10, CREST_RETRY_MS = 6 * 3600000;
+let CRESTS = {};   // team id -> {u: badge address, d: data: URI of the small copy}
+try{ CRESTS = JSON.parse(localStorage.getItem('crests') || '{}') || {}; }catch(e){}
+const CREST_TRIED = {};   // team id -> when a fetch last failed
+function crestOf(ev, side){
+  const u = String(ev['str' + side + 'TeamBadge'] || ''), id = String(ev['id' + side + 'Team'] || '');
+  return /^https:\/\/[a-z0-9.-]+\.thesportsdb\.com\/\S+$/i.test(u) && /^\d+$/.test(id) ? {id, u} : null;
+}
+const crestImg = (ev, side) => {
+  const c = CRESTS_ON && crestOf(ev, side);
+  return c && CRESTS[c.id] && CRESTS[c.id].d ? `<img class="cr" data-t="${c.id}" alt="">` : '';   // no crest: the name alone
+};
+function fillCrests(root){   // the rows carry the club's id only; the picture is put in here (a saved row has none)
+  root.querySelectorAll('img.cr').forEach(i => { const c = CRESTS[i.dataset.t]; if(c && c.d && i.getAttribute('src') !== c.d) i.src = c.d; });
+}
+function crestShrink(blob){   // -> a data: URI no larger than CREST_PX, '' when it is not a picture
+  return new Promise(done => {
+    const url = URL.createObjectURL(blob), im = new Image();
+    const end = v => { URL.revokeObjectURL(url); done(v); };
+    im.onload = () => {
+      try{
+        const k = Math.min(1, CREST_PX / Math.max(im.naturalWidth, im.naturalHeight, 1)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        end(c.toDataURL('image/png'));
+      }catch(e){ end(''); }
+    };
+    im.onerror = () => end('');
+    im.src = url;
+  });
+}
+async function crestFetch(u){   // the small size the API offers first; the plain file if it refuses the suffix
+  for(const url of /\/(tiny|small|medium|preview)$/.test(u) ? [u] : [u + '/tiny', u]){
+    try{
+      const r = await fetchT(url, 10000);
+      if(!r.ok) continue;
+      const d = await crestShrink(await r.blob());
+      if(d) return d;
+    }catch(e){}
+  }
+  return '';
+}
+let CREST_BUSY = false;
+async function loadCrests(){
+  if(!CRESTS_ON || CREST_BUSY) return;
+  CREST_BUSY = true;
+  try{
+    const want = {}, now = Date.now();
+    for(const ev of matchEvents()) for(const side of ['Home', 'Away']){
+      const c = crestOf(ev, side);
+      if(c && !(CRESTS[c.id] && CRESTS[c.id].u === c.u) && now - (CREST_TRIED[c.id] || 0) > CREST_RETRY_MS) want[c.id] = c.u;
+    }
+    let got = 0;
+    for(const [id, u] of Object.entries(want).slice(0, CREST_PER_ROUND)){
+      const d = await crestFetch(u);
+      if(!d){ CREST_TRIED[id] = now; continue; }
+      delete CRESTS[id]; CRESTS[id] = {u, d}; got++;
+    }
+    if(!got) return;
+    Object.keys(CRESTS).slice(0, Math.max(0, Object.keys(CRESTS).length - CREST_KEEP)).forEach(k => delete CRESTS[k]);
+    try{ localStorage.setItem('crests', JSON.stringify(CRESTS)); }catch(e){}
+    renderPanel(false);
+  }finally{ CREST_BUSY = false; }
+}
+
+// ---- «الصلوات في صف»: the five prayers in one row, the next lit, and above it «المغرب بعد ١ س و ٥ د»
+function shortHM(sec){   // «١ س و ٥ د», «٢ س», «٥ د»
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  return [h ? ar(h) + ' س' : '', m || !h ? ar(Math.max(m, 1)) + ' د' : ''].filter(Boolean).join(' و ');
+}
+function prayerRowCard(){
+  if(!PRAYERS.length) return {title:'مواقيت اليوم', rows:[]};
+  const p = riyadhParts(), mins = p.h * 60 + p.mi + p.s / 60;
+  let next = PRAYERS.findIndex(x => x.h * 60 + x.mi > mins), tomorrow = false;
+  if(next < 0){ next = 0; tomorrow = true; }   // after Isha the next is tomorrow's Fajr
+  const n = PRAYERS[next], left = n.h * 60 + n.mi + (tomorrow ? 1440 : 0) - mins;
+  return {
+    title: `${prayerName(n)} بعد ${shortHM(Math.max(0, Math.round(left * 60)))}`,
+    rows: ['<li class="prow">' + PRAYERS.map((x, i) =>
+      `<div class="pc${i === next ? ' next' : tomorrow || x.h * 60 + x.mi <= mins ? ' past' : ''}"><b>${prayerName(x)}</b><i>${fmt12(x.h, x.mi)}</i></div>`).join('') + '</li>'],
+  };
+}
+
+// ---- «الساعات القادمة»: the next six hours, from the same Open-Meteo request as the forecast (see loadWeather)
+let HOURLY = [], SUN = {};   // [{t: '2026-10-23T18:00' (the city's time), code, temp}], and date -> [sunrise, sunset] as 'HH:MM'
+try{ const c = JSON.parse(localStorage.getItem('hourly:' + location.hash) || 'null'); if(c){ HOURLY = c.h || []; SUN = c.s || {}; } }catch(e){}
+const hourKey = () => { const p = riyadhParts(); return `${p.y}-${pad(p.mo)}-${pad(p.d)}T${pad(p.h)}:00`; };
+const WX_SVG = {
+  sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7"/></svg>',
+  moon:'<svg viewBox="0 0 24 24"><path d="M19 14.3A7.6 7.6 0 0 1 9.7 5a7.6 7.6 0 1 0 9.3 9.3z"/></svg>',
+  part:'<svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="3"/><path d="M8.5 2.5v1.4M2.5 8.5h1.4M4.3 4.3l1 1M12.7 4.3l-1 1"/><path d="M8 20h9.5a3.6 3.6 0 0 0 .5-7.2A5 5 0 0 0 8.6 12 4 4 0 0 0 8 20z"/></svg>',
+  partnight:'<svg viewBox="0 0 24 24"><path d="M10.5 3.5a4.6 4.6 0 0 0 5.6 6.6 4.6 4.6 0 1 1-5.6-6.6z"/><path d="M8 20.5h9.5a3.6 3.6 0 0 0 .5-7.2A5 5 0 0 0 8.6 12.5 4 4 0 0 0 8 20.5z"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24"><path d="M7 18.5h10.2a4 4 0 0 0 .6-7.95A5.6 5.6 0 0 0 7.2 9.4 4.6 4.6 0 0 0 7 18.5z"/></svg>',
+  fog:'<svg viewBox="0 0 24 24"><path d="M7 14h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6 4.1 4.1 0 0 0 7 14z"/><path d="M5 17.5h14M8 21h8"/></svg>',
+  rain:'<svg viewBox="0 0 24 24"><path d="M7 14.5h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6.5 4.1 4.1 0 0 0 7 14.5z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></svg>',
+  snow:'<svg viewBox="0 0 24 24"><path d="M7 14.5h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6.5 4.1 4.1 0 0 0 7 14.5z"/><path d="M8.5 18v.1M12 20v.1M15.5 18v.1M12 17.5v.1"/></svg>',
+  storm:'<svg viewBox="0 0 24 24"><path d="M7 14h10.2a3.6 3.6 0 0 0 .5-7.1A5.2 5.2 0 0 0 7.2 6 4.1 4.1 0 0 0 7 14z"/><path d="M12.5 14.5L10 18.5h3.5L11.5 22"/></svg>',
+};
+function wxIcon(code, night){
+  if(code <= 1) return night ? WX_SVG.moon : WX_SVG.sun;
+  if(code === 2) return night ? WX_SVG.partnight : WX_SVG.part;
+  if(code === 3) return WX_SVG.cloud;
+  if(code === 45 || code === 48) return WX_SVG.fog;
+  if(code >= 95) return WX_SVG.storm;
+  if((code >= 71 && code <= 77) || code === 85 || code === 86) return WX_SVG.snow;
+  return WX_SVG.rain;   // drizzle, rain and showers
+}
+function isNight(t){   // sunrise and sunset of that day when known, else 06:00 to 18:00
+  const hm = t.slice(11, 16), sun = SUN[t.slice(0, 10)];
+  return sun ? hm < sun[0] || hm >= sun[1] : hm < '06:00' || hm >= '18:00';
+}
+function hourlyRows(){
+  const next = HOURLY.filter(x => x.t > hourKey() && x.temp != null).slice(0, 6);
+  if(!next.length) return [];
+  return ['<li class="hrs">' + next.map(x => {
+    const h = +x.t.slice(11, 13), h12 = h % 12 === 0 ? 12 : h % 12;
+    return `<div class="hc"><b>${ar(h12)} ${h < 12 ? 'ص' : 'م'}</b>${wxIcon(x.code, isNight(x.t))}<i>${ar(Math.round(x.temp))}°</i></div>`;
+  }).join('') + '</li>'];
+}
+
+// every followed team's games this week, plus results from the last day
+function matchEvents(){
+  const seen = new Set(), evs = [];
   CONFIG.teamIds.forEach(id => {
     const next = NEXT_LIST[id] || (MATCHES[id] ? [MATCHES[id]] : []);
     next.forEach(ev => { if(ev && ev.idEvent && !seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(MATCHES[id] && MATCHES[id].idEvent === ev.idEvent ? MATCHES[id] : ev); } });
@@ -1714,6 +1867,11 @@ function matchRows(){
   if(CONFIG.leagues.length) leagueGames().forEach(ev => {   // after the teams': a game both follow is the team's copy
     if(!seen.has(ev.idEvent) && !CALLED_OFF.test(ev.strStatus || '')){ seen.add(ev.idEvent); evs.push(ev); }
   });
+  return evs;
+}
+// ... in time order
+function matchRows(){
+  const now = Date.now(), evs = matchEvents();
   const others = eventRows(now);
   return [...evs.map(ev => ({ev, t: toDate(ev).getTime()}))
     .filter(x => finishedRecently(x.ev, now)
@@ -1729,7 +1887,7 @@ function matchRows(){
         : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
       // an upcoming game has its date and time under the teams, as in the bottom row
       const dateLine = upcoming ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
-      return {t, html: `<li><span><span class="tm">${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
+      return {t, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
     }), ...others].sort((a, b) => a.t - b.t).map(x => x.html);
 }
 
@@ -1896,8 +2054,11 @@ const WX_CODES = {
 async function loadWeather(){
   const q = `latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}&timezone=${encodeURIComponent(CONFIG.timezone)}`;
   try{
+    // the hours card asks in the same request: its hourly values, and sunrise and sunset for the day or night icon
+    const hours = CONFIG.panel === 'hourly';
     const r = await fetchT(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,weather_code`
-                         + `&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=5`, 12000);
+                         + `&daily=temperature_2m_max,temperature_2m_min,weather_code${hours ? ',sunrise,sunset' : ''}&forecast_days=5`
+                         + (hours ? '&hourly=temperature_2m,weather_code' : ''), 12000);
     if(!r.ok) throw 0;
     const j = await r.json();
     setText(document.getElementById('wx-temp'), ar(Math.round(j.current.temperature_2m)) + '°');
@@ -1911,7 +2072,14 @@ async function loadWeather(){
     FORECAST = (dl.time || []).map((t, i) => ({date:t, code:dl.weather_code?.[i],
       hi:dl.temperature_2m_max?.[i], lo:dl.temperature_2m_min?.[i]})).filter(x => x.hi != null && x.lo != null);
     try{ localStorage.setItem('forecast:' + location.hash, JSON.stringify(FORECAST)); }catch(e){}
-    if(CONFIG.panel === 'forecast') renderPanel(false);
+    if(hours){
+      const hr = j.hourly || {}, from = hourKey();
+      HOURLY = (hr.time || []).map((t, i) => ({t, code:hr.weather_code?.[i], temp:hr.temperature_2m?.[i]})).filter(x => x.t > from && x.temp != null).slice(0, 12);
+      SUN = {};
+      (dl.time || []).forEach((d, i) => { const up = dl.sunrise?.[i], down = dl.sunset?.[i]; if(up && down) SUN[d] = [up.slice(11, 16), down.slice(11, 16)]; });
+      try{ localStorage.setItem('hourly:' + location.hash, JSON.stringify({h:HOURLY, s:SUN})); }catch(e){}
+    }
+    if(CONFIG.panel === 'forecast' || hours) renderPanel(false);
     if(slotNow() === 'weather') renderSlot();
   }catch(e){ return; }   // keep the last reading; with none only the city shows
 
@@ -2131,7 +2299,7 @@ const SNAP_KEY = 'snap5:' + location.hash;   // bump when the panels' markup cha
 const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
 let SNAP_LAST = null;   // what is stored now: the panels rarely change, so most saves have nothing to write
 function saveSnap(){
-  const s = JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''));
+  const s = JSON.stringify(SNAP_SEL.map(q => ((document.querySelector(q)||{}).innerHTML || '').replace(/ src="data:[^"]*"/g, '')));   // the crests are kept apart
   if(s === SNAP_LAST) return;
   try{ localStorage.setItem(SNAP_KEY, s); SNAP_LAST = s; }catch(e){}
 }
@@ -2140,6 +2308,7 @@ function restoreSnap(){
     SNAP_LAST = localStorage.getItem(SNAP_KEY);
     const v = JSON.parse(SNAP_LAST || 'null');
     if(v) SNAP_SEL.forEach((q, i) => { const el = document.querySelector(q); if(el && v[i]) el.innerHTML = v[i]; });
+    fillCrests(document.getElementById('week-list'));
   }catch(e){}
 }
 
@@ -2175,7 +2344,7 @@ function boot(){
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); if(CONFIG.panel === 'prayers' || CONFIG.panel === 'hourly' || CONFIG.panel === 'prayerrow') renderPanel(false); }, 15000);
   if(SLOT_MATCHES){   // the matches timers run only while the slot shows matches
     setInterval(() => renderMatches(false), 60000);
     // 15 s a page (two games), 10 s once a league makes more than 3 pages: a round of 9 games passes in 50 s, not 75
@@ -2211,11 +2380,13 @@ function bootWidget(){
   setInterval(saveSnap, 60*1000);
   addEventListener('pagehide', saveSnap);
   const P = CONFIG.panel;
+  if(P === 'matches' && document.fonts) document.fonts.ready.then(() => { document.getElementById('week-list').__h = null; renderPanel(false); });   // widths change once the fonts are in
   if(P === 'shows'){ loadWeek(); setInterval(loadWeek, 6*3600*1000); }
   else renderPanel(false);
   if(P === 'adhkar'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); }
-  if(P === 'prayers'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
-  if(P === 'forecast'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
+  if(P === 'prayers' || P === 'prayerrow'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); setInterval(() => renderPanel(false), 15000); }
+  if(P === 'forecast' || P === 'hourly'){ loadWeather(); setInterval(loadWeather, 30*60*1000); }
+  if(P === 'hourly') setInterval(() => renderPanel(false), 60*1000);   // the next hour comes round
   if(P === 'matches'){ loadMatches(); setInterval(loadMatches, 30*60*1000); setInterval(loadLive, 2*60000); }
   if(P === 'stocks'){ loadStocks(); setInterval(loadStocks, 15*60*1000); }
   setInterval(() => {
@@ -2225,7 +2396,7 @@ function bootWidget(){
     if(P === 'tasks' && CONFIG.tasks.length > WEEK_ROWS){ LIST_PAGE++; renderPanel(true); }
   }, 25*1000);
   let lastDay = riyadhDayNumber();
-  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers') loadPrayers(); renderPanel(false); } else if(P === 'adhkar' || P === 'stocks') renderPanel(false); }, 60*1000);
+  setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); if(P === 'prayers' || P === 'prayerrow') loadPrayers(); renderPanel(false); } else if(P === 'adhkar' || P === 'stocks') renderPanel(false); }, 60*1000);
   reveal();
 }
 

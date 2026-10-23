@@ -105,7 +105,8 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
-    private TextView greeting, clock, ampm, date, title, wifiPill, appsLabel;
+    private TextView greeting, weatherLine, clock, ampm, date, title, wifiPill, appsLabel;
+    private Greeting greetingLine;
     private int glowColor = 0xFF3A3A3A;
     private ValueAnimator glowAnim;
     private int lastFocusedId = View.NO_ID;
@@ -310,6 +311,12 @@ public class MainActivity extends Activity {
         greeting = text(15, "medium", GOLD);
         greeting.setSingleLine(true);
         left.addView(greeting, llp(-2, -2, 0, 0, dp(4), 0));
+        // under it: the weather of the city and the next sunrise or sunset (shown only when the greeting is on and there is an answer)
+        weatherLine = text(12, "regular", 0xFFC6BBA4);
+        weatherLine.setMaxLines(2);
+        weatherLine.setVisibility(View.GONE);
+        left.addView(weatherLine, llp(-2, -2, 0, dp(1), dp(4), 0));
+        greetingLine = new Greeting(this, greeting, weatherLine);
 
         LinearLayout clockRow = new LinearLayout(this);
         clockRow.setGravity(Gravity.BOTTOM);
@@ -325,9 +332,9 @@ public class MainActivity extends Activity {
         date = text(14, "regular", 0xFFC6BBA4);
         date.setSingleLine(true);
         left.addView(date, llp(-2, -2, 0, dp(-6), dp(4), 0));   // the display font leaves a deep gap under its digits
-        for (TextView t : new TextView[]{greeting, clock, ampm, date}) t.setShadowLayer(dp(3), 0, dp(1), 0x80000000);
+        for (TextView t : new TextView[]{greeting, weatherLine, clock, ampm, date}) t.setShadowLayer(dp(3), 0, dp(1), 0x80000000);
         left.setGravity(Gravity.RIGHT);
-        for (TextView t : new TextView[]{greeting, date}) t.setGravity(Gravity.RIGHT);
+        for (TextView t : new TextView[]{greeting, weatherLine, date}) t.setGravity(Gravity.RIGHT);
         header.addView(left, new FrameLayout.LayoutParams(-2, -2, Gravity.RIGHT | Gravity.TOP));
 
         LinearLayout right = new LinearLayout(this);
@@ -764,7 +771,7 @@ public class MainActivity extends Activity {
     private void updateClock() {
         Calendar now = Calendar.getInstance();
         int h = now.get(Calendar.HOUR_OF_DAY);
-        greeting.setText(h < 4 ? "تصبح على خير" : h < 12 ? "صباح الخير" : "مساء الخير");
+        greetingLine.update(h);
         int hh = h % 12 == 0 ? 12 : h % 12;   // always 12-hour
         clock.setText(arabicDigits(hh + ":" + String.format(Locale.ROOT, "%02d", now.get(Calendar.MINUTE))));
         ampm.setText(h < 12 ? "ص" : "م");

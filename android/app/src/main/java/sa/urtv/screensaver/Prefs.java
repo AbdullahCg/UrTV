@@ -185,7 +185,7 @@ final class Prefs {
 
     // The card beside the clock: value sent to the page (#panel=), Arabic label
     static final String[][] PANELS = {
-        {"shows", "جديد المسلسلات"}, {"prayers", "مواقيت الصلاة اليوم"}, {"forecast", "طقس الأيام القادمة"},
+        {"shows", "جديد المسلسلات"}, {"prayers", "مواقيت الصلاة اليوم"}, {"forecast", "طقس الأيام القادمة"}, {"hourly", "طقس الساعات القادمة"}, {"prayerrow", "الصلوات في صف"},
         {"matches", "مباريات فرقك القادمة"}, {"verse", "آية أو حديث اليوم"}, {"wisdom", "حكمة اليوم"},
         {"adhkar", "أذكار الصباح والمساء"}, {"stocks", "الأسهم"}, {"tasks", "المهام"}, {"year", "السنة"},
         {"none", "لا شيء"},
@@ -427,6 +427,10 @@ final class Prefs {
     /** The card on the launcher's home screen: one of PANELS, off ("none") until the user picks one. */
     String homePanel() { return sp.getString("homePanel", "none"); }
     void setHomePanel(String v) { sp.edit().putString("homePanel", v).apply(); }
+
+    /** The greeting and the weather line on the launcher's home screen (default on). Off: the plain good-morning it had. */
+    boolean greeting() { return sp.getBoolean("greeting", true); }
+    void setGreeting(boolean v) { sp.edit().putBoolean("greeting", v).apply(); }
 
     List<String> teamIds() {
         List<String> ids = new ArrayList<>();
