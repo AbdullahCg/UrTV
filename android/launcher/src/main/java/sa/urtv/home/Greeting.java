@@ -96,8 +96,16 @@ final class Greeting {
                     con.disconnect();
                 }
                 JSONObject cur = new JSONObject(body.toString()).getJSONObject("current");
+                SharedPreferences sp = prefs();
                 float dust = dust(s);
-                prefs().edit().putLong("at", System.currentTimeMillis())
+                long now = System.currentTimeMillis();
+                long dustAt = now;
+                if (dust < 0) {   // the air-quality request failed: the last good reading of this place stands, not a clear sky
+                    boolean sameCity = s.lat.equals(sp.getString("lat", "")) && s.lon.equals(sp.getString("lon", ""));
+                    dustAt = sp.getLong("dustAt", 0);
+                    dust = sameCity && now - dustAt < STALE_MS ? sp.getFloat("dust", 0) : 0;
+                }
+                prefs().edit().putLong("dustAt", dustAt).putLong("at", System.currentTimeMillis())
                         .putString("lat", s.lat).putString("lon", s.lon)
                         .putFloat("temp", (float) cur.getDouble("temperature_2m"))
                         .putFloat("dust", dust)
@@ -109,7 +117,7 @@ final class Greeting {
         }, "greeting-weather").start();
     }
 
-    /** The larger of the air's pm10 and dust (µg/m³), as the page reads them to say «غبار»; 0 when the request fails. */
+    /** The larger of the air's pm10 and dust (µg/m³), as the page reads them to say «غبار»; -1 when the request fails. */
     private static float dust(Config s) {
         try {
             String url = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + s.lat + "&longitude=" + s.lon
@@ -128,7 +136,7 @@ final class Greeting {
             JSONObject cur = new JSONObject(body.toString()).getJSONObject("current");
             return (float) Math.max(cur.optDouble("pm10", 0), cur.optDouble("dust", 0));
         } catch (Exception e) {
-            return 0;   // no answer: the sky's own word
+            return -1;   // no answer: the caller keeps the last good reading
         }
     }
 

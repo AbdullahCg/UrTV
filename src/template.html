@@ -2189,9 +2189,17 @@ function prayerRows(){
   });
 }
 
+// the city's date as YYYY-MM-DD, and the one after it
+const CITY_DATE = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone});
+const cityToday = (ms = Date.now()) => CITY_DATE.format(new Date(ms));
+// A saved forecast can be days old: the rows are the days from today in the city's zone, named by their date («اليوم» is today's, not the
+// first row), and a forecast that has no today is not shown (its first row would be named «اليوم»).
 function forecastRows(){
-  return FORECAST.slice(0, 5).map((d, i) => {
-    const day = i === 0 ? 'اليوم' : i === 1 ? 'غداً'
+  const today = cityToday(), tomorrow = new Date(Date.parse(today + 'T12:00:00Z') + DAY_MS).toISOString().slice(0, 10);
+  const days = FORECAST.filter(d => d.date >= today).slice(0, 5);
+  if(!days.some(d => d.date === today)) return [];
+  return days.map(d => {
+    const day = d.date === today ? 'اليوم' : d.date === tomorrow ? 'غداً'
       : new Intl.DateTimeFormat(GREG, {timeZone:'UTC', weekday:'long'}).format(new Date(d.date + 'T12:00:00Z'));
     return `<li><span>${day}</span><span class="ep">${WX_CODES[d.code] || ''}</span>`
          + `<span class="dt">${ar(Math.round(d.hi))}° / ${ar(Math.round(d.lo))}°</span></li>`;
@@ -2538,6 +2546,16 @@ const WX_CODES = {
   80:'زخات خفيفة',81:'زخات مطر',82:'زخات غزيرة',85:'زخات ثلج',86:'زخات ثلج',
   95:'عواصف رعدية',96:'عواصف مصحوبة ببرد',99:'عواصف قوية'
 };
+// When the current reading was fetched, and the last dust reading (µg/m³): both are kept on the device. A reading older than 3 hours is
+// not shown as «now» (the temperature, the word and the day's range at the top left go blank until a new one arrives).
+const WX_STALE_MS = 3*3600000;
+let WX = {at: 0, pm: 0, pmAt: 0};
+try{ WX = Object.assign(WX, JSON.parse(localStorage.getItem('wx:' + location.hash) || '{}')); }catch(e){}
+const saveWx = () => { try{ localStorage.setItem('wx:' + location.hash, JSON.stringify(WX)); }catch(e){} };
+function wxExpire(){
+  if(Date.now() - WX.at < WX_STALE_MS) return;
+  ['wx-temp', 'wx-desc', 'wx-range'].forEach(id => { const el = document.getElementById(id); if(el){ setText(el, ''); el.classList.remove('dust'); } });
+}
 async function loadWeather(){
   const q = `latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}&timezone=${encodeURIComponent(CONFIG.timezone)}`;
   try{
@@ -2548,6 +2566,7 @@ async function loadWeather(){
                          + (hours ? '&hourly=temperature_2m,weather_code' : ''), 12000);
     if(!r.ok) throw 0;
     const j = await r.json();
+    WX.at = Date.now(); saveWx();
     setText(document.getElementById('wx-temp'), ar(Math.round(j.current.temperature_2m)) + '°');
     const d = document.getElementById('wx-desc');
     setText(d, WX_CODES[j.current.weather_code] || '');
@@ -2575,13 +2594,13 @@ async function loadWeather(){
     const r = await fetchT(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&current=pm10,dust`, 12000);
     if(!r.ok) throw 0;
     const c = (await r.json()).current || {};
-    const pm = Math.max(c.pm10 || 0, c.dust || 0);
-    if(pm >= 150){
-      const d = document.getElementById('wx-desc');
-      setText(d, pm >= 400 ? 'غبار كثيف' : 'غبار');
-      d.classList.add('dust');
-    }
-  }catch(e){}
+    WX.pm = Math.max(c.pm10 || 0, c.dust || 0); WX.pmAt = Date.now(); saveWx();
+  }catch(e){}                                  // no answer: the last dust reading stands, not a clear sky
+  if(WX.pm >= 150 && Date.now() - WX.pmAt < WX_STALE_MS){
+    const d = document.getElementById('wx-desc');
+    setText(d, WX.pm >= 400 ? 'غبار كثيف' : 'غبار');
+    d.classList.add('dust');
+  }
 }
 
 // night dimming: transparent by day, dark after 21:00 and before 07:00
@@ -2854,7 +2873,7 @@ function boot(){
   if(CONFIG.cardStyle !== 'current') document.documentElement.classList.add('cs-' + CONFIG.cardStyle);
   buildMarkets();
   restoreSnap();
-  paintMkUp();
+  paintMkUp(); wxExpire();
   setTimeout(saveSnap, 15*1000);   // the dream can be killed before pagehide
   setInterval(saveSnap, 60*1000);
   addEventListener('pagehide', saveSnap);
@@ -2874,7 +2893,7 @@ function boot(){
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); if(!SLOT_MATCHES) renderSlot(); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickOccasion(); wxExpire(); if(!SLOT_MATCHES) renderSlot(); }, 15000);
   if(SLOT_MATCHES){   // the matches timers run only while the slot shows matches
     setInterval(() => renderMatches(false), 60000);
     // 15 s a page (two games), 10 s once a league makes more than 3 pages: a round of 9 games passes in 50 s, not 75

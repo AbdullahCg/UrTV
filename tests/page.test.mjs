@@ -85,7 +85,7 @@ for (const file of ['urtv.html', 'tv.html']) {
 
 // ---- every card beside the clock, with sample data where the card needs the network
 const SAMPLE = {
-  forecast: () => { FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: new Date(Date.now() + i * 864e5).toISOString().slice(0, 10), code: 2, hi: 37 - i, lo: 24 - i })); },
+  forecast: () => { FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: cityToday(Date.now() + i * 864e5), code: 2, hi: 37 - i, lo: 24 - i })); },
   matches: () => {
     const ev = (id, h, a, hrs) => ({ idEvent: id, strHomeTeam: h, strAwayTeam: a, strTimestamp: new Date(Date.now() + hrs * 36e5).toISOString() });
     NEXT_LIST = { '136013': [ev('a', 'Al-Hilal', 'Al-Nassr', 3), ev('b', 'Al-Ahli', 'Al-Hilal', 80)] };
@@ -2071,7 +2071,7 @@ const homeBox = (cards, W, tight = false) => cards <= 1 ? [461, 250] : [Math.rou
 // what the cards need, put in by hand: the app asks the network for these (here cut)
 const HOME_SEED = ({ isha = '19:15' } = {}) => `
   buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '${isha}' });
-  FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: new Date(Date.now() + i * 864e5).toISOString().slice(0, 10), code: 2, hi: 37 - i, lo: 24 - i }));
+  FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: cityToday(Date.now() + i * 864e5), code: 2, hi: 37 - i, lo: 24 - i }));
   HOURLY = [1, 2, 3, 4, 5, 6].map(i => ({ t: '2026-10-22T' + String(i + 16).padStart(2, '0') + ':00', code: [0, 2, 3, 61, 3, 0][i - 1], temp: 34 - i }));
   STOCKS = { '2222': { p: 28.5, v: 28, c: [1, 2, 3, 2, 4] }, '1120': { p: 90, v: 91, c: [3, 2, 1, 2] }, AAPL: { p: 230, v: 229, c: [1, 2, 3] } };
 `;
@@ -2758,6 +2758,57 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
     const sa = await o.p.evaluate(() => [marketOpen(true, Date.parse('2026-10-25T07:30:00Z')), marketOpen(true, Date.parse('2026-10-25T12:30:00Z')), marketOpen(true, Date.parse('2026-10-23T08:00:00Z'))]);
     check('marketOpen: Tadawul Sunday 10:30 open, 15:30 closed, Friday closed', sa.join() === 'true,false,false', sa.join());
     await o.ctx.close();
+  }
+}
+
+// ---- the forecast is of today on: rows by date, a stale one is not dressed as today; the reading has an age; dust is remembered
+{
+  const NOW = new Date('2026-10-22T09:00:00Z');   // Thursday noon in Riyadh
+  const day = (d, hi = 38) => ({ date: d, code: 2, hi, lo: 24 });
+  const rows = p => p.evaluate(() => [...document.querySelectorAll('#week-list li')].map(li => (li.querySelector('span') || li).textContent + ':' + li.textContent.replace(/\s+/g, ' ').trim().slice(-9)));
+  {
+    const { p, ctx } = await open('tv.html', 'panel=forecast&teams=', { now: NOW });
+    await p.evaluate(d => { FORECAST = d; renderPanel(false); }, [day('2026-10-21'), day('2026-10-22', 37), day('2026-10-23', 36), day('2026-10-24', 35), day('2026-10-25', 34), day('2026-10-26', 33)]);
+    const r = await rows(p);
+    check('forecast card: yesterday is dropped; today is «اليوم» and tomorrow «غداً» by their dates', r.length === 5 && r[0].startsWith('اليوم:') && r[1].startsWith('غداً:') && r[0].includes('٣٧°') && !r.join().includes('٣٨°'), r.join(' | '));
+    await p.evaluate(d => { FORECAST = d; renderPanel(false); }, [day('2026-10-20'), day('2026-10-21'), day('2026-10-23', 36), day('2026-10-24', 35)]);
+    const r2 = await rows(p);
+    check('forecast card: a saved forecast with no today is not shown (nothing called «اليوم»)', r2.length === 1 && r2[0].includes('لا تتوفر بيانات') && !r2.join().includes('اليوم'), r2.join(' | '));
+    await p.evaluate(d => { FORECAST = d; renderPanel(false); }, [day('2026-10-22', 37), day('2026-10-24', 35)]);
+    const r3 = await rows(p);
+    check('forecast card: a gap in the dates is not hidden by the order: after today comes the next date, named by its weekday', r3.length === 2 && r3[0].startsWith('اليوم') && !r3[1].startsWith('غداً'), r3.join(' | '));
+    await ctx.close();
+  }
+  {   // a reading older than 3 hours is not shown as the weather now; a fresh one stays
+    const { p, ctx } = await open('tv.html', 'teams=', { now: NOW });
+    const st = await p.evaluate(() => {
+      const out = [];
+      setText(document.getElementById('wx-temp'), '٣١°'); setText(document.getElementById('wx-desc'), 'صافي'); setText(document.getElementById('wx-range'), '٣٨° / ٢٤°');
+      WX.at = Date.now() - 4 * 36e5; wxExpire(); out.push(document.getElementById('wx-temp').textContent + '|' + document.getElementById('wx-desc').textContent + '|' + document.getElementById('wx-range').textContent);
+      setText(document.getElementById('wx-temp'), '٣١°');
+      WX.at = Date.now() - 2 * 36e5; wxExpire(); out.push(document.getElementById('wx-temp').textContent);
+      return out;
+    });
+    check('weather: a reading older than 3 hours is not shown as current, a 2-hour-old one is', st[0] === '||' && st[1] === '٣١°', st.join(' ; '));
+    await ctx.close();
+  }
+  {   // the air-quality request fails on the second round: «غبار» stays
+    let round = 1;
+    const hdr = { 'Access-Control-Allow-Origin': '*' };
+    const { p, ctx } = await open('tv.html', 'panel=forecast&teams=', { now: NOW, net: r => {
+      const u = r.request().url();
+      if (/air-quality-api/.test(u)) { round === 1 ? r.fulfill({ json: { current: { pm10: 220, dust: 180 } }, headers: hdr }) : r.fulfill({ status: 500, body: '', headers: hdr }); return true; }
+      if (/api\.open-meteo\.com\/v1\/forecast/.test(u)) { r.fulfill({ json: { current: { temperature_2m: 33.2, weather_code: 0 }, daily: { time: ['2026-10-22', '2026-10-23'], weather_code: [0, 0], temperature_2m_max: [38, 37], temperature_2m_min: [24, 23] } }, headers: hdr }); return true; }
+      return false;
+    } });
+    await p.waitForTimeout(500);
+    const first = await p.evaluate(() => document.getElementById('wx-desc').textContent);
+    round = 2;
+    await p.evaluate(() => loadWeather());
+    await p.waitForTimeout(500);
+    const second = await p.evaluate(() => ({ t: document.getElementById('wx-desc').textContent, dust: document.getElementById('wx-desc').classList.contains('dust') }));
+    check('weather: the last good dust reading stands when the air-quality request fails', first === 'غبار' && second.t === 'غبار' && second.dust, first + ' / ' + JSON.stringify(second));
+    await ctx.close();
   }
 }
 
