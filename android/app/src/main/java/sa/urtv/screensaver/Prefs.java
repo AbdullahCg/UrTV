@@ -320,6 +320,10 @@ final class Prefs {
     boolean adhanBar() { return sp.getBoolean("adhanBar", true); }
     void setAdhanBar(boolean v) { sp.edit().putBoolean("adhanBar", v).apply(); }
 
+    /** The slim year strip under the clock, on the screensaver only (default off); sent to the page as #yearstrip=. */
+    boolean yearStrip() { return sp.getBoolean("yearStrip", false); }
+    void setYearStrip(boolean v) { sp.edit().putBoolean("yearStrip", v).apply(); }
+
     boolean autoUpdate() { return sp.getBoolean("autoUpdate", true); }
     void setAutoUpdate(boolean v) { sp.edit().putBoolean("autoUpdate", v).apply(); }
 
@@ -369,6 +373,7 @@ final class Prefs {
             + "&digits=" + digits()
             + "&cardstyle=" + cardStyle()
             + "&adhanbar=" + (adhanBar() ? "1" : "0")
+            + "&yearstrip=" + (yearStrip() ? "1" : "0")
             + "&national=" + national()
             + "&markets=" + join(markets(), ",")
             + "&mkstyle=" + mkStyle()

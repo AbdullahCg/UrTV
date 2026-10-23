@@ -9,6 +9,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.ValueCallback;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -23,6 +24,11 @@ import java.util.Collections;
  * up to three cards picked in the screensaver's settings («البطاقة الأولى» … «الثالثة»), all in one WebView
  * whose box grows with their number (see Sizer). Off by default; while off no WebView is created. Settings
  * come from the screensaver app's ConfigProvider (same signing key).
+ *
+ * «المهام» among the cards is a button: a transparent focus target (live()) sits over that card inside the same
+ * FrameLayout, and the page (#live=1) draws its mic mark and, while the target has the focus, its ring (setLiveFocus).
+ * The WebView itself stays unfocusable; the focus and OK are the Android side's, like a pill's. The target is moved over
+ * the card by what the page says about where it is (liveRect), so the page stays the one place that lays the cards out.
  */
 final class HomeCard {
     private static final Uri CONFIG = Uri.parse("content://sa.urtv.screensaver.config");
@@ -32,6 +38,9 @@ final class HomeCard {
     /** The box in pixels, {width, height}, for that many cards; asked again whenever the screen is laid out. */
     interface Sizer { int[] box(int cards); }
 
+    /** What the home screen does with the «المهام» card: it gained or lost the focus, OK was pressed on it. */
+    interface Live { void focus(View target, boolean has); void open(); }
+
     private final Activity activity;
     private final ViewGroup parent;
     private final FrameLayout.LayoutParams params;
@@ -39,13 +48,21 @@ final class HomeCard {
     private WebView web;
     private String url;
     private int cards;   // how many the page in `web` shows
+    private boolean tasks;   // «المهام» is one of them: `target` exists
+    private View target;
+    private FrameLayout.LayoutParams targetParams;
+    private final Live live;
 
-    HomeCard(Activity activity, ViewGroup parent, FrameLayout.LayoutParams params, Sizer sizer) {
+    HomeCard(Activity activity, ViewGroup parent, FrameLayout.LayoutParams params, Sizer sizer, Live live) {
         this.activity = activity;
         this.parent = parent;
         this.params = params;
         this.sizer = sizer;
+        this.live = live;
     }
+
+    /** The focus target over the «المهام» card, or null when it is not among the cards. */
+    View live() { return target; }
 
     /** The screen was laid out again (the dock's names, the clock's width): the box may have to move. */
     void fit() {
@@ -55,6 +72,7 @@ final class HomeCard {
         params.width = b[0];
         params.height = b[1];
         web.setLayoutParams(params);
+        placeTarget();
     }
 
     /** onResume: follow the current settings; a changed choice gets a fresh page. */
@@ -73,6 +91,7 @@ final class HomeCard {
 
     void destroy() {
         if (web == null) return;
+        if (target != null) { parent.removeView(target); target = null; targetParams = null; }
         parent.removeView(web);
         web.destroy();
         web = null;
@@ -99,7 +118,8 @@ final class HomeCard {
         // before this app): keep the last cards chosen, «بدون» included. Only with nothing remembered, the prayers.
         String[] choice = HomeCardChoice.pick(frag, panel, sp.getString("frag", null), sp.getString("panel", null));
         cards = HomeCardChoice.count(choice);
-        return HomeCardChoice.url(choice);
+        tasks = HomeCardChoice.hasTasks(choice);
+        return HomeCardChoice.liveUrl(choice);
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -115,6 +135,14 @@ final class HomeCard {
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
         web.setWebViewClient(new WebViewClient() {
             // the page asks GitHub for its fonts; answer from the APK
+            @Override
+            public void onPageFinished(WebView v, String u) {
+                if (target == null) return;
+                // the page has laid its cards out; they may still be filling (fonts, the first rows): ask again a little later
+                v.postDelayed(HomeCard.this::placeTarget, 300);
+                v.postDelayed(HomeCard.this::placeTarget, 2500);
+            }
+
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
                 String s = r.getUrl().toString();
@@ -146,7 +174,44 @@ final class HomeCard {
         params.width = b[0];
         params.height = b[1];
         parent.addView(web, params);
+        if (tasks) addTarget();
         url = u;
         web.loadUrl(u);
+    }
+
+    /** The transparent button over the «المهام» card: it takes the focus like a pill, and OK opens the list. */
+    private void addTarget() {
+        target = new View(activity);
+        target.setId(View.generateViewId());
+        target.setFocusable(true);
+        target.setContentDescription("المهام");
+        target.setOnFocusChangeListener((v, has) -> {
+            if (web != null) web.evaluateJavascript("setLiveFocus(" + has + ")", null);
+            if (has) placeTarget();   // exactly over the card while it is the one in front
+            live.focus(v, has);
+        });
+        target.setOnClickListener(v -> live.open());
+        targetParams = new FrameLayout.LayoutParams(params);
+        parent.addView(target, targetParams);
+    }
+
+    /** Puts the target over the card, where the page says it is; until it has said, it covers the whole box. */
+    private void placeTarget() {
+        if (web == null || target == null) return;
+        web.evaluateJavascript("typeof liveRect==='function'?liveRect():''", new ValueCallback<String>() {
+            @Override public void onReceiveValue(String value) {
+                if (target == null || targetParams == null) return;
+                String[] r = value == null ? new String[0] : value.replace("\"", "").split(",");
+                if (r.length != 4) return;
+                try {
+                    float d = activity.getResources().getDisplayMetrics().density;   // the page's px are dp
+                    targetParams.leftMargin = params.leftMargin + Math.round(Float.parseFloat(r[0]) * d);
+                    targetParams.topMargin = params.topMargin + Math.round(Float.parseFloat(r[1]) * d);
+                    targetParams.width = Math.max(1, Math.round(Float.parseFloat(r[2]) * d));
+                    targetParams.height = Math.max(1, Math.round(Float.parseFloat(r[3]) * d));
+                    target.setLayoutParams(targetParams);
+                } catch (NumberFormatException ignored) { }
+            }
+        });
     }
 }

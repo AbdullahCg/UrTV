@@ -15,6 +15,7 @@
 #                                                  (one value works too; none = off). Two sit side by side, a third under them
 #   optimize/saver.sh greeting off                 home screen: the greeting (by prayer time) and the weather line under it: on (default) or off
 #   optimize/saver.sh adhanbar off                 the slim bar before the adhan (last 10 minutes, then until the iqama) on the screensaver and the home screen: on (default) or off
+#   optimize/saver.sh yearstrip on                 the slim year strip under the screensaver's clock (365 dots in 7 rows, today lit, no words): on or off (default)
 #   optimize/saver.sh genres Drama,Comedy          episodes card: Drama Comedy Action Crime Thriller Mystery
 #                                                  Science-Fiction Fantasy Adventure Romance Family History Horror
 #                                                  Anime Documentary Sports  ("" = all)
@@ -121,6 +122,7 @@ case "${1:-}" in
   home-card) send SET "--es home_panel $(quote "${2?usage: optimize/saver.sh home-card verse,hourly,year | none}")" ;;
   greeting)  send SET "--es greeting $(quote "${2:?usage: optimize/saver.sh greeting on|off}")" ;;
   adhanbar)  send SET "--es adhanbar $(quote "${2:?usage: optimize/saver.sh adhanbar on|off}")" ;;
+  yearstrip) send SET "--es yearstrip $(quote "${2:?usage: optimize/saver.sh yearstrip on|off}")" ;;
   genres)    send SET "--es genres $(quote "${2-}")" ;;
   leagues)   send SET "--es leagues $(quote "${2-}")" ;;
   events)    send SET "--es events $(quote "${2-}")" ;;

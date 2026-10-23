@@ -29,7 +29,7 @@ public class AdhanReceiver extends BroadcastReceiver {
 
         long now = System.currentTimeMillis();
         if (prefs.adhanOn() && screenOn(context) && now - prefs.lastAdhan() > DUPLICATE) {
-            MusicService.adhan(context, prefs.voice(), null, 0);
+            MusicService.adhan(context, prefs.playVoice(context), null, 0);
         }
         AdhanScheduler.schedule(context);
     }

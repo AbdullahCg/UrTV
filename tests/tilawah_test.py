@@ -150,7 +150,7 @@ check("ADB receiver needs the shell-only DUMP permission",
 check("ADB receiver is exported", receiver.get(A + "exported") == "true")
 actions = {a.get(A + "name") for a in receiver.find("intent-filter").findall("action")}
 expected = {"GET_PLAYER", "PLAY_SURAH", "PLAY_RADIO", "PAUSE", "RESUME", "TOGGLE",
-            "NEXT", "PREV", "STOP", "SLEEP", "SEEK_BY", "ADHAN", "ADHAN_ON", "ADHAN_OFF", "VOICE"}
+            "NEXT", "PREV", "STOP", "SLEEP", "SEEK_BY", "ADHAN", "ADHAN_ON", "ADHAN_OFF", "VOICE", "ADHAN_OWN"}
 check("ADB receiver exposes every action", expected <= {a.rsplit(".", 1)[-1] for a in actions},
       sorted(expected - {a.rsplit(".", 1)[-1] for a in actions}))
 check("the old listening actions are gone",
@@ -174,12 +174,12 @@ for permission in ["android.permission.WAKE_LOCK", "android.permission.FOREGROUN
 # ---- the label and the pill in the home screen
 strings = ET.parse(APP / "res/values/strings.xml").getroot()
 labels = {s.get("name"): s.text for s in strings.findall("string")}
-check("the app is called تلاوة", labels.get("app_name") == "تلاوة", labels.get("app_name"))
+check("the screen is called «تلاوة وأذان»", labels.get("app_name") == "تلاوة وأذان", labels.get("app_name"))
 check("the continue row is «متابعة التلاوة»",
       labels.get("continue_listening") == "متابعة التلاوة", labels.get("continue_listening"))
 
 home = text(JAVA / "MainActivity.java")
-check("the home screen has the «تلاوة» pill", '"تلاوة"' in home and "tilawah.MainActivity" in home)
+check("the home screen has the «تلاوة وأذان» pill", 'pill("تلاوة وأذان"' in home and "tilawah.MainActivity" in home)
 
 card = text(JAVA / "HomeCard.java")
 check("the home card reads the screensaver's settings",

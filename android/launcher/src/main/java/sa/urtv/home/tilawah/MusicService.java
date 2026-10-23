@@ -272,10 +272,13 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     // ---- the adhan: pause whatever is on, play it, then bring the surah back ----
 
-    private void playAdhan(int voice, String name, int previewSeconds) {
+    private void playAdhan(int wanted, String name, int previewSeconds) {
         handler.removeCallbacks(previewStop);
         // a second adhan on top of the first (the alarm and a preview): ignore it
         if (source == Prefs.SOURCE_ADHAN && playing) return;
+        final boolean gone = wanted == Prefs.OWN && !OwnAdhan.exists(this);   // the recording was removed: a numbered voice
+        final int voice = gone ? prefs.voice() : wanted;
+        if (gone) name = null;
         adhanVolumeUp();
         resumeAfterAdhan = prepareAdhanPause();
         source = Prefs.SOURCE_ADHAN;
@@ -285,8 +288,9 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         retries = 0;
         pendingSeek = 0;
         prefs.setLastAdhan(System.currentTimeMillis());
-        File cached = Adhan.cached(this, voice);
-        if (cached.length() > 100_000) {
+        File cached = voice == Prefs.OWN ? OwnAdhan.file(this) : Adhan.cached(this, voice);
+        // the person's own file is always on the TV: nothing to fetch, nothing to retry from the network
+        if (voice == Prefs.OWN || cached.length() > 100_000) {
             adhanFromCache = true;
             startUrl(cached.getAbsolutePath());
         } else {
@@ -531,6 +535,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         adhanName = null;
         handler.removeCallbacks(sleepStart);
         sleepUntil = 0;
+        announce();
         foregroundStarted = false;
         stopForeground(true);
         if (session != null) {
@@ -617,7 +622,17 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     // ---- MediaSession + notification ----
 
+    /** The home screen's «يُتلى الآن» card hears about it when what it shows may have changed: once per change, never on the clock's tick. */
+    private String announced = "";
+    private void announce() {
+        String now = source + "|" + playing + "|" + buffering + "|" + reciter + "|" + surah + "|" + station + "|" + (error != null) + "|" + (sleepUntil > 0);
+        if (now.equals(announced)) return;
+        announced = now;
+        sendBroadcast(new Intent(NowPlaying.CHANGED).setPackage(getPackageName()));
+    }
+
     private void updateSession() {
+        announce();
         if (session == null) return;
         String title = "تلاوة", artist = "";
         if (source == Prefs.SOURCE_SURAH && reciter >= 0 && reciter < cat.reciters.size()) {

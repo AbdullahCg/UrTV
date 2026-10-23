@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
                 MusicService.playRadio(this, row.index);
                 openPlayer();
             } else if (row.kind == KIND_PRAYER) {
-                MusicService.adhan(this, prefs.voice(), Adhan.name(prefs.voice()), 0);
+                MusicService.adhan(this, prefs.playVoice(this), Adhan.name(prefs.playVoice(this)), 0);
                 openPlayer();
             } else if (row.kind == KIND_ADHAN_TOGGLE) {
                 prefs.setAdhanOn(!prefs.adhanOn());
@@ -317,7 +317,7 @@ public class MainActivity extends Activity {
                     toggle += "  •  " + next.name() + " " + PrayerTimes.remaining(next.at - System.currentTimeMillis());
                 }
                 rows.add(new Row(false, KIND_ADHAN_TOGGLE, getString(R.string.adhan_auto), toggle, -1));
-                rows.add(new Row(false, KIND_VOICE, getString(R.string.adhan_voice), Adhan.label(prefs.voice()), -1));
+                rows.add(new Row(false, KIND_VOICE, getString(R.string.adhan_voice), Adhan.label(prefs.playVoice(MainActivity.this)), -1));
                 rows.add(new Row(false, KIND_VOLUME, getString(R.string.adhan_volume),
                         percent(prefs.adhanVolume()), -1));
             }
