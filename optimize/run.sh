@@ -43,6 +43,7 @@ finish() {
   trap - EXIT
   [ "$(cat "$LOCK" 2> /dev/null || true)" = "$$" ] && rm -f "$LOCK"
   if [ "$rc" -eq 0 ]; then echo "run.sh: done"
+  elif [ "$rc" -eq 3 ] && [ "$current" = precheck ]; then stamp "stopped $current (not an Android TV)"; echo "run.sh: stopped at precheck: this device is not an Android TV, nothing was changed (see above)"
   else stamp "stopped $current (exit $rc)"; echo "run.sh: stopped at $current, run the same command again"; fi
   exit "$rc"
 }
@@ -51,9 +52,10 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 fi
 
-STEPS=(probe backup keep before before-saver safe mine tweaks screensaver launcher extras after after-saver report)
+STEPS=(precheck probe backup keep before before-saver safe mine tweaks screensaver launcher extras after after-saver report)
 title() {
   case "$1" in
+    precheck)    echo "Check it is an Android TV with a WebView the screensaver can run on" ;;
     probe)       echo "Connect and identify the TV" ;;
     backup)      echo "Save the TV's current state" ;;
     keep)        echo "Turn protected features back on if anything turned them off" ;;
@@ -107,6 +109,8 @@ report() {
   echo
   grep -E 'model|version.release|display.id' "$RUN/tv.txt" || true
   echo
+  optimize/precheck.sh report 2> /dev/null || true   # «Device:» and «WebView:» (a !! line if the WebView is too old)
+  echo
   cat "$RUN/summary.md"
   "$PY" -I optimize/heavy.py "$RUN/summary.md" || true   # the TV's own screensaver against ours: a !! advice line if ours is heavy
   echo
@@ -145,6 +149,8 @@ report() {
 
 do_step() {
   case "$1" in
+    precheck)    rc=0; optimize/precheck.sh > "$RUN/precheck.txt" 2>&1 || rc=$?   # 3: not an Android TV, stop (nothing was changed)
+                 cat "$RUN/precheck.txt"; [ "$rc" = 0 ] || exit "$rc" ;;
     probe)       tv --probe | tee "$RUN/tv.txt" ;;
     backup)      optimize/backup.sh && cp "$(ls -t optimize/backup-*.txt | head -1)" "$RUN/backup.txt" ;;
     keep)        optimize/keep.sh | tee "$RUN/keep.txt" ;;

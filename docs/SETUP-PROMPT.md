@@ -224,7 +224,9 @@ Lines starting with `!!` are the scripts telling you to stop and act. These are 
 | `Done, with problems:` and `optimize/run.sh` exits 1 | every step ran, but `report.md` has `!!` lines (printed under it) | read them, fix what each says (this table), then `optimize/run.sh` again: only the report step is redone |
 | `ADB dropped during the switch; the TV is back, trying the switch again` | Wi-Fi ADB dropped while the home was being switched; the script waited for the TV (up to 6 minutes) and is doing the switch a second time, the safety switch armed again | nothing, wait; only if it ends in `!!` follow that line |
 | `!! The safety switch put the stock home back` | ADB was slower than the 5-minute switch | nothing is broken: the same command again |
-| `!! Home did not open the new launcher` | slow ADB, or firmware that pins its own home | leave the TV 5 minutes; `optimize/run.sh` once more; if again, `SKIP_LAUNCHER=1 optimize/run.sh` |
+| `!! This device is not an Android TV` (`run.sh: stopped at precheck`) | no `android.software.leanback`: a phone, a tablet or a box that is not Android TV | nothing was changed; give me the Arabic message in the line, and stop |
+| `!! WebView: system WebView is 66` (or any number below 80) | the screensaver page needs WebView/Chrome 80+ (`?.`, `??`) and would not run | tell me in Arabic to update «Android System WebView» from the Play Store (`optimize/precheck.sh webview-store` opens its page); then `optimize/precheck.sh` again. The setup and the report go on, the line stays until it is fixed |
+| `!! Home did not open the new launcher` | slow ADB, or firmware that pins its own home (a Fire TV often refuses another home) | leave the TV 5 minutes; `optimize/run.sh` once more; if again, `SKIP_LAUNCHER=1 optimize/run.sh` |
 | the TV has no home at all (black screen, Home does nothing) | our home app is gone while the stock home is off | `optimize/restore.sh` (no list: only the home screen), then `optimize/install.sh launcher`; more in `docs/OPTIMIZE.md`, «Home screen problems» |
 | `!! The stock home is not on screen` (reset) | the stock home was slow to start | ask me to press Home, then `optimize/reset.sh` again |
 | `!! still off` (keep.sh) | a protected feature would not turn back on | **stop**, show me; don't continue |
@@ -244,6 +246,7 @@ Anything else, or anything twice: stop, show me the output and what you think it
 optimize/setup.sh
 optimize/find-tv.sh                       # accept "Allow USB debugging?" on the TV, tick "Always allow"
 optimize/venv/bin/python -I optimize/tv.py --probe     # first tell me to watch the TV (below)
+optimize/precheck.sh                      # is it an Android TV, is its WebView 80 or newer (run.sh does it as its first step too)
 optimize/shot.sh home my-apps
 ```
 Right before `--probe`, tell me, word for word, and **don't end your turn or wait for my reply**: run `--probe` straight
@@ -253,6 +256,13 @@ out, tell me again and run it once more.
 > الحين بتطلع لك على التلفزيون رسالة «Allow USB debugging?»: اضغط Allow وعلّم «Always allow». بعدها تقدر
 > تتركني، أكمّل لحالي حوالي ٤٠ دقيقة.
 
+- `optimize/precheck.sh` decides first whether to go on. **Exit 3, «not an Android TV»**: stop, change nothing, and give
+  me its Arabic message as it is (Samsung Tizen and LG webOS TVs can't run these apps; a phone or tablet is not a TV).
+  **Fire TV** (Amazon): tell me in Arabic it may work only partly and the home switch may be refused; go on.
+  **`!! WebView: system WebView is NN`** (below 80; the screensaver page uses `?.` and `??`, so on 66 it never ran): tell
+  me its Arabic text, and offer to open the page myself (`optimize/precheck.sh webview-store` opens «Android System
+  WebView» in the TV's Play Store; I press Update; then `optimize/precheck.sh` again). The setup can go on meanwhile, and
+  `report.md` keeps the `!!` line until the WebView is new enough. Never try to change the page for an old WebView.
 - Tell me the model and Android version.
 - Read the row for this TV model in `docs/TVS.md` before going on: it says what was seen on that model (ADB port,
   what to watch out for).

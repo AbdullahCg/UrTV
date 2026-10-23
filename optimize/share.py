@@ -165,7 +165,7 @@ def report_checks():
     live = live_versions()   # the apps on the TV now; the report's line only dates from the last setup
     out = [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
            *[live if l.startswith("Versions:") and live else l
-             for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+             for l in lines if l.startswith(("Device:", "WebView:", "!! WebView:", "Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
     if live and not any(l.startswith("Versions:") for l in lines):
         out.append(live)
     return out + packages(lines)

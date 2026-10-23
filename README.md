@@ -129,6 +129,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 | | |
 |---|---|
 | `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) · `pair <IP:port> <code>` and `connect <IP:port>`: Android 11+ «Wireless debugging» for a TV that keeps port 5555 closed (needs `adb`) |
+| `optimize/precheck.sh` | is it an Android TV (leanback; Samsung Tizen, LG webOS, phones are refused) and is its WebView 80 or newer · `webview-store` opens the update page on the TV |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
 | `docs/FEATURES.md` | كل ميزة بالعربي: وش تسوي، ووين تغيّرها، ووش يكتب الوكيل |
 | `docs/SETTINGS.md` | every setting and feature with its command, for agents: use these, never build your own |
