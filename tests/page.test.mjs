@@ -658,7 +658,7 @@ const mk = p => p.evaluate(() => [...document.querySelectorAll('.mk .m')].map(m 
   check('markets prices: the day\'s change with the arrow, coloured', r[0].ch === '▲ ٠٫٤٤٪' && r[0].up && r[2].ch === '▲ ٠٫٥٠٪' && r[3].ch === '▼ ١٫٢٣٪' && !r[3].up, JSON.stringify(r));
   check('markets prices: «آخر تحديث» with the time', /^آخر تحديث [٠-٩]{1,2}:[٠-٩]{2} [صم]$/.test(up), up);
   state.off = true;                       // offline: what is shown stays
-  await p.evaluate(() => TICKERS.forEach(loadTicker));
+  await p.evaluate(() => loadMarkets());
   await p.waitForTimeout(500);
   check('markets prices: offline keeps the last values', JSON.stringify(await mk(p)) === JSON.stringify(r));
   await ctx.close();
@@ -743,11 +743,12 @@ const stkRows = p => p.evaluate(() => ({ hd: document.getElementById('week-hd').
   await p.evaluate('renderPanel(false)');
   r = await stkRows(p);
   check('stocks: US open, Tadawul rows marked closed', r.hd === 'الأسهم' && r.rows[0].closed && !r.rows[2].closed, JSON.stringify(r));
-  const before = await p.evaluate(() => document.getElementById('week-list').innerHTML);
-  state.off = true;                                      // offline: the last values stay
+  const prices = () => p.evaluate(() => [...document.querySelectorAll('#week-list li.stk')].map(li => li.querySelector('.nm').textContent + li.querySelector('.px').textContent).join('|'));
+  const before = await prices();
+  state.off = true;                                      // offline: the last values stay, marked (below)
   await p.evaluate('loadStocks()');
   await p.waitForTimeout(600);
-  check('stocks: offline keeps the last values on screen', await p.evaluate(() => document.getElementById('week-list').innerHTML) === before);
+  check('stocks: offline keeps the last values on screen', before.length > 10 && await prices() === before);
   check('stocks: no Latin digits in the card', !/[0-9]/.test(await p.evaluate(() => document.getElementById('week-list').textContent)));
   await ctx.close();
 }
@@ -2621,6 +2622,142 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
     const t3 = await card(q.p);
     check('shows: a total failure says «تعذّر التحديث», not «لا جديد»', t3 === 'تعذّر التحديث', t3);
     await q.ctx.close();
+  }
+}
+
+// ---- prices keep their time: a failed refresh leaves the last price, dimmed and marked; Yahoo is asked once, and politely
+{
+  const hdr = { 'Access-Control-Allow-Origin': '*' };
+  const yahoo = (p, price = 26.3, prev = 26) => JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: price, chartPreviousClose: prev }, indicators: { quote: [{ close: [26, 26.1, price] }] } }] } });
+  const session = async (hash, handler) => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const seen = [];
+    await ctx.route(/^https?:/, r => { const u = new URL(r.request().url()); seen.push(u.host + u.pathname + u.search); return handler(r, u); });
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(page('tv.html') + '#' + hash + '&gap=0');
+    await p.waitForTimeout(900);
+    return { p, ctx, seen, errors };
+  };
+  const sym = u => decodeURIComponent((u.pathname.match(/chart\/(.+)$/) || [])[1] || '');
+
+  // the card: a refresh that fails
+  {
+    let mode = 'ok';
+    const o = await session('panel=stocks&stocks=2222,AAPL', (r, u) => {
+      if (!/finance\.yahoo/.test(u.host)) return r.abort();
+      if (mode !== 'ok') return r.fulfill({ status: 429, body: 'x', headers: hdr });
+      return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, sym(u) === 'AAPL' ? 230 : 26.3) });
+    });
+    const rows = () => o.p.evaluate(() => ({ old: document.querySelectorAll('#week-list li.stk.old').length, n: document.querySelectorAll('#week-list li.stk').length,
+      hd: document.getElementById('week-hd').textContent, px: [...document.querySelectorAll('#week-list li.stk .px')].map(e => e.textContent).join() }));
+    let r = await rows();
+    check('stocks: a fresh price carries no mark', r.n === 2 && r.old === 0 && !/آخر تحديث|غير محدّث/.test(r.hd), JSON.stringify(r));
+    mode = 'down';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    const r2 = await rows();
+    check('stocks: a refresh that failed keeps the prices, dims the rows and says «آخر تحديث ٣:١٥ م»', r2.n === 2 && r2.old === 2 && r2.px === r.px && /آخر تحديث [٠-٩]{1,2}:[٠-٩]{2} [صم]/.test(r2.hd), JSON.stringify(r2));
+    await o.p.evaluate(() => { STOCKS['2222'].at = Date.now() - 25 * 36e5; STOCKS['AAPL'].at = Date.now() - 26 * 36e5; renderPanel(false, 'stocks'); });
+    const r3 = await rows();
+    check('stocks: older than 24 hours it says «غير محدّث» instead of a time', /غير محدّث/.test(r3.hd) && !/آخر تحديث/.test(r3.hd), r3.hd);
+    mode = 'ok';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    const r4 = await rows();
+    check('stocks: the next good answer clears the mark', r4.old === 0 && !/آخر تحديث|غير محدّث/.test(r4.hd), JSON.stringify(r4));
+    await o.ctx.close();
+  }
+  // the markets line
+  {
+    let mode = 'ok';
+    const o = await session('markets=tasi,aramco,gold&mkstyle=prices', (r, u) => {
+      if (!/finance\.yahoo/.test(u.host)) return r.abort();
+      if (mode !== 'ok') return r.fulfill({ status: 429, body: 'x', headers: hdr });
+      return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, 100, 99) });
+    });
+    const st = () => o.p.evaluate(() => ({ old: document.querySelectorAll('.mk .m.old').length, up: document.getElementById('mk-up').textContent, cls: document.getElementById('mk-up').className,
+      px: [...document.querySelectorAll('.mk .px')].map(e => e.textContent).join() }));
+    const a = await st();
+    check('markets line: current prices, the time of the fetch, nothing dimmed', a.old === 0 && /^آخر تحديث/.test(a.up) && !/old/.test(a.cls), JSON.stringify(a));
+    mode = 'down';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    const b = await st();
+    check('markets line: a failed refresh keeps the prices, dims them and keeps «آخر تحديث» with the time of the last good fetch', b.old === 3 && b.px === a.px && /^آخر تحديث/.test(b.up) && /old/.test(b.cls) && b.up === a.up, JSON.stringify([a, b]));
+    await o.p.evaluate(() => { TICKERS.forEach(t => { MK_LAST[t.key].at = Date.now() - 30 * 36e5; }); saveMarkets(); paintMkUp(); });
+    const c = await st();
+    check('markets line: older than 24 hours says «غير محدّث»', c.up === 'غير محدّث' && c.old === 3, JSON.stringify(c));
+    await o.p.reload(); await o.p.waitForTimeout(500);
+    const d = await st();
+    check('markets line: the time is kept across a restart', d.old === 3 && d.up === 'غير محدّث', JSON.stringify(d));
+    await o.ctx.close();
+  }
+  // Yahoo: the proxies only for a network error; 404 once a day; one request for a symbol on the line and in the card
+  {
+    let mode = '429';
+    const o = await session('markets=aramco&panel=stocks&stocks=2222,ZZZZ', (r, u) => {
+      if (/allorigins|corsproxy/.test(u.host)) return r.abort();
+      if (!/finance\.yahoo/.test(u.host)) return r.abort();
+      if (sym(u) === 'ZZZZ') return r.fulfill({ status: 404, body: '{}', headers: hdr });
+      if (mode === '429') return r.fulfill({ status: 429, body: 'x', headers: hdr });
+      if (mode === 'net') return r.abort();
+      return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, 26.3) });
+    });
+    const asked = re => o.seen.filter(u => re.test(u)).length;
+    check('Yahoo: an HTTP refusal (429 or 404) is not sent through the public proxies', asked(/allorigins|corsproxy/) === 0, o.seen.join('\\n'));
+    check('Yahoo: 2222.SR is on the line and in the card and is asked once', asked(/chart\/2222\.SR/) === 1, String(asked(/chart\/2222\.SR/)));
+    check('Yahoo: the symbol that answered 404 is remembered', await o.p.evaluate(() => Object.keys(YH_404).join()) === 'ZZZZ');
+    const n = asked(/chart\/ZZZZ/);
+    mode = 'ok';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    check('Yahoo: a symbol that answered 404 is not asked again for a day', asked(/chart\/ZZZZ/) === n, `${n} -> ${asked(/chart\/ZZZZ/)}`);
+    await o.p.evaluate(() => { YH_404.ZZZZ = Date.now() - 25 * 36e5; BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    check('Yahoo: ... and asked again after it', asked(/chart\/ZZZZ/) === n + 1, String(asked(/chart\/ZZZZ/)));
+    mode = 'net';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(500);
+    check('Yahoo: a network error does go on to the proxies', asked(/allorigins/) > 0, o.seen.slice(-6).join('\\n'));
+    await o.ctx.close();
+  }
+  // the file CI keeps: read first; only a symbol not in it is asked of Yahoo
+  {
+    const t = new Date().toISOString();
+    const FILE = { updated: t, quotes: { '2222.SR': { p: 27.5, v: 27, c: [27, 27.2, 27.5], t }, 'AAPL': { p: 231, v: 230, c: [230, 231], t }, '^TASI.SR': { p: 11600, v: 11500, c: [], t } } };
+    const o = await session('markets=tasi&mkstyle=prices&panel=stocks&stocks=2222,AAPL,1120', (r, u) => {
+      if (u.host === 'raw.githubusercontent.com' && u.pathname.endsWith('/data-markets/markets/markets.json')) return r.fulfill({ json: FILE, headers: hdr });
+      if (/finance\.yahoo/.test(u.host)) return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, 90, 91) });
+      return r.abort();
+    });
+    const yh = o.seen.filter(u => /finance\.yahoo/.test(u));
+    check('markets file: the symbols it holds are not asked of Yahoo, the one it lacks (1120) is', yh.length === 1 && /1120\.SR/.test(yh[0]), yh.join('\\n'));
+    const r = await o.p.evaluate(() => ({ px: [...document.querySelectorAll('#week-list li.stk .px')].map(e => e.textContent).join(), tasi: document.querySelector('.mk .px').textContent }));
+    check('markets file: its prices are the ones shown', r.px.startsWith('٢٧٫٥٠,٢٣١٫٠٠') && r.tasi === '١١٬٦٠٠', JSON.stringify(r));
+    FILE.updated = new Date(Date.now() - 4 * 36e5).toISOString();   // CI stopped four hours ago
+    Object.values(FILE.quotes).forEach(q => { q.t = FILE.updated; });
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(500);
+    const yh2 = o.seen.filter(u => /finance\.yahoo/.test(u)).length - yh.length;
+    check('markets file: one older than 3 hours is not trusted, every symbol is asked of Yahoo itself', yh2 === 4, String(yh2));
+    await o.ctx.close();
+  }
+  // New York's own clock: the US open is 09:30 there, the hour does not move with summer time
+  {
+    const o = await session('teams=', (r) => r.abort());
+    const open = await o.p.evaluate(() => [
+      ['2026-10-23T13:45:00Z', true], ['2026-10-23T13:15:00Z', false],   // Friday, summer time: 9:45 and 9:15 in New York
+      ['2026-12-15T14:45:00Z', true], ['2026-12-15T14:15:00Z', false],   // winter time: 9:45 and 9:15
+      ['2026-12-15T20:45:00Z', true], ['2026-12-15T21:15:00Z', false],   // 15:45 and 16:15
+      ['2026-10-24T15:00:00Z', false], ['2026-10-25T15:00:00Z', false],  // Saturday, Sunday
+      ['2026-10-25T08:00:00Z', null],                                    // (Tadawul below)
+    ].filter(x => x[1] !== null).map(([iso, want]) => [iso, marketOpen(false, Date.parse(iso)) === want]));
+    check('marketOpen: the US window is New York time in summer and in winter', open.every(x => x[1]), JSON.stringify(open.filter(x => !x[1])));
+    const sa = await o.p.evaluate(() => [marketOpen(true, Date.parse('2026-10-25T07:30:00Z')), marketOpen(true, Date.parse('2026-10-25T12:30:00Z')), marketOpen(true, Date.parse('2026-10-23T08:00:00Z'))]);
+    check('marketOpen: Tadawul Sunday 10:30 open, 15:30 closed, Friday closed', sa.join() === 'true,false,false', sa.join());
+    await o.ctx.close();
   }
 }
 

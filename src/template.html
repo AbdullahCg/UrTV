@@ -203,6 +203,7 @@
   .week .hd .until{order:2;font-size:.9em;font-weight:400;letter-spacing:0;color:#9C9279;white-space:nowrap}
   .week li.stk{align-items:center;gap:.8em}
   .week li.stk .nm{flex:1 1 auto;min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis;padding-bottom:.3em;margin-bottom:-.3em}
+  .week li.stk.old{opacity:.6}
   .week li.stk .cl{font-size:.64em;color:#9C9279;margin-inline-start:.6em}
   .week li.stk svg{flex:0 0 auto;width:4.4em;height:1.1em;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
   .week li.stk svg polyline{vector-effect:non-scaling-stroke}
@@ -397,6 +398,8 @@
     font-size:clamp(12px,1.06vw,21px);font-weight:400;color:#D8CDB6}
   .mk .m{display:inline-flex;align-items:baseline;gap:.45em}
   .mk .delta{font-size:.72em}
+  .mk .m.old,.mkup.old{opacity:.55}   /* the last price, a refresh failed or it is a day old */
+  .mblock .sub .old{opacity:.6}
   .mk .delta.up{color:#79D6A0}
   .mk .delta.down{color:#EE8B70}
   .mk.px .px{font-variant-numeric:tabular-nums;color:#F6EEDC}
@@ -1529,7 +1532,9 @@ const MARKETS = {
   silver: {name:'الفضة',    sym:'SI=F',     dec:2, unit:'ر.س', mul:GRAM},
   xrp:    {name:'ريبل',     cg:'ripple',    dec:2, unit:'$'},
 };
-const TICKERS = CONFIG.markets.map(k => Object.assign({key:k, chg:k + '-chg', px:k + '-px'}, MARKETS[k]));
+const CG_YAHOO = {bitcoin:'BTC-USD', ripple:'XRP-USD'};   // the file CI keeps holds crypto under Yahoo's pair
+const TICKERS = CONFIG.markets.map(k => Object.assign({key:k, chg:k + '-chg', px:k + '-px'}, MARKETS[k]))
+  .map(t => Object.assign(t, {fk: t.sym || CG_YAHOO[t.cg]}));
 const PRICES = CONFIG.mkStyle === 'prices';
 
 // the default list with arrows is the markup in the page; anything else is made here, before the saved copy is put back
@@ -1637,7 +1642,8 @@ function slotHTML(s){
     if(!known.length) return null;
     return known.map(t => { const v = MK_LAST[t.key];
       return slotBlock(esc(t.name) + (v.price ? ' <span class="num">' + num(v.price, t.dec) + '</span>' : ''),
-        v.pct === null ? '' : `<span class="${v.pct >= 0 ? 'up' : 'down'}">${v.pct >= 0 ? '▲' : '▼'} ${num(Math.abs(v.pct), 2)}${LATIN ? '%' : '٪'}</span>`); }).join('');
+        (v.pct === null ? '' : `<span class="${v.pct >= 0 ? 'up' : 'down'}">${v.pct >= 0 ? '▲' : '▼'} ${num(Math.abs(v.pct), 2)}${LATIN ? '%' : '٪'}</span>`)
+        + (staleMark(v) ? `${v.pct === null ? '' : ' · '}<span class="old">${staleMark(v)}</span>` : '')); }).join('');
   }
   if(s === 'countdown'){
     const n = countdownDays();
@@ -1666,18 +1672,30 @@ function paintDir(t, up, label){
   if(chEl.className !== cls) chEl.className = cls;
 }
 
-// price (in the market's own unit, or null) and the day's change in percent (or null); only what is known is shown
-const MK_LAST = {};   // the last known price and change per market, for the bottom-left slot
-function paintMarket(t, price, pct){
+// price (in the market's own unit, or null) and the day's change in percent (or null); only what is known is shown.
+// at = when the price was fetched: the last one stays on screen when a refresh fails, dimmed and marked with that time.
+const MK_LAST = (()=>{ try{ return JSON.parse(localStorage.getItem('mk:' + location.hash) || '{}') || {}; }catch(e){ return {}; } })();   // market -> {price, pct, at, bad}
+const saveMarkets = () => { try{ localStorage.setItem('mk:' + location.hash, JSON.stringify(MK_LAST)); }catch(e){} };
+function paintMarket(t, price, pct, at){
   const okP = typeof price === 'number' && isFinite(price) && price > 0;
   const okC = typeof pct === 'number' && isFinite(pct);
-  if(okP || okC){ MK_LAST[t.key] = {price: okP ? price : null, pct: okC ? pct : null}; if(CONFIG.slot === 'markets') renderSlot(); }
+  if(okP || okC){ MK_LAST[t.key] = {price: okP ? price : null, pct: okC ? pct : null, at: at || Date.now()}; if(CONFIG.slot === 'markets') renderSlot(); }
   if(!PRICES){ paintDir(t, okC ? pct >= 0 : null); return; }
   const px = document.getElementById(t.px);
   if(okP){ px.hidden = false; setText(px, num(price, t.dec)); } else { px.hidden = true; setText(px, ''); }
   paintDir(t, okC ? pct >= 0 : null, okC ? num(Math.abs(pct), 2) + (LATIN ? '%' : '٪') : '');
+}
+// the dim state of each market and the line under them: «آخر تحديث ٣:١٥ م» (the oldest price that is not current), or «غير محدّث»
+function paintMkUp(){
+  const known = TICKERS.filter(t => MK_LAST[t.key]);
+  if(!known.length) return;
+  known.forEach(t => { const m = document.getElementById(t.chg); if(m && m.parentNode) m.parentNode.classList.toggle('old', !!staleMark(MK_LAST[t.key])); });
   const up = document.getElementById('mk-up');
-  if(up && (okP || okC)){ const p = riyadhParts(); up.hidden = false; setText(up, 'آخر تحديث ' + fmt12(p.h, p.mi)); }
+  if(!up) return;
+  const stale = known.filter(t => staleMark(MK_LAST[t.key])).map(t => MK_LAST[t.key]).sort((a, b) => (a.at || 0) - (b.at || 0));
+  up.hidden = false;
+  up.classList.toggle('old', stale.length > 0);
+  setText(up, stale.length ? staleMark(stale[0]) : fmtAgo(Math.max(...known.map(t => MK_LAST[t.key].at || 0))));
 }
 
 async function fetchT(url, ms){
@@ -1686,53 +1704,117 @@ async function fetchT(url, ms){
   finally{ clearTimeout(id); }
 }
 
-// Yahoo has no CORS headers: try it directly (works inside the app), then through public CORS gateways
+// ---- prices. First the file CI keeps (.github/tools/market_prices.py, branch data-markets): one download holds every market and the
+// common stocks, so the TVs do not each ask Yahoo. A symbol that is not in it, or a file older than 3 hours, is asked of Yahoo itself.
+const MARKET_URL = 'https://raw.githubusercontent.com/tshi-dev/UrTV/data-markets/markets/markets.json';
+const MARKET_TRUST_MS = 3*3600000;
+let MARKET_FILE = null;   // {updated, quotes: {symbol: {p, v, c, t}}}
+async function loadMarketFile(){
+  try{
+    const r = await fetchT(MARKET_URL, 12000);
+    if(r.ok){ const j = await r.json(); if(j && j.quotes && Date.parse(j.updated)) MARKET_FILE = j; }
+  }catch(e){}                                  // offline: the copy from before, which fileQuote() trusts for 3 hours only
+}
+function fileQuote(sym){
+  const q = MARKET_FILE && MARKET_FILE.quotes[sym], at = q ? Date.parse(q.t) : 0;
+  return q && typeof q.p === 'number' && Date.now() - at < MARKET_TRUST_MS ? {p:q.p, v:q.v || null, c:q.c || [], at} : null;
+}
+
+// Yahoo has no CORS headers: try it directly (works inside the app), then through public CORS gateways. The gateways are for a network
+// or CORS error (a TypeError) only: an answer, 404 for a symbol that does not exist or 429 for too many requests, is final, and
+// the gateways would only repeat the request. A symbol that answered 404 is not asked again for a day.
+const YH_404 = (()=>{ try{ return JSON.parse(localStorage.getItem('yh404') || '{}') || {}; }catch(e){ return {}; } })();
+const YH_404_MS = 86400000;
 async function yahooChart(sym, q = 'interval=1d&range=5d'){
+  if(Date.now() - (YH_404[sym] || 0) < YH_404_MS) throw 0;
+  const gone = () => { YH_404[sym] = Date.now(); try{ localStorage.setItem('yh404', JSON.stringify(YH_404)); }catch(e){} throw 0; };
   const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?${q}`;
   const routes = [
-    [direct, 7000, j => j],
-    ['https://api.allorigins.win/get?url=' + encodeURIComponent(direct), 15000, w => JSON.parse(w.contents)],
-    ['https://corsproxy.io/?url=' + encodeURIComponent(direct), 12000, j => j],
+    [direct, 7000, j => j, false],
+    ['https://api.allorigins.win/get?url=' + encodeURIComponent(direct), 15000, w => JSON.parse(w.contents), true],
+    ['https://corsproxy.io/?url=' + encodeURIComponent(direct), 12000, j => j, true],
   ];
-  for(const [url, ms, unwrap] of routes){
-    try{
-      const r = await fetchT(url, ms);
-      if(!r.ok) continue;
-      const j = unwrap(await r.json());
-      if(j && j.chart && j.chart.result) return j;
-    }catch(e){}
+  for(const [url, ms, unwrap, proxy] of routes){
+    let r;
+    try{ r = await fetchT(url, ms); }
+    catch(e){ if(e instanceof TypeError) continue; throw 0; }   // blocked or offline: the next route; a timeout is not that
+    if(!r.ok){ if(proxy) continue; if(r.status === 404) gone(); throw 0; }
+    let j;
+    try{ j = unwrap(await r.json()); }catch(e){ continue; }
+    if(j && j.chart && j.chart.result) return j;
+    if(j && j.chart && j.chart.error && j.chart.error.code === 'Not Found') gone();
   }
   throw 0;
 }
 
-// the markets line, one market at a time
-const loadTickers = guarded('tickers', async function(){
-  for(const t of TICKERS){
-    if(t !== TICKERS[0]) await sleep(CONFIG.queueGapMs);
-    await loadTicker(t);
-  }
-});
-async function loadTicker(t){
+// What one symbol is now, from its own source: {p: price, v: the close before (or null), c: the day's closes, pct: the day's change when the
+// source says it, at: now}, or null. intra = 15-minute closes of today (the stocks card draws them); else the daily closes of five days
+// (the markets line only needs the change).
+async function directQuote(j){
   try{
-    if(t.cg){                                  // crypto: CoinGecko, CORS friendly
-      const r = await fetchT(`https://api.coingecko.com/api/v3/simple/price?ids=${t.cg}&vs_currencies=usd&include_24hr_change=true`, 10000);
+    if(j.cg){                                  // crypto: CoinGecko, CORS friendly
+      const r = await fetchT(`https://api.coingecko.com/api/v3/simple/price?ids=${j.cg}&vs_currencies=usd&include_24hr_change=true`, 10000);
       if(!r.ok) throw 0;
-      const j = await r.json();
-      const c = j && j[t.cg] ? j[t.cg] : null;
-      const d = c ? (c.usd_24h_change ?? c.usd_24hr_change ?? null) : null;
-      paintMarket(t, c ? c.usd : null, d);
-      return;
+      const c = (await r.json())[j.cg];
+      if(!c || typeof c.usd !== 'number') throw 0;
+      return {p:c.usd, v:null, c:[], pct:c.usd_24h_change ?? c.usd_24hr_change ?? null, at:Date.now()};
     }
-    const j = await yahooChart(t.sym);
-    const res = j.chart.result[0];
+    const res = (await yahooChart(j.key, j.intra ? 'interval=15m&range=1d' : 'interval=1d&range=5d')).chart.result[0];
     const price = res.meta.regularMarketPrice;
-    const closes = (res.indicators.quote[0].close || []).filter(x=>x != null);
-    const prev = closes.length >= 2 ? closes[closes.length-2]
-               : (res.meta.chartPreviousClose || res.meta.previousClose || null);
-    paintMarket(t, typeof price === 'number' ? price * (t.mul || 1) : null,
-                typeof price === 'number' && prev ? (price - prev) / prev * 100 : null);
-  }catch(e){ if(!document.getElementById(t.chg).textContent) paintDir(t, null); }   // offline: keep what is on screen
+    if(typeof price !== 'number') throw 0;
+    let c = ((res.indicators.quote[0] || {}).close || []).filter(x => typeof x === 'number');
+    const was = res.meta.chartPreviousClose || res.meta.previousClose || null;
+    if(!j.intra) return {p:price, v:c.length >= 2 ? c[c.length-2] : was, c:[], at:Date.now()};
+    if(c.length > 30){ const n = Math.ceil(c.length / 30); c = c.filter((x, i) => i % n === 0 || i === c.length - 1); }
+    return {p:price, v:was, c, at:Date.now()};
+  }catch(e){ return null; }
 }
+
+// How old a price is, for the screen: '' while it is current, else «آخر تحديث ٣:١٥ م» (its fetch time), and «غير محدّث» past 24 hours.
+const DAY_MS = 86400000;
+function staleMark(v){
+  if(!v) return '';
+  const old = v.at && Date.now() - v.at > DAY_MS;
+  if(!v.bad && !old) return '';
+  return v.at && !old ? fmtAgo(v.at) : 'غير محدّث';
+}
+
+// One tick for the markets line and the stocks card: each symbol once (a stock on both is asked once), one request at a time.
+const WITH_LINE = !CONFIG.widget;   // the launcher's page has no markets line
+const loadMarkets = guarded('markets', async function(){
+  const jobs = new Map();   // Yahoo symbol -> {key, cg, intra, tk: its markets, sk: its stocks}
+  const job = (key, cg, intra) => {
+    let j = jobs.get(key);
+    if(!j) jobs.set(key, j = {key, cg, intra:false, tk:[], sk:[]});
+    j.intra = j.intra || intra;
+    return j;
+  };
+  if(WITH_LINE) TICKERS.forEach(t => job(t.fk, t.cg, false).tk.push(t));
+  if(USES('stocks')) CONFIG.stocks.forEach(k => job(isSA(k) ? k + '.SR' : k, null, true).sk.push(k));
+  if(!jobs.size) return;
+  await loadMarketFile();
+  let asked = 0;
+  for(const j of jobs.values()){
+    let q = fileQuote(j.key);
+    if(!q){ if(asked++) await sleep(CONFIG.queueGapMs); q = await directQuote(j); }
+    for(const t of j.tk){
+      if(q) paintMarket(t, typeof q.p === 'number' ? q.p * (t.mul || 1) : null,
+        typeof q.pct === 'number' ? q.pct : q.v ? (q.p - q.v) / q.v * 100 : null, q.at);
+      else if(MK_LAST[t.key]) MK_LAST[t.key].bad = 1;                       // offline or refused: the last price stays, marked
+      else if(!document.getElementById(t.chg).textContent) paintDir(t, null);
+    }
+    for(const k of j.sk){
+      if(q) STOCKS[k] = {p:q.p, v:q.v, c:q.c, at:q.at};
+      else if(STOCKS[k]) STOCKS[k].bad = 1;
+    }
+  }
+  if(CONFIG.stocks.length && USES('stocks')){
+    try{ localStorage.setItem('stocks:' + location.hash, JSON.stringify(STOCKS)); }catch(e){}
+    renderPanel(false, 'stocks');
+  }
+  if(WITH_LINE){ saveMarkets(); paintMkUp(); if(CONFIG.slot === 'markets') renderSlot(); }
+});
+const loadStocks = loadMarkets, loadTickers = loadMarkets;
 
 const SKIP_TYPES = ['News','Talk Show','Sports','Game Show'];
 let WEEK_OK_AT = 0, WEEK_FAIL_AT = 0;   // the last refresh that kept its answer, and the last one that failed (0 = never)
@@ -2299,31 +2381,15 @@ const TADAWUL = {   // Arabic short names of the 30 largest companies; any other
 };
 const isSA = k => /^\d/.test(k);
 const stockName = k => isSA(k) ? (TADAWUL[k] || ar(k)) : k;
-// The exchanges keep their own hours whatever the city: Riyadh is UTC+3 all year. Tadawul Sun-Thu 10:00-15:00; the US Mon-Fri 16:30-23:00 (approximate; holidays are ignored)
+// The exchanges keep their own hours whatever the city: Tadawul Sun-Thu 10:00-15:00 (Riyadh is UTC+3 all year); the US Mon-Fri 09:30-16:00 New York time (holidays are ignored)
+const NY_CLOCK = new Intl.DateTimeFormat('en-US', {timeZone:'America/New_York', weekday:'short', hour:'2-digit', minute:'2-digit', hourCycle:'h23'});
 function marketOpen(sa, ms = Date.now()){
-  const d = new Date(ms + 3*3600000), day = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes();
-  return sa ? day <= 4 && m >= 600 && m < 900 : day >= 1 && day <= 5 && m >= 990 && m < 1380;
+  if(sa){ const d = new Date(ms + 3*3600000), day = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes(); return day <= 4 && m >= 600 && m < 900; }
+  const p = NY_CLOCK.formatToParts(new Date(ms)).reduce((a, x) => (a[x.type] = x.value, a), {}), m = (+p.hour % 24) * 60 + +p.minute;
+  return p.weekday !== 'Sat' && p.weekday !== 'Sun' && m >= 570 && m < 960;   // New York's own clock, summer time and winter time alike
 }
-let STOCKS = {};   // code -> {p: price, v: previous close or null, c: the day's closes}
+let STOCKS = {};   // code -> {p: price, v: previous close or null, c: the day's closes, at: when it was fetched, bad: the last refresh failed}
 try{ STOCKS = JSON.parse(localStorage.getItem('stocks:' + location.hash) || '{}') || {}; }catch(e){}
-const loadStocks = guarded('stocks', async function(){
-  let got = 0;
-  for(const k of CONFIG.stocks){
-    if(got) await sleep(CONFIG.queueGapMs);
-    try{
-      const res = (await yahooChart(isSA(k) ? k + '.SR' : k, 'interval=15m&range=1d')).chart.result[0];
-      const price = res.meta.regularMarketPrice;
-      if(typeof price !== 'number') continue;
-      let c = ((res.indicators.quote[0] || {}).close || []).filter(x => typeof x === 'number');
-      if(c.length > 30){ const n = Math.ceil(c.length / 30); c = c.filter((x, i) => i % n === 0 || i === c.length - 1); }
-      STOCKS[k] = {p: price, v: res.meta.chartPreviousClose || res.meta.previousClose || null, c};
-      got++;
-    }catch(e){}
-  }
-  if(!got) return;                   // offline: keep what is shown
-  try{ localStorage.setItem('stocks:' + location.hash, JSON.stringify(STOCKS)); }catch(e){}
-  renderPanel(false, 'stocks');
-});
 // a small line of the day's closes, 60 x 16, drawn only when the card's markup changes
 function spark(c, up){
   if(c.length < 2) return '<svg viewBox="0 0 60 16" preserveAspectRatio="none"></svg>';
@@ -2335,15 +2401,17 @@ function stocksCard(){
   const shown = CONFIG.stocks.filter(k => STOCKS[k]);
   const allClosed = shown.length && shown.every(k => !marketOpen(isSA(k)));
   const mixed = shown.some(k => marketOpen(isSA(k)));
+  const stale = shown.filter(k => staleMark(STOCKS[k])).map(k => STOCKS[k]).sort((a, b) => (a.at || 0) - (b.at || 0));
   const rows = shown.map(k => {
     const d = STOCKS[k], v = d.v, pct = v ? (d.p - v) / v * 100 : null;
     const up = pct !== null ? pct >= 0 : d.c.length > 1 ? d.c[d.c.length - 1] >= d.c[0] : null;
     const cls = up === null ? '' : up ? 'up' : 'down';
-    return `<li class="stk"><span class="nm">${esc(stockName(k))}${mixed && !marketOpen(isSA(k)) ? '<span class="cl">مغلق</span>' : ''}</span>`
+    return `<li class="stk${staleMark(d) ? ' old' : ''}"><span class="nm">${esc(stockName(k))}${mixed && !marketOpen(isSA(k)) ? '<span class="cl">مغلق</span>' : ''}</span>`
       + (up === null ? '' : spark(d.c, up)) + `<span class="px">${num(d.p, 2)}</span>`
       + (pct === null ? '' : `<span class="chg ${cls}">${pct >= 0 ? '▲' : '▼'} ${num(Math.abs(pct), 2)}${LATIN ? '%' : '٪'}</span>`) + '</li>';
   });
-  return {hd: '<span>الأسهم</span>' + (allClosed ? '<span class="until">السوق مغلق</span>' : ''), rows};
+  const note = [allClosed ? 'السوق مغلق' : '', stale.length ? staleMark(stale[0]) : ''].filter(Boolean).join(' · ');   // the oldest price that is not current
+  return {hd: '<span>الأسهم</span>' + (note ? `<span class="until">${note}</span>` : ''), rows};
 }
 
 // verse one day, hadith the next. Verse texts come from the Quran API via CI (.github/tools/fetch_verses.py), never typed.
@@ -2786,6 +2854,7 @@ function boot(){
   if(CONFIG.cardStyle !== 'current') document.documentElement.classList.add('cs-' + CONFIG.cardStyle);
   buildMarkets();
   restoreSnap();
+  paintMkUp();
   setTimeout(saveSnap, 15*1000);   // the dream can be killed before pagehide
   setInterval(saveSnap, 60*1000);
   addEventListener('pagehide', saveSnap);
@@ -2798,8 +2867,7 @@ function boot(){
   loadPhotoIndex().then(() => applyBackground(true));
   setInterval(() => applyBackground(false), 60*1000);
   tickClock(); tickDates(); tickOccasion(); renderSlot();
-  loadTickers();
-  if(USES('stocks')) loadStocks();
+  loadMarkets();
   renderPanel(false, ...CARD_KINDS.filter(k => k !== 'shows'));   // shows: its own data arrives with prayers, weather, matches
   if(NEEDS_MATCHES) loadMatches();
   loadPrayers(); if(USES('shows')) loadWeek(); loadWeather();
@@ -2815,7 +2883,7 @@ function boot(){
   }
   if(NEEDS_MATCHES){ periodic(loadLive, 2*60000); periodic(loadMatches, 30*60*1000); }
   periodic(loadPrayers, 6*3600*1000);
-  periodic(() => { loadTickers(); if(USES('stocks')) loadStocks(); }, 15*60*1000);
+  periodic(loadMarkets, 15*60*1000);
   if(USES('shows')) periodic(loadWeek, 6*3600*1000);
   periodic(loadWeather, 30*60*1000);
   cardTimers();
@@ -2849,7 +2917,7 @@ function bootWidget(){
   if(USES('adhkar') || USES('prayers') || USES('prayerrow')){ loadPrayers(); periodic(loadPrayers, 6*3600*1000); }
   if(USES('forecast') || USES('hourly')){ loadWeather(); periodic(loadWeather, 30*60*1000); }
   if(USES('matches')){ loadMatches(); periodic(loadMatches, 30*60*1000); periodic(loadLive, 2*60000); }
-  if(USES('stocks')){ loadStocks(); periodic(loadStocks, 15*60*1000); }
+  if(USES('stocks')){ loadMarkets(); periodic(loadMarkets, 15*60*1000); }
   cardTimers();
   let lastDay = riyadhDayNumber();
   setInterval(() => { if(riyadhDayNumber() !== lastDay){ lastDay = riyadhDayNumber(); renderPanel(false); if(USES('prayers') || USES('prayerrow') || USES('adhkar')) later(loadPrayers); } }, 60*1000);
