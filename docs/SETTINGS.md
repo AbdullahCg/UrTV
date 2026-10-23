@@ -1,5 +1,7 @@
 # What تلفزيونك already does: look here before you build anything
 
+The same features explained for people, in Arabic: [FEATURES.md](FEATURES.md).
+
 For an agent working on a TV that has تلفزيونك, during the setup or any time after. When the person asks for
 something about the screensaver, the home screen or the TV, find it in the tables below and run its command.
 

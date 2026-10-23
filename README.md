@@ -130,6 +130,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 |---|---|
 | `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
+| `docs/FEATURES.md` | كل ميزة بالعربي: وش تسوي، ووين تغيّرها، ووش يكتب الوكيل |
 | `docs/SETTINGS.md` | every setting and feature with its command, for agents: use these, never build your own |
 | `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `leagues`, `card`, `home-card`, `events`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `national`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
 | `optimize/photos.sh` | the owner's own photos, 1 to 10: `add FILE...`, `list`, `del N`, `clear`, `mode mix\|only`, `show` |
