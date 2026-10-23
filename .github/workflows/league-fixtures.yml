@@ -3,11 +3,17 @@ name: League fixtures
 # The coming week's games and the last day's results of each league of Prefs.LEAGUES, one small JSON per league,
 # for the screen's «الدوريات كاملة» (.github/tools/league_fixtures.py). Pushed to the branch data-leagues, which the
 # page reads from raw.githubusercontent.com. About 11 TheSportsDB requests a league at 4 s each: roughly 12 minutes.
-# Only on a timer (GitHub runs timers from the default branch) or by hand: a push to a work branch never starts it.
+# On a timer (GitHub runs timers from the default branch), by hand, or when its own files change on master or next
+# (like the clubs workflow), so a change shows its data at once. A push to a work branch never starts it.
 on:
   workflow_dispatch:
   schedule:
     - cron: '23 */6 * * *'
+  push:
+    branches: [master, next]
+    paths:
+      - '.github/tools/league_fixtures.py'
+      - '.github/workflows/league-fixtures.yml'
 
 permissions:
   contents: write

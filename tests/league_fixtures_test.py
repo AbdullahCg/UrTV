@@ -142,11 +142,15 @@ else:
 cache = json.loads((ROOT / ".github/tools/teams-cache.json").read_text(encoding="utf-8"))["leagues"]
 check("every league of the app has its id in teams-cache.json (no search needed in CI)", all(n in cache for n in leagues), [n for n in leagues if n not in cache])
 
-# ---- the workflow runs on a timer or by hand, never on a push
+# ---- the workflow runs on a timer, by hand, or on a push to master/next that changes its own files (never a work branch)
 wf = (ROOT / ".github/workflows/league-fixtures.yml").read_text(encoding="utf-8")
-on = wf.split("\njobs:")[0]
-check("workflow: only schedule and workflow_dispatch trigger it (a push to a branch starts nothing)",
-      "schedule:" in on and "workflow_dispatch:" in on and not re.search(r"^\s*(push|pull_request):", on, re.M), on[-300:])
+on = wf.split("\non:", 1)[1].split("\npermissions:", 1)[0]
+push = on.split("push:", 1)[1] if "push:" in on else ""
+check("workflow: a timer, by hand, or a push to master/next touching only its own files",
+      "schedule:" in on and "workflow_dispatch:" in on and "pull_request" not in on
+      and (not push or ("branches: [master, next]" in push
+                        and set(re.findall(r"- '([^']+)'", push)) == {".github/tools/league_fixtures.py", ".github/workflows/league-fixtures.yml"})),
+      on[-400:])
 check("workflow: pushes only to data-leagues", "git push -f origin data-leagues" in wf and "origin work" not in wf)
 check("page reads the branch the workflow writes", "tshi-dev/UrTV/data-leagues/leagues/" in (ROOT / "src/template.html").read_text(encoding="utf-8"))
 
