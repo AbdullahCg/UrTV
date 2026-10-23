@@ -151,6 +151,10 @@ yet»), or an old UrTV folder is there without a working `.git`, delete that fol
 - Never uninstall system apps, never `pm clear`, never factory-reset, never touch accounts, Wi-Fi, network or
   developer settings (turning ADB off locks us out). Never delete `optimize/run/` or `optimize/backup-*.txt`: they
   are how we undo. Everything is reversible: `optimize/reset.sh` puts the TV back as it came.
+- Anything I ask for about the screensaver, the home screen or the TV (now or any time later): look it up in
+  `docs/SETTINGS.md` and use its command. Never edit the apps' code, build or install your own APK, or turn the
+  automatic update off to make something; if it isn't in `docs/SETTINGS.md`, tell me it isn't in تلفزيونك yet and
+  pass my words on in the share message (step 8).
 - Ask me before anything not in this prompt. If something fails twice, and the table's fix didn't help, stop,
   show me the output and propose a fix.
 - Never tell me something worked without its proof: the script's own success line, or a screenshot you looked at.
@@ -256,6 +260,8 @@ If the home-screen step says Home did not switch, leave the TV alone for 5 minut
 itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1 optimize/run.sh`.
 
 ## 4. Apply my choices (5 minutes; no remote needed)
+
+Every setting, and what to say when I ask for something else: `docs/SETTINGS.md`.
 
 ```
 optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon>)

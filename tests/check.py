@@ -205,6 +205,20 @@ check("java: no table looped over as single strings", not bad, bad)
 loose = [f.name for f, src in java.items() if "getSettings()" in src and "setTextZoom(100)" not in src]
 check("java: every WebView ignores the TV's font size (setTextZoom(100))", not loose, loose)
 
+# ---- docs/SETTINGS.md lists every setting, so agents use it instead of building one
+settings_md = (ROOT / "docs/SETTINGS.md").read_text(encoding="utf-8")
+def commands(script):   # the words a script's case accepts: "  show)", "  hide:*|show:*)", "  pause|resume)"
+    src = (ROOT / "optimize" / script).read_text(encoding="utf-8")
+    return {w.split(":")[0] for m in re.finditer(r"^  ([a-z][a-z|:*-]*)\)", src, re.M) for w in m.group(1).split("|")}
+missing = sorted(f"{sc} {c}" for sc in ("saver.sh", "dock.sh", "music.sh") for c in commands(sc)
+                 if c not in ("help", "-h", "--help")
+                 and not re.search(rf"{re.escape(sc)} {re.escape(c)}\b|`{re.escape(c)}\b|, {re.escape(c)}\b", settings_md))
+tpl_src = (ROOT / "src/template.html").read_text(encoding="utf-8")
+for key in ("panel", "slot"):
+    m = re.search(rf"  {key}: \(\w+ => \[([^\]]+)\]", tpl_src)
+    missing += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", m.group(1) if m else "") if v not in settings_md]
+check("docs/SETTINGS.md: every saver.sh / dock.sh / music.sh command and every card and slot choice", not missing, missing)
+
 # ---- launcher config
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()
 arr = {a.get("name"): [i.text for i in a] for a in cfg.findall("string-array")}
