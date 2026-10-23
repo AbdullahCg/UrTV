@@ -10,6 +10,7 @@ import py_compile
 import re
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -206,6 +207,27 @@ cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot
 arr = {a.get("name"): [i.text for i in a] for a in cfg.findall("string-array")}
 check("launcher: no dock app is also hidden", not set(arr["dock_apps"]) & set(arr["hidden_apps"]))
 check("launcher: screensaver app not hidden", "sa.urtv.screensaver" not in arr["hidden_apps"])
+
+# Arabic app names: package|name rows; the names are drawn with Thmanyah, so it needs a glyph for each character
+app_rows = [(i.text or "").split("|", 1) for i in ET.parse(ROOT / "android/launcher/src/main/res/values/app_names.xml")
+            .getroot().find("string-array")]
+pkg_re = re.compile(r"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$")
+arabic_re = re.compile("[\u0600-\u06FF]")
+check("app names: every row is package|name", bool(app_rows) and all(len(r) == 2 for r in app_rows))
+check("app names: every key is a valid package name", all(pkg_re.match(r[0]) for r in app_rows), [r[0] for r in app_rows if not pkg_re.match(r[0])])
+check("app names: every name has Arabic letters", all(len(r) == 2 and arabic_re.search(r[1]) for r in app_rows), [r[0] for r in app_rows if len(r) < 2 or not arabic_re.search(r[1])])
+check("app names: no package twice", len({r[0] for r in app_rows}) == len(app_rows))
+missing = sorted({c for r in app_rows for c in r[-1] if not c.isspace() and ord(c) not in font})
+check("app names: every character in Thmanyah", not missing, missing)
+
+# the launcher Java compiles as far as it can without the Android SDK: errors about missing Android classes are ignored
+java_src = sorted((ROOT / "android/launcher/src/main/java").rglob("*.java"))
+with tempfile.TemporaryDirectory() as out:
+    r = subprocess.run(["javac", "-proc:none", "-Xmaxerrs", "10000", "-encoding", "UTF-8", "-d", out] + [str(f) for f in java_src],
+                       capture_output=True, text=True)
+real = [f"{loc}: {m}" for loc, m in re.findall(r"^(\S+\.java:\d+): error: (.*)$", r.stderr, re.M)
+        if not re.search(r"cannot find symbol|does not override or implement|package .* does not exist|static import only from classes", m)]
+check("launcher Java: no type errors beyond the missing Android classes", not real, real[:8])
 
 # ---- optimize: never disable a kept package
 def pkgs(path):

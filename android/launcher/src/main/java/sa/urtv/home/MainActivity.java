@@ -392,7 +392,7 @@ public class MainActivity extends Activity {
             ActivityInfo ai = ri.activityInfo;
             App a = new App();
             a.pkg = ai.packageName;
-            a.label = String.valueOf(ri.loadLabel(pm));
+            a.label = AppNames.label(this, ri);
             a.component = new ComponentName(ai.packageName, ai.name);
             a.category = Dock.isTv(ri) ? Intent.CATEGORY_LEANBACK_LAUNCHER : Intent.CATEGORY_LAUNCHER;
             Drawable banner = artCache.get("b:" + a.pkg);
