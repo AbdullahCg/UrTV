@@ -1244,6 +1244,161 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await ctx.close();
 }
 
+// ---- a whole league (#leagues=): a round of 9 games from the CI file, with TheSportsDB mocked. One request for the league's
+// file, none per club; the followed club's own game is shown once; every game on one line, all paged through, on screen.
+{
+  const clubs = JSON.parse(readFileSync(path.join(ROOT, 'assets/shared/teams.json'), 'utf8'));
+  const proLeague = clubs.filter(c => c.leagues.includes('Saudi-Arabian Pro League') && !c.leagues.includes('Saudi First Division League'));
+  const longest = clubs.filter(c => c.sport === 'Soccer').sort((a, b) => b.ar.length - a.ar.length).slice(0, 4);
+  const side = [...proLeague.slice(0, 14), ...longest];   // 18 sides: the 4 longest names make games 3 and 6 the worst case
+  const at = h => new Date(Date.now() + h * 36e5).toISOString().slice(0, 19) + 'Z';
+  // game 0 is the followed club's (Al-Hilal, 136013, kicks off in 3 h); 1 is under way; 2 finished 3 h ago; the rest to come
+  const hrs = [3, -1, -3.2, 5, 9, 26, 28, 30, 50];
+  const hilal = clubs.find(c => c.id === '136013');
+  const rest = side.filter(c => c.id !== '136013');
+  const ROUND = hrs.map((h, i) => {
+    const home = i === 0 ? hilal : rest[2 * i - 1 < 0 ? 0 : (2 * i - 1) % rest.length], away = rest[(2 * i) % rest.length];
+    return { idEvent: 'L' + i, idLeague: '4668', strSport: 'Soccer', strSeason: '2026-2027', idHomeTeam: home.id, strHomeTeam: home.en,
+             idAwayTeam: away.id, strAwayTeam: away.en, strTimestamp: at(h),
+             strStatus: i === 1 ? '1H' : i === 2 ? 'FT' : 'NS', intHomeScore: i === 1 ? '1' : i === 2 ? '2' : null,
+             intAwayScore: i === 1 ? '0' : i === 2 ? '1' : null, strProgress: i === 1 ? '58' : null };
+  });
+  const FILE = { league: 'Saudi-Arabian Pro League', id: '4668', updated: new Date(Date.now() - 36e5).toISOString(), events: ROUND };
+  const seen = [];
+  const mock = r => {
+    const u = new URL(r.request().url()), hdr = { 'Access-Control-Allow-Origin': '*' };
+    seen.push(u.host + u.pathname + u.search);
+    if (u.host === 'raw.githubusercontent.com' && u.pathname.endsWith('/data-leagues/leagues/saudi-arabian-pro-league.json'))
+      return r.fulfill({ json: FILE, headers: hdr });
+    if (!/thesportsdb/.test(u.host)) return r.abort();
+    if (u.pathname.endsWith('eventsnext.php')) return r.fulfill({ json: { events: [ROUND[0]] }, headers: hdr });
+    if (u.pathname.endsWith('lookupevent.php'))   // the game under way has moved on: 2 - 0
+      return r.fulfill({ json: { events: [{ ...ROUND[1], intHomeScore: '2', intAwayScore: '0', strProgress: '61' }] }, headers: hdr });
+    return r.fulfill({ json: { results: null }, headers: hdr });
+  };
+  for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+    const ctx = await browser.newContext({ viewport: { width, height } });
+    await ctx.route(/^https?:/, mock);
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    seen.length = 0;
+    await p.goto(page('tv.html') + '#teams=136013&leagues=' + encodeURIComponent('Saudi-Arabian Pro League') + '&panel=matches');
+    await p.waitForTimeout(1200);
+    const tag = `league round at ${width}x${height}`;
+    const asked = seen.filter(u => /thesportsdb|data-leagues/.test(u));
+    check(`${tag}: one request for the league's file, two for the one followed club, nothing per club of the league`,
+      asked.filter(u => /data-leagues/.test(u)).length === 1 && asked.filter(u => /eventsnext\.php|eventslast\.php/.test(u)).length === 2
+      && !asked.some(u => /eventsnextleague|eventspastleague|eventsday|eventsseason|eventsround/.test(u)), asked.join('\n'));
+    const r = await p.evaluate(() => {
+      const row = document.getElementById('match-row'), blocks = [], bad = [];
+      MATCH_PAGE = -1;
+      for (let k = 0; k < 14; k++) {   // a pair too wide for one row is learnt on the way and shown apart: pages may grow to 8
+        renderMatches(true);
+        row.querySelectorAll('.mblock').forEach(b => {
+          blocks.push(b.querySelector('.big').innerText.replace(/\s+/g, ' ').trim());
+          const big = b.querySelector('.big > span');
+          if (!fits(big)) bad.push('cut: ' + big.textContent);
+          if (big.getClientRects().length !== 1 || big.scrollWidth > big.clientWidth + 1) bad.push('wraps: ' + big.textContent);
+          const bb = b.getBoundingClientRect();
+          if (bb.left < -2 || bb.right > innerWidth + 2 || bb.bottom > innerHeight + 2) bad.push('off screen: ' + big.textContent);
+        });
+      }
+      const card = [], cut = [];
+      const rows = matchRows().length;
+      for (let k = 0; k * MATCH_ROWS < rows; k++) {   // every page of the card
+        LIST_PAGE = k; renderPanel(false);
+        document.querySelectorAll('#week-list li > span:first-child').forEach(sp => { card.push(sp.textContent.replace(/\s+/g, ' ').trim()); if (!fits(sp)) cut.push(sp.textContent); });
+      }
+      const turn = CONFIG.leagues.length && MATCH_PAGES > 3 ? CONFIG.matchPageFastMs : CONFIG.matchPageMs;
+      return { blocks: [...new Set(blocks)], bad, pages: MATCH_PAGES, card: [...new Set(card)], cut, rows, turn, title: document.getElementById('week-hd').textContent };
+    });
+    check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+    check(`${tag}: all 9 games shown across ${r.pages} pages, the followed club's game once (a pair too wide for one row goes apart)`,
+      r.blocks.length === 9 && r.pages >= 5 && r.pages <= 8, JSON.stringify(r.blocks));
+    check(`${tag}: each game on one line, nothing cut with «…», nothing off screen`,
+      !r.bad.length && !r.blocks.join('').includes('…'), r.bad.join(' | '));
+    check(`${tag}: the live score is the file's until lookupevent answers; the finished game shows its score`,
+      r.blocks.some(b => b.includes('١ - ٠')) && r.blocks.some(b => b.includes('٢ - ١')), r.blocks.join(' | '));
+    check(`${tag}: the card lists the same 9 games, one line each, titled «المباريات»`,
+      r.rows === 9 && r.card.length === 9 && !r.cut.length && r.title === 'المباريات', JSON.stringify({ rows: r.rows, cut: r.cut, t: r.title }));
+    check(`${tag}: games in time order (result, live, then the followed club's, then the rest)`,
+      r.card.length === 9 && r.card[0].includes('٢ - ١') && r.card[1].includes('١ - ٠') && r.card[2].startsWith('الهلال'), r.card.join(' | '));
+    check(`${tag}: ${r.pages} pages turn every ${r.turn / 1000} s (the round passes in ${r.pages * r.turn / 1000} s, under a minute and a half)`,
+      r.turn === 10000 && r.pages * r.turn <= 90000, r.turn);
+    // a game under way is refreshed on its own: one lookup, the followed club's game (3 h away) is not asked
+    seen.length = 0;
+    await p.evaluate(() => loadLive());
+    await p.waitForTimeout(400);
+    const looked = seen.filter(u => /lookupevent/.test(u));
+    const live = await p.evaluate(() => { MATCH_PAGE = -1; const out = [];
+      for (let k = 0; k < MATCH_PAGES; k++){ renderMatches(true); document.querySelectorAll('#match-row .mblock .big').forEach(b => out.push(b.innerText)); }
+      return out.join(' | '); });
+    check(`${tag}: live: one lookup for the one game under way, its new score shown`,
+      looked.length === 1 && /id=L1/.test(looked[0]) && live.includes('٢ - ٠'), looked.join(',') + ' / ' + live);
+    await ctx.close();
+  }
+}
+
+// ---- the two longest games of every league side by side: each fits its line (or the pair goes one to a page), at three sizes
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const clubs = JSON.parse(readFileSync(path.join(ROOT, 'assets/shared/teams.json'), 'utf8'));
+  const { p, ctx, errors } = await open('tv.html', 'teams=&leagues=NBA', { width, height });
+  const r = await p.evaluate(clubs => {
+    const bad = [], names = [...new Set(clubs.flatMap(c => c.leagues))].filter(l => l !== 'National teams'), row = document.getElementById('match-row');
+    for (const lg of names) {
+      const byLen = clubs.filter(c => c.leagues.includes(lg)).sort((a, b) => b.ar.length - a.ar.length);
+      const ev = (a, b, i) => ({ idEvent: lg + i, idHomeTeam: a.id, strHomeTeam: a.en, idAwayTeam: b.id, strAwayTeam: b.en,
+                                 strTimestamp: new Date(Date.now() + 36e5 * (i + 2)).toISOString() });
+      LEAGUE_DATA = { NBA: { updated: new Date(0).toISOString(), events: [ev(byLen[0], byLen[1], 0), ev(byLen[2], byLen[3], 1)] } };
+      MATCHES_LOADED = true; MATCH_PAGE = -1;
+      for (let k = 0; k < 4; k++) {
+        renderMatches(true);
+        row.querySelectorAll('.mblock .big > span').forEach(sp => { if (!fits(sp) || sp.textContent.includes('…')) bad.push(lg + ': ' + sp.textContent); });
+      }
+    }
+    return { n: names.length, bad };
+  }, clubs);
+  check(`the longest names of all ${r.n} leagues, two games a page, at ${width}x${height}: every game whole on one line`,
+    !errors.length && r.n >= 16 && !r.bad.length, r.bad.join(' | ') + errors.join('; '));
+  await ctx.close();
+}
+
+// ---- the page turn of a league round: 10 s a page of two games once there are more than 3 pages (real timers, one run)
+{
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await ctx.route(/^https?:/, r => r.abort());
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#teams=&leagues=' + encodeURIComponent('Saudi-Arabian Pro League'));
+  const r = await p.evaluate(() => {
+    const t = h => new Date(Date.now() + h * 36e5).toISOString();
+    LEAGUE_DATA['Saudi-Arabian Pro League'] = { updated: t(-1), events: Array.from({ length: 9 }, (_, i) => ({ idEvent: 'q' + i,
+      idHomeTeam: '136013', strHomeTeam: 'Club ' + i, idAwayTeam: '136022', strAwayTeam: 'Team ' + i, strTimestamp: t(2 + i) })) };
+    MATCHES_LOADED = true; renderMatches();
+    return { pages: MATCH_PAGES, slot: SLOT_MATCHES };
+  });
+  const seenPages = new Set();
+  const t0 = Date.now();
+  while (Date.now() - t0 < 26000) { seenPages.add(await p.evaluate(() => MATCH_PAGE)); await p.waitForTimeout(500); }
+  check('league only (no club followed): the slot shows matches, 5 pages, turning by itself (3 turns in 26 s: 15 s, then 10 s)',
+    r.slot && r.pages === 5 && seenPages.size >= 3, JSON.stringify({ ...r, seen: [...seenPages] }));
+  await ctx.close();
+}
+
+// ---- no league followed: nothing changes (no request for a league's file, the old title)
+{
+  const seen = [];
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await ctx.route(/^https?:/, r => { seen.push(r.request().url()); return r.abort(); });
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#teams=136013&panel=matches');
+  await p.waitForTimeout(800);
+  const t = await p.evaluate(() => ({ leagues: CONFIG.leagues, hd: document.getElementById('week-hd').textContent }));
+  check('no league followed: #leagues empty, no league file asked for, the card keeps «مباريات فرقك»',
+    !t.leagues.length && !seen.some(u => /data-leagues/.test(u)) && t.hd === 'مباريات فرقك', JSON.stringify(t) + seen.join(','));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

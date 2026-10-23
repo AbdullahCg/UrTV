@@ -25,6 +25,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 |---|---|---|
 | their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>` (a short form is fine if only one city matches); not listed: `optimize/saver.sh city '<name>' <lat> <lon>`, outside Saudi Arabia add its time zone: `… <lat> <lon> Asia/Kuwait` (without it, the TV's own zone) |
 | their clubs, the matches | الفرق المتابعة (up to 20) | `optimize/saver.sh find-team <club>` (Arabic or English), then `optimize/saver.sh teams <id:Name> …` in their order |
+| a whole league, every match of its clubs | الدوريات كاملة (up to 5) | `optimize/saver.sh leagues 'Saudi-Arabian Pro League'` (the Arabic name, «دوري روشن السعودي», works too; `""` = none) |
 | Formula 1, UFC, boxing | رياضات أخرى | `optimize/saver.sh events f1,ufc,boxing` (`""` = none) |
 | what shows beside the clock | المحتوى | `optimize/saver.sh card <verse, wisdom, adhkar, stocks, tasks, year, shows, prayers, forecast, matches, none>` |
 | verse / hadith of the day | آية اليوم وحديث اليوم | `optimize/saver.sh card verse` (a verse one day, a hadith the next) |
@@ -78,7 +79,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 
 ## Not in تلفزيونك yet (say so, and pass it on with `--owner`)
 
-- Being built, not on TVs yet: their own background photos; following a whole league;
+- Being built, not on TVs yet: their own background photos;
   turning our screensaver off when it is heavy for the TV.
 - Asked for, not planned yet: other countries' photos and prayer methods, moving cards around (layout), a news
   ticker, a flight countdown with the flight number (the countdown above can count to the trip's date).

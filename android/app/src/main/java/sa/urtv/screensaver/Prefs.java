@@ -136,6 +136,27 @@ final class Prefs {
     }
 
     static final int MAX_TEAMS = 20;
+    /** Whole leagues followed (#leagues=): the page downloads one small file for each, every 30 minutes. */
+    static final int MAX_LEAGUES = 5;
+
+    /** The league of LEAGUES that name (English as TheSportsDB spells it, the Arabic label, or its slug) means, else null. */
+    static String[] leagueByName(String name) {
+        String n = name.trim().toLowerCase().replaceAll("[^a-z0-9\\u0600-\\u06ff]+", "");
+        for (String[] l : LEAGUES)
+            if (n.equals(l[0].toLowerCase().replaceAll("[^a-z0-9]+", "")) || n.equals(l[1].toLowerCase().replaceAll("[^a-z0-9\\u0600-\\u06ff]+", "")))
+                return l;
+        return null;
+    }
+
+    /** Followed leagues, by their English names (default none). */
+    List<String> leagues() {
+        List<String> v = new ArrayList<>();
+        for (String s : list("leagues")) {
+            String[] l = leagueByName(s);
+            if (l != null && !v.contains(l[0]) && v.size() < MAX_LEAGUES) v.add(l[0]);
+        }
+        return v;
+    }
 
     /** Followed teams in priority order, "id|name". Migrates the old two team fields once. */
     List<String> teams() {
@@ -284,6 +305,7 @@ final class Prefs {
             + "&tz=" + Uri.encode(cityTz())
             + "&teams=" + join(teamIds(), ",")
             + "&events=" + join(list("events"), ",")
+            + "&leagues=" + Uri.encode(join(leagues(), ","))
             + "&panel=" + panel()
             + "&week=" + ("none".equals(panel()) ? "0" : "1")   // for a page older than #panel
             + "&genres=" + Uri.encode(join(list("genres"), ","))

@@ -29,6 +29,8 @@
 #   optimize/saver.sh slot fasting                 the bottom-left slot: matches (default; the weather when no team is followed)
 #                                                  weather fasting countdown markets none
 #   optimize/saver.sh countdown 2026-12-01 'رحلة الصيف'    the date and name slot=countdown counts down to ("clear" removes it)
+#   optimize/saver.sh leagues 'Saudi-Arabian Pro League'   whole leagues, up to 5, by English or Arabic name (دوري روشن السعودي);
+#                                                  every game of every club in them joins the teams' games ("" = none)
 #   optimize/saver.sh events f1,ufc               other sports beside the teams' games: f1 ufc boxing  ("" = none)
 #   optimize/saver.sh update                       download the latest screen now
 # Only ADB can change these (sa.urtv.screensaver/.SaverReceiver needs the shell's DUMP).
@@ -68,6 +70,7 @@ case "${1:-}" in
   card)      send SET "--es panel $(quote "${2:?usage: optimize/saver.sh card prayers}")" ;;
   home-card) send SET "--es home_panel $(quote "${2:?usage: optimize/saver.sh home-card none}")" ;;
   genres)    send SET "--es genres $(quote "${2-}")" ;;
+  leagues)   send SET "--es leagues $(quote "${2-}")" ;;
   events)    send SET "--es events $(quote "${2-}")" ;;
   langs)     send SET "--es langs $(quote "${2-}")" ;;
   minrating) send SET "--es minrating $(quote "${2:?usage: optimize/saver.sh minrating 7}")" ;;

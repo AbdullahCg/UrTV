@@ -24,11 +24,14 @@ import java.util.Locale;
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3] [--es national auto|off]
  *       [--es markets tasi,gold,btc] [--es mkstyle arrows|prices] [--es stocks 2222,1120,AAPL]
+ *       [--es leagues 'Saudi-Arabian Pro League,NBA']
  *       [--es slot matches|weather|fasting|countdown|markets|none] [--es countdown 2026-12-01|clear --es cdname 'رحلة الصيف']
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.UPDATE
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.TASKS
  *       --es op list | add --es text 'نص' | done --ei n 1 | del --ei n 1 | clear
  *
+ * leagues = whole leagues (Prefs.LEAGUES, up to Prefs.MAX_LEAGUES; the English or the Arabic name; "" = none): every game of every
+ * club in them joins the followed teams' games.
  * slot = what the bottom-left slot shows (Prefs.SLOTS). countdown = the date (YYYY-MM-DD) slot=countdown counts down to, or
  * "clear"; cdname = its name (up to 40 characters).
  * national = auto (as always from now: the quiet green look on National Day, 21-25 September, and Founding Day, 20-24 February) or off.
@@ -191,6 +194,17 @@ public class SaverReceiver extends BroadcastReceiver {
         if (langs != null && langs.contains(null)) return "error: langs are " + names(Prefs.LANGS);
         List<String> events = codes(i.getStringExtra("events"), Prefs.EVENTS);
         if (events != null && events.contains(null)) return "error: events are " + names(Prefs.EVENTS);
+        List<String> leagues = null;
+        if (i.getStringExtra("leagues") != null) {
+            leagues = new ArrayList<>();
+            for (String s : i.getStringExtra("leagues").split(",")) {
+                if (s.trim().isEmpty()) continue;
+                String[] l = Prefs.leagueByName(s);
+                if (l == null) return "error: leagues are (English or Arabic name) " + names(Prefs.LEAGUES);
+                if (!leagues.contains(l[0])) leagues.add(l[0]);
+            }
+            if (leagues.size() > Prefs.MAX_LEAGUES) return "error: at most " + Prefs.MAX_LEAGUES + " leagues";
+        }
 
         if (idle != null) {   // first: a refusal here leaves everything else unsaved
             try {
@@ -220,6 +234,7 @@ public class SaverReceiver extends BroadcastReceiver {
         if (genres != null) p.setList("genres", genres);
         if (langs != null) p.setList("langs", langs);
         if (events != null) p.setList("events", events);
+        if (leagues != null) p.setList("leagues", leagues);
         return "saved\n" + describe(c, p);
     }
 
@@ -277,6 +292,7 @@ public class SaverReceiver extends BroadcastReceiver {
             + "\nidle: " + idle(Prefs.idleMs(c))
             + "\ngenres: " + Prefs.join(p.list("genres"), ",") + "\nlangs: " + Prefs.join(p.list("langs"), ",")
             + "\nevents: " + Prefs.join(p.list("events"), ",")
+            + "\nleagues: " + Prefs.join(p.leagues(), ",")
             + "\nautoupdate: " + p.autoUpdate();
     }
 

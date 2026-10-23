@@ -97,6 +97,9 @@ public class SettingsActivity extends Activity {
         row("الفرق المتابعة (" + arabicNum(prefs.teams().size()) + "/" + arabicNum(Prefs.MAX_TEAMS) + ")", teamsLabel(),
             R.drawable.ic_trophy, new Runnable() { public void run() { manageTeams(); } });
 
+        row("الدوريات كاملة", leaguesLabel(), R.drawable.ic_trophy,
+            new Runnable() { public void run() { pickLeagues(); } });
+
         row("رياضات أخرى", labels(Prefs.EVENTS, prefs.list("events"), "بدون"), R.drawable.ic_trophy,
             new Runnable() { public void run() { pickMany("events", "رياضات أخرى", Prefs.EVENTS, "بدون اختيار = بدون"); } });
 
@@ -342,6 +345,38 @@ public class SettingsActivity extends Activity {
                 List<String> v = new ArrayList<>();
                 for (int i = 0; i < options.length; i++) if (on[i]) v.add(options[i][0]);
                 prefs.setList(key, v);
+                render();
+            })
+            .setNegativeButton("إلغاء", null).show();
+    }
+
+    /** Whole leagues: every game of every club in them is shown, up to Prefs.MAX_LEAGUES leagues. */
+    private String leaguesLabel() {
+        List<String> out = new ArrayList<>();
+        for (String en : prefs.leagues()) out.add(leagueAr(en));
+        return out.isEmpty() ? "بدون" : Prefs.join(out, "، ");
+    }
+
+    private void pickLeagues() {
+        final List<String> cur = prefs.leagues();
+        final String[] labels = new String[Prefs.LEAGUES.length];
+        final boolean[] on = new boolean[Prefs.LEAGUES.length];
+        for (int i = 0; i < labels.length; i++) { labels[i] = Prefs.LEAGUES[i][1]; on[i] = cur.contains(Prefs.LEAGUES[i][0]); }
+        new AlertDialog.Builder(this, DIALOG_THEME)
+            .setTitle("الدوريات كاملة (حتى " + arabicNum(Prefs.MAX_LEAGUES) + "، بدون اختيار = بدون)")
+            .setMultiChoiceItems(labels, on, (d, i, checked) -> {
+                int n = 0;
+                for (boolean b : on) if (b) n++;
+                if (checked && n > Prefs.MAX_LEAGUES) {
+                    on[i] = false;
+                    ((AlertDialog) d).getListView().setItemChecked(i, false);
+                    toast("حتى " + arabicNum(Prefs.MAX_LEAGUES) + " دوريات");
+                }
+            })
+            .setPositiveButton("حفظ", (d, w) -> {
+                List<String> v = new ArrayList<>();
+                for (int i = 0; i < on.length; i++) if (on[i]) v.add(Prefs.LEAGUES[i][0]);
+                prefs.setList("leagues", v);
                 render();
             })
             .setNegativeButton("إلغاء", null).show();
