@@ -150,7 +150,7 @@ check("ADB receiver needs the shell-only DUMP permission",
 check("ADB receiver is exported", receiver.get(A + "exported") == "true")
 actions = {a.get(A + "name") for a in receiver.find("intent-filter").findall("action")}
 expected = {"GET_PLAYER", "PLAY_SURAH", "PLAY_RADIO", "PAUSE", "RESUME", "TOGGLE",
-            "NEXT", "PREV", "STOP", "SLEEP", "SEEK_BY", "ADHAN", "ADHAN_ON", "ADHAN_OFF", "VOICE"}
+            "NEXT", "PREV", "STOP", "SLEEP", "SEEK_BY", "ADHAN", "ADHAN_ON", "ADHAN_OFF", "VOICE", "ADHAN_OWN"}
 check("ADB receiver exposes every action", expected <= {a.rsplit(".", 1)[-1] for a in actions},
       sorted(expected - {a.rsplit(".", 1)[-1] for a in actions}))
 check("the old listening actions are gone",
