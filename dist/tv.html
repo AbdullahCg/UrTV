@@ -90,6 +90,9 @@
     position:relative;z-index:5;height:100vh;
     padding:3.1vh 3.6vw 5.4vh;
     display:grid;grid-template-rows:auto 1fr auto;gap:1.5vh;
+    /* never wider than the screen: from 10 to 12 o'clock the clock has four digits, and beside a card of long nowrap rows
+       the column grew past the edge and pushed the bottom row off screen at 1280 and 960 */
+    grid-template-columns:minmax(0,1fr);
   }
 
   .top{display:flex;justify-content:space-between;align-items:flex-start;gap:2.5vw}
@@ -97,7 +100,7 @@
   .up{color:var(--green-lt)}.down{color:var(--red)}
 
   .week{
-    width:min(760px,48vw);justify-self:end;
+    width:min(760px,48vw);max-width:100%;justify-self:end;   /* gives way to a wide clock (see .stage) */
     background:rgba(4,14,9,.60);   /* no backdrop blur: over a moving photo it is redone every frame */
     border:1px solid rgba(var(--gold-rgb),.16);
     border-radius:12px;
@@ -288,7 +291,7 @@
     background:linear-gradient(270deg,var(--gold),rgba(var(--gold-rgb),0))}
 
   /* the card keeps its width on the left; the clock is centred in the space between it and the right edge */
-  .mid{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4.5vw}
+  .mid{display:grid;grid-template-columns:1fr minmax(0,auto);align-items:center;gap:4.5vw}   /* the clock keeps its width; the card takes what is left */
   .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:center}
   .clock{
     display:flex;align-items:baseline;justify-content:center;direction:ltr;
@@ -1384,11 +1387,13 @@ function fitMatches(row){
 }
 // the card beside the clock has room for a whole game; only a row that would end in «…» takes the short names
 // with crests (the launcher's card) the next step is the short names, then no crests: the names alone, as before
+// still too long (a narrow card: beside a wide clock, or in the TV's own font when ours didn't load): a little smaller, never «…»
 function shortenRows(ul){
   ul.querySelectorAll('li > span:first-child').forEach(sp => {
     if(fits(sp)) return;
     shorten(sp);
     if(!fits(sp)) sp.querySelectorAll('img.cr').forEach(i => i.remove());
+    if(!fits(sp)) FIT_STEPS.slice(1).find(k => { sp.style.fontSize = k + 'em'; return fits(sp); });
   });
 }
 

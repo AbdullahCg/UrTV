@@ -1117,6 +1117,24 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- from 10 to 12 o'clock the clock has four digits: in the TV's own font (ours not loaded: offline, or blocked) it is
+// wider, and beside the card it pushed the whole screen wider than the TV's; the bottom row slid off the left edge at 1280
+// and 960 (a failure seen only between 10 and 1 in Riyadh)
+const noFont = r => /\/assets\/fonts\//.test(r.request().url()) && (r.abort(), true);
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', 'panel=matches', { width, height, now: '2026-10-23T08:58:00Z', net: noFont });   // ١١:٥٨ ص
+  const r = await p.evaluate(() => {
+    const long = 'بوروسيا مونشنغلادباخ × كلوب دو فوت مونتريال · الجمعة ٢٣ أكتوبر · ١١:٠٥ م';
+    document.getElementById('week-list').innerHTML = [1, 2, 3, 4].map(() => `<li><span>${long}</span><span>بعد ١ يوم و ٥ ساعات</span></li>`).join('');
+    const box = s => document.querySelector(s).getBoundingClientRect();
+    const off = ['.mid', '.bottom', '.p-match', '.p-prayer', '.clockwrap'].filter(s => { const b = box(s); return b.left < -2 || b.right > innerWidth + 2; });
+    return { off, clock: document.getElementById('ck-h').textContent + ':' + document.getElementById('ck-m').textContent };
+  });
+  check(`four-digit clock (${r.clock}) beside a card of long rows at ${width}x${height}: nothing wider than the screen; no script errors`,
+    !errors.length && r.clock === '١١:٥٨' && !r.off.length, JSON.stringify({ ...r, errors }));
+  await ctx.close();
+}
+
 // ---- club crests on the launcher's matches card (widget mode only), with the badge host mocked
 // a 120 px round badge as a PNG, so the page has a picture to shrink
 const badgePng = (() => {
