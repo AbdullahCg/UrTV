@@ -432,11 +432,13 @@ __BG_SET__
 const _Q = new URLSearchParams((location.hash || '').replace(/^#/, ''));
 const _list = k => (_Q.get(k) || '').split(',').map(x=>x.trim()).filter(Boolean);
 const _num = (k, d) => { const v = parseFloat(_Q.get(k)); return isNaN(v) ? d : v; };
+// the city's time zone, #tz=: the clock, prayers, matches and dates all go by it; one this browser does not know is Riyadh
+const _tzOk = z => { try{ new Intl.DateTimeFormat('en',{timeZone:z}); return true; }catch(e){ return false; } };
 const CONFIG = {
   city: _Q.get('city') || 'الرياض',
   latitude: _num('lat', 24.7136),
   longitude: _num('lon', 46.6753),
-  timezone: _Q.get('tz') || 'Asia/Riyadh',
+  timezone: _tzOk(_Q.get('tz') || 'Asia/Riyadh') ? (_Q.get('tz') || 'Asia/Riyadh') : 'Asia/Riyadh',
   prayerMethod: 4,
   // followed teams in priority order: #teams=id,id,... (up to 20); older builds send team1/team2
   teamIds: (_Q.has('teams') ? _Q.get('teams').split(',')
@@ -505,6 +507,11 @@ function riyadhParts(d = new Date()){
     hour:'2-digit', minute:'2-digit', second:'2-digit'
   }).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
   return { y:+f.year, mo:+f.month, d:+f.day, h:(+f.hour)%24, mi:+f.minute, s:+f.second };
+}
+// how far the city's clock is ahead of UTC at that moment, in ms (Riyadh +3 h all year; Cairo changes with summer time)
+function tzOffsetMs(ms){
+  const p = riyadhParts(new Date(ms));
+  return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - Math.floor(ms / 1000) * 1000;
 }
 function fmt12(h, mi){
   const h12 = h % 12 === 0 ? 12 : h % 12;
@@ -1063,7 +1070,7 @@ function eventInfo(key, ev){
   const country = COUNTRY_AR[c] || (c ? trl(ev.strCountry) : '');
   const dateOnly = !ev.strTime || /^00:00(:00)?$/.test(ev.strTime);   // no time of day known: only the day is told
   let t = toDate(ev).getTime();
-  if(dateOnly && !isNaN(t)) t -= 3*3600000;   // that day starts at midnight in Riyadh
+  if(dateOnly && !isNaN(t)) t -= tzOffsetMs(t);   // t is that day's midnight in UTC: it starts at midnight in the city's time zone
   return {title, head, pre, card, tag: EVENT_TAG[key], country: title.includes(country) ? '' : country, t,
           dur: dateOnly ? 24*3600000 : EVENT_DUR_H[key] * 3600000, dateOnly};
 }
@@ -1585,7 +1592,7 @@ const TADAWUL = {   // Arabic short names of the 30 largest companies; any other
 };
 const isSA = k => /^\d/.test(k);
 const stockName = k => isSA(k) ? (TADAWUL[k] || ar(k)) : k;
-// Riyadh is UTC+3 all year. Tadawul Sun-Thu 10:00-15:00; the US Mon-Fri 16:30-23:00 (approximate; holidays are ignored)
+// The exchanges keep their own hours whatever the city: Riyadh is UTC+3 all year. Tadawul Sun-Thu 10:00-15:00; the US Mon-Fri 16:30-23:00 (approximate; holidays are ignored)
 function marketOpen(sa, ms = Date.now()){
   const d = new Date(ms + 3*3600000), day = d.getUTCDay(), m = d.getUTCHours() * 60 + d.getUTCMinutes();
   return sa ? day <= 4 && m >= 600 && m < 900 : day >= 1 && day <= 5 && m >= 990 && m < 1380;

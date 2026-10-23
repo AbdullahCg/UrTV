@@ -191,17 +191,18 @@ public class SettingsActivity extends Activity {
                 JSONArray a = new JSONObject(json).optJSONArray("results");
                 if (a == null || a.length() == 0) { toast("لا توجد نتائج"); return; }
                 final int n = a.length();
-                final String[] names = new String[n], lats = new String[n], lons = new String[n], rows = new String[n];
+                final String[] names = new String[n], lats = new String[n], lons = new String[n], zones = new String[n], rows = new String[n];
                 for (int i = 0; i < n; i++) {
                     JSONObject c = a.getJSONObject(i);
                     names[i] = c.optString("name");
                     lats[i] = String.valueOf(c.optDouble("latitude"));
                     lons[i] = String.valueOf(c.optDouble("longitude"));
+                    zones[i] = c.optString("timezone", "");   // the place's own; empty: the TV's (Prefs.cityTz)
                     String region = c.optString("admin1", "");
                     rows[i] = region.isEmpty() ? names[i] : names[i] + "  ·  " + region;
                 }
                 new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر المكان")
-                    .setItems(rows, (d, i) -> { prefs.setCity(names[i], lats[i], lons[i]); render(); }).show();
+                    .setItems(rows, (d, i) -> { prefs.setCity(names[i], lats[i], lons[i], zones[i]); render(); }).show();
             }));
     }
 

@@ -19,7 +19,7 @@ import java.util.Locale;
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.GET
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.CITIES
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.SET
- *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
+ *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49 [--es tz Asia/Kuwait]] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
  *       [--es panel prayers] [--es home_panel none] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3] [--es national auto|off]
@@ -86,6 +86,11 @@ public class SaverReceiver extends BroadcastReceiver {
         // check everything first, then save: a typo never leaves half the settings changed
         String[] city = null;
         String name = i.getStringExtra("city"), lat = i.getStringExtra("lat"), lon = i.getStringExtra("lon");
+        String tz = i.getStringExtra("tz");   // only for a place of your own; a built-in city is Asia/Riyadh
+        if (tz != null && (name == null || lat == null || lon == null))
+            return "error: tz goes with city, lat and lon (a built-in city is Asia/Riyadh)";
+        if (tz != null && !Arrays.asList(java.util.TimeZone.getAvailableIDs()).contains(tz))
+            return "error: tz is a time zone like Asia/Kuwait or Africa/Cairo";
         if (name != null) {
             if (lat != null && lon != null) {
                 if (!lat.matches("-?\\d{1,2}(\\.\\d+)?") || !lon.matches("-?\\d{1,3}(\\.\\d+)?"))
@@ -195,7 +200,7 @@ public class SaverReceiver extends BroadcastReceiver {
                 return "error: idle not allowed: the TV refused the change";
             }
         }
-        if (city != null) p.setCity(city[0], city[1], city[2]);
+        if (city != null) p.setCity(city[0], city[1], city[2], tz == null ? "" : tz);
         if (teams != null) p.setList("teams", teams);
         if (panel != null) p.setPanel(panel);
         if (home != null) p.setHomePanel(home);
@@ -255,6 +260,7 @@ public class SaverReceiver extends BroadcastReceiver {
     private static String describe(Context c, Prefs p) {
         String[] city = p.city();
         return "city: " + city[0] + " (" + city[1] + ", " + city[2] + ")"
+            + "\ntimezone: " + p.cityTz()
             + "\nteams: " + Prefs.join(p.teams(), ", ")
             + "\npanel: " + p.panel() + "\nhome_panel: " + p.homePanel()
             + "\nminrating: " + p.minRating()
