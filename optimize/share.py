@@ -6,7 +6,11 @@ UrTV's version and the apps', how long each step took and where it stopped, the 
 memory before and after, the checks, the agent's notes and the owner's own words if they want to add any.
 Nothing personal: no city, clubs, favourites or apps of theirs, no names, network addresses or file paths.
 
-    optimize/share.sh --agent "Codex (gpt-…)" --owner "the owner's words, if any" "the agent's notes"
+    optimize/share.sh --preview --agent "Codex (gpt-…)" --owner "the owner's words, if any" "the agent's notes"
+    optimize/share.sh --send
+
+--preview writes optimize/run/share.md and prints exactly what would be sent; nothing leaves the computer.
+--send sends that file as it is. Without either, it writes and sends in one go (older instructions).
 """
 import argparse
 import datetime
@@ -72,11 +76,39 @@ def trouble():   # from run.log: what the scripts said went wrong, and how often
     return out + [f"- {l}" for l in errors]
 
 
+def windows_release(system, version, release):
+    """«11» or «10»: Python's release() says 10 on Windows 11 too, so the build number decides (22000 and over is 11).
+    The build is the last part of platform.version() («10.0.22631»), or of Git Bash's system («MINGW64_NT-10.0-22631»)."""
+    for text in (version, system):
+        m = re.search(r"\b10\.0[.-](\d{4,6})\b", text or "")
+        if m:
+            return "11" if int(m.group(1)) >= 22000 else "10"
+    return release
+
+
 def computer():
     name = platform.system()
     if name == "Windows" or "MINGW" in name.upper() or "MSYS" in name.upper():
-        return f"Windows {platform.release()}"
+        return f"Windows {windows_release(name, platform.version(), platform.release())}"
     return {"Darwin": f"macOS {platform.mac_ver()[0]}"}.get(name, f"{name} {platform.release()}")
+
+
+def live_versions():
+    """The two apps' versionName as the TV says it now, «Versions: screensaver 3.124, home 3.124»; None when the TV does not
+    answer (then report.md's line, written at the last setup, is all there is)."""
+    tv_py = Path(__file__).resolve().parent / "tv.py"
+    found = []
+    for package in ("sa.urtv.screensaver", "sa.urtv.home"):
+        try:
+            out = subprocess.run([sys.executable, "-I", str(tv_py), f"dumpsys package {package} 2> /dev/null | grep -m1 versionName"],
+                                 capture_output=True, text=True, timeout=60, env={**os.environ, "TV_TRIES": "1"})
+        except Exception:  # noqa: BLE001
+            return None
+        m = re.search(r"versionName=(\S+)", out.stdout) if out.returncode == 0 else None
+        if not m:
+            return None
+        found.append(m.group(1))
+    return f"Versions: screensaver {found[0]}, home {found[1]}"
 
 
 def steps():
@@ -130,8 +162,12 @@ def report_checks():
     lines = report.read_text(encoding="utf-8").splitlines()
     ok = sum(l.startswith("- ok:") for l in lines)
     bad = [l[2:] for l in lines if l.startswith("- !!")]
+    live = live_versions()   # the apps on the TV now; the report's line only dates from the last setup
     out = [f"Protected features on: {ok}/{ok + len(bad)}", *bad,
-           *[l for l in lines if l.startswith(("Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+           *[live if l.startswith("Versions:") and live else l
+             for l in lines if l.startswith(("Device:", "WebView:", "!! WebView:", "Auto-start", "!! Auto-start", "Home:", "Screensaver:", "Versions:", "Extras:", "Optional picks"))]]
+    if live and not any(l.startswith("Versions:") for l in lines):
+        out.append(live)
     return out + packages(lines)
 
 
@@ -140,21 +176,31 @@ OFF_BY_DESIGN = {"com.google.android.apps.tv.launcherx", "com.google.android.tvl
                  "com.google.android.tungsten.setupwraith", "com.tcl.keycustomfunctionservice"}
 
 
-def packages(lines):   # what our lists turned off, what they left on, and what the home screen hides
+def off_before():   # packages already disabled in the backup taken before setup: the TV keeps them off itself
+    try:
+        text = (RUN / "backup.txt").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return set()
+    sect = re.search(r"^== disabled packages.*?\n(.*?)(?=^== |\Z)", text, flags=re.M | re.S)
+    return set(re.findall(r"^package:(\S+)", sect.group(1), flags=re.M)) if sect else set()
+
+
+def packages(lines, before=None):   # what our lists turned off, what they left on, and what the home screen hides
     state = {}   # (state, list) -> packages
     for l in lines:
         m = re.match(r"- pkg (off|on|absent): (\S+) \((\S+)\)", l)
         if m:
             state.setdefault((m.group(1), m.group(3)), []).append(m.group(2))
     out = []
-    for lst in ("tcl-safe", "tcl-optional", "home-replaced"):
+    for lst in ("tcl-safe", "tcl-optional", "community", "home-replaced"):
         off, on = state.get(("off", lst), []), state.get(("on", lst), [])
         absent = len(state.get(("absent", lst), []))
         if off or on or absent:
             out.append(f"{lst}: {len(off)} off, {len(on)} still on, {absent} not on this TV")
             out += [f"  off: {', '.join(off)}"] if off else []
             out += [f"  on: {', '.join(on)}"] if on else []
-    protected = [p for p in state.get(("off", "keep"), []) if p not in OFF_BY_DESIGN]
+    before = off_before() if before is None else before   # off before UrTV touched the TV: not ours to flag
+    protected = [p for p in state.get(("off", "keep"), []) if p not in OFF_BY_DESIGN and p not in before]
     if protected:
         out.append(f"!! protected but off: {', '.join(protected)}")
     out += hidden(lines)
@@ -190,7 +236,18 @@ def main():
     a.add_argument("--agent", default="", help="which agent ran the setup, and its model")
     a.add_argument("--owner", default="", help="the owner's own words for the author, if they gave any")
     a.add_argument("notes", nargs="*", help="the agent's notes: what failed or was slow, and what fixed it")
+    mode = a.add_mutually_exclusive_group()
+    mode.add_argument("--preview", action="store_true", help="write the report and print it; send nothing")
+    mode.add_argument("--send", action="store_true", help="send the report --preview wrote")
     args = a.parse_args()
+    if args.send:
+        if args.notes or args.agent or args.owner:
+            sys.exit("!! --send sends the file as --preview wrote it: give the notes to --preview.")
+        if not OUT.exists():
+            sys.exit(f"!! Nothing to send: {OUT.relative_to(RUN.parent.parent)} is not there yet. "
+                     "Run optimize/share.sh --preview \"<notes>\" first, show the owner the text, then --send.")
+        deliver(scrub(OUT.read_text(encoding="utf-8")))
+        return
     notes = " ".join(args.notes).strip()
     summary = RUN / "summary.md"
     parts = [
@@ -217,6 +274,13 @@ def main():
     OUT.write_text(text, encoding="utf-8")
     print(text)
     print(f"Saved in {OUT.relative_to(RUN.parent.parent)}.")
+    if args.preview:
+        print("NOT sent. This is exactly what optimize/share.sh --send would send.")
+        return
+    deliver(text)
+
+
+def deliver(text):
     if send(text):
         print("Sent to the author. Thank you!")
         return

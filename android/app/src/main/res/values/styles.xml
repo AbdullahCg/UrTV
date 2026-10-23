@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the settings' dialogs: no grey system dialog, the glass of the «تلاوة وأذان» screens (SettingsActivity.Dlg also puts Thmanyah on their words) -->
+    <style name="UrDialog" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/glass_dialog</item>
+        <item name="android:textColorPrimary">#F6EFE0</item>
+        <item name="android:textColorSecondary">#C6BBA4</item>
+        <item name="android:textColorAlertDialogListItem">#F6EFE0</item>
+        <item name="android:backgroundDimAmount">0.4</item>   <!-- the settings behind show through the glass -->
+        <item name="android:colorAccent">#D6AF6B</item>
+        <item name="android:colorControlActivated">#D6AF6B</item>
+        <item name="android:colorControlNormal">#C6BBA4</item>
+        <item name="android:listChoiceBackgroundIndicator">@drawable/glass_choice</item>
+    </style>
+</resources>

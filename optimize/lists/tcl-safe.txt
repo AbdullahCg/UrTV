@@ -15,7 +15,6 @@ com.tcl.exhibit                        # shop demo
 com.tcl.factory.view                   # factory menu
 com.tcl.hotelmenu                      # hotel mode
 com.tcl.useragreement                  # agreement viewer
-com.tcl.guard                          # "TV guard" cleaner
 com.tcl.notereminder
 com.tcl.repairguide
 com.tcl.ocean.instructions             # e-manual

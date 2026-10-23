@@ -12,6 +12,14 @@
         android:name="sa.urtv.screensaver.READ_CONFIG"
         android:protectionLevel="signature" />
 
+    <!-- the launcher adds, finishes and deletes «المهام» through the same provider -->
+    <permission
+        android:name="sa.urtv.screensaver.WRITE_TASKS"
+        android:protectionLevel="signature" />
+
+    <!-- the launcher says what it is playing, for the screen's «يُتلى الآن» card (same signing key) -->
+    <uses-permission android:name="sa.urtv.home.READ_NOW_PLAYING" />
+
     <!-- opens the launcher's «ترتيب المفضلة» from settings -->
     <queries>
         <package android:name="sa.urtv.home" />
@@ -85,6 +93,8 @@
                 <action android:name="sa.urtv.screensaver.SET" />
                 <action android:name="sa.urtv.screensaver.CITIES" />
                 <action android:name="sa.urtv.screensaver.UPDATE" />
+                <action android:name="sa.urtv.screensaver.TASKS" />
+                <action android:name="sa.urtv.screensaver.PHOTOS" />
             </intent-filter>
         </receiver>
 
@@ -92,6 +102,13 @@
             android:name=".ConfigProvider"
             android:authorities="sa.urtv.screensaver.config"
             android:exported="true"
-            android:readPermission="sa.urtv.screensaver.READ_CONFIG" />
+            android:readPermission="sa.urtv.screensaver.READ_CONFIG"
+            android:writePermission="sa.urtv.screensaver.WRITE_TASKS">
+            <!-- the shell hands over a photo here (`content write`, optimize/photos.sh); DUMP as for SaverReceiver -->
+            <path-permission
+                android:path="/own-in"
+                android:readPermission="android.permission.DUMP"
+                android:writePermission="android.permission.DUMP" />
+        </provider>
     </application>
 </manifest>

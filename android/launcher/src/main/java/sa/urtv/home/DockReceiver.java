@@ -3,6 +3,7 @@ package sa.urtv.home;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,10 @@ import java.util.Map;
  *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.HIDDEN                 left out, and why
  *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.HIDE --es apps pkg1,pkg2,...
  *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.SHOW --es apps pkg1,pkg2,...
+ *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.NAMES                  pkg | shown | own | from
+ *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.SET_NAMES --es names 'pkg|الاسم;pkg2|'   (empty: back)
+ *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.CLEAR_NAMES
+ *   am broadcast -n sa.urtv.home/.DockReceiver -a sa.urtv.home.SLEEP_TV [--ei minutes 30 | 0 = cancel]   «مؤقت النوم» for the whole TV
  *
  * The answer is in the "data" of am's output. optimize/dock.sh wraps them all. People use «ترتيب المفضلة»
  * (DockActivity) instead.
@@ -33,6 +38,52 @@ public class DockReceiver extends BroadcastReceiver {
                 StringBuilder b = new StringBuilder();
                 for (Map.Entry<String, String> e : apps.entrySet()) b.append(e.getKey()).append(" | ").append(e.getValue()).append('\n');
                 setResultData(b.toString().trim());
+                return;
+            }
+            case "sa.urtv.home.NAMES": {   // for the owner's agent: which names are still not Arabic, and their own name
+                Map<String, String> given = AppNames.given(c);
+                StringBuilder b = new StringBuilder();
+                for (ResolveInfo ri : Dock.catalogue(c)) {
+                    String own = String.valueOf(ri.loadLabel(c.getPackageManager()));
+                    b.append(ri.activityInfo.packageName).append(" | ").append(AppNames.label(c, ri, given)).append(" | ")
+                     .append(own).append(" | ").append(AppNames.source(c, ri, given)).append('\n');
+                }
+                setResultData(b.toString().trim());
+                return;
+            }
+            case "sa.urtv.home.SET_NAMES": {
+                String raw = i.getStringExtra("names");
+                if (raw == null) { setResultData("error: add --es names 'pkg|الاسم;pkg2|الاسم'"); return; }
+                Map<String, String> given = AppNames.given(c);
+                List<String> done = new ArrayList<>(), skipped = new ArrayList<>();
+                for (String pair : raw.split(";")) {
+                    int bar = pair.indexOf('|');
+                    if (bar <= 0) { if (!pair.trim().isEmpty()) skipped.add(pair.trim()); continue; }
+                    String pkg = pair.substring(0, bar).trim(), name = pair.substring(bar + 1).trim();
+                    if (!apps.containsKey(pkg)) { skipped.add(pkg + " (not on the home screen)"); continue; }
+                    if (name.isEmpty()) { given.remove(pkg); done.add(pkg + " (its usual name again)"); continue; }
+                    if (!AppNames.valid(name)) { skipped.add(pkg + " (Arabic, one line, up to " + AppNames.MAX_LEN + " characters)"); continue; }
+                    given.put(pkg, name);
+                    done.add(pkg + " = " + name);
+                }
+                AppNames.save(c, given);
+                c.sendBroadcast(new Intent(Dock.CHANGED).setPackage(c.getPackageName()));
+                setResultData("named: " + (done.isEmpty() ? "none" : String.join(", ", done))
+                    + (skipped.isEmpty() ? "" : "\nskipped: " + String.join(", ", skipped)));
+                return;
+            }
+            case "sa.urtv.home.CLEAR_NAMES":
+                AppNames.save(c, new java.util.HashMap<String, String>());
+                c.sendBroadcast(new Intent(Dock.CHANGED).setPackage(c.getPackageName()));
+                setResultData("names: back to each app's usual name");
+                return;
+            case "sa.urtv.home.SLEEP_TV": {   // the sleep timer: no extra = how it stands; minutes = start it; 0 = cancel
+                if (i.hasExtra("minutes")) {
+                    int m = i.getIntExtra("minutes", -1);
+                    if (m < 0 || m > 600) { setResultData("error: minutes is 1 to 600, or 0 to cancel"); return; }
+                    SleepTimer.start(c, m);
+                }
+                setResultData(SleepTimer.status(c));
                 return;
             }
             case "sa.urtv.home.GET_DOCK":

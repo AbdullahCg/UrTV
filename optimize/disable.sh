@@ -15,4 +15,12 @@ if [ -n "$blocked" ]; then
   printf '%s\n' "$blocked" | sed 's/^/  /'
   exit 1
 fi
+# what the person asked to keep on (optimize/keep.sh restore) stays on, also on a later `run.sh again`
+keptpkgs=$("$PY" -I optimize/offlist.py kept 2> /dev/null || true)
+if [ -n "$keptpkgs" ]; then
+  skipped=$(printf '%s\n' "$pkgs" | grep -Fxf <(printf '%s\n' "$keptpkgs") || true)
+  [ -z "$skipped" ] || echo "Left on, as the person asked: $(paste -sd' ' <<< "$skipped")" >&2
+  pkgs=$(printf '%s\n' "$pkgs" | grep -Fxvf <(printf '%s\n' "$keptpkgs") || true)
+fi
+[ -n "$pkgs" ] || exit 0
 printf '%s\n' "$pkgs" | awk '{print "pm disable-user --user 0 " $1}' | "$PY" -I optimize/tv.py --batch

@@ -57,7 +57,6 @@ From [Unsplash](https://unsplash.com), under the [Unsplash License](https://unsp
 | `photos/ud9NlvvEzUI.jpg` | NEOM | [unsplash](https://unsplash.com/photos/a-man-sitting-on-a-rock-in-the-desert-ud9NlvvEzUI) |
 | `photos/dMSYsXdwl9M.jpg` | NEOM | [unsplash](https://unsplash.com/photos/an-aerial-view-of-a-desert-with-rocks-and-sand-dMSYsXdwl9M) |
 | `photos/seX13AzLqls.jpg` | NEOM | [unsplash](https://unsplash.com/photos/a-person-sitting-inside-of-a-tent-in-the-desert-seX13AzLqls) |
-| `photos/x4vxK4VGKX0.jpg` | NEOM | [unsplash](https://unsplash.com/photos/a-woman-standing-on-top-of-a-sand-dune-x4vxK4VGKX0) |
 | `photos/7vOpzRF33Zo.jpg` | Rabah Al Shammary | [unsplash](https://unsplash.com/photos/sand-dune-and-mountain-scenery-7vOpzRF33Zo) |
 | `photos/D1RR-UEnsjw.jpg` | BASHAER 🌟 | [unsplash](https://unsplash.com/photos/low-light-photo-of-dew-drops-on-leaves-D1RR-UEnsjw) |
 | `photos/HbixalFpY1w.jpg` | RAKAN ALREQABI | [unsplash](https://unsplash.com/photos/silhouette-of-man-riding-on-camel-HbixalFpY1w) |

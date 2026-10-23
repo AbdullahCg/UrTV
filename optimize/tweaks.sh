@@ -31,7 +31,7 @@ cmds=(
 )
 if [ "$1" = apply ]; then
   if [ -n "$CACHED" ]; then   # opt-in only (see above); never raise the limit: low-RAM sets may sit below it
-    now=$("$PY" -I optimize/tv.py "dumpsys activity settings | grep -m1 max_cached_processes" | tr -dc '0-9')
+    now=$("$PY" -I optimize/tv.py "dumpsys activity settings 2> /dev/null | grep -m1 max_cached_processes" | tr -dc '0-9')
     if [ -n "$now" ] && [ "$now" -gt "$CACHED" ]; then
       cmds+=("device_config put activity_manager max_cached_processes $CACHED")
       echo "Closed apps kept in memory: $now -> $CACHED"

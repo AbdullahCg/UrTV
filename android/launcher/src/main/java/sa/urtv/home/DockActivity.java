@@ -41,6 +41,7 @@ public class DockActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Digits.init(this);
         apps = Dock.launchable(this);
         row.addAll(Dock.shown(this, apps));
 
@@ -56,7 +57,7 @@ public class DockActivity extends Activity {
         frame.addView(col, new FrameLayout.LayoutParams(dp(600), -2, Gravity.CENTER_HORIZONTAL));
 
         col.addView(text("ترتيب المفضلة", 26, "Medium", TEXT), right(0));
-        col.addView(text("OK على تطبيق لتحريكه بالأسهم ▲▼ ثم OK لتثبيته. من " + ar(Dock.MIN) + " إلى "
+        col.addView(text("اختيار على تطبيق لتحريكه بالأسهم (أعلى/أسفل) ثم اختيار لتثبيته. من " + ar(Dock.MIN) + " إلى "
             + ar(Dock.MAX) + " تطبيقات.", 14, "Regular", DIM), right(dp(6)));
         count = text("", 13, "Medium", GOLD);
         col.addView(count, right(dp(24)));
@@ -73,7 +74,7 @@ public class DockActivity extends Activity {
         list.removeAllViews();
         cards.clear();
         removes.clear();
-        count.setText("المفضلة · " + ar(row.size()) + " من " + ar(Dock.MAX));
+        count.setText("المفضلة " + ar(row.size()) + " من " + ar(Dock.MAX));
         for (int i = 0; i < row.size(); i++) list.addView(favouriteRow(i), rowParams());
 
         List<String> others = new ArrayList<>(apps.keySet());
@@ -270,8 +271,6 @@ public class DockActivity extends Activity {
     private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
     private static String ar(int n) {
-        StringBuilder b = new StringBuilder();
-        for (char ch : String.valueOf(n).toCharArray()) b.append((char) ('٠' + (ch - '0')));
-        return b.toString();
+        return Digits.of(String.valueOf(n));
     }
 }

@@ -16,6 +16,23 @@ From hands-on work on three TCL sets (Android 11, 12 and 14, 1.7–2.3 GB RAM, 3
 Judge results by `MemAvailable`, the Play Store's CPU and how the remote feels — not by load average,
 which sits high on these sets from I/O wait even when idle.
 
+## What our own apps do to stay light
+
+Field readings put the screensaver at 120–250 MB of free RAM while it runs, mostly the WebView. So:
+
+- The page writes to the screen only when the text changed (the clock once a minute, not 60 times), saves its
+  panels only when they differ, and asks for live scores only inside a followed match's window. Nothing animates
+  once the photo has settled.
+- The WebView is taken out of its window and destroyed when the dream ends; nothing static keeps it alive.
+- The page and version check runs only when the screensaver starts, and only if the last one is 6 hours old or
+  more (on a background thread, one at a time); an idle TV makes no network calls for it. The persisted 6-hour job
+  stays, but it only starts the app's process and finishes at once: it also wakes the app after a reboot, which
+  some TCL sets need for the first screensaver to start.
+- The home screen's card (if turned on) is paused, its timers too, when an app is in front, and destroyed with the
+  activity.
+  App tiles are kept at the size they are shown, in a cache of 6 MB at most.
+- `optimize/measure.sh` prints the two apps' memory (TOTAL PSS) under its table, to compare releases.
+
 ## Running it
 
 `optimize/run.sh` does the whole setup in order and remembers each finished step: over slow or dropping ADB just
@@ -24,7 +41,12 @@ only the report is redone), and it starts from the first step when the TV (its s
 Results go to `optimize/run/` (before/after table in `summary.md`, `report.md`). `optimize/reset.sh`
 puts a TV back as it came, including older versions of these apps. The ADB client (`optimize/tv.py`) retries and
 reconnects by itself, uploads APKs in verified pieces that resume after a drop, and restarts the TV only through
-`tv.py --reboot` (sent once, so a retry can never restart it twice).
+`tv.py --reboot` (sent once, so a retry can never restart it twice; the TV counts as back only from a new boot, by the
+kernel's boot id or the uptime, so one that is slow to shut down is not reported back too soon).
+It also remembers which TV the setup started on (serial, make and model, in `tv-id.json` next to the ADB key in `~/.urtv`, which stays on this
+computer and outside the clone, so a new clone is the same computer): a command that changes the TV first checks, once per connection, that the device answering is that one, and
+stops with a `!!` line naming both models if not (two devices on one Wi-Fi, a box and the TV). The same TV on a new
+address passes; `tv.py --new-tv` is the deliberate switch.
 
 ## What must stay on
 

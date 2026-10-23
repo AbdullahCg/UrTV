@@ -124,9 +124,8 @@ final class Dock {
 
     /** Apps the home screen can show, package -> name, from {@link #catalogue}. */
     static Map<String, String> launchable(Context c) {
-        PackageManager pm = c.getPackageManager();
-        Map<String, String> out = new LinkedHashMap<>();
-        for (ResolveInfo ri : catalogue(c)) out.put(ri.activityInfo.packageName, String.valueOf(ri.loadLabel(pm)));
+        Map<String, String> out = new LinkedHashMap<>(), given = AppNames.given(c);
+        for (ResolveInfo ri : catalogue(c)) out.put(ri.activityInfo.packageName, AppNames.label(c, ri, given));
         return out;
     }
 
