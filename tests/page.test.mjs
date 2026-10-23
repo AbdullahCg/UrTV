@@ -1917,6 +1917,59 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   await o.ctx.close();
 }
 
+// ---- the live game grows: a followed team under way shows alone, big: score, minute, «مباشر», both crests where there are crests
+// (the launcher's card), names on one line; when it ends the card goes back to the list. The bottom slot does the same.
+const LIVE_EV = (over = {}) => ({ idEvent: 'L1', strHomeTeam: 'Manchester United', strAwayTeam: 'Borussia Monchengladbach', idHomeTeam: '100', idAwayTeam: '101', strSport: 'Soccer',
+  strTimestamp: new Date(Date.now() - 67 * 60000).toISOString(), strStatus: '2H', strProgress: '67', intHomeScore: 2, intAwayScore: 1,
+  strHomeTeamBadge: BADGE(100), strAwayTeamBadge: BADGE(101), ...over });
+const LATER_EV = { idEvent: 'L2', strHomeTeam: 'Al-Ahli', strAwayTeam: 'Al-Ittihad', idHomeTeam: '102', idAwayTeam: '103', strSport: 'Soccer', strTimestamp: new Date(Date.now() + 30 * 3600000).toISOString() };
+for (const [width, height, label] of [[461, 250, 'launcher card'], [1920, 1080, 'launcher card at 1920'], [960, 540, 'launcher card at 960']]) {
+  for (const digits of ['hindi', 'latin']) {
+    const seen = [];
+    const { p, ctx, errors } = await open('tv.html', `teams=136013&panel=matches&widget=1&digits=${digits}`, { width, height, net: crestNet(seen) });
+    const setup = ev2 => p.evaluate(([a, b]) => { NEXT_LIST = { '136013': [a, b] }; MATCHES = { '136013': a }; MATCHES_LOADED = true; loadCrests(); renderPanel(false, 'matches'); }, [LIVE_EV(ev2), LATER_EV]);
+    await setup({});
+    await p.waitForTimeout(250);
+    const r = await p.evaluate(() => { const li = [...document.querySelectorAll('#week-list li')], big = document.querySelector('#week-list li.lv'), t = big && big.querySelector('.lvt');
+      return { n: li.length, big: !!big, text: big ? big.textContent.replace(/\s+/g, ' ').trim() : '', crests: big ? [...big.querySelectorAll('img.cr')].filter(i => i.src.startsWith('data:image/png')).length : 0,
+        oneLine: t ? t.scrollWidth <= t.clientWidth + .5 && [...t.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1) : false,
+        score: big ? big.querySelector('.sc').getBoundingClientRect().height : 0, norm: parseFloat(getComputedStyle(document.querySelector('#week-list li.lv .tm')).fontSize),
+        base: parseFloat(getComputedStyle(document.querySelector('.week')).fontSize), dots: document.getElementById('week-list').textContent.includes('…') }; });
+    const tag = `live game big, ${label} ${width}x${height} ${digits}`;
+    check(`${tag}: only that game, big: «مباشر», the minute and the score; no script errors`, !errors.length && r.n === 1 && r.big && /مباشر/.test(r.text) && /الدقيقة|Minute|67|٦٧/.test(r.text)
+      && (digits === 'latin' ? /2 - 1/.test(r.text) : /٢ - ١/.test(r.text)) && !r.dots, JSON.stringify(r) + errors.join('; '));
+    check(`${tag}: both crests, the names on one line (the long ones shortened if they must be)`, r.crests === 2 && r.oneLine, JSON.stringify(r));
+    // the game ends: the list is back, with its result
+    await p.evaluate(() => { MATCHES['136013'] = Object.assign({}, MATCHES['136013'], { strStatus: 'FT', strTimestamp: new Date(Date.now() - 3 * 3600000).toISOString() }); NEXT_LIST['136013'][0] = MATCHES['136013']; renderPanel(false, 'matches'); });
+    const back = await p.evaluate(() => ({ lv: !!document.querySelector('#week-list li.lv'), n: document.querySelectorAll('#week-list li').length }));
+    check(`${tag}: when it ends the card goes back to the list`, !back.lv && back.n >= 1, JSON.stringify(back));
+    await ctx.close();
+  }
+}
+{   // the shortened pair: both teams with long names, in a narrow slot
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width: 300, height: 200 });
+  await p.evaluate(ev => { NEXT_LIST = { '136013': [ev] }; MATCHES = { '136013': ev }; MATCHES_LOADED = true; renderPanel(false, 'matches'); }, LIVE_EV({ strHomeTeam: 'Borussia Monchengladbach', strAwayTeam: 'Eintracht Frankfurt' }));
+  const r = await p.evaluate(() => { const t = document.querySelector('#week-list .lvt'); return { ok: t.scrollWidth <= t.clientWidth + .5, text: t.textContent, k: t.style.getPropertyValue('--k') }; });
+  check('live game big: two long names in a narrow card still on one line, no «…»', !errors.length && r.ok && !r.text.includes('…'), JSON.stringify(r));
+  await ctx.close();
+}
+// the bottom slot: the same game, big, alone, with its minute
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('urtv.html', 'teams=136013', { width, height });
+  const r = await p.evaluate(ev => {
+    NEXT_LIST = { '136013': [ev] }; MATCHES = { '136013': ev }; MATCHES_LOADED = true; renderMatches();
+    const row = document.getElementById('match-row'), b = row.querySelector('.mblock'), sp = b.querySelector('.big > span');
+    const before = parseFloat(getComputedStyle(b.querySelector('.big')).fontSize);
+    return { n: row.querySelectorAll('.mblock').length, big: b.classList.contains('lvb'), text: row.textContent.replace(/\s+/g, ' ').trim(), fit: sp.scrollWidth <= sp.clientWidth + .5, size: before,
+             oneLine: [...sp.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1) };
+  }, LIVE_EV({ strHomeTeam: 'Al-Hilal', strAwayTeam: 'Al-Nassr' }));
+  const plain = await p.evaluate(ev => { NEXT_LIST = { '136013': [ev] }; MATCHES = { '136013': ev }; renderMatches(); return parseFloat(getComputedStyle(document.querySelector('#match-row .mblock .big')).fontSize); },
+    { ...LATER_EV, idEvent: 'L9' });
+  check(`bottom slot ${width}x${height}: the live game alone and big (larger than a game to come), score, minute, «مباشر», one line`,
+    !errors.length && r.n === 1 && r.big && /مباشر/.test(r.text) && /الدقيقة ٦٧/.test(r.text) && /٢ - ١/.test(r.text) && r.fit && r.oneLine && r.size > plain, JSON.stringify({ ...r, plain }) + errors.join('; '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

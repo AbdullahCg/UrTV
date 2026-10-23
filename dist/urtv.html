@@ -146,6 +146,16 @@
   .week li.prow .pc.past i{color:#7F775F}
   .week li.prow .pc.next{background:rgba(var(--gold-rgb),.18);box-shadow:inset 0 0 0 1px rgba(var(--gold-rgb),.45);color:var(--gold-hi)}
   .week li.prow .pc.next i{color:var(--gold-3)}
+  /* the same game in the card: «مباشر · الدقيقة ٦٧» over the two names with the score between, one line (fitLive) */
+  .week li.lv{display:block;white-space:normal;text-align:center;border-bottom:none;padding:.5vh 0 .2vh}
+  .week li.lv .lvm{font-size:.8em;color:#E6DCC4;margin-bottom:.35em}
+  .week li.lv .lvt{display:flex;align-items:center;justify-content:center;gap:.55em;white-space:nowrap;overflow:hidden;
+    font-size:calc(clamp(21px,2vw,38px)*var(--z,1)*var(--k,1));font-weight:500;line-height:1.35}
+  .week li.lv .lvt > *{flex:0 0 auto}   /* nothing shrinks: what does not fit is measured and stepped down (fitLive) */
+  .week li.lv .lvt .tm{display:inline-flex;align-items:center}
+  .week li.lv .lvt .tm .cr{flex:0 0 auto}
+  .week li.lv .lvt .tm .cr{width:1.35em;height:1.35em;margin-block:0;margin-inline-end:.35em}
+  .week li.lv .sc{color:var(--gold-hi);font-size:1.25em;font-weight:700;font-variant-numeric:tabular-nums;padding:0 .1em}
   .week li.past{color:#8F8670}
   .week li.next{color:var(--gold-hi)}
   .week li.next .dt{color:var(--gold-3)}
@@ -342,6 +352,10 @@
   .mblock .big{justify-content:flex-end;min-width:0}
   .mrow.flip .mblock{animation:weekIn .5s ease both}
   .mrow.flip .mblock + .mblock{animation-delay:.08s}
+  /* a followed team's game under way: its score big, «مباشر» and the minute under it */
+  .mblock.lvb .big{font-size:clamp(30px,3.1vw,64px)}
+  .mblock.lvb .sc{color:var(--gold-hi);font-size:1.12em}
+  .mblock.lvb .sub{font-size:clamp(15px,1.35vw,28px);color:#E6DCC4}
   .mblock .big > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
     padding-bottom:.3em;margin-bottom:-.3em;    /* room for the dots under ي, ج… */
     padding-inline:.15em;margin-inline:-.15em;max-width:calc(100% + .3em)}  /* and for a final ر or ن past the ends */
@@ -1014,7 +1028,7 @@ function resultBlock(done){
     + `<div class="sub">النتيجة النهائية · ${day}</div></div>`;
 }
 // a game under way or due within the week; '' for any other
-function gameBlock(ev, now){
+function gameBlock(ev, now, big){
   const home = esc(teamAr(ev.strHomeTeam, ev.idHomeTeam)), away = esc(teamAr(ev.strAwayTeam, ev.idAwayTeam));
   const d = toDate(ev), diff = d - now;
   if(diff < -durMs(ev) || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
@@ -1026,7 +1040,7 @@ function gameBlock(ev, now){
   const dateLine = matchWhen(d);
   const sub = diff > 0 ? `بعد ${shortRemaining(diff)}</div><div class="sub when">${dateLine}` : `<span class="live">مباشر</span> · ${liveStatus(ev, t12)}`;
   const mid = live ? ` <span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span> ` : ' × ';
-  return `<div class="mblock">`
+  return `<div class="mblock${big ? ' lvb' : ''}">`
        + `<div class="big"><span><span class="tm">${home}</span>${mid}<span class="tm">${away}</span></span></div>`
        + `<div class="sub">${sub}</div>`
        + `</div>`;
@@ -1281,10 +1295,12 @@ function renderMatches(turn){
   const now = Date.now(), shown = new Set();
   let games = CONFIG.teamIds.map(id => matchSlot(id, now, shown)).filter(Boolean);
   if(CONFIG.leagues.length) games = [...games, ...leagueShow(now, shown)].sort((a, b) => a.t - b.t);   // one time order
-  const slots = [...games.map(g => g.html), ...CONFIG.events.map(k => eventSlot(k, now))].filter(Boolean);
+  const live = focusGames(now, true);   // a followed team is playing: that game alone, big, until it ends
+  const slots = live.length ? live.map(ev => gameBlock(ev, now, true))
+    : [...games.map(g => g.html), ...CONFIG.events.map(k => eventSlot(k, now))].filter(Boolean);
   const row = document.getElementById('match-row');
   if(!slots.length){ if(!MATCHES_LOADED && row.firstElementChild) return; setHTML(row, '<div class="none-week">لا شيء هذا الأسبوع</div>'); return; }
-  const per = CONFIG.matchesPerPage;
+  const per = live.length ? 1 : CONFIG.matchesPerPage;
   let pages = packPages(slots, per);
   if(turn) MATCH_PAGE++;
   MATCH_PAGE %= pages.length;
@@ -1691,6 +1707,31 @@ try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || 
 const PANEL_TITLE = {shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
 const LISTS = ['matches', 'stocks', 'tasks', 'shows'];   // the kinds that page through their rows
 
+// ---- a followed team's game under way, big: its score, the minute and «مباشر» (item 2). The matches card and the bottom slot
+// show it alone, with both crests where there are crests (the launcher's card), until it ends; then they go back to the list.
+function liveWhen(ev){   // «مباشر» and «الدقيقة ٦٧» / «استراحة» / «بدأت ٦:٣٠ م»
+  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
+    .formatToParts(toDate(ev)).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  return `<span class="live">مباشر</span> · ${liveStatus(ev, ar(fmt12(+p.hour % 24, +p.minute)))}`;
+}
+const liveScore = ev => ev.intHomeScore != null && ev.intAwayScore != null ? `<span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span>` : '<span class="sc">×</span>';
+function liveRow(ev){   // a row of the card
+  return `<li class="lv"><div class="lvm">${liveWhen(ev)}</div><div class="lvt"><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>`
+    + `${liveScore(ev)}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span></div></li>`;
+}
+// one line, always: the names step down in size, then take their short forms, then lose their crests (as the list's rows do)
+function fitLive(ul){
+  ul.querySelectorAll('.lvt').forEach(t => {
+    const ok = () => t.scrollWidth <= t.clientWidth + .5;
+    const step = (steps = FIT_STEPS) => steps.find(k => { t.style.setProperty('--k', k); return ok(); });
+    if(step()) return;
+    shorten(t);
+    if(step()) return;
+    t.querySelectorAll('img.cr').forEach(i => i.remove());
+    step([...FIT_STEPS, .64, .56, .5]);   // a narrow card: smaller still, never two lines
+  });
+}
+
 // ---- «البطاقة الذكية» (smart): the card for what matters now, picked again with every redraw (the clock timers draw it every 15 s,
 // so a change shows within a minute); no request of its own, it shows what the other cards load. In this order:
 //  1. a followed team's game is live, or starts within 60 minutes: the matches card, with that game;
@@ -1775,7 +1816,7 @@ function renderCard(card, animate, keepSize){
   }
   const wrote = setHTML(ul, rows.join(''), animate);
   if(!keepSize){ card.base = rows.length; card.len0 = card.len || 0; }   // what full size holds: the rows of a page, the length of the text
-  if(P === 'matches'){ fillCrests(ul); if(wrote) shortenRows(ul); }
+  if(P === 'matches'){ fillCrests(ul); if(wrote){ shortenRows(ul); fitLive(ul); } }
   if(CONFIG.tafsir) fitTafsir(ul);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
@@ -2011,6 +2052,8 @@ function matchEvents(){
 // ... in time order
 function matchRows(card){
   const now = Date.now();
+  const live = focusGames(now, true);   // a followed team is playing: that game alone, big
+  if(live.length) return live.map(ev => liveRow(ev));
   let evs = matchEvents();
   const smart = card && card.kind === 'smart';
   if(smart){ const ids = new Set(focusGames(now).map(ev => ev.idEvent)); evs = evs.filter(ev => ids.has(ev.idEvent)); }   // only the game that brought the smart card here
