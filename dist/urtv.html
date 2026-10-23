@@ -117,6 +117,8 @@
   .week li .rt{flex:0 0 auto;color:var(--gold-3);font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .mwhen{display:block;font-style:normal;margin-top:.15em;font-size:.68em;font-weight:300;color:#A79C85;overflow:hidden;text-overflow:ellipsis}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
+  .week li .tm .cr{width:1.25em;height:1.25em;object-fit:contain;vertical-align:middle;margin-block:-.25em;margin-inline-end:.3em}
+  .week li .tm .cr:not([src]){visibility:hidden}   /* a restored row waits for its picture: the same room */
   .week ul.flip li{animation:weekIn .5s ease both}
   .week ul.flip li:nth-child(2){animation-delay:.06s}
   .week ul.flip li:nth-child(3){animation-delay:.12s}
@@ -1167,7 +1169,14 @@ function fitMatches(row){
   if(!step()) size(FIT_STEPS[FIT_STEPS.length - 1]);
 }
 // the card beside the clock has room for a whole game; only a row that would end in «…» takes the short names
-function shortenRows(ul){ ul.querySelectorAll('li > span:first-child').forEach(sp => { if(!fits(sp)) shorten(sp); }); }
+// with crests (the launcher's card) the next step is the short names, then no crests: the names alone, as before
+function shortenRows(ul){
+  ul.querySelectorAll('li > span:first-child').forEach(sp => {
+    if(fits(sp)) return;
+    shorten(sp);
+    if(!fits(sp)) sp.querySelectorAll('img.cr').forEach(i => i.remove());
+  });
+}
 
 async function fetchLast(id){
   const r = await fetch(`https://www.thesportsdb.com/api/v1/json/${CONFIG.sportsKey}/eventslast.php?id=${id}`,{cache:'no-store'});
@@ -1190,6 +1199,7 @@ async function loadMatches(){
   loadEvents();
   renderMatches();
   if(CONFIG.panel === 'matches') renderPanel(false);
+  loadCrests();
 }
 
 // what the top-left can show: Yahoo symbol or CoinGecko id, decimals for the price, unit after it, and for
@@ -1514,6 +1524,7 @@ function renderPanel(animate){
   else if(P === 'stocks'){ const q = stocksCard(); setHTML(hd, q.hd); rows = q.rows; }
   if(PANEL_TITLE[P]) setText(hd, PANEL_TITLE[P]);
   if(!rows.length){
+    if(P === 'matches' && !MATCHES_LOADED && ul.firstElementChild && !ul.firstElementChild.classList.contains('empty')) return;   // the saved games stay until the first answer
     ul.classList.remove('flip');
     setHTML(ul, `<li class="empty">${P === 'matches' ? 'لا مباريات هذا الأسبوع' : P === 'tasks' ? 'لا مهام اليوم' : 'لا تتوفر بيانات الآن'}</li>`);
     return;
@@ -1523,7 +1534,8 @@ function renderPanel(animate){
     const start = (LIST_PAGE * per) % rows.length;
     rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
   }
-  if(setHTML(ul, rows.join(''), animate) && P === 'matches') shortenRows(ul);
+  const wrote = setHTML(ul, rows.join(''), animate);
+  if(P === 'matches'){ fillCrests(ul); if(wrote) shortenRows(ul); }
   if(CONFIG.tafsir) fitTafsir(ul);
   ul.classList.remove('flip');
   if(animate){ void ul.offsetWidth; ul.classList.add('flip'); }
@@ -1552,14 +1564,88 @@ function forecastRows(){
   });
 }
 
-// every followed team's games this week, plus results from the last day, in time order
-function matchRows(){
-  const now = Date.now(), seen = new Set(), evs = [];
+// ---- club crests on the launcher's matches card: TheSportsDB's badge, which the events already carry
+// (strHomeTeamBadge / strAwayTeamBadge, with idHomeTeam / idAwayTeam). No request of its own except the picture,
+// once per club: kept as a 48 px copy in localStorage and fetched again only when the badge's address changes.
+const CRESTS_ON = CONFIG.widget && CONFIG.panel === 'matches';
+const CREST_PX = 48, CREST_KEEP = 60, CREST_PER_ROUND = 10, CREST_RETRY_MS = 6 * 3600000;
+let CRESTS = {};   // team id -> {u: badge address, d: data: URI of the small copy}
+try{ CRESTS = JSON.parse(localStorage.getItem('crests') || '{}') || {}; }catch(e){}
+const CREST_TRIED = {};   // team id -> when a fetch last failed
+function crestOf(ev, side){
+  const u = String(ev['str' + side + 'TeamBadge'] || ''), id = String(ev['id' + side + 'Team'] || '');
+  return /^https:\/\/[a-z0-9.-]+\.thesportsdb\.com\/\S+$/i.test(u) && /^\d+$/.test(id) ? {id, u} : null;
+}
+const crestImg = (ev, side) => {
+  const c = CRESTS_ON && crestOf(ev, side);
+  return c && CRESTS[c.id] && CRESTS[c.id].d ? `<img class="cr" data-t="${c.id}" alt="">` : '';   // no crest: the name alone
+};
+function fillCrests(root){   // the rows carry the club's id only; the picture is put in here (a saved row has none)
+  root.querySelectorAll('img.cr').forEach(i => { const c = CRESTS[i.dataset.t]; if(c && c.d && i.getAttribute('src') !== c.d) i.src = c.d; });
+}
+function crestShrink(blob){   // -> a data: URI no larger than CREST_PX, '' when it is not a picture
+  return new Promise(done => {
+    const url = URL.createObjectURL(blob), im = new Image();
+    const end = v => { URL.revokeObjectURL(url); done(v); };
+    im.onload = () => {
+      try{
+        const k = Math.min(1, CREST_PX / Math.max(im.naturalWidth, im.naturalHeight, 1)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        end(c.toDataURL('image/png'));
+      }catch(e){ end(''); }
+    };
+    im.onerror = () => end('');
+    im.src = url;
+  });
+}
+async function crestFetch(u){   // the small size the API offers first; the plain file if it refuses the suffix
+  for(const url of /\/(tiny|small|medium|preview)$/.test(u) ? [u] : [u + '/tiny', u]){
+    try{
+      const r = await fetchT(url, 10000);
+      if(!r.ok) continue;
+      const d = await crestShrink(await r.blob());
+      if(d) return d;
+    }catch(e){}
+  }
+  return '';
+}
+let CREST_BUSY = false;
+async function loadCrests(){
+  if(!CRESTS_ON || CREST_BUSY) return;
+  CREST_BUSY = true;
+  try{
+    const want = {}, now = Date.now();
+    for(const ev of matchEvents()) for(const side of ['Home', 'Away']){
+      const c = crestOf(ev, side);
+      if(c && !(CRESTS[c.id] && CRESTS[c.id].u === c.u) && now - (CREST_TRIED[c.id] || 0) > CREST_RETRY_MS) want[c.id] = c.u;
+    }
+    let got = 0;
+    for(const [id, u] of Object.entries(want).slice(0, CREST_PER_ROUND)){
+      const d = await crestFetch(u);
+      if(!d){ CREST_TRIED[id] = now; continue; }
+      delete CRESTS[id]; CRESTS[id] = {u, d}; got++;
+    }
+    if(!got) return;
+    Object.keys(CRESTS).slice(0, Math.max(0, Object.keys(CRESTS).length - CREST_KEEP)).forEach(k => delete CRESTS[k]);
+    try{ localStorage.setItem('crests', JSON.stringify(CRESTS)); }catch(e){}
+    renderPanel(false);
+  }finally{ CREST_BUSY = false; }
+}
+
+// every followed team's games this week, plus results from the last day
+function matchEvents(){
+  const seen = new Set(), evs = [];
   CONFIG.teamIds.forEach(id => {
     const next = NEXT_LIST[id] || (MATCHES[id] ? [MATCHES[id]] : []);
     next.forEach(ev => { if(ev && ev.idEvent && !seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(MATCHES[id] && MATCHES[id].idEvent === ev.idEvent ? MATCHES[id] : ev); } });
     resultsFor(id).forEach(ev => { if(!seen.has(ev.idEvent)){ seen.add(ev.idEvent); evs.push(ev); } });
   });
+  return evs;
+}
+// ... in time order
+function matchRows(){
+  const now = Date.now(), evs = matchEvents();
   const others = eventRows(now);
   return [...evs.map(ev => ({ev, t: toDate(ev).getTime()}))
     .filter(x => finishedRecently(x.ev, now)
@@ -1575,7 +1661,7 @@ function matchRows(){
         : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
       // an upcoming game has its date and time under the teams, as in the bottom row
       const dateLine = upcoming ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
-      return {t, html: `<li><span><span class="tm">${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
+      return {t, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
     }), ...others].sort((a, b) => a.t - b.t).map(x => x.html);
 }
 
@@ -1963,7 +2049,7 @@ const SNAP_KEY = 'snap5:' + location.hash;   // bump when the panels' markup cha
 const SNAP_SEL = ['.markets', '#week-list', '#match-row'];
 let SNAP_LAST = null;   // what is stored now: the panels rarely change, so most saves have nothing to write
 function saveSnap(){
-  const s = JSON.stringify(SNAP_SEL.map(q => (document.querySelector(q)||{}).innerHTML || ''));
+  const s = JSON.stringify(SNAP_SEL.map(q => ((document.querySelector(q)||{}).innerHTML || '').replace(/ src="data:[^"]*"/g, '')));   // the crests are kept apart
   if(s === SNAP_LAST) return;
   try{ localStorage.setItem(SNAP_KEY, s); SNAP_LAST = s; }catch(e){}
 }
@@ -1972,6 +2058,7 @@ function restoreSnap(){
     SNAP_LAST = localStorage.getItem(SNAP_KEY);
     const v = JSON.parse(SNAP_LAST || 'null');
     if(v) SNAP_SEL.forEach((q, i) => { const el = document.querySelector(q); if(el && v[i]) el.innerHTML = v[i]; });
+    fillCrests(document.getElementById('week-list'));
   }catch(e){}
 }
 
@@ -2041,6 +2128,7 @@ function bootWidget(){
   setInterval(saveSnap, 60*1000);
   addEventListener('pagehide', saveSnap);
   const P = CONFIG.panel;
+  if(P === 'matches' && document.fonts) document.fonts.ready.then(() => { document.getElementById('week-list').__h = null; renderPanel(false); });   // widths change once the fonts are in
   if(P === 'shows'){ loadWeek(); setInterval(loadWeek, 6*3600*1000); }
   else renderPanel(false);
   if(P === 'adhkar'){ loadPrayers(); setInterval(loadPrayers, 6*3600*1000); }

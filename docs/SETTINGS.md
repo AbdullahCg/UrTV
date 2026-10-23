@@ -59,6 +59,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 | an app hidden, or a missing one shown | | `optimize/dock.sh hidden` (what is left out and why), `optimize/dock.sh hide <pkg> …`, `optimize/dock.sh show <pkg> …` |
 | app names in Arabic | أسماء التطبيقات | `optimize/dock.sh names`, then `optimize/dock.sh name <pkg> '<الاسم>' …` for each still in English (`''` = its usual name; `names-clear` = all back) |
 | a card on the home screen | بطاقة على الشاشة الرئيسية | `optimize/saver.sh home-card <same choices as card, or none>` |
+| club crests on the home screen's matches | nothing to set | `optimize/saver.sh home-card matches` shows each club's badge beside its name (a club with no badge shows its name alone); the screensaver's own matches have none |
 | the Quran, Quran radio | تلاوة | the «تلاوة» pill; from the computer `optimize/music.sh status`, `reciters`, `stations`, `surah <reciter> <1-114>`, `radio <n>`, `pause`, `resume`, `toggle`, `next`, `prev`, `seek <seconds>`, `stop`, `sleep <minutes>` |
 | the adhan at prayer times | الأذان | `optimize/music.sh adhan` (status), `adhan on` / `off`, `adhan voice <n>`, `adhan now` |
 | HDMI inputs, Wi-Fi, the TV's settings | | the «المصادر», «واي فاي» and «الإعدادات» pills on the home screen |

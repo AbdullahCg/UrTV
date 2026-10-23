@@ -7,6 +7,7 @@
 // the way PhotoCache.java answers them on the TV.
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -1098,6 +1099,101 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     check(`${tag}: the card beside the clock: every row on one line, long names in their short form`, r.cardRows > 0 && !r.cardCut.length, JSON.stringify(r.cardCut));
     check(`${tag}: the card lists the F1 weekend (practice, qualifying, sprint, race)`,
       ['التجارب الحرة ١', 'التأهل', 'السبرنت', 'السباق'].every(x => r.card.some(c => c.includes('جائزة السعودية الكبرى · ' + x))), r.card.join(' | '));
+    await ctx.close();
+  }
+}
+
+// ---- club crests on the launcher's matches card (widget mode only), with the badge host mocked
+// a 120 px round badge as a PNG, so the page has a picture to shrink
+const badgePng = (() => {
+  const W = 120, raw = Buffer.alloc((W * 4 + 1) * W);
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    const o = y * (W * 4 + 1) + 1 + x * 4, inside = (x - 60) ** 2 + (y - 60) ** 2 < 56 ** 2;
+    raw.set(inside ? [30, 120, 70, 255] : [0, 0, 0, 0], o);
+  }
+  const crc = b => { let c, t = []; for (let n = 0; n < 256; n++) { c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    let r = 0xFFFFFFFF; for (const v of b) r = t[(r ^ v) & 255] ^ (r >>> 8); return (r ^ 0xFFFFFFFF) >>> 0; };
+  const chunk = (type, data) => { const h = Buffer.alloc(8); h.writeUInt32BE(data.length); h.write(type, 4);
+    const t = Buffer.concat([h.subarray(4), data]), c = Buffer.alloc(4); c.writeUInt32BE(crc(t)); return Buffer.concat([h.subarray(0, 4), t, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(W, 4); ihdr[8] = 8; ihdr[9] = 6;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+})();
+const BADGE = n => `https://r2.thesportsdb.com/images/media/team/badge/club${n}.png`;
+const crestNet = seen => r => {
+  const u = r.request().url();
+  if (!/thesportsdb\.com\/images\//.test(u)) return false;
+  seen.push(u);
+  r.fulfill({ contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: badgePng });
+  return true;
+};
+const CREST_GAMES = (names) => `NEXT_LIST = { '136013': ${JSON.stringify(names.map(([h, a, hb, ab], i) => ({
+  idEvent: 'c' + i, strHomeTeam: h, strAwayTeam: a, idHomeTeam: String(100 + 2 * i), idAwayTeam: String(101 + 2 * i),
+  strHomeTeamBadge: hb ? BADGE(100 + 2 * i) : null, strAwayTeamBadge: ab ? BADGE(101 + 2 * i) : null,
+  strTimestamp: new Date(Date.now() + (3 + 30 * i) * 36e5).toISOString() })))} };`;
+const SHORT_GAMES = [['Al-Hilal', 'Al-Nassr', true, true], ['Al-Ahli', 'Al-Ittihad', true, false]];   // the second game's guest has no crest
+const LONG_GAMES = [['Manchester United', 'Borussia Monchengladbach', true, true], ['Paris Saint-Germain', 'Bayern Munich', true, true],
+                    ['Real Madrid', 'Manchester City', true, true]];
+for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]]) {
+  const tag = `launcher matches card ${width}x${height}`;
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width, height, net: crestNet(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false);');
+  const before = await p.evaluate(() => document.querySelectorAll('#week-list img.cr').length);
+  await p.evaluate(() => loadCrests());
+  await p.waitForTimeout(200);
+  const r = await p.evaluate(() => {
+    const imgs = [...document.querySelectorAll('#week-list img.cr')];
+    const rows = [...document.querySelectorAll('#week-list li > span:first-child')];
+    return { n: imgs.length, shown: imgs.every(i => i.src.startsWith('data:image/png') && i.naturalWidth > 0 && i.naturalWidth <= 48 && i.getBoundingClientRect().width > 8),
+      stored: Object.keys(JSON.parse(localStorage.getItem('crests') || '{}')).sort().join(),
+      bytes: (localStorage.getItem('crests') || '').length,
+      names: rows.map(sp => sp.querySelectorAll('.tm').length),
+      noCrestHasName: rows[1].querySelectorAll('.tm')[1].querySelector('img') === null && rows[1].querySelectorAll('.tm')[1].textContent.trim().length > 2,
+      oneLine: rows.every(sp => { const t = [...sp.querySelectorAll('.tm')].map(x => x.getClientRects().length === 1 && Math.round(x.getBoundingClientRect().top));
+                                  return t.every(Boolean) && Math.abs(t[0] - t[1]) < 6 && fits(sp); }),
+      cut: document.getElementById('week-list').textContent.includes('…') };
+  });
+  const asked = seen.length;
+  await p.evaluate(() => loadCrests());
+  await p.waitForTimeout(100);
+  check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+  check(`${tag}: crests appear after they are fetched, small, and a club without one shows its name alone`,
+    before === 0 && r.n === 3 && r.shown && r.stored === '100,101,102' && r.noCrestHasName, JSON.stringify({ before, ...r }));
+  check(`${tag}: kept small in memory (${r.bytes} bytes for 3)`, r.bytes < 3 * 6000, String(r.bytes));
+  check(`${tag}: each game on one line, nothing cut`, r.oneLine && !r.cut, JSON.stringify(r));
+  check(`${tag}: one request per crest, none for the same crest again`, asked === 3 && seen.length === 3, JSON.stringify(seen));
+  // a restart: the rows and crests come back from the saved copy with no request
+  await p.evaluate(() => saveSnap());
+  await p.reload();
+  await p.waitForTimeout(500);
+  const back = await p.evaluate(() => [...document.querySelectorAll('#week-list img.cr')].filter(i => i.src.startsWith('data:image/png')).length);
+  check(`${tag}: after a restart the crests are back at once, from the saved copy`, back === 3 && seen.length === 3, back + ' ' + seen.length);
+  await ctx.close();
+}
+{   // the screensaver itself, and every other card, show no crest
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches', { net: crestNet(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(200);
+  check('the screensaver shows no crest and asks for none', !errors.length && seen.length === 0
+    && await p.evaluate(() => !document.querySelector('img.cr')), seen.join());
+  await ctx.close();
+}
+for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]]) {
+  for (const digits of ['hindi', 'latin']) {
+    const tag = `launcher matches card ${width}x${height} ${digits}`;
+    const seen = [];
+    const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1&digits=' + digits, { width, height, net: crestNet(seen) });
+    await p.evaluate(CREST_GAMES(LONG_GAMES) + ' renderPanel(false); loadCrests();');
+    await p.waitForTimeout(300);
+    const r = await p.evaluate(() => {
+      const rows = [...document.querySelectorAll('#week-list li > span:first-child')], text = document.getElementById('week-list').innerText;
+      return { n: rows.length, imgs: document.querySelectorAll('#week-list img.cr').length, text: text.replace(/\s+/g, ' '),
+        oneLine: rows.every(sp => [...sp.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1) && fits(sp)),
+        ar: /[٠-٩]/.test(text), latin: /[0-9]/.test(text) };
+    });
+    check(`${tag}: long names with crests, each game on one line, never «…»`, !errors.length && r.n >= 2 && r.oneLine && !r.text.includes('…'), JSON.stringify(r) + errors.join('; '));
+    check(`${tag}: digits in ${digits}`, digits === 'latin' ? r.latin && !r.ar : r.ar && !r.latin, r.text);
     await ctx.close();
   }
 }
