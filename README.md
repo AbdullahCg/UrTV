@@ -147,7 +147,9 @@ urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137
 ```
 
 `teams`: up to 20 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
-`forecast`, `matches`, `verse` or `none`. `events`: other sports beside the teams' games, `f1`, `ufc`, `boxing`, `tennis` (default none; their league ids come from `assets/shared/events.json`, written by CI). Also `genres`, `langs`, `shows`, `minrating` for the episodes card.
+`forecast`, `matches`, `verse` or `none`. `events`: other sports beside the teams' games, `f1`, `ufc`, `boxing` (default none; their league ids come from `assets/shared/events.json`, written by CI). Also `genres`, `langs`, `shows`, `minrating` for the episodes card.
+
+Other sports: the NBA and NFL are leagues like the football ones (their teams are in `assets/shared/teams.json` with a `sport`, Arabic names in `teams-ar.json`; `find-team ليكرز` finds them). Formula 1, UFC and boxing are events, not teams: the screen shows the next one of each chosen sport beside the teams' games (the free TheSportsDB gives one upcoming event per league; boxing has no time of day, so only the day shows). Tennis and a Saudi basketball league were looked for and are not on TheSportsDB's free API (see `teams/report.json` on the `data-team-ids-*` branch).
 
 **Data** (free, no keys): Aladhan (prayer times, Umm al-Qura), Open-Meteo (weather), Yahoo and CoinGecko (markets),
 TVMaze (episodes), TheSportsDB (matches). Everything fails soft: offline, the clock, dates, prayer and Ramadan

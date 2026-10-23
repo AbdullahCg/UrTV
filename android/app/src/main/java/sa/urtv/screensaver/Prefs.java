@@ -42,7 +42,7 @@ final class Prefs {
     // Other sports shown in the matches slot and card beside the followed teams' games: only their next event
     // (#events= key, Arabic label). The page finds each one's league ids in assets/shared/events.json (CI).
     static final String[][] EVENTS = {
-        {"f1", "فورمولا 1"}, {"ufc", "UFC"}, {"boxing", "الملاكمة"}, {"tennis", "التنس (البطولات الكبرى)"},
+        {"f1", "فورمولا 1"}, {"ufc", "UFC"}, {"boxing", "الملاكمة"},
     };
 
     // TVMaze genre (sent to the page), Arabic label

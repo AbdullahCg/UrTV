@@ -336,8 +336,8 @@ const CONFIG = {
             : [_Q.has('team1') ? _Q.get('team1') : '136013', _Q.has('team2') ? _Q.get('team2') : '136137'])
     .map(x=>(x||'').trim()).filter(x=>/^\d+$/.test(x)).slice(0, 20),
   sportsKey: '123',
-  // other sports beside the teams' games: #events=f1,ufc,boxing,tennis (default none)
-  events: _list('events').filter(k => ['f1','ufc','boxing','tennis'].includes(k)),
+  // other sports beside the teams' games: #events=f1,ufc,boxing (default none)
+  events: _list('events').filter(k => ['f1','ufc','boxing'].includes(k)),
   eventWindowDays: 14,
   // the card beside the clock: shows | prayers | forecast | matches | verse | none (#week=0 from older builds = none)
   panel: (p => ['shows','prayers','forecast','matches','verse','none'].includes(p) ? p : 'verse')
@@ -795,13 +795,13 @@ async function loadLive(){
   renderMatches();
 }
 
-// ---------- other sports: Formula 1, UFC, boxing, tennis (events, not teams) ----------
+// ---------- other sports: Formula 1, UFC, boxing (events, not teams) ----------
 // Each has TheSportsDB leagues, found by CI (assets/shared/events.json); the next events of each are asked for every
 // 30 minutes with the matches, and shown beside the followed teams' games: the event's name, not «فريق × فريق».
 const EVENT_LEAGUES = __EVENTS__;
 let EVENT_NEXT = {};   // key -> upcoming events, as the leagues answered
-const EVENT_DUR_H = {f1:2.5, ufc:6, boxing:5, tennis:8};
-const EVENT_TAG = {f1:'', ufc:'', boxing:'ملاكمة', tennis:'تنس'};
+const EVENT_DUR_H = {f1:2.5, ufc:6, boxing:5};
+const EVENT_TAG = {f1:'', ufc:'', boxing:'ملاكمة'};
 const COUNTRY_AR = {'saudi arabia':'السعودية','bahrain':'البحرين','qatar':'قطر','united arab emirates':'الإمارات','uae':'الإمارات',
   'australia':'أستراليا','japan':'اليابان','china':'الصين','united states':'الولايات المتحدة','usa':'الولايات المتحدة',
   'italy':'إيطاليا','monaco':'موناكو','canada':'كندا','spain':'إسبانيا','austria':'النمسا','united kingdom':'بريطانيا',
@@ -819,15 +819,13 @@ const GP_AR = {'saudi arabian':'السعودية','saudi arabia':'السعودي
   'portuguese':'البرتغال','styrian':'ستيريا','70th anniversary':'الذكرى السبعين','eifel':'آيفل','turkish':'تركيا','russian':'روسيا'};
 const SESSIONS = [[/sprint\s*(qualifying|shootout)/i, 'تأهل السبرنت'], [/sprint/i, 'السبرنت'],
   [/(?:free\s*)?practice\s*(\d)|\bfp\s*(\d)/i, null], [/qualifying|\bquali\b/i, 'التأهل'], [/race|grand prix/i, 'السباق']];
-const TENNIS_AR = [[/australian open/i,'أستراليا المفتوحة'],[/roland garros|french open/i,'رولان غاروس'],[/wimbledon/i,'ويمبلدون'],
-  [/us open/i,'أمريكا المفتوحة'],[/atp finals/i,'نهائيات ATP'],[/wta finals/i,'نهائيات WTA'],[/indian wells/i,'إنديان ويلز'],
-  [/miami open/i,'ميامي المفتوحة'],[/monte.carlo/i,'مونت كارلو'],[/madrid/i,'مدريد المفتوحة'],[/rome|italian open/i,'روما المفتوحة'],
-  [/cincinnati/i,'سينسيناتي'],[/shanghai/i,'شنغهاي'],[/paris masters/i,'باريس ماسترز'],[/riyadh/i,'الرياض'],[/jeddah/i,'جدة']];
 const foldKey = s => String(s || '').normalize('NFKD').replace(/[̀-ͯ]+/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 const arDigits = s => String(s).replace(/[0-9]/g, d => AR[+d]);
 const trl = s => String(s || '').split(/(\s+)/).map(w => /[A-Za-z]/.test(w) ? translit(w) : w).join('');   // names of people
 
-// one TheSportsDB event of league key -> {title, tag, country, t, dur}
+// one TheSportsDB event of league key -> {title, tag, country, t, dur, dateOnly}
+// (F1: «United States Grand Prix Practice 1»; UFC: «UFC 333 Volkanovski vs Evloev», «UFC Fight Night 291 A vs B»;
+// boxing: «Dalton Smith vs Alberto Puello», usually with no time of day: «00:00:00»)
 function eventInfo(key, ev){
   const name = String(ev.strEvent || ev.strEventAlternate || '').trim();
   let title = '', session = '';
@@ -842,24 +840,22 @@ function eventInfo(key, ev){
       break;
     }
     if(!session) session = 'السباق';
-    title = gp ? 'جائزة ' + (GP_AR[place] || trl(gp[1].trim())) + ' الكبرى' : trl(name);
-  }else if(key === 'tennis'){
-    const hit = TENNIS_AR.find(([rx]) => rx.test(name + ' ' + (ev.strLeague || '')));
-    title = hit ? hit[1] : trl(name);
-    if(ev.strHomeTeam && ev.strAwayTeam) title += ' · ' + trl(ev.strHomeTeam) + ' × ' + trl(ev.strAwayTeam);
+    title = (gp ? 'جائزة ' + (GP_AR[place] || trl(gp[1].trim())) + ' الكبرى' : trl(name)) + ' · ' + session;
   }else{
-    const m = name.match(/^(UFC[^:]*?|[^:]*?)\s*:\s*(.+)$/i);
-    const prefix = /^UFC/i.test(name) && m ? arDigits(m[1].trim()) : '';
-    let pair = ev.strHomeTeam && ev.strAwayTeam ? [ev.strHomeTeam, ev.strAwayTeam]
-      : ((m ? m[2] : name).split(/\s+vs\.?\s+/i));
-    title = pair.length === 2 ? trl(pair[0]) + ' × ' + trl(pair[1]) : arDigits(m ? trl(m[2]) : trl(name));
-    if(prefix) title = prefix + ' · ' + title;
-    else if(key === 'ufc' && !/UFC/i.test(title)) title = 'UFC · ' + title;
+    let prefix = '', rest = name;
+    const u = key === 'ufc' ? name.match(/^UFC(\s+Fight\s+Night)?\s*(\d+)?\s*[:\-]?\s*(.*)$/i) : null;
+    if(u){ prefix = 'UFC' + (u[1] ? ' فايت نايت' : '') + (u[2] ? ' ' + arDigits(u[2]) : ''); rest = u[3]; }
+    let pair = ev.strHomeTeam && ev.strAwayTeam ? [ev.strHomeTeam, ev.strAwayTeam] : rest.split(/\s+vs\.?\s+/i);
+    const body = pair.length === 2 ? trl(pair[0]) + ' × ' + trl(pair[1]) : trl(rest);
+    title = arDigits([prefix, body].filter(Boolean).join(' · '));
   }
   const c = foldKey(ev.strCountry);
   const country = COUNTRY_AR[c] || (c ? trl(ev.strCountry) : '');
-  return {title: key === 'f1' ? title + ' · ' + session : title, tag: EVENT_TAG[key], country: title.includes(country) ? '' : country,
-          t: toDate(ev).getTime(), dur: EVENT_DUR_H[key] * 3600000};
+  const dateOnly = !ev.strTime || /^00:00(:00)?$/.test(ev.strTime);   // no time of day known: only the day is told
+  let t = toDate(ev).getTime();
+  if(dateOnly && !isNaN(t)) t -= 3*3600000;   // that day starts at midnight in Riyadh
+  return {title, tag: EVENT_TAG[key], country: title.includes(country) ? '' : country, t,
+          dur: dateOnly ? 24*3600000 : EVENT_DUR_H[key] * 3600000, dateOnly};
 }
 // the events of key still to come (or running) within the window, soonest first
 function eventsOf(key, now){
@@ -872,10 +868,11 @@ function eventsOf(key, now){
 function eventWhen(i, now){
   const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
     .formatToParts(new Date(i.t)).reduce((a,x)=>(a[x.type]=x.value,a),{});
-  const t12 = ar(fmt12(+p.hour % 24, +p.minute));
-  const sameDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(i.t))
+  const t12 = i.dateOnly ? '' : ar(fmt12(+p.hour % 24, +p.minute));
+  const sameDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(i.t + (i.dateOnly ? 3600000 : 0)))
                === new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(now));
-  const dayName = sameDay ? 'اليوم' : new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(new Date(i.t));
+  const dayName = sameDay ? 'اليوم' : new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(new Date(i.t + (i.dateOnly ? 3600000 : 0)));
+  if(i.dateOnly) return {live:false, text: sameDay ? 'اليوم' : dayName, row: dayName};
   if(now >= i.t) return {live:true, text: `<span class="live">مباشر</span> · بدأ ${t12}`, row: '<span class="live">مباشر</span>'};
   return {live:false, text: sameDay ? `اليوم · ${t12}` : `بعد ${shortRemaining(i.t - now)} · ${t12}`, row: `${dayName} ${t12}`};
 }

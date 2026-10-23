@@ -256,9 +256,14 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const F1 = [['Saudi Arabian Grand Prix Practice 1', 3], ['Saudi Arabian Grand Prix Qualifying', 27],
               ['Saudi Arabian Grand Prix Sprint', 30], ['Saudi Arabian Grand Prix', 51]]
     .map(([n, h], i) => ({ idEvent: 'r' + i, strEvent: n, strCountry: 'Saudi Arabia', strTimestamp: at(h), strStatus: 'NS' }));
-  const UFC = [{ idEvent: 'u1', strEvent: 'UFC 320: Ankalaev vs Pereira', strHomeTeam: 'Magomed Ankalaev', strAwayTeam: 'Alex Pereira',
-                 strCountry: 'United States', strTimestamp: at(60), strStatus: 'NS' }];
-  const BOX = [{ idEvent: 'b1', strEvent: 'Riyadh Season Card: Usyk vs Fury', strCountry: 'Saudi Arabia', strTimestamp: at(-1), strStatus: 'NS' }];
+  // the shapes TheSportsDB really answers (CI report): UFC «UFC 333 Volkanovski vs Evloev», boxing with no time of day
+  const UFC = [{ idEvent: 'u1', strEvent: 'UFC 333 Volkanovski vs Evloev', strCountry: 'United Arab Emirates', strTime: '16:00:00',
+                 strTimestamp: at(60), strStatus: 'NS' },
+               { idEvent: 'u2', strEvent: 'UFC Fight Night 291 Buckley vs Malott', strCountry: 'Canada', strTime: '21:00:00',
+                 strTimestamp: at(200), strStatus: 'NS' }];
+  const day = new Date(Date.now() + 30 * 36e5).toISOString().slice(0, 10);
+  const BOX = [{ idEvent: 'b1', strEvent: 'Dalton Smith vs Alberto Puello', strCountry: 'United Kingdom', strTime: '00:00:00',
+                 strTimestamp: day + 'T00:00:00', dateEvent: day, strStatus: 'NS' }];
   const mock = r => {
     const u = new URL(r.request().url());
     if (!/thesportsdb/.test(u.host)) return r.abort();
@@ -300,8 +305,8 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     check(`${tag}: NBA game in Arabic`, all.includes('لوس أنجلوس ليكرز × غولدن ستيت ووريورز'), all);
     check(`${tag}: NFL game in Arabic`, all.includes('كانساس سيتي تشيفز × سان فرانسيسكو فورتي ناينرز'), all);
     check(`${tag}: F1 shows the next session, with the Grand Prix name`, all.includes('جائزة السعودية الكبرى · التجارب الحرة ١'), all);
-    check(`${tag}: UFC card named, not «فريق × فريق»`, /UFC ٣٢٠ ·/.test(all) && !all.includes('Latin'), all);
-    check(`${tag}: a boxing card under way is live`, all.includes('مباشر') && all.includes('ملاكمة'), all);
+    check(`${tag}: UFC card named, not «فريق × فريق»`, /UFC ٣٣٣ · [^|]*×/.test(all) && all.includes('الإمارات') && !/[A-Za-z]/.test(all.replace(/UFC/g, '')), all);
+    check(`${tag}: a boxing card with no time tells the day only`, all.includes('ملاكمة') && !/ملاكمة[^|]*[٠-٩]+:[٠-٩]+/.test(all), all);
     check(`${tag}: nothing off screen, long names cut with dots`, !r.bad.length, r.bad.join(','));
     check(`${tag}: the card lists the F1 weekend (practice, qualifying, sprint, race)`,
       ['التجارب الحرة ١', 'التأهل', 'السبرنت', 'السباق'].every(x => r.card.some(c => c.includes('جائزة السعودية الكبرى · ' + x))), r.card.join(' | '));
