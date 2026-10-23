@@ -422,8 +422,8 @@ public class SettingsActivity extends Activity {
                 ids[i] = String.valueOf(s.optInt("id"));
                 names[i] = s.optString("name").replace("|", " ").replace(";", " ");
                 String year = s.optString("premiered", "");
-                rows[i] = names[i] + (year.length() >= 4 ? "  ·  " + year.substring(0, 4) : "")
-                    + "  ·  " + labelOf(Prefs.LANGS, s.optString("language", ""));
+                rows[i] = names[i] + (year.length() >= 4 ? " (" + year.substring(0, 4) + ")" : "")
+                    + "، " + labelOf(Prefs.LANGS, s.optString("language", ""));
             }
             new AlertDialog.Builder(this, DIALOG_THEME).setTitle("اختر المسلسل")
                 .setItems(rows, (d, i) -> {
@@ -666,7 +666,7 @@ public class SettingsActivity extends Activity {
     private String countdownLabel() {
         if (prefs.countdownDate().isEmpty()) return "لم يُحدَّد";
         String name = prefs.countdownName();
-        return arabicDigits(prefs.countdownDate()) + (name.isEmpty() ? "" : " · " + name);
+        return CountdownText.label(prefs.countdownDate(), name);
     }
 
     /** The date is set from the computer (optimize/saver.sh countdown); here it can be cleared. */

@@ -820,11 +820,11 @@ public class MainActivity extends Activity {
         rows.get(0).requestFocus();
     }
 
-    /** The pill says how long is left while the timer runs: «مؤقت النوم · ٢٣ د». */
+    /** The pill says how long is left while the timer runs: «مؤقت النوم ٢٣ د». */
     private void updateSleepPill() {
         if (sleepPill == null) return;
         int left = SleepTimer.minutesLeft(this);
-        sleepPill.setText(left == 0 ? "مؤقت النوم" : "مؤقت النوم · " + arabicDigits(String.valueOf(left)) + " د");
+        sleepPill.setText(left == 0 ? "مؤقت النوم" : "مؤقت النوم " + arabicDigits(String.valueOf(left)) + " د");
     }
 
     private String inputLabel(TvInputInfo t) {
@@ -887,7 +887,7 @@ public class MainActivity extends Activity {
         SimpleDateFormat gf = new SimpleDateFormat("d MMMM", new Locale("ar"));
         gf.setTimeZone(java.util.TimeZone.getTimeZone(tz));
         String greg = gf.format(now.getTime());
-        date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  ·  " + greg));
+        date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  –  " + greg));
         updateAdhanBar();
         updateSleepPill();
     }

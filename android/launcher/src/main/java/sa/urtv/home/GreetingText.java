@@ -56,11 +56,11 @@ final class GreetingText {
         return sky(code);
     }
 
-    /** «سماء صافية في الرياض · ٣١°»; a code we have no word for gives just «الرياض · ٣١°»; dust (0 when unknown) takes the word over. */
+    /** «سماء صافية في الرياض، ٣١°» (no «·» beside a digit: the TV's font draws it as ٠); a code we have no word for gives just «الرياض، ٣١°»; dust (0 when unknown) takes the word over. */
     static String weather(int code, double dust, String city, double temp, boolean latin) {
         String sky = skyWord(code, dust);
         String place = sky.isEmpty() ? city : sky + " في " + city;
-        return place + " · " + digits(Math.round(temp) + "°", latin);
+        return place + "، " + digits(Math.round(temp) + "°", latin);
     }
 
     /** «الغروب ٥:٥٧ م» from "17:57". */

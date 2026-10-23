@@ -73,7 +73,7 @@ public class DockActivity extends Activity {
         list.removeAllViews();
         cards.clear();
         removes.clear();
-        count.setText("المفضلة · " + ar(row.size()) + " من " + ar(Dock.MAX));
+        count.setText("المفضلة " + ar(row.size()) + " من " + ar(Dock.MAX));
         for (int i = 0; i < row.size(); i++) list.addView(favouriteRow(i), rowParams());
 
         List<String> others = new ArrayList<>(apps.keySet());
