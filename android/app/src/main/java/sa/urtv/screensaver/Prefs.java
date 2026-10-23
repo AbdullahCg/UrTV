@@ -206,7 +206,7 @@ final class Prefs {
     void setNational(String v) { sp.edit().putString("national", v).apply(); }
 
     static String nationalLabel(String v) {
-        for (String n : NATIONAL) if (n[0].equals(v)) return n[1];
+        for (String[] n : NATIONAL) if (n[0].equals(v)) return n[1];
         return NATIONAL[0][1];
     }
 

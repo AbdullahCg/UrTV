@@ -192,6 +192,13 @@ check("clubs: no two teams share an Arabic name", all(len(v) == 1 for v in names
 missing = sorted({ch for c in clubs for ch in c.get("ar", "") if not ch.isspace() and ord(ch) not in font})
 check("clubs: every character of the Arabic names in Thmanyah", not missing, missing)
 
+# ---- java: a loop over a table (String[][]) must take a row (String[]); the APK build broke on this twice
+java = {f: f.read_text(encoding="utf-8") for f in tracked("android/*.java")}
+bad = [f"{f.name}: {m.group(0)}" for f, src in java.items()
+       for m in re.finditer(r"for \(String (\w+) : (\w+)\)", src)
+       if re.search(r"String\[\]\[\] " + m.group(2) + r"\b", src)]
+check("java: no table looped over as single strings", not bad, bad)
+
 # ---- launcher config
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()
 arr = {a.get("name"): [i.text for i in a] for a in cfg.findall("string-array")}
