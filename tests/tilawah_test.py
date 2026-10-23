@@ -184,8 +184,9 @@ check("the home screen has the «تلاوة» pill", '"تلاوة"' in home and 
 card = text(JAVA / "HomeCard.java")
 check("the home card reads the screensaver's settings",
       "sa.urtv.screensaver.config" in card)
-check("the home card falls back to the prayer times",
-      "panel=prayers&widget=1" in card and "fallback()" in card)
+choice = text(JAVA / "HomeCardChoice.java")
+check("the home card falls back to the prayer times, after the last choice it read",
+      "panel=prayers&widget=1" in choice and "HomeCardChoice.pick(" in card)
 config_xml = text(APP / "res/values/config.xml")
 check("the pill can be switched off", 'name="show_listening"' in config_xml)
 check("no «استماع» left in the strings",
