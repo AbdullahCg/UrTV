@@ -43,7 +43,8 @@
   html.widget .mid{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--cg,clamp(8px,2vw,22px));align-items:start}
   html.widget .mid.n2,html.widget .mid.n3{grid-template-columns:minmax(0,560fr) minmax(0,540fr)}
   html.widget .mid .week.w3{grid-column:1/-1}
-  html.widget .week{width:100%;padding:max(1.7vh,10px) max(1.4vw,14px)}   /* the small boxes keep a clear, even distance from the card's edge */
+  html.widget .week{width:100%}
+  html.widget .week.boxes{padding:max(1.7vh,10px) max(1.4vw,14px)}   /* the prayer boxes keep a clear, even distance from the card's edge */
   html,body{
     height:100%;overflow:hidden;background:#040E09;color:var(--sand);
     font-family:'Thmanyah',system-ui,sans-serif;
@@ -2227,6 +2228,7 @@ function renderCard(card, animate, keepSize){
   card.eff = card.kind === 'smart' ? smartKind() : card.kind;
   const P = card.eff;
   ul.classList.toggle('pgrid', P === 'prayers');
+  card.el.classList.toggle('boxes', P === 'prayers');
   if(P !== was){   // the smart card changed its mind: a fresh page of the new kind
     card.page = 0; card.skip = 0; card.maxLen = 0; ul.__h = null;
     if(was === 'adhkar'){ clearTimeout(card.ad.t); card.ad.t = 0; card.ad.mode = ''; }

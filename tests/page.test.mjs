@@ -2907,6 +2907,7 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
   // the link-keyed snapshots: the newest six stay
   await p.evaluate(() => { const now = Date.now(), seen = {}; for (let i = 0; i < 9; i++) { localStorage.setItem('snap6:#n' + i, '[]'); seen['snap6:#n' + i] = now - (i + 1) * 36e5; }
     localStorage.setItem('lsSeen', JSON.stringify(seen)); localStorage.setItem('forecast:5.000,6.000', '[]'); const s2 = JSON.parse(localStorage.getItem('lsSeen')); s2['forecast:5.000,6.000'] = now - 15 * 864e5; localStorage.setItem('lsSeen', JSON.stringify(s2)); });
+  await p.waitForTimeout(500);   // Chromium writes storage out a moment after the write; the page must not start before that
   await carry(p); await p.goto('about:blank'); await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');   // (a new page: a changed #hash alone is no reload)
   await p.waitForTimeout(500);
   const after = await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snap6:')).length);
