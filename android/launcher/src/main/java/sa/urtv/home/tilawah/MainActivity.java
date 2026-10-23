@@ -50,7 +50,7 @@ public class MainActivity extends Activity {
 
         Ui.text((TextView) findViewById(R.id.title), "ThmanyahDisplay-Bold.otf", 44, R.color.sand);
         Ui.text((TextView) findViewById(R.id.tagline), "Thmanyah-Regular.otf", 17, R.color.dim);
-        Ui.text((TextView) findViewById(R.id.hint), "Thmanyah-Light.otf", 13, R.color.dim);
+        Ui.text((TextView) findViewById(R.id.hint), "Thmanyah-Regular.otf", 14, R.color.dim);
 
         list = findViewById(R.id.list);
         adapter = new RowsAdapter();

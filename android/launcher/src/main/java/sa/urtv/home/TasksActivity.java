@@ -60,7 +60,7 @@ public class TasksActivity extends Activity {
         frame.addView(col, new FrameLayout.LayoutParams(dp(600), -2, Gravity.CENTER_HORIZONTAL));
 
         col.addView(text("المهام", 26, "Medium", TEXT), right(0));
-        col.addView(text("\u2066OK\u2069 على مهمة لإنجازها. أو اضغط «تكلّم» وقل: أضف مهمة … / خلصت … / احذف …", 14, "Regular", DIM), right(dp(10)));
+        col.addView(text("اختيار على مهمة لإنجازها. أو اضغط «تكلّم» وقل: أضف مهمة … / خلصت … / احذف …", 14, "Regular", DIM), right(dp(10)));
 
         mic = pill("🎤 تكلّم", GOLD, v -> listen());
         LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(dp(140), dp(40));

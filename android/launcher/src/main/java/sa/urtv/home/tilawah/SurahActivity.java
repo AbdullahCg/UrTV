@@ -34,7 +34,7 @@ public class SurahActivity extends Activity {
         count.setText(getString(R.string.surah_count, Ui.arabic(reciter.surahs)));
         Ui.text(count, "Thmanyah-Regular.otf", 14, R.color.dim);
         Ui.text((TextView) findViewById(R.id.choose), "Thmanyah-Regular.otf", 16, R.color.gold);
-        Ui.text((TextView) findViewById(R.id.hint), "Thmanyah-Light.otf", 13, R.color.dim);
+        Ui.text((TextView) findViewById(R.id.hint), "Thmanyah-Regular.otf", 14, R.color.dim);
 
         grid = findViewById(R.id.grid);
         grid.setAdapter(new SurahAdapter());

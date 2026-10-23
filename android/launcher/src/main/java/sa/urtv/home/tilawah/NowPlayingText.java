@@ -13,6 +13,9 @@ final class NowPlayingText {
         return radio ? stationName : "سورة " + surahName;
     }
 
+    /** who recites: the reciter, or «بث مباشر» for a station */
+    static String who(boolean radio, String reciter) { return radio ? "بث مباشر" : reciter; }
+
     /** «يُتلى الآن · عبدالرحمن السديس», «يُتلى الآن · بث مباشر»; with a sleep timer set: «… · نوم ٢٣ د» (minutes left, 0 = none) */
     static String sub(boolean radio, String reciter, int sleepMinutes) {
         String s = "يُتلى الآن  ·  " + (radio ? "بث مباشر" : reciter);
@@ -21,8 +24,8 @@ final class NowPlayingText {
 
     /** What the keys do while the card has the focus: OK pauses or plays, a long OK opens the player, ◀ ▶ the previous and next surah (not for a station) */
     static String hint(boolean radio) {
-        return radio ? "⁦OK⁩ إيقاف/تشغيل  ·  مطولًا: فتح"
-                : "⁦OK⁩ إيقاف/تشغيل  ·  ◀ ▶ السورة  ·  مطولًا: فتح";
+        return radio ? "اختيار: إيقاف/تشغيل  ·  مطولًا: فتح"
+                : "اختيار: إيقاف/تشغيل  ·  يمين/يسار: السورة  ·  مطولًا: فتح";
     }
 
     /** 0-9 as ٠-٩ */

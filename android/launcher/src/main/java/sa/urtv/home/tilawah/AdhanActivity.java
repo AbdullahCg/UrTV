@@ -32,7 +32,7 @@ public class AdhanActivity extends Activity {
         own = OwnAdhan.exists(this) ? 1 : 0;
 
         Ui.text((TextView) findViewById(R.id.title), "ThmanyahDisplay-Bold.otf", 40, R.color.sand);
-        Ui.text((TextView) findViewById(R.id.hint), "Thmanyah-Light.otf", 13, R.color.dim);
+        Ui.text((TextView) findViewById(R.id.hint), "Thmanyah-Regular.otf", 14, R.color.dim);
 
         list = findViewById(R.id.list);
         adapter = new Voices();

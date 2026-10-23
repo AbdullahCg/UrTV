@@ -15,7 +15,7 @@ import android.widget.TextView;
 import sa.urtv.home.tilawah.NowPlaying;
 
 /**
- * «يُتلى الآن»: the small card at the right end of the pills row while a surah or a station is on. A pill's height (30 dp), so the
+ * «يُتلى الآن»: the small card at the right end of the pills row while a surah or a station is on. A pill's height (Pill.HEIGHT), so the
  * row does not change; a play/pause mark, the surah or station on its first line and who recites it (and the sleep timer) on its second.
  * It takes the focus like a pill; then the second line says what the keys do. MainActivity binds it from NowPlaying and does the keys.
  */
@@ -48,8 +48,8 @@ final class NowCard extends LinearLayout {
 
         LinearLayout words = new LinearLayout(c);
         words.setOrientation(VERTICAL);
-        title = line(c, strong, 12, d);
-        sub = line(c, plain, 9.5f, d);
+        title = line(c, strong, 13, d);
+        sub = line(c, plain, 10.5f, d);
         words.addView(title, new LayoutParams(-2, -2));
         words.addView(sub, new LayoutParams(-2, -2));
         LayoutParams wp = new LayoutParams(-2, -2);
@@ -65,7 +65,7 @@ final class NowCard extends LinearLayout {
         t.setSingleLine(true);
         t.setEllipsize(TextUtils.TruncateAt.END);
         t.setIncludeFontPadding(false);
-        t.setMaxWidth(Math.round(190 * d));   // the row stays clear of the greeting block at the right
+        t.setMaxWidth(Math.round(240 * d));   // the row stays clear of the greeting block at the right
         t.setGravity(Gravity.RIGHT);
         return t;
     }

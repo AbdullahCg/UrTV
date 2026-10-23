@@ -17,14 +17,17 @@ public final class NowPlaying {
         public final boolean show;
         public final boolean playing, radio;
         public final String title, sub, hint;
+        /** who recites it («ماهر المعيقلي»), or «بث مباشر» for a station: the screensaver's card says it after the title */
+        public final String who;
 
-        State(boolean show, boolean playing, boolean radio, String title, String sub, String hint) {
+        State(boolean show, boolean playing, boolean radio, String title, String sub, String hint, String who) {
             this.show = show;
             this.playing = playing;
             this.radio = radio;
             this.title = title;
             this.sub = sub;
             this.hint = hint;
+            this.who = who;
         }
     }
 
@@ -33,7 +36,7 @@ public final class NowPlaying {
     public static State read(Context c) {
         int source = MusicService.currentSource();
         boolean radio = source == Prefs.SOURCE_RADIO;
-        if (source != Prefs.SOURCE_SURAH && !radio) return new State(false, false, false, "", "", "");
+        if (source != Prefs.SOURCE_SURAH && !radio) return new State(false, false, false, "", "", "", "");
         Catalog cat = Catalog.get(c);
         int reciter = MusicService.reciterIndex(), station = MusicService.currentStation();
         String stationName = station >= 0 && station < cat.stations.size() ? cat.stations.get(station).name : "";
@@ -42,7 +45,8 @@ public final class NowPlaying {
         int minutes = until > 0 ? (int) Math.max(1, (until - System.currentTimeMillis() + 59_999) / 60_000) : 0;
         return new State(true, MusicService.isPlaying(), radio,
                 NowPlayingText.title(radio, cat.surahName(MusicService.currentSurah()), stationName),
-                NowPlayingText.sub(radio, reciterName, minutes), NowPlayingText.hint(radio));
+                NowPlayingText.sub(radio, reciterName, minutes), NowPlayingText.hint(radio),
+                NowPlayingText.who(radio, reciterName));
     }
 
     public static void toggle(Context c) { MusicService.toggle(c); }
