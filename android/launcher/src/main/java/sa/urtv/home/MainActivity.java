@@ -105,7 +105,7 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
-    private TextView greeting, weatherLine, clock, ampm, date, title, wifiPill, appsLabel;
+    private TextView greeting, weatherLine, clock, ampm, date, zoneLine, title, wifiPill, appsLabel;
     private Greeting greetingLine;
     private int glowColor = 0xFF3A3A3A;
     private ValueAnimator glowAnim;
@@ -368,9 +368,14 @@ public class MainActivity extends Activity {
         date = text(14, "regular", 0xFFC6BBA4);
         date.setSingleLine(true);
         left.addView(date, llp(-2, -2, 0, dp(-6), dp(4), 0));   // the display font leaves a deep gap under its digits
-        for (TextView t : new TextView[]{greeting, weatherLine, clock, ampm, date}) t.setShadowLayer(dp(3), 0, dp(1), 0x80000000);
+        // «بتوقيت دبي», only when the city's clock is not the TV's (as the screensaver's line under its clock)
+        zoneLine = text(12, "regular", GOLD);
+        zoneLine.setSingleLine(true);
+        zoneLine.setVisibility(View.GONE);
+        left.addView(zoneLine, llp(-2, -2, 0, dp(1), dp(4), 0));
+        for (TextView t : new TextView[]{greeting, weatherLine, clock, ampm, date, zoneLine}) t.setShadowLayer(dp(3), 0, dp(1), 0x80000000);
         left.setGravity(Gravity.RIGHT);
-        for (TextView t : new TextView[]{greeting, weatherLine, date}) t.setGravity(Gravity.RIGHT);
+        for (TextView t : new TextView[]{greeting, weatherLine, date, zoneLine}) t.setGravity(Gravity.RIGHT);
         header.addView(left, new FrameLayout.LayoutParams(-2, -2, Gravity.RIGHT | Gravity.TOP));
         clockBlock = left;
 
@@ -849,20 +854,39 @@ public class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- status
 
+    /** {city, zone id} the screensaver saved (its ConfigProvider, same signing key); null when it is missing: the TV's own zone then. */
+    private String[] cityZone() {
+        try (android.database.Cursor cur = getContentResolver().query(
+                android.net.Uri.parse("content://sa.urtv.screensaver.config"), null, null, null, null)) {
+            if (cur != null && cur.moveToFirst() && cur.getString(0) != null) return ClockZone.parse(cur.getString(0));
+        } catch (RuntimeException ignored) { }
+        return null;
+    }
+
     private void updateClock() {
-        Calendar now = Calendar.getInstance();
+        long ms = System.currentTimeMillis();
+        String tvTz = java.util.TimeZone.getDefault().getID();
+        String[] zone = cityZone();
+        String tz = zone == null ? tvTz : zone[1];
+        Calendar now = ClockZone.at(ms, tz);   // the city's time, like the prayer times beside it
         int h = now.get(Calendar.HOUR_OF_DAY);
         greetingLine.update(h);
         int hh = h % 12 == 0 ? 12 : h % 12;   // always 12-hour
         clock.setText(arabicDigits(hh + ":" + String.format(Locale.ROOT, "%02d", now.get(Calendar.MINUTE))));
         ampm.setText(h < 12 ? "ص" : "م");
+        boolean other = zone != null && ClockZone.differs(tvTz, tz, ms);
+        zoneLine.setVisibility(other ? View.VISIBLE : View.GONE);
+        if (other) zoneLine.setText(ClockZone.label(zone[0]));
         String hijri = "";
         try {
             android.icu.text.SimpleDateFormat f = new android.icu.text.SimpleDateFormat(
                     "EEEE، d MMMM y", new android.icu.util.ULocale("ar_SA@calendar=islamic-umalqura"));
+            f.setTimeZone(android.icu.util.TimeZone.getTimeZone(tz));
             hijri = f.format(now.getTime()).replaceAll("\\s*هـ\\s*$", "") + " هـ";
         } catch (Exception ignored) { }
-        String greg = new SimpleDateFormat("d MMMM", new Locale("ar")).format(now.getTime());
+        SimpleDateFormat gf = new SimpleDateFormat("d MMMM", new Locale("ar"));
+        gf.setTimeZone(java.util.TimeZone.getTimeZone(tz));
+        String greg = gf.format(now.getTime());
         date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  ·  " + greg));
         updateAdhanBar();
         updateSleepPill();

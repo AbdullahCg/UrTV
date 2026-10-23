@@ -29,4 +29,5 @@ python3 tests/photos_sh_test.py
 python3 tests/greeting_test.py
 python3 tests/card_box_test.py
 python3 tests/adhan_bar_test.py
+python3 tests/clock_zone_test.py
 node tests/page.test.mjs
