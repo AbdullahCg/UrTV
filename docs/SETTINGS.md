@@ -23,7 +23,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 
 | They ask for | The setting | Command |
 |---|---|---|
-| their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>`; not listed: `optimize/saver.sh city '<name>' <lat> <lon>` |
+| their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>` (a short form is fine if only one city matches); not listed: `optimize/saver.sh city '<name>' <lat> <lon>`, outside Saudi Arabia add its time zone: `… <lat> <lon> Asia/Kuwait` (without it, the TV's own zone) |
 | their clubs, the matches | الفرق المتابعة (up to 20) | `optimize/saver.sh find-team <club>` (Arabic or English), then `optimize/saver.sh teams <id:Name> …` in their order |
 | Formula 1, UFC, boxing | رياضات أخرى | `optimize/saver.sh events f1,ufc,boxing` (`""` = none) |
 | what shows beside the clock | المحتوى | `optimize/saver.sh card <verse, wisdom, adhkar, stocks, tasks, shows, prayers, forecast, matches, none>` |
@@ -78,7 +78,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 ## Not in تلفزيونك yet (say so, and pass it on with `--owner`)
 
 - Being built, not on TVs yet: their own background photos; following a whole league; the year card (365 dots);
-  turning our screensaver off when it is heavy for the TV; the right time for a city outside Saudi Arabia.
+  turning our screensaver off when it is heavy for the TV.
 - Asked for, not planned yet: other countries' photos and prayer methods, moving cards around (layout), a news
   ticker, a flight countdown with the flight number (the countdown above can count to the trip's date).
 - Not possible: Samsung (Tizen) and LG (webOS) TVs can't run these apps.

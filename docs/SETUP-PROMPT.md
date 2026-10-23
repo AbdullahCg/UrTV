@@ -264,7 +264,7 @@ itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1
 Every setting, and what to say when I ask for something else: `docs/SETTINGS.md`.
 
 ```
-optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon>)
+optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon> [<time zone, e.g. Asia/Kuwait; the TV's own if left out>])
 optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال): one call per club, Saudi clubs first;
                                                   # then: optimize/saver.sh teams <id:Name> <id:Name> ...  (my order)
 optimize/saver.sh card <one of: verse, wisdom, adhkar, stocks, tasks, shows, prayers, forecast, matches, none>   # beside the clock (verse unless I said otherwise)

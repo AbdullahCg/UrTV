@@ -21,8 +21,8 @@ const check = (name, ok, detail = '') => {
 
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 
-async function open(file, hash, { width = 1920, height = 1080, seed = true, net = null } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height } });
+async function open(file, hash, { width = 1920, height = 1080, seed = true, net = null, now = null, tzId = null } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, ...(tzId ? { timezoneId: tzId } : {}) });
   await ctx.route(/^https?:/, r => {
     if (net && net(r)) return;
     const u = r.request().url(), i = u.indexOf('/master/'), rel = i > 0 ? u.slice(i + 8) : '';
@@ -34,6 +34,7 @@ async function open(file, hash, { width = 1920, height = 1080, seed = true, net 
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', e => errors.push(e.message));
+  if (now) await p.clock.setFixedTime(now);   // the page's Date is this moment; timers run as usual
   await p.goto(page(file) + '#' + hash);
   await p.waitForFunction(() => document.documentElement.classList.contains('ready'), null, { timeout: 4000 })
     .catch(() => errors.push('never revealed'));
@@ -1098,6 +1099,60 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     check(`${tag}: the card beside the clock: every row on one line, long names in their short form`, r.cardRows > 0 && !r.cardCut.length, JSON.stringify(r.cardCut));
     check(`${tag}: the card lists the F1 weekend (practice, qualifying, sprint, race)`,
       ['التجارب الحرة ١', 'التأهل', 'السبرنت', 'السباق'].every(x => r.card.some(c => c.includes('جائزة السعودية الكبرى · ' + x))), r.card.join(' | '));
+    await ctx.close();
+  }
+}
+
+// ---- a city outside Saudi Arabia: its own time zone for the clock, the dates (Gregorian and Hijri), the prayers and the
+// games. The browser itself is set to New York so that nothing can pass by using the computer's zone.
+{
+  const hm = (tz, at) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(at));
+  const digits = s => +s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  const cases = [
+    // [zone, instant, city line, Dhuhr must fall in this window in minutes since midnight, the same game's time of day]
+    ['Asia/Kuwait', '2026-01-15T21:30:00Z', 'city=الكويت&lat=29.3759&lon=47.9774', [11 * 60 + 45, 12 * 60 + 10]],
+    ['Africa/Cairo', '2026-01-15T21:30:00Z', 'city=القاهرة&lat=30.0444&lon=31.2357', [11 * 60 + 50, 12 * 60 + 20]],
+    ['Africa/Cairo', '2026-07-01T12:00:00Z', 'city=القاهرة&lat=30.0444&lon=31.2357', [12 * 60 + 50, 13 * 60 + 20]],   // summer time: +3
+  ];
+  const got = {};
+  for (const [tz, at, cityq, dhuhr] of cases) {
+    for (const file of ['urtv.html', 'tv.html']) {
+      const tag = `${file} #tz=${tz} ${at.slice(0, 10)}`;
+      const { p, ctx, errors } = await open(file, cityq + '&tz=' + tz, { now: at, tzId: 'America/New_York' });
+      const r = await p.evaluate(game => {
+        const toMin = s => +s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        const dh = PRAYERS.find(x => x.key === 'Dhuhr');
+        return { h: toMin(document.getElementById('ck-h').textContent), m: toMin(document.getElementById('ck-m').textContent),
+                 ap: document.getElementById('ck-ap').textContent, greg: document.getElementById('greg').textContent,
+                 hijri: document.getElementById('hijri').textContent, dhuhr: dh && dh.h * 60 + dh.mi,
+                 game: matchWhen(new Date(game)), tz: CONFIG.timezone,
+                 midnight: tzOffsetMs(Date.UTC(2026, 6, 1)) / 36e5 };
+      }, '2026-01-15T17:00:00Z');
+      const [eh, em] = hm(tz, at).split(':').map(Number);
+      check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+      check(`${tag}: the clock shows the city's time, not the computer's`,
+        r.h === (eh % 12 || 12) && r.m === em && r.ap === (eh < 12 ? 'ص' : 'م'), JSON.stringify(r));
+      check(`${tag}: the Hijri date is shown`, /هـ$/.test(r.hijri) && /[٠-٩]/.test(r.hijri) && /\u0640|[ء-ي]{3,}/.test(r.hijri), r.hijri);
+      check(`${tag}: Dhuhr (computed offline) at local noon, not Riyadh's`, r.dhuhr >= dhuhr[0] && r.dhuhr <= dhuhr[1], `${r.dhuhr} not in ${dhuhr}`);
+      const [gh, gm] = hm(tz, '2026-01-15T17:00:00Z').split(':').map(Number);
+      const gameAt = `${gh % 12 || 12}:${String(gm).padStart(2, '0')} ${gh < 12 ? 'ص' : 'م'}`.replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+      check(`${tag}: a game at 17:00 UTC is told in the city's time (${gameAt})`, r.game.endsWith(gameAt), r.game);
+      check(`${tag}: the page's zone is #tz=`, r.tz === tz, r.tz);
+      if (file === 'tv.html') got[tz + at] = r;
+      await ctx.close();
+    }
+  }
+  // the date near midnight differs between the two cities: 21:30 UTC is 00:30 the next day in Kuwait, 23:30 in Cairo
+  const k = got['Asia/Kuwait2026-01-15T21:30:00Z'], c = got['Africa/Cairo2026-01-15T21:30:00Z'];
+  check('Gregorian and Hijri dates follow the city: Kuwait is a day ahead of Cairo at 21:30 UTC',
+    digits(k.greg.match(/[٠-٩]+/)[0]) === digits(c.greg.match(/[٠-٩]+/)[0]) + 1 && digits(k.hijri.match(/[٠-٩]+/)[0]) === digits(c.hijri.match(/[٠-٩]+/)[0]) + 1,
+    k.greg + ' / ' + c.greg + ' | ' + k.hijri + ' / ' + c.hijri);
+  check('a day without a time starts at midnight in the city (Cairo +3 in July)', got['Africa/Cairo2026-07-01T12:00:00Z'].midnight === 3, got['Africa/Cairo2026-07-01T12:00:00Z'].midnight);
+  // no #tz=, or one the browser does not know: Riyadh, as always
+  for (const [hash, label] of [['city=الرس&lat=25.86&lon=43.49', 'no #tz='], ['city=الرس&lat=25.86&lon=43.49&tz=Nowhere/Land', 'an unknown #tz=']]) {
+    const { p, ctx, errors } = await open('tv.html', hash, { now: '2026-01-15T12:00:00Z', tzId: 'America/New_York' });
+    const r = await p.evaluate(() => ({ tz: CONFIG.timezone, h: document.getElementById('ck-h').textContent }));
+    check(`${label}: Asia/Riyadh, no errors`, r.tz === 'Asia/Riyadh' && /^[٠-٩]+$/.test(r.h) && !errors.length, JSON.stringify(r) + errors.join(';'));
     await ctx.close();
   }
 }
