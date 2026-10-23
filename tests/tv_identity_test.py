@@ -28,7 +28,7 @@ for name in ["adb_shell", "adb_shell.adb_device", "adb_shell.auth", "adb_shell.a
 sys.modules["adb_shell.adb_device"].AdbDeviceTcp = Dev
 sys.modules["adb_shell.auth.keygen"].keygen = lambda p: None
 sys.modules["adb_shell.auth.sign_pythonrsa"].PythonRSASigner = lambda a, b: None
-os.environ["TV_HOST"] = "10.0.0.5"
+os.environ["TV_HOST"] = "192.0.2.5"
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "optimize"))
 import tv
 tv.signer = lambda: None
@@ -49,7 +49,7 @@ def fresh(saved=None):
     if saved:
         os.makedirs(os.path.dirname(tv.ID_FILE)); json.dump(saved, open(tv.ID_FILE, "w"))
 
-def run(*argv, device=None, stdin="", host="10.0.0.5"):
+def run(*argv, device=None, stdin="", host="192.0.2.5"):
     LOG.clear(); DEVICE.clear(); DEVICE.update(device or TV); tv.HOST = host
     sys.argv = ["tv.py", *argv]; sys.stdin = io.StringIO(stdin)
     out = io.StringIO(); code = 0
@@ -71,8 +71,8 @@ check("first run: the command runs and the TV is saved", code == 0 and sent() ==
 # same serial passes; an address change passes
 code, text = run(PUT)
 check("same TV: passes", code == 0 and sent() == [PUT], text)
-code, text = run(PUT, host="10.0.0.77")
-check("address changed (DHCP), same serial: passes", code == 0 and sent() == [PUT] and ("connect", "10.0.0.77") in LOG, text)
+code, text = run(PUT, host="192.0.2.77")
+check("address changed (DHCP), same serial: passes", code == 0 and sent() == [PUT] and ("connect", "192.0.2.77") in LOG, text)
 # a different device is refused, nothing changed
 code, text = run(PUT, device=BOX)
 check("different serial and model: refused, nothing sent",
@@ -88,7 +88,7 @@ check("same serial but another make and model (a placeholder serial): refused", 
 fresh()
 run(PUT, device={"serial": "", "bootserial": "BOOT42", "manufacturer": "TCL", "model": "55P735"})
 check("no ro.serialno: ro.boot.serialno is the serial", (saved() or {}).get("serial") == "BOOT42", str(saved()))
-code, text = run(PUT, device={"serial": "", "bootserial": "BOOT42", "manufacturer": "TCL", "model": "55P735"}, host="10.0.0.9")
+code, text = run(PUT, device={"serial": "", "bootserial": "BOOT42", "manufacturer": "TCL", "model": "55P735"}, host="192.0.2.9")
 check("... and it matches again", code == 0 and sent() == [PUT], text)
 code, text = run(PUT, device={"serial": "", "bootserial": "OTHER", "manufacturer": "TCL", "model": "55P735"})
 check("... a different one is refused", code == 1 and not sent(), text)
