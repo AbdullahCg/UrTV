@@ -278,7 +278,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void searchTeam(final int slot) {
-        ask("اسم الفريق بالعربية أو الإنجليزية (مثل الهلال أو Real Madrid)", q -> {
+        ask("اسم الفريق بالعربية أو الإنجليزية (مثل الهلال أو \u2066Real Madrid\u2069)", q -> {
             List<TeamSearch.Team> found = Teams.search(this, q);
             if (!found.isEmpty()) showOurs(found.subList(0, Math.min(found.size(), 30)), "اختر الفريق", true);
             else if (!Arabic.hasArabic(q))   // a club outside our list: TheSportsDB's search, in English only
@@ -600,7 +600,7 @@ public class SettingsActivity extends Activity {
     /** Codes (2222 = أرامكو) and US tickers (AAPL), separated by spaces or commas. */
     private void askStocks() {
         final EditText in = new EditText(this);
-        in.setHint("مثال: 2222 1120 AAPL NVDA");
+        in.setHint("مثال: \u20662222 1120 AAPL NVDA\u2069");
         in.setText(Prefs.join(prefs.stocks(), " "));
         in.setSingleLine(true);
         in.setInputType(InputType.TYPE_CLASS_TEXT);

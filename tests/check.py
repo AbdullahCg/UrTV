@@ -204,6 +204,12 @@ check("java: no table looped over as single strings", not bad, bad)
 # the TV's font size setting scales WebView text; our pages size their own, so every WebView pins it at 100
 loose = [f.name for f, src in java.items() if "getSettings()" in src and "setTextZoom(100)" not in src]
 check("java: every WebView ignores the TV's font size (setTextZoom(100))", not loose, loose)
+# a Latin word at the start of an Arabic line lands at its far left (bidi): it goes in isolates (\u2066 ... \u2069)
+bidi = [f"{f.name}: {m.group(0)[:40]}" for f, src in java.items()
+        for m in re.finditer(r'"[A-Za-z]+ [\u0600-\u06FF][^"\n]*"', src)]
+bidi += [f"{x.name}: {m.group(0)[:40]}" for x in (ROOT / "android").glob("*/src/main/res/values*/*.xml")
+         for m in re.finditer(r'<string [^>]*>[A-Za-z]+ [\u0600-\u06FF][^<]*', x.read_text(encoding="utf-8"))]
+check("java: no Arabic string starts with a Latin word without an isolate", not bidi, bidi)
 # the preview and the settings must open fresh: an open one comes back with the settings it opened with, or in front of
 # the one asked for (a TV test read the preview as the settings screen, and as the settings not working)
 starts = [f"{f.name}: {l.strip()}" for f in sorted((ROOT / "optimize").glob("*.sh"))
