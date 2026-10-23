@@ -356,19 +356,23 @@ def league_ids(names, cached=None):
     return ids
 
 
-def scan_days(lid, name, today, every, days=25):
-    """The free API lists only a season's first 100 games, which leaves a league with 30 teams short a few early in
-    the season. Its games day by day (15 a day at most) name every team within a few weeks: add the sides found,
-    around today, until the league has its minimum. Returns the days asked."""
+def fill_by_id(lid, name, every, reach=6, limit=24):
+    """The free API shows a league's first 100 games and its team lists hold 10, which leaves a league of 30 teams a
+    few short early in a season. TheSportsDB numbers a league's teams one after another (the NBA's are 134860-134889),
+    so the ids next to those found are looked up, and kept when they answer as teams of this league. Returns the
+    ids asked."""
+    known = [int(i) for i in every if i.isdigit()]
     asked = 0
-    for k in range(days):
-        if len(every) >= LEAGUES[name]["min"]:
+    if len(every) >= LEAGUES[name]["min"] or not known:
+        return asked
+    for i in [x for x in range(min(known) - reach, max(known) + reach + 1) if str(x) not in every]:
+        if len(every) >= LEAGUES[name]["min"] or asked >= limit:
             break
-        day = today + datetime.timedelta(days=(k + 1) // 2 * (1 if k % 2 else -1))   # 0, +1, -1, +2, -2, ...
         asked += 1
-        for e in get(f"eventsday.php?d={day.isoformat()}&l={urllib.parse.quote(name.replace(' ', '_'))}").get("events") or []:
-            if str(e.get("idLeague")) == str(lid):
-                every.update(sides([e]))
+        hit = (get(f"lookupteam.php?id={i}").get("teams") or [None])[0]
+        if hit and str(hit.get("idLeague")) == str(lid) and hit.get("strSport") == LEAGUES[name]["sport"] \
+                and hit.get("strTeam"):
+            every[str(i)] = hit["strTeam"].strip()
     return asked
 
 
@@ -391,8 +395,6 @@ def collect_league(name, lid, today, teams, report, problems):
     for found in [*seasons.values(), rounds]:
         every.update(found)
     if LEAGUES[name]["sport"] != "Soccer":   # preseason games name foreign sides: the league's own list decides
-        scanned = scan_days(lid, name, today, every)
-        report.setdefault("days scanned", {})[name] = scanned
         own = {str(t["idTeam"]): t["strTeam"].strip() for t in get("search_all_teams.php?" + urllib.parse.urlencode(
             {"l": name})).get("teams") or [] if t.get("idTeam") and t.get("strTeam")}
         report.setdefault("league team lists", {})[name] = len(own)
@@ -404,6 +406,7 @@ def collect_league(name, lid, today, teams, report, problems):
                     del found[i]
         else:
             every.update(own)
+            report.setdefault("ids looked up next to the found ones", {})[name] = fill_by_id(lid, name, every)
     for i, en in every.items():
         t = teams.setdefault(i, {"en": en, "leagues": [], "sport": LEAGUES[name]["sport"]})
         if name not in t["leagues"]:
@@ -425,7 +428,7 @@ def collect_league(name, lid, today, teams, report, problems):
                         break
     report["clubs per league"][name] = {"clubs": len(every), "seasons": {s: len(f) for s, f in clubs_in.items()},
                                         "last and next rounds": len(rounds)}
-    for k in ("days scanned", "league team lists"):
+    for k in ("ids looked up next to the found ones", "league team lists"):
         if name in report.get(k, {}):
             report["clubs per league"][name][k] = report[k][name]
     if any(without.values()):
@@ -434,6 +437,10 @@ def collect_league(name, lid, today, teams, report, problems):
     if len(seasons) < 2:
         problems.append(f"{name}: matches found for {len(seasons)} of the last two seasons")
     for s, found in clubs_in.items():   # a club without an id still counts: the season's data is all there
+        if LEAGUES[name]["sport"] != "Soccer":   # the free API shows 100 games of a season: the union above is checked
+            if len(every) < LEAGUES[name]["min"]:
+                problems.append(f"{name}: {len(every)} teams, at least {LEAGUES[name]['min']} expected")
+            break
         if len(found) + len(without[s]) < LEAGUES[name]["min"]:
             problems.append(f"{name} {s}: {len(found)} clubs"
                             + (f" and {len(without[s])} without an id" if without[s] else "")
@@ -835,13 +842,13 @@ def collect_events(report, problems):
     leagues = list(get("all_leagues.php").get("leagues") or [])
     notes = report.setdefault("events", {})
     notes["all_leagues.php gave"] = len(leagues)
-    if not leagues:   # the free key's list can come back empty: look the likely ids up one by one, as the report shows
-        notes["lookupleague.php"] = {}
-        for i in EVENT_IDS:
-            got = (get(f"lookupleague.php?id={i}").get("leagues") or [{}])[0]
-            notes["lookupleague.php"][str(i)] = [got.get("strLeague"), got.get("strSport")]
-            if got.get("strLeague"):
-                leagues.append(got)
+    # the free key's list holds 10 leagues: look the likely ids up one by one, as the report shows
+    notes["lookupleague.php"] = {}
+    for i in EVENT_IDS:
+        got = (get(f"lookupleague.php?id={i}").get("leagues") or [{}])[0]
+        notes["lookupleague.php"][str(i)] = [got.get("strLeague"), got.get("strSport")]
+        if got.get("strLeague") and got["idLeague"] not in {l.get("idLeague") for l in leagues}:
+            leagues.append(got)
     notes["leagues that look like events"] = [{"id": l["idLeague"], "name": l["strLeague"], "sport": l.get("strSport")}
                                               for l in leagues if EVENT_LOOSE.search(l.get("strLeague", ""))][:60]
     found = {}

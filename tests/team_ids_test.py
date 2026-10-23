@@ -268,19 +268,19 @@ def short_get(path):   # 2026-27 lists 19 of La Liga's 20: Club 19 is in last se
     return {"events": None}
 
 
-# early in a season the free API's first 100 games miss teams: day by day around today finds them
-asked_days = []
-def day_get(path):
-    asked_days.append(path)
-    k = len(asked_days)
-    return {"events": [{"idLeague": "4387", "idHomeTeam": str(700 + 2 * k), "strHomeTeam": f"T{2 * k}",
-                        "idAwayTeam": str(701 + 2 * k), "strAwayTeam": f"T{2 * k + 1}"}]}
-real_get, ti.get = ti.get, day_get
-have = {str(i): f"Team {i}" for i in range(28)}
-ti.scan_days("4387", "NBA", datetime.date.today(), have)
+# early in a season the free API's first 100 games miss teams: the ids next to the found ones are looked up
+asked_ids = []
+def id_get(path):
+    i = path.rsplit("=", 1)[1]
+    asked_ids.append(i)
+    return {"teams": [{"idTeam": i, "strTeam": f"Team {i}", "idLeague": "4387", "strSport": "Basketball"}]
+            if i in ("134888", "134889") else None}
+real_get, ti.get = ti.get, id_get
+have = {str(134860 + i): f"Team {i}" for i in range(28)}
+ti.fill_by_id("4387", "NBA", have)
 ti.get = real_get
-check("a short league is completed day by day, and the scan stops at the minimum", len(have) >= 30
-      and len(asked_days) == 1 and "d=" + datetime.date.today().isoformat() in asked_days[0], (len(have), asked_days))
+check("a short league is completed from the ids next to its own, and stops at the minimum", len(have) == 30
+      and "134888" in have and "134889" in have, (len(have), asked_ids))
 
 real_get, ti.get = ti.get, short_get
 report, problems, teams = {"clubs per league": {}}, [], {}
