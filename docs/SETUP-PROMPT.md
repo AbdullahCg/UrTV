@@ -151,6 +151,10 @@ yet»), or an old UrTV folder is there without a working `.git`, delete that fol
 - Never uninstall system apps, never `pm clear`, never factory-reset, never touch accounts, Wi-Fi, network or
   developer settings (turning ADB off locks us out). Never delete `optimize/run/` or `optimize/backup-*.txt`: they
   are how we undo. Everything is reversible: `optimize/reset.sh` puts the TV back as it came.
+- Anything I ask for about the screensaver, the home screen or the TV (now or any time later): look it up in
+  `docs/SETTINGS.md` and use its command. Never edit the apps' code, build or install your own APK, or turn the
+  automatic update off to make something; if it isn't in `docs/SETTINGS.md`, tell me it isn't in تلفزيونك yet and
+  pass my words on in the share message (step 8).
 - Ask me before anything not in this prompt. If something fails twice, and the table's fix didn't help, stop,
   show me the output and propose a fix.
 - Never tell me something worked without its proof: the script's own success line, or a screenshot you looked at.
@@ -257,6 +261,8 @@ itself) and tell me. Some TCL firmware keeps its own home: then `SKIP_LAUNCHER=1
 
 ## 4. Apply my choices (5 minutes; no remote needed)
 
+Every setting, and what to say when I ask for something else: `docs/SETTINGS.md`.
+
 ```
 optimize/saver.sh cities                          # find my city, then: optimize/saver.sh city <name>   (not listed: city <name> <lat> <lon>)
 optimize/saver.sh find-team <club as I wrote it>  # Arabic is fine (الهلال): one call per club, Saudi clubs first;
@@ -266,6 +272,9 @@ optimize/saver.sh home-card none                  # home screen: no card
 # «المهام» (only if I ask): optimize/saver.sh tasks add 'نص' | list | done N | del N | clear, and card tasks
 optimize/dock.sh apps                             # match my 6 apps to packages, then: optimize/dock.sh set <pkg> ... (in that order)
 optimize/dock.sh hidden                           # apps the home screen leaves out, and why
+optimize/dock.sh names                            # every app's name: package | shown | its own | from; then name in Arabic,
+                                                  # in ONE call, each app whose shown name has no Arabic letters (rules below):
+                                                  # optimize/dock.sh name <pkg> '<الاسم>' <pkg> '<الاسم>' ...
 optimize/saver.sh photos <5, 10, 15, 30 or 60>   # ONLY if I asked how often the photo changes (default 30 minutes: leave it)
 optimize/saver.sh idle <1, 2, 5, 10, 15 or 30>   # ONLY if I asked when the screensaver starts after the TV idles (the TV's own timer: leave it)
 optimize/saver.sh cardstyle <current, dark1, glass1, dark3 or glass3>   # ONLY if I asked for another look for the card beside the clock (default current: leave it)
@@ -286,6 +295,13 @@ stay out. Change that only by these rules: `optimize/dock.sh show <pkg>` for an 
 mine (on the step 1 screenshot) or that I asked for; `optimize/dock.sh hide <pkg>` for an app it shows that is in
 `optimize/lists/tcl-safe.txt` or `tcl-optional.txt`; never hide one in `keep.txt`. Any other you are unsure about:
 list it for me in step 7 instead of choosing.
+
+App names: the home screen shows an app's name in Arabic when the app has one or our list knows it; give every
+other app (shown name with no Arabic letters) its Arabic name yourself with `dock.sh name`. Use the name Arabic
+speakers use for it: the brand's own Arabic name if it has one (شاهد، ثمانية، أنغامي), else the usual Arabic
+spelling (نتفليكس، يوتيوب، ديزني +، ابل تي في), and for a tool, what it does (الإعدادات، الملفات، المتصفح، المصادر).
+Up to 30 characters, no ' ; or |. Leave an app whose shown name is already Arabic. In step 7, list the names you
+gave so I can change any (`dock.sh name <pkg> '<اسم آخر>'`, or `''` for its usual name).
 
 Take every id from `find-team`'s output, which comes from our list of every club in the app's leagues and the
 national teams; never guess one. If it gives several, pick the one I meant (a Saudi club before a namesake abroad).

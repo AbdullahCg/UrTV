@@ -393,11 +393,12 @@ public class MainActivity extends Activity {
         android.content.pm.ChangedPackages changed = pm.getChangedPackages(packageSeq);
         if (changed != null) { packageSeq = changed.getSequenceNumber(); artCache.evictAll(); }   // an app may have a new icon
         Map<String, App> byPkg = new HashMap<>();
+        Map<String, String> given = AppNames.given(this);   // names the owner's agent set (dock.sh name)
         for (ResolveInfo ri : Dock.catalogue(this)) {
             ActivityInfo ai = ri.activityInfo;
             App a = new App();
             a.pkg = ai.packageName;
-            a.label = String.valueOf(ri.loadLabel(pm));
+            a.label = AppNames.label(this, ri, given);
             a.component = new ComponentName(ai.packageName, ai.name);
             a.category = Dock.isTv(ri) ? Intent.CATEGORY_LEANBACK_LAUNCHER : Intent.CATEGORY_LAUNCHER;
             Drawable banner = artCache.get("b:" + a.pkg);
