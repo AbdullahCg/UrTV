@@ -598,6 +598,19 @@ CONFIG.panel = CONFIG.cards[0] || 'none';   // the first one, for what only need
 const USES_OF = {smart:['matches','adhkar','prayers','prayerrow','hourly'], today:['prayers','matches','tasks']};
 const USES = k => CONFIG.cards.some(c => c === k || (USES_OF[c] || []).includes(k));
 
+// What the page keeps in localStorage is keyed by what it is for, not by the whole link (which changes with every setting and left a
+// copy behind each time): the weather by the city, the prices by the symbols, the games' time by the clubs. The panels' snapshot
+// is the one that depends on the whole link; pruneStorage() below keeps the few newest of those and drops the old link-keyed copies.
+const LS = {
+  forecast: 'forecast:' + CONFIG.latitude.toFixed(3) + ',' + CONFIG.longitude.toFixed(3),
+  hourly: 'hourly:' + CONFIG.latitude.toFixed(3) + ',' + CONFIG.longitude.toFixed(3),
+  wx: 'wx:' + CONFIG.latitude.toFixed(3) + ',' + CONFIG.longitude.toFixed(3),
+  stocks: 'stocks:' + CONFIG.stocks.slice().sort().join(','),
+  mk: 'mk:' + CONFIG.markets.join(','),
+  matches: 'matchesOk:' + CONFIG.teamIds.join(',') + '|' + CONFIG.leagues.join(','),
+  snap: 'snap6:' + location.hash,
+};
+
 // every number on the screen goes through ar() or a formatter built on NU, so CONFIG.digits decides them all
 const LATIN = CONFIG.digits === 'latin', NU = LATIN ? 'latn' : 'arab';
 const GREG = 'ar-SA-u-ca-gregory-nu-' + NU;
@@ -606,12 +619,19 @@ const ar = s => LATIN ? String(s) : String(s).replace(/[0-9]/g, d => AR[+d]);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = n => String(n).padStart(2,'0');
 
+// Formatters are made once: building an Intl.DateTimeFormat costs far more than using one, and these run in every redraw and tick.
+const FMT_ALL = new Intl.DateTimeFormat('en-GB',{
+  timeZone: CONFIG.timezone, hour12:false,
+  year:'numeric', month:'2-digit', day:'2-digit',
+  hour:'2-digit', minute:'2-digit', second:'2-digit'
+});
+const FMT_HM = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false});   // the city's clock
+const FMT_DATE = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone});   // YYYY-MM-DD in the city
+const FMT_DAY_MONTH = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'});   // «السبت ٢٤ أكتوبر»
+const FMT_WEEKDAY = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'});
+const hmParts = d => FMT_HM.formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
 function riyadhParts(d = new Date()){
-  const f = new Intl.DateTimeFormat('en-GB',{
-    timeZone: CONFIG.timezone, hour12:false,
-    year:'numeric', month:'2-digit', day:'2-digit',
-    hour:'2-digit', minute:'2-digit', second:'2-digit'
-  }).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
+  const f = FMT_ALL.formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
   return { y:+f.year, mo:+f.month, d:+f.day, h:(+f.hour)%24, mi:+f.minute, s:+f.second };
 }
 // how far the city's clock is ahead of UTC at that moment, in ms (Riyadh +3 h all year; Cairo changes with summer time)
@@ -859,7 +879,7 @@ const OCC_TEXT = {unit:'يوم', expected:'متوقّع'};   // the moon decides
 // Today's occasion, or the next one with the days left and its day: one pass over the coming year, once a day.
 let OCC_CACHE = {day:'', val:null};
 function occasionNow(){
-  const dayKey = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
+  const dayKey = FMT_DATE.format(new Date());
   if(OCC_CACHE.day === dayKey) return OCC_CACHE.val;
   const fmt = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{timeZone:CONFIG.timezone,year:'numeric',month:'numeric',day:'numeric'});
   const hijri = d => fmt.formatToParts(d).reduce((a,x) => (a[x.type] = +x.value.replace(/[^0-9]/g,''), a), {});
@@ -954,7 +974,7 @@ let MATCHES = {};   // team id -> next event
 let RESULTS = {};   // team id -> recent events
 let NEXT_LIST = {};   // team id -> upcoming events
 let MATCH_OK_AT = 0, MATCH_FAIL_AT = 0;   // when a refresh last answered, and when the last one got no answer at all (0 = never)
-try{ MATCH_OK_AT = +localStorage.getItem('matchesOk') || 0; }catch(e){}
+try{ MATCH_OK_AT = +localStorage.getItem(LS.matches) || 0; }catch(e){}
 
 // ---------- politeness: one request at a time, a pause between, one run of a loader at a time, a per-TV offset ----------
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1113,15 +1133,14 @@ function resultsFor(id){
 
 // «السبت ٢٤ أكتوبر · ٩:١٦ م»: the small line under an upcoming game, in the slot and in the card beside the clock
 function matchWhen(d){
-  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
-    .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
-  return new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'}).format(d).replace('،','')
+  const p = hmParts(d);
+  return FMT_DAY_MONTH.format(d).replace('،','')
     + ' · ' + fmt12(+p.hour % 24, +p.minute);
 }
 
 // the final score of a finished game: «الهلال 2 - 1 النصر» and «النتيجة النهائية · السبت»
 function resultBlock(done){
-  const day = new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(toDate(done));
+  const day = FMT_WEEKDAY.format(toDate(done));
   return `<div class="mblock">`
     + `<div class="big"><span><span class="tm">${esc(teamAr(done.strHomeTeam, done.idHomeTeam))}</span> <span class="sc">${ar(+done.intHomeScore)} - ${ar(+done.intAwayScore)}</span> <span class="tm">${esc(teamAr(done.strAwayTeam, done.idAwayTeam))}</span></span></div>`
     + `<div class="sub">النتيجة النهائية · ${day}</div></div>`;
@@ -1133,8 +1152,7 @@ function gameBlock(ev, now, big){
   if(pendingResult(ev, now))   // over, no result yet: the teams and when they played
     return `<div class="mblock"><div class="big"><span><span class="tm">${home}</span> × <span class="tm">${away}</span></span></div><div class="sub">${matchWhen(d)}</div></div>`;
   if(diff < -durMs(ev) || diff > CONFIG.weekWindowDays * 86400000) return '';   // in progress stays on screen
-  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
-    .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  const p = hmParts(d);
   const t12 = ar(fmt12(+p.hour % 24, +p.minute));
   const live = diff <= 0 && ev.intHomeScore != null && ev.intAwayScore != null;
   // «بعد ٣ أيام» and under it the date and time, small: «السبت ٢٤ أكتوبر · ٩:١٦ م»
@@ -1350,12 +1368,10 @@ function eventsOf(key, now){
     .sort((a, b) => a.i.t - b.i.t);
 }
 function eventWhen(i, now){
-  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
-    .formatToParts(new Date(i.t)).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  const p = hmParts(new Date(i.t));
   const t12 = i.dateOnly ? '' : ar(fmt12(+p.hour % 24, +p.minute));
-  const sameDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(i.t + (i.dateOnly ? 3600000 : 0)))
-               === new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(now));
-  const dayName = sameDay ? 'اليوم' : new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long'}).format(new Date(i.t + (i.dateOnly ? 3600000 : 0)));
+  const sameDay = FMT_DATE.format(new Date(i.t + (i.dateOnly ? 3600000 : 0))) === FMT_DATE.format(new Date(now));
+  const dayName = sameDay ? 'اليوم' : FMT_WEEKDAY.format(new Date(i.t + (i.dateOnly ? 3600000 : 0)));
   if(i.dateOnly) return {live:false, text: sameDay ? 'اليوم' : dayName, row: dayName};
   if(now >= i.t) return {live:true, text: `<span class="live">مباشر</span> · بدأ ${t12}`, row: '<span class="live">مباشر</span>'};
   return {live:false, text: `${dayName} · ${t12}`, row: `${dayName} ${t12}`};
@@ -1517,7 +1533,7 @@ const loadMatches = guarded('matches', async function(){
     return;
   }
   MATCHES_LOADED = true; MATCH_OK_AT = Date.now(); MATCH_FAIL_AT = 0;
-  try{ localStorage.setItem('matchesOk', String(MATCH_OK_AT)); }catch(e){}
+  try{ localStorage.setItem(LS.matches, String(MATCH_OK_AT)); }catch(e){}
   renderMatches();
   renderPanel(false, 'matches');
   loadCrests();
@@ -1625,7 +1641,7 @@ const dayName = d => new Intl.DateTimeFormat(GREG, {timeZone:'UTC', weekday:'lon
 // the HTML for a slot; null = nothing to say, keep what was shown last
 function slotHTML(s){
   if(s === 'weather'){
-    const today = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone}).format(new Date());
+    const today = FMT_DATE.format(new Date());
     const days = FORECAST.filter(d => d.date > today).slice(0, 3);   // the next three days (a saved forecast may be old)
     if(!days.length) return null;
     return days.map(d => slotBlock(dayName(new Date(d.date + 'T12:00:00Z')) + ' <span class="num">' + ar(Math.round(d.hi)) + '°</span>',
@@ -1678,8 +1694,8 @@ function paintDir(t, up, label){
 
 // price (in the market's own unit, or null) and the day's change in percent (or null); only what is known is shown.
 // at = when the price was fetched: the last one stays on screen when a refresh fails, dimmed and marked with that time.
-const MK_LAST = (()=>{ try{ return JSON.parse(localStorage.getItem('mk:' + location.hash) || '{}') || {}; }catch(e){ return {}; } })();   // market -> {price, pct, at, bad}
-const saveMarkets = () => { try{ localStorage.setItem('mk:' + location.hash, JSON.stringify(MK_LAST)); }catch(e){} };
+const MK_LAST = (()=>{ try{ return JSON.parse(localStorage.getItem(LS.mk) || '{}') || {}; }catch(e){ return {}; } })();   // market -> {price, pct, at, bad}
+const saveMarkets = () => { try{ localStorage.setItem(LS.mk, JSON.stringify(MK_LAST)); }catch(e){} };
 function paintMarket(t, price, pct, at){
   const okP = typeof price === 'number' && isFinite(price) && price > 0;
   const okC = typeof pct === 'number' && isFinite(pct);
@@ -1813,7 +1829,7 @@ const loadMarkets = guarded('markets', async function(){
     }
   }
   if(CONFIG.stocks.length && USES('stocks')){
-    try{ localStorage.setItem('stocks:' + location.hash, JSON.stringify(STOCKS)); }catch(e){}
+    try{ localStorage.setItem(LS.stocks, JSON.stringify(STOCKS)); }catch(e){}
     renderPanel(false, 'stocks');
   }
   if(WITH_LINE){ saveMarkets(); paintMkUp(); if(CONFIG.slot === 'markets') renderSlot(); }
@@ -1832,7 +1848,7 @@ const loadWeek = guarded('week', async function(){
     catch(e){ failed++; return null; }
   };
   const days = [];
-  for(let i=0;i<7;i++) days.push(new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date(Date.now()+i*86400000)));
+  for(let i=0;i<7;i++) days.push(FMT_DATE.format(new Date(Date.now()+i*86400000)));
   const inWeek = d => d && d >= days[0] && d <= days[6];
   const add = (s, e, picked) => {
     if(!s || !s.name || seen.has(s.name)) return;
@@ -1942,7 +1958,7 @@ function buildCards(){
 }
 
 let FORECAST = [];
-try{ FORECAST = JSON.parse(localStorage.getItem('forecast:' + location.hash) || '[]') || []; }catch(e){}
+try{ FORECAST = JSON.parse(localStorage.getItem(LS.forecast) || '[]') || []; }catch(e){}
 const PANEL_TITLE = {today:'يومك', shows:'هذا الأسبوع', prayers:'مواقيت اليوم', forecast:'الأيام القادمة', hourly:'الساعات القادمة', matches:CONFIG.leagues.length ? 'المباريات' : 'مباريات فرقك', tasks:'المهام', year:'السنة'};
 const LISTS = ['matches', 'stocks', 'tasks', 'shows'];   // the kinds that page through their rows
 
@@ -1987,8 +2003,7 @@ function todayCard(){
 // ---- a followed team's game under way, big: its score, the minute and «مباشر» (item 2). The matches card and the bottom slot
 // show it alone, with both crests where there are crests (the launcher's card), until it ends; then they go back to the list.
 function liveWhen(ev){   // «مباشر» and «الدقيقة ٦٧» / «استراحة» / «بدأت ٦:٣٠ م»
-  const p = new Intl.DateTimeFormat('en-GB',{timeZone:CONFIG.timezone,hour:'2-digit',minute:'2-digit',hour12:false})
-    .formatToParts(toDate(ev)).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  const p = hmParts(toDate(ev));
   return `<span class="live">مباشر</span> · ${liveStatus(ev, ar(fmt12(+p.hour % 24, +p.minute)))}`;
 }
 const liveScore = ev => ev.intHomeScore != null && ev.intAwayScore != null ? `<span class="sc">${ar(+ev.intHomeScore)} - ${ar(+ev.intAwayScore)}</span>` : '<span class="sc">×</span>';
@@ -2194,8 +2209,7 @@ function prayerRows(){
 }
 
 // the city's date as YYYY-MM-DD, and the one after it
-const CITY_DATE = new Intl.DateTimeFormat('en-CA', {timeZone:CONFIG.timezone});
-const cityToday = (ms = Date.now()) => CITY_DATE.format(new Date(ms));
+const cityToday = (ms = Date.now()) => FMT_DATE.format(new Date(ms));
 // A saved forecast can be days old: the rows are the days from today in the city's zone, named by their date («اليوم» is today's, not the
 // first row), and a forecast that has no today is not shown (its first row would be named «اليوم»).
 function forecastRows(){
@@ -2307,7 +2321,7 @@ function prayerRowCard(){
 
 // ---- «الساعات القادمة»: the next six hours, from the same Open-Meteo request as the forecast (see loadWeather)
 let HOURLY = [], SUN = {};   // [{t: '2026-10-23T18:00' (the city's time), code, temp}], and date -> [sunrise, sunset] as 'HH:MM'
-try{ const c = JSON.parse(localStorage.getItem('hourly:' + location.hash) || 'null'); if(c){ HOURLY = c.h || []; SUN = c.s || {}; } }catch(e){}
+try{ const c = JSON.parse(localStorage.getItem(LS.hourly) || 'null'); if(c){ HOURLY = c.h || []; SUN = c.s || {}; } }catch(e){}
 const hourKey = () => { const p = riyadhParts(); return `${p.y}-${pad(p.mo)}-${pad(p.d)}T${pad(p.h)}:00`; };
 const WX_SVG = {
   sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7"/></svg>',
@@ -2401,7 +2415,7 @@ function marketOpen(sa, ms = Date.now()){
   return p.weekday !== 'Sat' && p.weekday !== 'Sun' && m >= 570 && m < 960;   // New York's own clock, summer time and winter time alike
 }
 let STOCKS = {};   // code -> {p: price, v: previous close or null, c: the day's closes, at: when it was fetched, bad: the last refresh failed}
-try{ STOCKS = JSON.parse(localStorage.getItem('stocks:' + location.hash) || '{}') || {}; }catch(e){}
+try{ STOCKS = JSON.parse(localStorage.getItem(LS.stocks) || '{}') || {}; }catch(e){}
 // a small line of the day's closes, 60 x 16, drawn only when the card's markup changes
 function spark(c, up){
   if(c.length < 2) return '<svg viewBox="0 0 60 16" preserveAspectRatio="none"></svg>';
@@ -2554,8 +2568,8 @@ const WX_CODES = {
 // not shown as «now» (the temperature, the word and the day's range at the top left go blank until a new one arrives).
 const WX_STALE_MS = 3*3600000;
 let WX = {at: 0, pm: 0, pmAt: 0};
-try{ WX = Object.assign(WX, JSON.parse(localStorage.getItem('wx:' + location.hash) || '{}')); }catch(e){}
-const saveWx = () => { try{ localStorage.setItem('wx:' + location.hash, JSON.stringify(WX)); }catch(e){} };
+try{ WX = Object.assign(WX, JSON.parse(localStorage.getItem(LS.wx) || '{}')); }catch(e){}
+const saveWx = () => { try{ localStorage.setItem(LS.wx, JSON.stringify(WX)); }catch(e){} };
 function wxExpire(){
   if(Date.now() - WX.at < WX_STALE_MS) return;
   ['wx-temp', 'wx-desc', 'wx-range'].forEach(id => { const el = document.getElementById(id); if(el){ setText(el, ''); el.classList.remove('dust'); } });
@@ -2581,13 +2595,13 @@ async function loadWeather(){
     const dl = j.daily || {};
     FORECAST = (dl.time || []).map((t, i) => ({date:t, code:dl.weather_code?.[i],
       hi:dl.temperature_2m_max?.[i], lo:dl.temperature_2m_min?.[i]})).filter(x => x.hi != null && x.lo != null);
-    try{ localStorage.setItem('forecast:' + location.hash, JSON.stringify(FORECAST)); }catch(e){}
+    try{ localStorage.setItem(LS.forecast, JSON.stringify(FORECAST)); }catch(e){}
     if(hours){
       const hr = j.hourly || {}, from = hourKey();
       HOURLY = (hr.time || []).map((t, i) => ({t, code:hr.weather_code?.[i], temp:hr.temperature_2m?.[i]})).filter(x => x.t > from && x.temp != null).slice(0, 12);
       SUN = {};
       (dl.time || []).forEach((d, i) => { const up = dl.sunrise?.[i], down = dl.sunset?.[i]; if(up && down) SUN[d] = [up.slice(11, 16), down.slice(11, 16)]; });
-      try{ localStorage.setItem('hourly:' + location.hash, JSON.stringify({h:HOURLY, s:SUN})); }catch(e){}
+      try{ localStorage.setItem(LS.hourly, JSON.stringify({h:HOURLY, s:SUN})); }catch(e){}
     }
     renderPanel(false, 'forecast', 'hourly');
     if(slotNow() === 'weather') renderSlot();
@@ -2824,7 +2838,7 @@ function applyBackground(force){
 }
 
 // Last painted panels, shown at once on the next start while fresh data loads.
-const SNAP_KEY = 'snap6:' + location.hash;   // bump when the panels' markup changes
+const SNAP_KEY = LS.snap;   // 'snap6:' + the link; bump when the panels' markup changes
 const SNAP_SEL = ['.markets', '#match-row'];
 let SNAP_LAST = null;   // what is stored now: the panels rarely change, so most saves have nothing to write
 const noCrestData = h => (h || '').replace(/ src="data:[^"]*"/g, '');   // the crests are kept apart
@@ -2864,7 +2878,39 @@ function cardTimers(){
   setInterval(() => renderPanel(false, 'adhkar', 'stocks', ...clocked), 60*1000);   // a window may have opened; a market opened or closed
 }
 
+// Drops what this page no longer needs from localStorage, at boot. Only the families named here are looked at (other keys are not
+// this function's to judge): a copy keyed by a whole link, which an older version left behind for each setting change, goes at once;
+// a copy for another city, symbol list or link goes after two weeks without being used; of the link-keyed snapshots the newest 6 stay.
+const LS_FAMILIES = ['forecast:', 'hourly:', 'wx:', 'stocks:', 'mk:', 'matchesOk:'], LS_IDLE_MS = 14*DAY_MS, LS_SNAPS = 6;
+function pruneStorage(){
+  try{
+    const now = Date.now(), mine = new Set(Object.values(LS));
+    let seen = {};
+    try{ seen = JSON.parse(localStorage.getItem('lsSeen') || '{}') || {}; }catch(e){}
+    mine.forEach(k => { seen[k] = now; });
+    const snaps = [];
+    localStorage.removeItem('matchesOk');   // (one version kept it for every link at once)
+    for(let i = localStorage.length - 1; i >= 0; i--){
+      const k = localStorage.key(i);
+      if(!k || mine.has(k)) continue;
+      const fam = LS_FAMILIES.find(f => k.startsWith(f));
+      if(fam && k.charAt(fam.length) === '#'){ localStorage.removeItem(k); delete seen[k]; continue; }   // keyed by a whole link: the old way
+      if(fam || k.startsWith('snap6:')){
+        if(!seen[k]) seen[k] = now;
+        if(now - seen[k] > LS_IDLE_MS){ localStorage.removeItem(k); delete seen[k]; }
+        else if(k.startsWith('snap6:')) snaps.push(k);
+      }
+    }
+    snaps.concat(mine.has(LS.snap) ? [LS.snap] : []).sort((a, b) => (seen[b] || 0) - (seen[a] || 0)).slice(LS_SNAPS).forEach(k => {
+      if(k !== LS.snap){ localStorage.removeItem(k); delete seen[k]; }
+    });
+    for(const k in seen) if(localStorage.getItem(k) === null && !mine.has(k)) delete seen[k];
+    localStorage.setItem('lsSeen', JSON.stringify(seen));
+  }catch(e){}
+}
+
 function boot(){
+  pruneStorage();
   if(CONFIG.widget){ bootWidget(); return; }
   buildCards();
   if(document.fonts) document.fonts.ready.then(() => {   // widths change once the fonts are in
@@ -2912,9 +2958,9 @@ function boot(){
   cardTimers();
   setInterval(applyNight, 60*1000);
   setInterval(pixelShift, 4*60*1000);
-  let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
+  let lastDay = FMT_DATE.format(new Date());
   setInterval(()=>{
-    const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
+    const d = FMT_DATE.format(new Date());
     if(d !== lastDay){
       lastDay = d; tickDates(); tickOccasion(); renderPanel(false);
       later(() => { loadPhotoIndex().then(() => applyBackground(true)); loadPrayers(); if(NEEDS_MATCHES) loadMatches(); if(USES('shows')) loadWeek(); loadWeather(); });   // each TV at its own minute

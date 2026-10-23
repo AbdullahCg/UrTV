@@ -69,7 +69,10 @@ final class PhotoCache {
     private static synchronized File hosted(Context c, String url, String name) throws java.io.IOException {
         File dir = new File(c.getFilesDir(), "photos");
         File f = new File(dir, name);
-        if (f.isFile() && f.length() > 0) return f;
+        if (f.isFile() && f.length() > 0) {
+            f.setLastModified(System.currentTimeMillis());   // served now: the next prune keeps it (it keeps the newest, by this time)
+            return f;
+        }
         if (!dir.isDirectory() && !dir.mkdirs()) return null;
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
         con.setConnectTimeout(15000);

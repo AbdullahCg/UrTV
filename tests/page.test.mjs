@@ -47,13 +47,13 @@ async function open(file, hash, { width = 1920, height = 1080, seed = true, net 
 // the write and, now and then (about one run in ten, on the branch before these tests were added too), starts the reloaded page
 // before that: it finds nothing. What the browser keeps is not what is tested, so the keys are carried over by hand, as the TV's
 // WebView keeps them: put back at the start of the next load, where the page has none.
-const restart = async p => {
+const carry = async p => {   // what the page has kept is put back at the start of the next load
   const kept = await p.evaluate(() => JSON.stringify(Object.assign({}, localStorage)));
   await p.context().addInitScript(kv => {
     try { const o = JSON.parse(kv); for (const k in o) if (localStorage.getItem(k) === null) localStorage.setItem(k, o[k]); } catch (e) {}
   }, kept);
-  await p.reload();
 };
+const restart = async p => { await carry(p); await p.reload(); };
 
 // ---- both pages, three screen sizes: no errors, shown, clock right, nothing off screen, Arabic digits
 for (const file of ['urtv.html', 'tv.html']) {
@@ -2825,6 +2825,58 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
   check('prayer times card: an Isha after midnight reads ١٢:١٤ ص', r.rows[5] && r.rows[5].includes('ص') && r.rows[5].startsWith('العشاء'), r.rows.join(' | '));
   check('fmt12: 24:14 is 12:14 ص, noon م, 0:05 ص, 23:59 م', r.f.join() === '١٢:١٤ ص,١٢:٠٠ م,١٢:٠٥ ص,١١:٥٩ م', r.f.join());
   check('computePrayers: no script errors', !errors.length, errors.join('; '));
+  await ctx.close();
+}
+
+// ---- what the page keeps in localStorage is keyed by what it is for, and the old link-keyed copies are pruned at boot
+{
+  const seed = { 'forecast:#city=old&lat=1': '[]', 'hourly:#x': '{}', 'stocks:#y': '{}', 'mk:#z': '{}', 'wx:#w': '{}',
+                 'forecast:20.000,30.000': '[{"date":"2026-10-22","code":1,"hi":30,"lo":20}]', 'snap6:#old1': '[]', 'snap6:#old2': '[]',
+                 'someone-elses-key': 'keep me', 'matchesOk': '5' };
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  await ctx.route(/^https?:/, r => r.abort());
+  await ctx.addInitScript(kv => { try { const o = JSON.parse(kv); for (const k in o) if (localStorage.getItem(k) === null) localStorage.setItem(k, o[k]); } catch (e) {} }, JSON.stringify(seed));
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=forecast&teams=');
+  await p.waitForTimeout(600);
+  const keys = await p.evaluate(() => Object.keys(localStorage).sort());
+  check('storage: the copies keyed by a whole link are gone at boot', !keys.some(k => /^(forecast|hourly|stocks|mk|wx):#/.test(k)) && !keys.includes('matchesOk'), keys.join(' '));
+  check('storage: a key that is not one of the page\'s families is left alone', keys.includes('someone-elses-key'), keys.join(' '));
+  check('storage: another city\'s forecast stays (idle less than two weeks)', keys.includes('forecast:20.000,30.000'));
+  await p.evaluate(() => { FORECAST = [{ date: cityToday(), code: 1, hi: 33, lo: 22 }]; localStorage.setItem(LS.forecast, JSON.stringify(FORECAST)); });
+  check('storage: the forecast key names the city, not the link', await p.evaluate(() => LS.forecast) === 'forecast:21.543,39.173' && !(await p.evaluate(() => Object.keys(localStorage))).some(k => k.startsWith('forecast:#')));
+  await carry(p); await p.goto('about:blank'); await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');   // (a new page: a changed #hash alone is no reload)   // another link, the same city
+  await p.waitForTimeout(500);
+  check('storage: another link for the same city finds the saved forecast', await p.evaluate(() => FORECAST.length && FORECAST[0].hi) === 33);
+  // the link-keyed snapshots: the newest six stay
+  await p.evaluate(() => { const now = Date.now(), seen = {}; for (let i = 0; i < 9; i++) { localStorage.setItem('snap6:#n' + i, '[]'); seen['snap6:#n' + i] = now - (i + 1) * 36e5; }
+    localStorage.setItem('lsSeen', JSON.stringify(seen)); localStorage.setItem('forecast:5.000,6.000', '[]'); const s2 = JSON.parse(localStorage.getItem('lsSeen')); s2['forecast:5.000,6.000'] = now - 15 * 864e5; localStorage.setItem('lsSeen', JSON.stringify(s2)); });
+  await carry(p); await p.goto('about:blank'); await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');   // (a new page: a changed #hash alone is no reload)
+  await p.waitForTimeout(500);
+  const after = await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snap6:')).length);
+  const gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  check('storage: the link-keyed snapshots are kept to the newest six (this page\'s own included)', after <= 6, String(after));
+  check('storage: a copy for another city unused for two weeks is dropped', gone === null);
+  await ctx.close();
+}
+
+// ---- the formatters of the clock and of the games are made once
+{
+  const { p, ctx } = await open('tv.html', 'teams=136013&panel=matches', { now: new Date('2026-10-22T13:40:00Z') });
+  const r = await p.evaluate(() => {
+    const R = Intl.DateTimeFormat; let made = 0;
+    Intl.DateTimeFormat = function (...a) { made++; return new R(...a); };
+    Intl.DateTimeFormat.prototype = R.prototype;
+    const ev = { idEvent: 'q1', strHomeTeam: 'Al-Hilal', idHomeTeam: '136013', strAwayTeam: 'Al-Nassr', idAwayTeam: '136137', strSport: 'Soccer', strStatus: 'NS',
+                 strTimestamp: new Date(Date.now() + 5 * 36e5).toISOString() };
+    NEXT_LIST['136013'] = [ev]; MATCHES['136013'] = ev;
+    for (let i = 0; i < 40; i++) { riyadhParts(); matchWhen(new Date(ev.strTimestamp)); gameBlock(ev, Date.now()); cityToday(); hmParts(new Date()); }
+    renderMatches(); renderPanel(false, 'matches');
+    Intl.DateTimeFormat = R;
+    return { made, when: matchWhen(new Date(ev.strTimestamp)), p: riyadhParts() };
+  });
+  check('formatters: riyadhParts, matchWhen, gameBlock and the date builders make no new Intl.DateTimeFormat per call', r.made === 0, `${r.made} made`);
+  check('formatters: and they still give the right answer (Thursday 13:40Z is 16:40 in Riyadh)', r.p.h === 16 && r.p.mi === 40 && /٩:٤٠|9:40/.test(r.when), JSON.stringify(r));
   await ctx.close();
 }
 

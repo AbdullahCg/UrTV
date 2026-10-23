@@ -13,6 +13,7 @@ python3 tests/install_retry_test.py
 python3 tests/run_lock_test.py
 python3 tests/reboot_test.py
 python3 tests/tv_identity_test.py
+python3 tests/tv_read_only_test.py
 python3 tests/key_home_test.py
 python3 tests/dock_names_test.py
 python3 tests/dock_sleep_test.py
@@ -26,7 +27,12 @@ python3 tests/league_fixtures_test.py
 python3 tests/market_prices_test.py
 python3 tests/adhkar_tool_test.py
 python3 tests/saver_tasks_test.py
+python3 tests/saver_quote_test.py
 python3 tests/saver_off_test.py
+python3 tests/versions_test.py
+python3 tests/app_fixes_test.py
+python3 tests/keep_test.py
+python3 tests/reset_screensaver_test.py
 python3 tests/task_voice_test.py
 python3 tests/photo_prep_test.py
 python3 tests/photos_sh_test.py

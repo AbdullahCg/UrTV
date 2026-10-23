@@ -34,15 +34,20 @@ optimize/keep.sh || true   # a TV optimized before may have voice, mirroring or 
 echo "2/4 The TV's own screensaver…"
 printf '%s\n' "settings delete secure screensaver_components" "settings delete secure screensaver_default_component" \
   | tv --batch > /dev/null
-# install.sh switched screensaver_enabled on; backup.sh saved the values from before (null: it was never set)
+# install.sh switched screensaver_enabled on and set ours; backup.sh saved the values from before (null: it was never set)
 if [ -f optimize/run/backup.txt ]; then
   vals=$(tr -d '\r' < optimize/run/backup.txt | awk '/^== /{s=($2=="screensaver")} s&&!/^==/{print}')
-  { read -r _; read -r enabled; read -r timeout; } <<< "$vals"
-  for kv in "secure screensaver_enabled ${enabled:-}" "system screen_off_timeout ${timeout:-}"; do
-    read -r ns key val <<< "$kv"
-    [ -n "$val" ] || continue
-    if [ "$val" = null ]; then echo "settings delete $ns $key"; else echo "settings put $ns $key $val"; fi
-  done | tv --batch > /dev/null
+  { read -r comps; read -r enabled; read -r timeout; } <<< "$vals"
+  { # the screensaver the TV had (a component list; none then, or ours from an earlier setup: left deleted, the TV picks its own)
+    if [[ "${comps:-}" =~ ^[A-Za-z0-9_.]+/[A-Za-z0-9_.\$]+(,[A-Za-z0-9_.]+/[A-Za-z0-9_.\$]+)*$ ]] && [[ "$comps" != *sa.urtv.screensaver/* ]]; then
+      echo "settings put secure screensaver_components '$comps'"
+    fi
+    for kv in "secure screensaver_enabled ${enabled:-}" "system screen_off_timeout ${timeout:-}"; do
+      read -r ns key val <<< "$kv"
+      [ -n "$val" ] || continue
+      if [ "$val" = null ]; then echo "settings delete $ns $key"; else echo "settings put $ns $key $val"; fi
+    done
+  } | tv --batch > /dev/null
 else
   echo "   (no optimize/run/backup.txt: screensaver_enabled and screen_off_timeout left as they are)"
 fi

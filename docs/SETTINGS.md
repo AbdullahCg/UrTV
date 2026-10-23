@@ -25,7 +25,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 
 | They ask for | The setting | Command |
 |---|---|---|
-| their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>` (a short form is fine if only one city matches); not listed: `optimize/saver.sh city '<name>' <lat> <lon>`, outside Saudi Arabia add its time zone: `… <lat> <lon> Asia/Kuwait` (without it, the TV's own zone) |
+| their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>` (a short form is fine if only one city matches); not listed: `optimize/saver.sh city '<name>' <lat> <lon> <time zone>` (`… 25.86 43.49 Asia/Riyadh` in Saudi Arabia, `… 29.37 47.98 Asia/Kuwait` elsewhere); a place that is not in the list is refused without its time zone («add the time zone») |
 | their clubs, the matches | الفرق المتابعة (up to 20) | `optimize/saver.sh find-team <club>` (Arabic or English), then `optimize/saver.sh teams <id:Name> …` in their order |
 | a whole league, every match of its clubs | الدوريات كاملة (up to 5) | `optimize/saver.sh leagues 'Saudi-Arabian Pro League'` (the Arabic name, «دوري روشن السعودي», works too; `""` = none) |
 | Formula 1, UFC, boxing | رياضات أخرى | `optimize/saver.sh events f1,ufc,boxing` (`""` = none) |
@@ -84,7 +84,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 |---|---|
 | something protected went off (AirPlay, casting, voice, updates) | `optimize/keep.sh` |
 | a TV system update brought the old home back, or apps back on | `optimize/run.sh again` (settings stay) |
-| undo everything, back as it came | `optimize/reset.sh` |
+| undo everything, back as it came | `optimize/reset.sh` (the TV's own screensaver comes back with its settings) |
 | restart the TV | `optimize/venv/bin/python -I optimize/tv.py --reboot` (never a plain `reboot`) |
 | how much memory is free | `optimize/measure.sh after --now` |
 | a screenshot | `optimize/shot.sh home`, `screensaver`, `settings`, `favourites`, `now <name>` |

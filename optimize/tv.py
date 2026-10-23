@@ -27,6 +27,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import sys
 import time
@@ -131,9 +132,12 @@ def check_identity(out):
 # Commands that only read. Anything else (installs, pm enable/disable, settings put, am, content, input, rm, ...) is
 # treated as changing the TV and checked first. When in doubt a command counts as changing: that costs one getprop.
 READ_ONLY = ("getprop", "dumpsys", "pm list", "pm path", "pm query-services", "pm resolve-activity", "settings get", "cat",
-             "ls", "ps", "top", "df", "du", "grep", "egrep", "wc", "md5sum", "head", "tail", "echo", "printf", "date", "id",
+             "ls", "ps", "top", "df", "du", "grep", "egrep", "wc", "md5sum", "head", "tail", "echo", "printf", "id",
              "uname", "test", "[", "[[", "true", "sleep", "cmd package resolve-activity", "cmd package query-services",
-             "cmd package list", "device_config get", "appops get", "wm size", "wm density")
+             "cmd package list", "device_config get", "appops get")
+# Commands that read in one form and write in another («wm size 1280x720», «wm density 240», «date -s …» change the TV): only
+# the reading form counts, whatever follows.
+READ_FORMS = (re.compile(r"wm (size|density)\s*$"), re.compile(r"date(\s+-u)?(\s+\+\S*)?\s*$"))
 SHELL_WORDS = ("for", "do", "done", "if", "then", "else", "elif", "fi", "while", "{", "}", "!")
 
 
@@ -151,9 +155,18 @@ def is_read_only(cmd):
             seg = "" if first == "for" else rest   # «for x in a b» only names words
         if not seg.strip():
             continue
-        if not any(seg == r or seg.startswith(r + " ") for r in READ_ONLY):
+        if not (any(seg == r or seg.startswith(r + " ") for r in READ_ONLY) or any(p.match(seg.strip()) for p in READ_FORMS)):
             return False
     return True
+
+
+def shell_line(args):
+    """The command line to send for these arguments. One argument is a whole command, as written ('pm list packages'); several are
+    words of one, each quoted so that one with a space or a ; stays one word on the TV (a path as Git Bash may have rewritten it
+    is put right first)."""
+    if len(args) == 1:
+        return tv_path(args[0])
+    return " ".join(shlex.quote(tv_path(x)) for x in args)
 
 
 def move_old(old, new):
@@ -448,7 +461,7 @@ def main():
     elif a[:1] in (["--bg"], ["--push-b64"]):
         changes = True
     else:
-        changes = bool(a) and a != ["--probe"] and not is_read_only(" ".join(tv_path(x) for x in a))
+        changes = bool(a) and a != ["--probe"] and not is_read_only(shell_line(a))
     tv = TV(guard=changes)
     if not a or a == ["--probe"]:
         for p in ("ro.product.manufacturer", "ro.product.brand", "ro.product.model", "ro.product.device",
@@ -462,7 +475,7 @@ def main():
     elif a[0] == "--pull":
         tv.call("pull", tv_path(a[1]), a[2])
     elif a[0] == "--bg":   # prints the command's own output; the exit code stays on the TV side
-        print(run_bg(tv, a[1], " ".join(tv_path(x) for x in a[2:]))[1])
+        print(run_bg(tv, a[1], shell_line(a[2:]))[1])
     elif a[0] == "--push-b64":
         push_b64(tv, a[1], tv_path(a[2]))
     elif a[0] == "--shot":
@@ -471,7 +484,7 @@ def main():
         tv.shell("rm /sdcard/_shot.png")
         print(f"saved {a[1]}")
     else:
-        print(tv.shell(" ".join(tv_path(x) for x in a)).rstrip())
+        print(tv.shell(shell_line(a)).rstrip())
     tv.close()
 
 
