@@ -82,7 +82,7 @@ report() {
   echo
   echo "Home: $(tv "cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN" | tail -1)"
   echo "Screensaver: $(tv "settings get secure screensaver_components")"
-  echo "Versions: screensaver $(tv "dumpsys package sa.urtv.screensaver | grep -m1 versionName" | sed 's/.*=//'), home $(tv "dumpsys package sa.urtv.home | grep -m1 versionName" | sed 's/.*=//')"
+  echo "Versions: screensaver $(tv "dumpsys package sa.urtv.screensaver 2> /dev/null | grep -m1 versionName" | sed 's/.*=//'), home $(tv "dumpsys package sa.urtv.home 2> /dev/null | grep -m1 versionName" | sed 's/.*=//')"
   echo "Extras: TV Bro $([ -n "$(tv "pm list packages com.phlox.tvwebbrowser")" ] && echo yes || echo no), SmartTube $([ -n "$(tv "pm list packages org.smarttube.stable")" ] && echo yes || echo no)"
   local picks
   picks=$(grep -cvE '^\s*(#|$)' optimize/lists/mine.txt 2>/dev/null || true)

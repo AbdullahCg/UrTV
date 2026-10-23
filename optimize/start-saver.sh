@@ -11,7 +11,7 @@ tv() { "$PY" -I optimize/tv.py "$@"; }
 
 dreaming() {   # Android 11+ runs a dream in DreamActivity; dumpsys dreams has mCurrentDream (14) or
   local s      # mCurrentDreamToken (older), null while none runs
-  s=$(tv "dumpsys dreams | grep -E 'mCurrentDream(Token)?='; dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity'")
+  s=$(tv "dumpsys dreams | grep -E 'mCurrentDream(Token)?='; dumpsys activity activities 2> /dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity'")
   grep -qE 'DreamActivity|mCurrentDream(Token)?=[^n ]' <<< "$s"
 }
 
