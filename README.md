@@ -130,7 +130,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 |---|---|
 | `optimize/find-tv.sh` | `--check`: can this terminal reach the home network at all (not from a cloud or sandbox) · then finds the TV (Windows, Mac, Linux) |
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
-| `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `events`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `national`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
+| `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `leagues`, `card`, `home-card`, `events`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `national`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
 | `optimize/music.sh` | «تلاوة» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
@@ -170,7 +170,7 @@ release; a push to `next` publishes `apk-next` instead (a test build). `tests/ru
 urtv.html#city=جدة&lat=21.5433&lon=39.1728&tz=Asia/Riyadh&teams=136013,136137&panel=prayers
 ```
 
-`teams`: up to 20 TheSportsDB ids in priority order. `panel`: the card beside the clock: `shows`, `prayers`,
+`teams`: up to 20 TheSportsDB ids in priority order. `leagues`: whole leagues, up to 5, by TheSportsDB's name (`leagues=Saudi-Arabian Pro League,NBA`, default none): every game of every club in them joins the followed teams' games. `panel`: the card beside the clock: `shows`, `prayers`,
 `forecast`, `matches`, `verse`, `wisdom`, `adhkar`, `stocks`, `tasks` or `none`. `events`: other sports beside the teams' games, `f1`, `ufc`, `boxing` (default none; their league ids come from `assets/shared/events.json`, written by CI). `stocks`: the watchlist of the stocks card, up to 8
 (`2222,1120,AAPL,NVDA`: 4 digits is a Tadawul code, letters a US ticker). Also `genres`, `langs`, `shows`, `minrating` for the episodes card,
 `digits`: `hindi` (١٢٣, the default) or `latin` (123), `national`: `auto` (default; on National Day, 21–25 September, and Founding Day, 20–24 February, the accent turns Saudi green with a small line under the dates, and the day itself greets «كل عام والوطن بخير») or `off`, and `cardstyle`: the card's look, `current` (default), `dark1`,
@@ -192,6 +192,16 @@ followed), `weather` (the next three days), `fasting` (the next recommended volu
 `countdown` (days to `cd=YYYY-MM-DD`, named `cdname`; the weather once it has passed), `markets` (the chosen markets with price and change) or `none` (the slot is hidden).
 
 Other sports: the NBA and NFL are leagues like the football ones (their teams are in `assets/shared/teams.json` with a `sport`, Arabic names in `teams-ar.json`; `find-team ليكرز` finds them). Formula 1, UFC and boxing are events, not teams: the screen shows the next one of each chosen sport beside the teams' games (the free TheSportsDB gives one upcoming event per league; boxing has no time of day, so only the day shows). Tennis and a Saudi basketball league were looked for and are not on TheSportsDB's free API (see `teams/report.json` on the `data-team-ids-*` branch).
+
+**Whole leagues** (`#leagues=`; «الدوريات كاملة» in the settings, `optimize/saver.sh leagues 'Saudi-Arabian Pro League'`, the Arabic name «دوري روشن السعودي» works too, `saver.sh show` lists them). The page does not ask per club: CI
+(`.github/workflows/league-fixtures.yml`, every 6 hours, by hand too, never on a push) writes each league's games of the coming week and
+the last day and a half into one file, `leagues/<slug>.json` on the branch `data-leagues` (`.github/tools/league_fixtures.py`: `eventsday.php` for each day,
+plus `eventsnextleague.php` and `eventspastleague.php`, because the free league calls are capped; the run's `leagues/report.json` says what each answered).
+The screen downloads one file per followed league every 30 minutes (1 request each); a game under way is refreshed with `lookupevent.php` every
+2 minutes (at most 6 league games at once, none twice). The league's games and the followed teams' are shown in one time order, a game
+once even when both follow it; the slot pages two a time (every 15 s, 10 s once there are more than 3 pages, so a round of 9 passes in under a minute), the card beside the clock four rows. Only the
+league's own file is read, so a club that is in two leagues (Abha: the Pro League and Division 1) shows only in the one it plays in this season.
+A game is always one line: when two long names do not fit side by side the pair goes one to a page.
 
 **Data** (free, no keys): Aladhan (prayer times, Umm al-Qura), Open-Meteo (weather), Yahoo and CoinGecko (markets),
 TVMaze (episodes), TheSportsDB (matches). Everything fails soft: offline, the clock, dates, prayer and Ramadan
