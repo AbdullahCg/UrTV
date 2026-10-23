@@ -59,7 +59,12 @@ if not HOST:
 PORT = int(os.environ.get("TV_PORT", "5555"))
 KEY = os.path.join(HOME_DIR, "adbkey")
 OLD_KEY = os.path.join(HERE, "adbkey", "adbkey")   # where the key lived before: inside the clone
-TRIES = int(os.environ.get("TV_TRIES", "4"))
+# A TV on weak Wi-Fi (TCL G10 on Android 12 was the worst) stops answering for a minute at a time, or wakes slowly from standby:
+# nine reports said «TV not answering after 4 tries», which gave up after 30 seconds. Now 6 tries with a longer pause each (5, 10,
+# 15, 20, 30 s: 80 s), and 10 for the long jobs (uploads, background installs: 5 to 30 s apart, over 3 minutes). TV_TRIES sets both.
+TRIES = int(os.environ.get("TV_TRIES", "6"))
+LONG_TRIES = int(os.environ.get("TV_TRIES", "10"))
+MAX_PAUSE_S = 30
 ID_FILE = os.path.join(os.environ.get("URTV_RUN_DIR") or HOME_DIR, "tv-id.json")
 OLD_ID_FILE = os.path.join(HERE, "run", "tv-id.json")
 
@@ -216,9 +221,10 @@ def signer():
 class TV:
     """One connection, reopened on failure; every call retried with a growing pause."""
 
-    def __init__(self, guard=False):
+    def __init__(self, guard=False, tries=None):
         self.dev = None
         self.guard = guard   # this run changes the TV: every new connection first checks it is the right one
+        self.tries = tries or TRIES
 
     def _open(self):
         self.close()
@@ -244,22 +250,27 @@ class TV:
             self.dev = None
 
     def call(self, fn, *args, **kw):
-        for attempt in range(TRIES):
+        for attempt in range(self.tries):
             try:
                 if self.dev is None:
                     self._open()
                 return getattr(self.dev, fn)(*args, **kw)
             except Exception as e:  # noqa: BLE001  (network errors come in many types)
                 self.close()
-                if attempt == TRIES - 1:
-                    sys.exit(f"!! TV not answering after {TRIES} tries ({type(e).__name__}: {e}). "
+                if attempt == self.tries - 1:
+                    sys.exit(f"!! TV not answering after {self.tries} tries ({type(e).__name__}: {e}). "
                              "Check the TV is on and on Wi-Fi, then run the same command again.")
-                wait = 5 * (attempt + 1)
+                wait = backoff(attempt)
                 print(f"   (connection problem: {type(e).__name__}; retrying in {wait}s)", file=sys.stderr)
                 time.sleep(wait)
 
     def shell(self, cmd, timeout=120):
         return self.call("shell", cmd, read_timeout_s=timeout) or ""
+
+
+def backoff(attempt):
+    """Seconds to wait after the attempt-th failure (0 is the first): 5, 10, 15, 20, 25, 30, 30, …"""
+    return min(5 * (attempt + 1), MAX_PAUSE_S)
 
 
 ANDROID_ROOT = re.compile(r"/(?:data|sdcard|storage|system|vendor|product|apex|mnt|proc|dev|cache|odm|oem)(?=/|$)")
@@ -335,6 +346,16 @@ def run_bg(tv, name, cmd, progress=None, limit_s=None):
     return (int(rc) if rc.lstrip("-").isdigit() else 1), out
 
 
+def cut_back(tmp, i):
+    """Make `tmp` exactly its first `i` characters again, whatever state a lost reply left it in. The first version, `head -c i tmp >
+    tmp.x && mv tmp.x tmp`, failed with "mv: bad '….b64.x': No such file or directory" at 0% (two reports): at the start there is no
+    file to cut, and some TVs' head makes no .x for an empty cut. So: nothing to keep (i is 0) -> remove it; else cut only if it is
+    there; never mv a file that is not."""
+    if i == 0:
+        return f"rm -f {tmp} {tmp}.x"
+    return f"if [ -f {tmp} ]; then head -c {i} {tmp} > {tmp}.x && [ -f {tmp}.x ] && mv {tmp}.x {tmp}; fi"
+
+
 def push_b64(tv, local, remote, chunk=None):   # one argument may not exceed 128 KB on Android (32 KB on a Windows command line)
     """Upload in base64 pieces; on a retry, pieces already on the TV are kept (resumes, not restarts)."""
     chunk = chunk or upload_chunk()
@@ -360,7 +381,7 @@ def push_b64(tv, local, remote, chunk=None):   # one argument may not exceed 128
         for _ in range(5):    # a retried call wrote the piece twice, or not at all: cut back and write it again
             if size == want:
                 break
-            size = tv.shell(f"head -c {i} {tmp} > {tmp}.x && mv {tmp}.x {tmp}; echo -n '{piece}' >> {tmp}; wc -c < {tmp}").strip()
+            size = tv.shell(cut_back(tmp, i) + f"; echo -n '{piece}' >> {tmp}; wc -c < {tmp}").strip()
         if size != want:
             free = tv.shell(f"df -h {folder} | tail -1").strip()
             sys.exit(f"!! upload keeps failing at {i * 100 // len(enc)}% (the TV wrote {size or 'nothing'} of {want}; "
@@ -479,7 +500,7 @@ def main():
         changes = True
     else:
         changes = bool(a) and a != ["--probe"] and not is_read_only(shell_line(a))
-    tv = TV(guard=changes)
+    tv = TV(guard=changes, tries=LONG_TRIES if a[:1] in (["--bg"], ["--push-b64"]) else None)   # uploads and installs get the longer patience
     if not a or a == ["--probe"]:
         for p in ("ro.product.manufacturer", "ro.product.brand", "ro.product.model", "ro.product.device",
                   "ro.build.version.release", "ro.build.version.sdk", "ro.build.display.id"):

@@ -24,7 +24,7 @@
 | حمّل تطبيق Codex | حمّل تطبيق Claude ← تبويب **Code** |
 | الموافقات: اختر **«Approve for me»** | الموافقات: **Allow** للمهمة كلها |
 
-<sub>ويندوز: ركّب Git وPython أول (`winget install Git.Git Python.Python.3.12`). Gemini CLI مجاني وناس قالوا يشتغل؛ ما جرّبناه.</sub>
+<sub>ويندوز: ركّب Git وPython أول (`winget install --source winget Git.Git Python.Python.3.12`). Gemini CLI مجاني وناس قالوا يشتغل؛ ما جرّبناه.</sub>
 
 ### ③ الصق هذا
 
@@ -60,7 +60,7 @@ Settings → About → press OK on **Build** 7 times. Then go to **Developer opt
 | Download the Codex app | Download the Claude app → **Code** tab |
 | Approvals: choose **«Approve for me»** | Approvals: **Allow** for the whole task |
 
-<sub>Windows: install Git and Python first (`winget install Git.Git Python.Python.3.12`). Gemini CLI is free and reported to work; not tested by us.</sub>
+<sub>Windows: install Git and Python first (`winget install --source winget Git.Git Python.Python.3.12`). Gemini CLI is free and reported to work; not tested by us.</sub>
 
 ### ③ Paste this
 

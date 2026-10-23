@@ -21,8 +21,12 @@ case "$1" in
     in=$(cat)
     case "$in" in
       *nohup*) log arm; rm -f "$T/home_ok" ;;
-      *setupwraith*)
+      *"disable-user --user 0 com.google.android.tungsten.setupwraith"*)
         n=$(( $(cat "$T/switches" 2>/dev/null || echo 0) + 1 )); echo $n > "$T/switches"
+        if [ "$ILLEGAL" = stock ]; then   # Nokia Streaming Box 8000: the stock home cannot be turned off
+          log illegal; printf '%s\n' '$ cmd role add-role-holder x' 'ok' '$ pm disable-user --user 0 com.google.android.apps.tv.launcherx' 'This command is illegal' '$ input keyevent KEYCODE_HOME'
+          exit 0
+        fi
         if [ "$n" -le "$FAIL_SWITCHES" ]; then   # the connection drops in this batch
           [ "$FIRST_DROP" = ours ] && [ "$n" = 1 ] && echo ours > "$T/home"
           [ "$FIRST_DROP" = stock ] && [ "$n" = 1 ] && echo stock > "$T/home"
@@ -70,7 +74,7 @@ while [ $# -gt 0 ]; do [ "$1" = -o ] && : > "$2"; shift; done
 '''
 
 
-def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None, curl_mode="", vanish=""):
+def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None, curl_mode="", vanish="", illegal=""):
     t = Path(tempfile.mkdtemp())
     tree, bin_ = t / "tree", t / "bin"
     (tree / "optimize" / "lists").mkdir(parents=True); bin_.mkdir()
@@ -82,7 +86,7 @@ def run(name, fail_switches, first_drop, down_polls=0, verify="", verifier=None,
         (bin_ / f).write_text(body); (bin_ / f).chmod(0o755)
     if verifier is not None:
         (t / "verifier").write_text(verifier + "\n")
-    env = dict(os.environ, VERIFY=verify, VANISH=vanish, CURL_MODE=curl_mode, PATH=f"{bin_}:{os.environ['PATH']}", PY=str(bin_ / "py"), T=str(t),
+    env = dict(os.environ, ILLEGAL=illegal, VERIFY=verify, VANISH=vanish, CURL_MODE=curl_mode, PATH=f"{bin_}:{os.environ['PATH']}", PY=str(bin_ / "py"), T=str(t),
                FAIL_SWITCHES=str(fail_switches), FIRST_DROP=first_drop, DOWN_POLLS=str(down_polls))
     r = subprocess.run(["bash", str(tree / "optimize" / "install.sh"), "launcher"], env=env, capture_output=True, text=True)
     log = (t / "log").read_text().split() if (t / "log").exists() else []
@@ -111,7 +115,7 @@ cases = [
     ("Play Protect refuses twice: one retry, old value still restored", run("h", 0, "", verify="always", verifier="1"),
      lambda c, o, l: c == 1 and l.count("refused") == 2 and "Install of urtv-home.apk failed" in o and l[-1] == "final-1"),
     ("Windows revocation error: retried with --ssl-revoke-best-effort", run("j", 0, "", curl_mode="revoke"),
-     lambda c, o, l: c == 0 and "without that check" in o and "Play Protect" not in o),
+     lambda c, o, l: c == 0 and "without that check" in o and "Play Protect refused" not in o),
     ("the TV removes the app after a plain install: once more as the Play Store", run("k", 0, "", vanish="plain"),
      lambda c, o, l: c == 0 and "installing it again as if from the Play Store" in o and l.count("installed") == 1
      and l.count("vending") == 1 and l.count("gone") == 1 and "Launcher is home" in o),
@@ -119,8 +123,15 @@ cases = [
      lambda c, o, l: c == 1 and l.count("vending") == 1 and "Install of urtv-home.apk failed" in o and "removed by this TV" in o),
     ("a normal install: no Play Store installer, no second install", run("m", 0, ""),
      lambda c, o, l: c == 0 and "vending" not in l and l.count("installed") == 1 and "Play Store" not in o),
+    ("the TV refuses to turn its own home off («This command is illegal»): the switch is skipped and said", run("n", 0, "", illegal="stock"),
+     lambda c, o, l: c == 0 and "Home switch skipped" in o and "Nokia" in o and "Launcher is home" not in o and l.count("illegal") == 1
+     and "other-batch" in l and "!!" not in o),
+    ("Play Protect refuses: the Arabic words for the person, «تثبيت على أي حال»", run("o", 0, "", verify="once", verifier="1"),
+     lambda c, o, l: c == 0 and "تثبيت على أي حال" in o),
+    ("Play Protect refuses twice: tells the person what to press and not to switch the verifier off", run("p", 0, "", verify="always", verifier="1"),
+     lambda c, o, l: c == 1 and "تثبيت على أي حال" in o and "package_verifier_enable" in o),
     ("no refusal: the setting is never touched", run("i", 0, "", verifier="1"),
-     lambda c, o, l: c == 0 and "put-0" not in l and "Play Protect" not in o),
+     lambda c, o, l: c == 0 and "put-0" not in l and "Play Protect refused" not in o),
 ]
 bad = [n for n, (c, o, l), ok in cases if not ok(c, o, l)]
 for n, (c, o, l), ok in cases:

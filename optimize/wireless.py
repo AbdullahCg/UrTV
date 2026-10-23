@@ -72,7 +72,7 @@ def valid_hostport(s):
 MISSING_ADB = (
     "!! Wireless debugging needs the platform's own `adb` program, and it is not installed on this computer.\n"
     "   (The Python ADB client of these tools has no pairing and no TLS.) Install it, then the same command again:\n"
-    "     Windows:  winget install -e --id Google.PlatformTools   (then a new Git Bash window)\n"
+    "     Windows:  winget install -e --id Google.PlatformTools --source winget   (then a new Git Bash window)\n"
     "     macOS:    brew install android-platform-tools\n"
     "     Linux:    sudo apt install adb      (or your package manager's «android-tools»)\n"
     "   or unpack Google's «SDK Platform-Tools» zip into the .urtv folder in your home folder (as platform-tools).")

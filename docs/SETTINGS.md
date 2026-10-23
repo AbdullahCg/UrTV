@@ -26,7 +26,7 @@ something about the screensaver, the home screen or the TV, find it in the table
 | They ask for | The setting | Command |
 |---|---|---|
 | their city, prayer times for it | المدينة | `optimize/saver.sh cities`, then `optimize/saver.sh city <name>` (a short form is fine if only one city matches); not listed: `optimize/saver.sh city '<name>' <lat> <lon> <time zone>` (`… 25.86 43.49 Asia/Riyadh` in Saudi Arabia, `… 29.37 47.98 Asia/Kuwait` elsewhere); a place that is not in the list is refused without its time zone («add the time zone») |
-| their clubs, the matches | الفرق المتابعة (up to 20) | `optimize/saver.sh find-team <club>` (Arabic or English), then `optimize/saver.sh teams <id:Name> …` in their order |
+| their clubs, the matches | الفرق المتابعة (up to 20) | `optimize/saver.sh find-team <club>` (Arabic or English), then `optimize/saver.sh teams <id:Name> …` in their order; **no team at all** (the defaults, الهلال والمنتخب السعودي, are on until you change them): `optimize/saver.sh teams none` (`teams ""` does the same); with no team the bottom-left slot shows the weather |
 | a whole league, every match of its clubs | الدوريات كاملة (up to 5) | `optimize/saver.sh leagues 'Saudi-Arabian Pro League'` (the Arabic name, «دوري روشن السعودي», works too; `""` = none) |
 | Formula 1, UFC, boxing | رياضات أخرى | `optimize/saver.sh events f1,ufc,boxing` (`""` = none) |
 | what shows beside the clock | المحتوى | `optimize/saver.sh card <verse, wisdom, adhkar, stocks, tasks, year, shows, prayers, forecast, hourly, prayerrow, matches, none>` |

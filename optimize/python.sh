@@ -38,11 +38,11 @@ pick_python() {
     esac
     echo "!! Python $bad is $v."
     echo "   Install Python 3.12 (macOS: brew install python@3.12, or without a password: uv python install 3.12;"
-    echo "   Windows: winget install -e --id Python.Python.3.12), then run the same command again: it is found"
+    echo "   Windows: winget install -e --id Python.Python.3.12 --source winget), then run the same command again: it is found"
     echo "   without a new terminal."
     return 1
   fi
   echo "!! No working Python 3 here. Install it (macOS: brew install python@3.12; Windows: winget install -e"
-  echo "   --id Python.Python.3.12), then run the same command again: it is found without a new terminal."
+  echo "   --id Python.Python.3.12 --source winget), then run the same command again: it is found without a new terminal."
   return 1
 }

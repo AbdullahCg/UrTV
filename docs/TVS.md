@@ -55,4 +55,4 @@ app's preview of the same page and `measure.sh` writes «not measured»). Times 
 - **macOS:** Homebrew's Python 3.12 or 3.13 (`brew install python@3.12`). python.org's Python has no certificates
   and the system 3.9 can't load the ADB package; `optimize/setup.sh` picks a good one and sets up the certificates.
 - **Windows:** clone into a short folder such as `C:\UrTV`; Git and Python come from winget
-  (`winget install -e --id Git.Git`, `winget install -e --id Python.Python.3.12`); run every script in Git Bash.
+  (`winget install -e --id Git.Git --source winget`, `winget install -e --id Python.Python.3.12 --source winget`); run every script in Git Bash.

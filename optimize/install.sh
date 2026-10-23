@@ -73,6 +73,9 @@ pm_install() {   # $1 file name in /data/local/tmp, $2 package: pm's answer. A b
 }
 
 push_install() {   # $1 apk name, $2 package
+  if [ "$2" = sa.urtv.home ]; then   # the home app targets an older SDK than Play Protect likes (seen on Android 12-14)
+    echo "للشخص: بعد لحظات ممكن تطلع على التلفزيون رسالة من Play Protect؛ إذا طلعت اضغط «تثبيت على أي حال» (Install anyway)."
+  fi
   if ! curl_get -fsSL -o "optimize/$1" "$REL/$1"; then
     echo "!! Could not download $REL/$1 (tag ${APK_TAG:-apk-latest}): no such build, or no internet"; exit 1
   fi
@@ -82,6 +85,7 @@ push_install() {   # $1 apk name, $2 package
   if grep -q INSTALL_FAILED_VERIFICATION_FAILURE <<< "$out"; then
     verifier_old=$("$PY" -I optimize/tv.py "settings get global $VERIFIER" | tr -d '\r\n' || true)
     echo "Play Protect refused the install over ADB: its ADB check is off for this install only, and put back right after (was: ${verifier_old:-not set})."
+    echo "للشخص: لو طلعت على التلفزيون رسالة من Play Protect (التطبيق «غير آمن» أو «مبني لإصدار قديم»)، اضغط «تثبيت على أي حال» (Install anyway) بالريموت. هذا تطبيق تلفزيونك، والرسالة تطلع لأن الشاشة الرئيسية مبنية لإصدار أندرويد أقدم."
     verifier_set=1
     "$PY" -I optimize/tv.py "settings put global $VERIFIER 0" > /dev/null || true
     out=$(pm_install "$1" "$2")
@@ -96,7 +100,11 @@ push_install() {   # $1 apk name, $2 package
       out=$(pm_install "$1" "$2")
       grep -q Success <<< "$out" || { echo "!! Install of $1 failed again: $out"; exit 1; }
     else
-      echo "!! Install of $1 failed: $out"; exit 1
+      echo "!! Install of $1 failed: $out"
+      if grep -q INSTALL_FAILED_VERIFICATION_FAILURE <<< "$out"; then
+        echo "   Play Protect still refuses it. Tell the person, in Arabic: «اضغط على التلفزيون «تثبيت على أي حال» لما تطلع رسالة Play Protect، وإذا ما طلعت: الإعدادات ← متجر Play ← Play Protect ← «فحص التطبيقات» وقف مؤقتاً، وبعدها نعيد المحاولة». Do not turn the verifier off yourself (settings put global package_verifier_enable 0): only this script changes verifier_verify_adb_installs, for the install, and puts it back."
+      fi
+      exit 1
     fi
   fi
   restore_verifier
@@ -104,7 +112,12 @@ push_install() {   # $1 apk name, $2 package
 }
 
 from_github() {   # $1 owner/repo, $2 package, $3 asset pattern ({abi} = the TV's processor types, best first)
-  local abis url name out code body
+  local abis url name out code body size
+  # an extra that an earlier try already installed is not downloaded or uploaded again: a flaky Wi-Fi that dropped on the second
+  # one resumes there, not from the first (an upload cut off half way is resumed by tv.py itself)
+  if "$PY" -I optimize/tv.py "pm list packages $2" | tr -d '\r' | grep -qx "package:$2"; then
+    echo "$2 is already on the TV: left as it is (it updates itself)."; return 0
+  fi
   abis=$("$PY" -I optimize/tv.py "getprop ro.product.cpu.abilist" | tr -d '\r')
   body=$(curl_get -sSL -w '\n%{http_code}' "https://api.github.com/repos/$1/releases/latest") || body=$'\n000'
   code=${body##*$'\n'}; body=${body%$'\n'*}
@@ -115,16 +128,19 @@ from_github() {   # $1 owner/repo, $2 package, $3 asset pattern ({abi} = the TV'
   fi
   url=$("$PY" -I -c '
 import json, re, sys
-assets = {a["name"]: a["browser_download_url"] for a in json.load(sys.stdin)["assets"]}
+assets = {a["name"]: (a["browser_download_url"], a.get("size", 0)) for a in json.load(sys.stdin)["assets"]}
 for abi in [a for a in sys.argv[2].split(",") if a] + ["universal", ""]:
     pat = re.compile(sys.argv[1].replace("{abi}", re.escape(abi)) + "$")
     hit = sorted(n for n in assets if pat.search(n))
     if hit:
-        print(assets[hit[0]]); break
+        print(assets[hit[0]][0], assets[hit[0]][1]); break
 ' "$3" "$abis" <<< "$body") || true
   if [ -z "$url" ]; then echo "!! No build of $1 for this TV ($abis): skipped"; return 0; fi
+  size=${url##* }; url=${url% *}
   name=$(basename "$url")
-  if ! curl_get -fsSL -o "optimize/$name" "$url"; then echo "!! Could not download $url"; failed=1; return 0; fi
+  if [ -f "optimize/$name" ] && [ "$size" != 0 ] && [ "$(wc -c < "optimize/$name" | tr -d ' ')" = "$size" ]; then
+    echo "$name is already downloaded: not downloading it again."
+  elif ! curl_get -fsSL -o "optimize/$name" "$url"; then echo "!! Could not download $url"; failed=1; return 0; fi
   "$PY" -I optimize/tv.py --push-b64 "optimize/$name" "/data/local/tmp/$name"
   out=$(pm_install "$name" "$2")
   "$PY" -I optimize/tv.py "rm -f /data/local/tmp/$name" > /dev/null
@@ -172,7 +188,7 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
   # Returns 0: the new home is on screen and the switch is disarmed; 1: tv.py failed (connection lost);
   # 2: Home did not open the new launcher; 3: the safety switch fired first.
   switch_home() {
-    local top res ours=no _
+    local top res stepout ours=no _
     if [ "${1:-}" != verify ]; then
       # 2. Arm the safety switch on the TV: it restores the stock home in 300 s unless we confirm (slow ADB needs time).
       "$PY" -I optimize/tv.py --push-b64 optimize/deadman.sh /data/local/tmp/deadman.sh || return 1
@@ -184,7 +200,7 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
 
       # 3. Switch: the HOME role (Android 10+; the classic set-home-activity for older sets and as a backup), then
       #    the setup app off, then the stock home (this order avoided the black screen).
-      printf '%s\n' \
+      stepout=$(printf '%s\n' \
         "cmd role add-role-holder --user 0 android.app.role.HOME sa.urtv.home" \
         "cmd package set-home-activity --user 0 sa.urtv.home/.MainActivity" \
         "pm disable-user --user 0 com.google.android.tungsten.setupwraith" \
@@ -192,7 +208,16 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
         "cmd package set-home-activity --user 0 sa.urtv.home/.MainActivity" \
         "am force-stop com.android.tv.settings" \
         "input keyevent KEYCODE_HOME" \
-        | "$PY" -I optimize/tv.py --batch || return 1
+        | "$PY" -I optimize/tv.py --batch) || return 1
+      printf '%s\n' "$stepout"
+      # Nokia Streaming Box 8000 answers «This command is illegal» to pm disable-user for its own launcher: no switch there.
+      # Put the stock home back as it was and stop the switch (4); nothing else of the setup depends on it.
+      if grep -A2 -F "\$ pm disable-user --user 0 ${STOCK%%/*}" <<< "$stepout" | grep -qi 'illegal'; then
+        printf '%s\n' "cmd role add-role-holder --user 0 android.app.role.HOME ${STOCK%%/*}" \
+          "cmd package set-home-activity --user 0 $STOCK" "pm enable com.google.android.tungsten.setupwraith" \
+          "touch /data/local/tmp/home_ok" "input keyevent KEYCODE_HOME" | "$PY" -I optimize/tv.py --batch > /dev/null || true
+        return 4
+      fi
     fi
     # 4. Verify Home really opens the new launcher (a few tries: a slow TV), then disarm the switch.
     for _ in 1 2 3; do
@@ -230,18 +255,26 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
       switch_home || rc=$?   # arms the switch again first
     fi
   fi
+  home_skipped=0
   case "$rc" in
     0) ;;
+    4) home_skipped=1
+       echo "Home switch skipped: this TV refuses to turn its own home screen off («This command is illegal», seen on a Nokia Streaming Box 8000). It keeps its own home; the stock home is back as it was. The screensaver and the rest of the setup work without it."
+       mkdir -p "${URTV_RUN_DIR:-optimize/run}"
+       echo "Home switch: skipped, this TV refuses to turn its own home screen off" > "${URTV_RUN_DIR:-optimize/run}/home-skipped.txt" ;;
     2) echo "!! Home did not open the new launcher. Leave the TV alone: the stock home returns within 5 minutes."
        echo "   Some TCL firmware pins Home to the stock launcher; on those sets keep the stock home."
        exit 1 ;;
     *) echo "!! The safety switch put the stock home back (ADB was too slow). Nothing is broken: run the same command again."
        exit 1 ;;
   esac
-  # 5. Only now: the stock home's helpers are dead weight (restore.sh brings them back).
-  grep -vE '^\s*(#|$)' optimize/lists/home-replaced.txt | awk '{print "pm disable-user --user 0 " $1}' \
-    | "$PY" -I optimize/tv.py --batch > /dev/null || true
-  echo "Launcher is home. Press Home from inside an app to double-check."
+  if [ "$home_skipped" = 0 ]; then
+    # 5. Only now: the stock home's helpers are dead weight (restore.sh brings them back).
+    grep -vE '^\s*(#|$)' optimize/lists/home-replaced.txt | awk '{print "pm disable-user --user 0 " $1}' \
+      | "$PY" -I optimize/tv.py --batch > /dev/null || true
+    rm -f "${URTV_RUN_DIR:-optimize/run}/home-skipped.txt"
+    echo "Launcher is home. Press Home from inside an app to double-check."
+  fi
   echo "Undo everything: optimize/reset.sh"
 fi
 
