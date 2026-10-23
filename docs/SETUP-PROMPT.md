@@ -326,6 +326,7 @@ Check each, and fix or report what fails:
 optimize/keep.sh                                  # must end with «Protected features: all on.»
 optimize/run.sh status                            # every step ✓, and «report: no !! lines»
 ```
+(One `!!` line is allowed there: «the screensaver may slow this TV». It is advice for me, not a failure: see step 7.)
 - `report.md` shows Home as `sa.urtv.home` (or the stock home if we used `SKIP_LAUNCHER=1`) and the screensaver
   as `sa.urtv.screensaver`.
 - You looked at the step 5 screenshots yourself and they show my city, my card and my favourites.
@@ -333,6 +334,12 @@ optimize/run.sh status                            # every step ✓, and «report
 ## 7. Tell me
 
 - The before/after table from `optimize/run/report.md` and its feature check.
+- **If `report.md` has the line `!! the screensaver may slow this TV: …`** (our screensaver took much of this TV's
+  memory or processor next to the TV's own), tell me so in Arabic, in one or two sentences, and **ask before you do
+  anything**. For example: «على تلفزيونك هذا شاشة التوقف حقتنا تستهلك ذاكرة ومعالج كثير وممكن تبطّئه. تقدر نطفيها
+  ونرجعها في أي وقت، تبي أطفيها؟» Only if I say yes, run `optimize/saver.sh off` (the TV's own screensaver comes
+  back; ours stays installed) and read `optimize/saver.sh show` back to me. If I say no, leave it; `optimize/saver.sh on`
+  turns ours on any time. Don't turn it off on your own, and don't hide the line.
 - What was disabled, my settings, and anything that looked wrong or slow.
 - When I'm at the TV, to try voice from the remote and casting (AirPlay or Cast) from a phone once, and to tell
   you if either doesn't work (`optimize/keep.sh` turns them back on).

@@ -103,6 +103,7 @@ report() {
   grep -E 'model|version.release|display.id' "$RUN/tv.txt" || true
   echo
   cat "$RUN/summary.md"
+  "$PY" -I optimize/heavy.py "$RUN/summary.md" || true   # the TV's own screensaver against ours: a !! advice line if ours is heavy
   echo
   echo "Features that must stay on:"
   for p in com.tcl.airplay2 com.google.android.apps.mediashell com.tcl.miracast com.google.android.katniss \
@@ -182,13 +183,19 @@ for s in "${STEPS[@]}"; do
   touch "$RUN/.done-$s"
   stamp "done $s"
 done
-if grep -q '!!' "$RUN/report.md"; then
+# the heavy-screensaver line is advice for the owner, not a failure: it is shown but does not stop the run
+ADVICE='the screensaver may slow this TV'
+if grep '!!' "$RUN/report.md" | grep -qv "$ADVICE"; then
   current=report-check   # the stop below is no step's fault
   echo
   echo "Done, with problems:"
   grep '!!' "$RUN/report.md"
   rm -f "$RUN/.done-report"   # the next run writes the report again, so a fixed problem stops showing
   exit 1
+fi
+if grep -q "$ADVICE" "$RUN/report.md"; then
+  echo
+  grep "$ADVICE" "$RUN/report.md"
 fi
 echo
 echo "All steps done. Next: settings (optimize/saver.sh), favourites (optimize/dock.sh), photos (optimize/shot.sh)."
