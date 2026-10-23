@@ -411,8 +411,8 @@ public class MainActivity extends Activity {
         tasks.setOnClickListener(v -> launch(new Intent(this, TasksActivity.class)));
         Pill settings = pill("الإعدادات", R.drawable.ic_settings);
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
-        // the «تلاوة» pill: the Quran and the radio are part of this app, so it opens them right here
-        Pill tilawah = pill("تلاوة", R.drawable.ic_listen);
+        // the «تلاوة وأذان» pill: the Quran, the radio and the adhan are part of this app, so it opens them right here
+        Pill tilawah = pill("تلاوة وأذان", R.drawable.ic_listen);
         tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
         sleepPill = pill("مؤقت النوم", R.drawable.ic_sleep);
         sleepPill.setOnClickListener(v -> showSleep(v));

@@ -100,16 +100,16 @@ screen: [docs/RECREATE-PROMPT.md](docs/RECREATE-PROMPT.md).
 Every build is also kept as a numbered release (`v3.N`, the screensaver and home version), to go back
 to one: `APK_TAG=v3.N optimize/install.sh all`.
 
-The home screen carries «تلاوة»: forty reciters (114 surahs each), live Quran radio, and the five daily
+The home screen carries «تلاوة وأذان»: forty reciters (114 surahs each), live Quran radio, and the five daily
 adhans at Umm al-Qura times with a choice of 21 recordings.
 Nothing to install apart from the home app; [docs/TILAWAH.md](docs/TILAWAH.md) has the screens, the
 remote keys and the ADB controls.
 
-### The «تلاوة» screen on the TV
+### The «تلاوة وأذان» screen on the TV
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/02-tilawah-reciters.jpg" alt="The تلاوة screen: three tabs, the forty reciters" width="100%"><br><b>The «القرّاء · الإذاعات · الأذان» tabs</b><br>Three tabs, read from the right. The selected row has a thick gold frame and a gold chevron.</td>
+<td width="50%"><img src="docs/screenshots/02-tilawah-reciters.jpg" alt="The تلاوة وأذان screen: three tabs, the forty reciters" width="100%"><br><b>The «القرّاء · الإذاعات · الأذان» tabs</b><br>Three tabs, read from the right. The selected row has a thick gold frame and a gold chevron.</td>
 <td width="50%"><img src="docs/screenshots/03-adhan-times.jpg" alt="Today's prayer times at Umm al-Qura" width="100%"><br><b>The «مواقيت أم القرى» times</b><br>Today's five times, the next one in gold with the time left.</td>
 </tr>
 <tr>
@@ -135,7 +135,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 | `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `leagues`, `card`, `home-card`, `greeting`, `events`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `national`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
 | `optimize/photos.sh` | the owner's own photos, 1 to 10: `add FILE...`, `list`, `del N`, `clear`, `mode mix\|only`, `show` |
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
-| `optimize/music.sh` | «تلاوة» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
+| `optimize/music.sh` | «تلاوة وأذان» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
 | `optimize/keep.sh` | turn back on anything protected (AirPlay, casting, voice, updates…) that something turned off |
 | `docs/TVS.md` | what was seen on each TV model (ADB port, home switch, what to watch out for) |
