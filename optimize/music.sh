@@ -12,6 +12,10 @@
 #   optimize/music.sh adhan on | off
 #   optimize/music.sh adhan voice 3        which of the 21 recordings plays at the prayer times
 #   optimize/music.sh adhan volume 60      the adhan's own volume, 10-100 (percent of the TV's maximum)
+#   optimize/music.sh adhan add FILE       the person's own recording as the adhan («أذان من ملفي»): made small here (mono AAC, about
+#                                          48 kbps, at most 5 minutes; needs ffmpeg on this computer), put on the TV, and made the voice.
+#                                          One file only: a new one replaces it. It stays on the TV; nothing bundled, nothing sent anywhere
+#   optimize/music.sh adhan voice own      use it again (voice 1-21 switches back); optimize/music.sh adhan own-clear removes it
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -25,6 +29,62 @@ if [ -z "${PY:-}" ]; then
   fi
 fi
 tv() { "$PY" -I optimize/tv.py "$@"; }
+FFMPEG="${FFMPEG:-ffmpeg}"
+FFPROBE="${FFPROBE:-ffprobe}"
+OWN_STAGE=/data/local/tmp/urtv-own
+OWN_MAX_SECONDS=300
+OWN_MAX_BYTES=$((3 << 20))
+OWN_WORK=
+own_send() {   # $1 = the extras after -a ...ADHAN_OWN or VOICE; prints the receiver's answer; exit 1 on "error:"
+  local out
+  out=$(tv "am broadcast -n sa.urtv.home/.tilawah.MusicReceiver -a $1" | sed -n '/data="/,$p' | sed '1s/.*data="//; $s/"$//')
+  echo "$out"
+  [[ "$out" != error:* ]]
+}
+own_add() {   # $1 = the person's file: made small, uploaded, kept by the app, made the voice
+  local f=$1 work secs bytes sent note=
+  [ -f "$f" ] || { echo "error: $f is not a file" >&2; exit 1; }
+  if ! command -v "$FFMPEG" > /dev/null 2>&1; then
+    echo "error: ffmpeg is needed on this computer to make the recording small enough for the TV (mono AAC, about 48 kbps, at most 5 minutes)." >&2
+    echo "Install it (macOS: brew install ffmpeg; Windows: winget install ffmpeg; Linux: sudo apt install ffmpeg), then run the same command again." >&2
+    exit 1
+  fi
+  work=$(mktemp -d)
+  OWN_WORK=$work
+  trap '[ -z "$OWN_WORK" ] || rm -rf "$OWN_WORK"' EXIT
+  local af=()
+  if command -v "$FFPROBE" > /dev/null 2>&1; then   # a recording longer than 5 minutes is cut there, with a short fade so it does not stop dead
+    secs=$("$FFPROBE" -v error -show_entries format=duration -of csv=p=0 "$f" 2> /dev/null | head -n 1 | cut -d. -f1 || true)
+    if [[ "$secs" =~ ^[0-9]+$ ]] && [ "$secs" -gt "$OWN_MAX_SECONDS" ]; then
+      af=(-af "afade=t=out:st=$((OWN_MAX_SECONDS - 4)):d=4")
+      note="note: the recording is $((secs / 60)):$(printf %02d $((secs % 60))) long; the adhan is at most 5 minutes, so only the first 5:00 is kept."
+    fi
+  fi
+  if ! "$FFMPEG" -nostdin -v error -y -i "$f" -map 0:a:0 -vn -sn -dn -map_metadata -1 -t "$OWN_MAX_SECONDS" -ac 1 ${af[@]+"${af[@]}"} \
+      -c:a aac -b:a 48k -movflags +faststart "$work/own.m4a" 2> "$work/err.txt"; then
+    echo "error: ffmpeg could not make an adhan of $f: $(tail -n 1 "$work/err.txt" 2> /dev/null)" >&2
+    echo "(it must be an audio file, or a video with sound)" >&2
+    exit 1
+  fi
+  [ -s "$work/own.m4a" ] || { echo "error: ffmpeg made nothing from $f (is there sound in it?)" >&2; exit 1; }
+  bytes=$(wc -c < "$work/own.m4a" | tr -d ' ')
+  [ "$bytes" -le "$OWN_MAX_BYTES" ] || { echo "error: the small copy is still $((bytes / 1024)) KB; the TV keeps at most $((OWN_MAX_BYTES >> 20)) MB" >&2; exit 1; }
+  [ -z "$note" ] || echo "$note"
+  echo "prepared $f: $((bytes / 1024)) KB"
+  tv "mkdir -p $OWN_STAGE" > /dev/null
+  tv --push-b64 "$work/own.m4a" "$OWN_STAGE/in.m4a" | tail -1
+  # the shell streams it into the app (its folder is private); where this TV lacks `content write`, the app reads it itself
+  tv "content write --uri content://sa.urtv.home.adhan/own-in < $OWN_STAGE/in.m4a" > /dev/null 2>&1 || true
+  sent=$(own_send "sa.urtv.home.ADHAN_OWN --es op add --ei size $bytes" || true)
+  case "$sent" in error:*)
+    sent=$(own_send "sa.urtv.home.ADHAN_OWN --es op add --ei size $bytes --es path $OWN_STAGE/in.m4a" || true) ;;
+  esac
+  tv "rm -f $OWN_STAGE/in.m4a" > /dev/null || true
+  tv "rmdir $OWN_STAGE" > /dev/null 2>&1 || true
+  case "$sent" in saved*) ;; *) echo "${sent:-error: no answer from the TV (is the home screen app installed and up to date?)}" >&2; exit 1 ;; esac
+  echo "added $f: it is the adhan now (it stays on this TV only)"
+  echo "$sent" | tail -n +2
+}
 
 usage() {
   cat <<'EOF'
@@ -40,8 +100,9 @@ Usage: optimize/music.sh <command> [arguments]
   sleep <minutes>         sleep timer; 0 cancels
   adhan [now [voice]]     the adhan: its state, play it now, on/off, or the voice
   adhan on | off
-  adhan voice <1-21>
+  adhan voice <1-21 | own>
   adhan volume <10-100>
+  adhan add <file>        your own recording as the adhan (needs ffmpeg here); adhan own-clear removes it
 EOF
   exit 2
 }
@@ -131,6 +192,21 @@ PY
         data=$(printf '%s\n' "$out" | sed -n 's/.*data="\(.*\)"/\1/p' | tail -n 1)
         [ -n "$data" ] || { echo "No status from sa.urtv.home. Is the app installed and the TV reachable?" >&2; exit 1; }
         printf '%s\n' "$data" | tr '|' '\n' | grep -E '^(adhan=|voice=|adhan_volume=|adhan_exact=|adhan_next|adhan_last|source=|playing=)'
+        own=$(printf '%s\n' "$data" | tr '|' '\n' | sed -n 's/^own_bytes=//p')
+        if [ "${own:-0}" -gt 0 ] 2> /dev/null; then
+          echo "own=$((own / 1024)) KB (your own recording; adhan voice own uses it, adhan own-clear removes it)"
+        else
+          echo "own=none (adhan add FILE puts your own recording on the TV)"
+        fi
+        ;;
+      add)
+        [ $# -eq 2 ] || usage
+        own_add "$2"
+        ;;
+      own-clear)
+        [ $# -eq 1 ] || usage
+        own_send "sa.urtv.home.ADHAN_OWN --es op clear" || exit 1
+        echo "Your own recording is removed."
         ;;
       now)
         [ $# -le 2 ] || usage
@@ -152,10 +228,11 @@ PY
       voice)
         [ $# -eq 2 ] || usage
         voice=$2
+        [ "$voice" != own ] || voice=0
         case "$voice" in ''|*[!0-9]*) usage;; esac
-        { [ "$voice" -ge 1 ] && [ "$voice" -le 21 ]; } || { echo "The voice is 1-21." >&2; exit 2; }
-        tv "am broadcast -n sa.urtv.home/.tilawah.MusicReceiver -a sa.urtv.home.VOICE --ei voice $voice" > /dev/null
-        echo "Adhan voice $voice."
+        { [ "$voice" -le 21 ] && { [ "$voice" -ge 1 ] || [ "$2" = own ]; }; } || { echo "The voice is 1-21, or own." >&2; exit 2; }
+        own_send "sa.urtv.home.VOICE --ei voice $voice" > /dev/null || { echo "There is no recording of your own on the TV yet (optimize/music.sh adhan add FILE)." >&2; exit 1; }
+        if [ "$voice" -eq 0 ]; then echo "Adhan voice: your own recording."; else echo "Adhan voice $voice."; fi
         ;;
       volume)
         [ $# -eq 2 ] || usage

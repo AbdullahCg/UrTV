@@ -311,7 +311,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     // ---- the adhan: pause whatever is on, play it, then bring the surah back ----
 
-    private void playAdhan(int voice, String name, int previewSeconds) {
+    private void playAdhan(int wanted, String name, int previewSeconds) {
         handler.removeCallbacks(previewStop);
         boolean wasAdhan = source == Prefs.SOURCE_ADHAN;
         if (wasAdhan && playing) {
@@ -323,6 +323,9 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
             // a second adhan on top of the first is ignored (two alarms); a preview gives way to the real one
             if (!adhanPreview || previewSeconds > 0) return;
         }
+        final boolean gone = wanted == Prefs.OWN && !OwnAdhan.exists(this);   // the recording was removed: a numbered voice
+        final int voice = gone ? prefs.voice() : wanted;
+        if (gone) name = null;
         adhanVolumeUp();
         boolean comeBack = prepareAdhanPause();   // false when an adhan was already on
         if (!wasAdhan) resumeAfterAdhan = comeBack;   // the first adhan's answer stays: what it paused still waits
@@ -334,8 +337,9 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         retries = 0;
         pendingSeek = 0;
         prefs.setLastAdhan(System.currentTimeMillis());   // for `music.sh adhan`; the duplicate guard is the alarm's own (AdhanReceiver)
-        File cached = Adhan.cached(this, voice);
-        if (Adhan.isCached(this, voice)) {
+        File cached = voice == Prefs.OWN ? OwnAdhan.file(this) : Adhan.cached(this, voice);
+        // the person's own file is always on the TV: nothing to fetch, nothing to retry from the network
+        if (voice == Prefs.OWN || Adhan.isCached(this, voice)) {
             adhanFromCache = true;
             startUrl(cached.getAbsolutePath());
         } else {
@@ -587,6 +591,7 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         handler.removeCallbacks(pausedStop);
         stopTick();
         sleepUntil = 0;
+        announce();
         foregroundStarted = false;
         stopForeground(true);
         if (session != null) {
@@ -680,7 +685,17 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
 
     // ---- MediaSession + notification ----
 
+    /** The home screen's «يُتلى الآن» card hears about it when what it shows may have changed: once per change, never on the clock's tick. */
+    private String announced = "";
+    private void announce() {
+        String now = source + "|" + playing + "|" + buffering + "|" + reciter + "|" + surah + "|" + station + "|" + (error != null) + "|" + (sleepUntil > 0);
+        if (now.equals(announced)) return;
+        announced = now;
+        sendBroadcast(new Intent(NowPlaying.CHANGED).setPackage(getPackageName()));
+    }
+
     private void updateSession() {
+        announce();
         if (session == null) return;
         String title = "تلاوة", artist = "";
         if (source == Prefs.SOURCE_SURAH && reciter >= 0 && reciter < cat.reciters.size()) {

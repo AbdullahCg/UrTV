@@ -1,0 +1,12 @@
+# the «يُتلى الآن» card (NowPlayingText.java): kind, radio, a, b, the answer, what it shows
+title	0	الفاتحة		سورة الفاتحة	a surah: «سورة» and its name
+title	0	البقرة	x	سورة البقرة	the station is ignored for a surah
+title	1		إذاعة القرآن الكريم - السعودية	إذاعة القرآن الكريم - السعودية	a station: its name
+sub	0	عبدالرحمن السديس	0	يُتلى الآن  ·  عبدالرحمن السديس	a surah: who recites it
+sub	0	عبدالرحمن السديس	23	يُتلى الآن  ·  عبدالرحمن السديس  ·  نوم ٢٣ د	with a sleep timer: the minutes left, Arabic digits
+sub	1		0	يُتلى الآن  ·  بث مباشر	a station: «بث مباشر»
+sub	1		5	يُتلى الآن  ·  بث مباشر  ·  نوم ٥ د	a station with a sleep timer
+sub	0	مشاري العفاسي	-1	يُتلى الآن  ·  مشاري العفاسي	a negative number is no timer
+sub	0	مشاري العفاسي	120	يُتلى الآن  ·  مشاري العفاسي  ·  نوم ١٢٠ د	two hours left
+hint	0			⁦OK⁩ إيقاف/تشغيل  ·  ◀ ▶ السورة  ·  مطولًا: فتح	a surah: OK, ◀ ▶ the surah, a long OK opens the player
+hint	1			⁦OK⁩ إيقاف/تشغيل  ·  مطولًا: فتح	a station: no ◀ ▶ (nothing to skip to)

@@ -103,10 +103,10 @@ final class Adhan {
     static String url(int voice) { return URLS[clamp(voice) - 1]; }
 
     /** The muezzin, e.g. «فاروق حضراوي». */
-    static String name(int voice) { return NAMES[clamp(voice) - 1]; }
+    static String name(int voice) { return voice == Prefs.OWN ? OwnAdhanText.NAME : NAMES[clamp(voice) - 1]; }
 
     /** Where it was recorded, e.g. «الحرم المكي». */
-    static String place(int voice) { return PLACES[clamp(voice) - 1]; }
+    static String place(int voice) { return voice == Prefs.OWN ? OwnAdhanText.PLACE : PLACES[clamp(voice) - 1]; }
 
     /** Both, for the row that opens this list: «فاروق حضراوي — الحرم المكي». */
     static String label(int voice) { return name(voice) + " — " + place(voice); }

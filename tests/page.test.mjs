@@ -2881,6 +2881,193 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
   await ctx.close();
 }
 
+
+// ---- the launcher's matches card: «القادسية × الهلال … الجمعة ٢٣ أكتوبر · ٩:٠٠ م … بعد ٧ ساعات» on one line when it all fits (fits()),
+// the date under the clubs when the names need the line. The screensaver's card keeps its two lines.
+const rowGeom = (p, idx) => p.evaluate(i => {
+  const card = CARDS[i].el, box = e => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+  return [...card.querySelectorAll('li.mg')].map(li => {
+    const [clubs, date, dt] = [li.children[0], li.querySelector('.mwhen'), li.querySelector('.dt')];
+    const inl = li.classList.contains('inl');
+    li.classList.toggle('inl', !inl);   // the other layout, to see that the choice was the right one
+    const other = rowFits(li);
+    li.classList.toggle('inl', inl);
+    return { inl, clubs: box(clubs), date: box(date), dt: box(dt), li: box(li), text: date.textContent, crests: li.querySelectorAll('img.cr').length,
+             otherFits: other, cut: [li, ...li.querySelectorAll('*')].some(e => e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1), dots: li.innerText.includes('…'),
+             fine: rowFits(li) };
+  });
+}, idx);
+for (const [cards, W, wide, label] of [['matches,prayerrow,hourly', 1920, 560, 'first slot (560)'], ['prayerrow,matches,hourly', 1920, 540, 'second slot (540)'],
+    ['prayerrow,hourly,matches', 1920, 1122, 'full-width third slot'], ['prayerrow,hourly,matches', 960, 561, 'third slot at 960'], ['matches', 1920, 461, 'alone (461)']]) {
+  for (const [gn, games] of [['long names', LONG_GAMES], ['short names', SHORT_GAMES]]) {
+    const o = await homeCards(cards, W, { extra: 'teams=136013', games });
+    await o.p.evaluate(() => loadCrests()); await o.p.waitForTimeout(250);
+    const rows = await rowGeom(o.p, cards.split(',').indexOf('matches'));
+    const tag = `home matches ${label}, ${gn}`;
+    check(`${tag}: ${games.length} games, each one line or two, no script errors`, !o.errors.length && rows.length === games.length, JSON.stringify(rows.length) + o.errors.join('; '));
+    check(`${tag}: one line only when it all fits: the clubs, then the date in the space, then «بعد …» at the far end`,
+      rows.every(r => !r.inl || (r.clubs.l >= r.date.r - 1 && r.date.l >= r.dt.r - 1 && Math.abs(r.date.t - r.clubs.t) < r.clubs.b - r.clubs.t && r.li.b - r.li.t < 2 * (r.clubs.b - r.clubs.t))), JSON.stringify(rows));
+    check(`${tag}: the date drops under the clubs (the old two lines) only when one line would not fit`,
+      rows.every(r => r.inl ? !r.cut && !r.dots && r.fine : !r.otherFits && r.date.t >= r.clubs.b - 2 && !r.cut && !r.dots), JSON.stringify(rows));
+    check(`${tag}: the crests are still there, the date reads «اليوم · ساعة»`,
+      rows.every(r => r.crests >= 1 && /^\S+ [٠-٩]+ \S+ · [٠-٩]+:[٠-٩]+ [صم]$/.test(r.text.trim())), JSON.stringify(rows.map(r => [r.crests, r.text])));
+    if (wide >= 540 && gn === 'short names') check(`${tag}: short names fit on one line at this width`, rows.every(r => r.inl), JSON.stringify(rows.map(r => r.inl)));
+    await o.ctx.close();
+  }
+}
+for (const width of [400, 330]) {   // a narrow box: the longest names take the whole line, the date goes under (the others may stay on one)
+  const o = await homeCards('matches', 1920, { extra: 'teams=136013', games: LONG_GAMES, width, height: 250 });
+  await o.p.evaluate(() => loadCrests()); await o.p.waitForTimeout(250);
+  const rows = await rowGeom(o.p, 0), r = await homeProbe(o.p);
+  check(`home matches alone, ${width} px wide: the first game's date is under its clubs, nothing cut or ending in «…»`,
+    !o.errors.length && rows[0].inl === false && rows[0].date.t >= rows[0].clubs.b - 2 && !r.cut.length && !r.dots.length, JSON.stringify([rows[0], r]));
+  await o.ctx.close();
+}
+{   // a smaller text step can bring a date up beside the clubs again
+  const o = await homeCards('matches', 1920, { extra: 'teams=136013', games: LONG_GAMES, width: 400, height: 250 });
+  const r = await o.p.evaluate(() => { const c = CARDS[0], on = () => c.el.querySelector('li.mg').classList.contains('inl'); const before = on();
+    for (let k = 0; k < 6 && !on(); k++) shrinkCard(c, true); return { before, after: on(), z: c.z }; });
+  check('home matches: a game stacked at full size goes on one line once the text steps down far enough', !o.errors.length && !r.before && r.after && r.z < 1, JSON.stringify(r));
+  await o.ctx.close();
+}
+{   // the screensaver's card: the date stays under the clubs, inside the first span, on every width
+  for (const [w, h] of [[1920, 1080], [960, 540]]) {
+    const o = await open('tv.html', 'teams=136013&panel=matches', { width: w, height: h, now: HOME_NOW });
+    await o.p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false);');
+    const r = await o.p.evaluate(() => [...document.querySelectorAll('#week-list li')].map(li => ({ mg: li.classList.contains('mg') || li.classList.contains('inl'),
+      inside: !!li.querySelector(':scope > span:first-child > .mwhen'), under: (t => li.querySelector('.mwhen').getBoundingClientRect().top >= t.top + t.height / 2)(li.querySelector('.tm').getBoundingClientRect()) })));
+    check(`screensaver matches card ${w}x${h}: two lines per game as before`, !o.errors.length && r.length === 2 && r.every(x => !x.mg && x.inside && x.under), JSON.stringify(r));
+    await o.ctx.close();
+  }
+}
+
+// ---- the launcher's «المهام» card is a button (#live=1): a mic mark in its corner, a ring while Android says it has the focus; no other
+// card has either, nothing changes size, the page never shows them without live=1 or on the screensaver. Android owns the focus and OK.
+const LIVE_EXTRA = 'tasks=' + encodeURIComponent(TASKS12.slice(0, 5).join('\n'));
+const liveRead = (p, style) => p.evaluate(() => {
+  const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+  const hdText = c => { const r = document.createRange(); r.selectNodeContents(c.hd); const b = r.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+  return { kinds: CARDS.map(c => c.kind), live: CARDS.map(c => c.el.classList.contains('live')), lf: CARDS.map(c => c.el.classList.contains('lf')),
+    marks: CARDS.map(c => c.el.querySelectorAll('.micmark').length), cards: CARDS.map(c => box(c.el)),
+    mark: CARDS.map(c => { const m = c.el.querySelector('.micmark'); return m ? box(m) : null; }), hd: CARDS.map(hdText),
+    shadow: CARDS.map(c => getComputedStyle(c.el).boxShadow), rect: liveRect(), mid: document.querySelector('.mid').getBoundingClientRect().height,
+    shown: CARDS.map(c => { const m = c.el.querySelector('.micmark'); return m ? getComputedStyle(m).display : 'none'; }) };
+});
+for (const [cards, W] of [['tasks', 1920], ['tasks,prayerrow,hourly', 1920], ['prayerrow,tasks,hourly', 1920], ['prayerrow,hourly,tasks', 1920],
+                          ['prayerrow,tasks,hourly', 960], ['prayerrow,hourly,tasks', 1280], ['verse,tasks', 1280]]) {
+  for (const style of ['current', 'glass1', 'dark3']) {
+    const on = await homeCards(cards, W, { style, extra: LIVE_EXTRA + '&live=1' }), off = await homeCards(cards, W, { style, extra: LIVE_EXTRA });
+    const a = await liveRead(on.p), b = await liveRead(off.p), probe = await homeProbe(on.p);
+    const at = a.kinds.indexOf('tasks'), tag = `home card ${cards} (${style}, ${W})`;
+    check(`${tag}: live: one mic mark, on the «المهام» card only; none without live=1`,
+      !on.errors.length && a.live.filter(Boolean).length === 1 && a.live[at] && a.marks.reduce((x, y) => x + y) === 1 && a.marks[at] === 1 && a.shown[at] !== 'none'
+      && !b.live.some(Boolean) && b.marks.every(n => n === 0), JSON.stringify([a.live, a.marks, b.live, b.marks]));
+    check(`${tag}: the mark is inside its card and clear of the card's title`,
+      a.mark[at].l >= a.cards[at].l - .5 && a.mark[at].r <= a.cards[at].r + .5 && a.mark[at].t >= a.cards[at].t - .5 && a.mark[at].b <= a.cards[at].b + .5
+      && !(a.mark[at].l < a.hd[at].r && a.hd[at].l < a.mark[at].r && a.mark[at].t < a.hd[at].b && a.hd[at].t < a.mark[at].b), JSON.stringify([a.mark[at], a.hd[at], a.cards[at]]));
+    check(`${tag}: nothing changes size or place for it (every card's box, the whole height), nothing cut or overlapping`,
+      JSON.stringify(a.cards) === JSON.stringify(b.cards) && a.mid === b.mid && !probe.overlap.length && !probe.outside.length && !probe.cut.length && !probe.dots.length,
+      JSON.stringify([a.cards, b.cards, probe]));
+    check(`${tag}: liveRect() is where the card is (what the launcher puts its focus target over)`,
+      a.rect === [a.cards[at].l, a.cards[at].t, a.cards[at].r - a.cards[at].l, a.cards[at].b - a.cards[at].t].map(v => v.toFixed(1)).join(',') && b.rect === '', a.rect + ' / ' + b.rect);
+    await on.p.evaluate(() => setLiveFocus(true));
+    const f1 = await liveRead(on.p);
+    await on.p.evaluate(() => setLiveFocus(false));
+    const f0 = await liveRead(on.p);
+    check(`${tag}: setLiveFocus(true) rings the «المهام» card inside its own box and no other; (false) takes it off`,
+      f1.lf[at] && f1.lf.filter(Boolean).length === 1 && /inset/.test(f1.shadow[at]) && !f0.lf.some(Boolean) && f0.shadow[at] === a.shadow[at]
+      && JSON.stringify(f1.cards) === JSON.stringify(a.cards), JSON.stringify([f1.lf, f1.shadow[at], f0.lf]));
+    await off.p.evaluate(() => setLiveFocus(true));
+    const nf = await liveRead(off.p);
+    check(`${tag}: without live=1 the ring call does nothing`, !nf.lf.some(Boolean));
+    await on.ctx.close(); await off.ctx.close();
+  }
+}
+{   // no «المهام» among the cards: nothing live, whatever live=1 says; the screensaver's own page never has a mark
+  const o = await homeCards('prayerrow,hourly', 1920, { extra: LIVE_EXTRA + '&live=1' });
+  const a = await liveRead(o.p);
+  check('home card without «المهام»: live=1 changes nothing (no mark, no live card, liveRect empty)', !o.errors.length && !a.live.some(Boolean) && a.marks.every(n => n === 0) && a.rect === '', JSON.stringify(a.live));
+  await o.ctx.close();
+  const t = await open('tv.html', 'panel=tasks&live=1&' + LIVE_EXTRA, { width: 1280, height: 720, now: HOME_NOW });
+  const n = await t.p.evaluate(() => ({ marks: document.querySelectorAll('.micmark').length, shown: [...document.querySelectorAll('.micmark')].some(m => getComputedStyle(m).display !== 'none'), live: document.querySelectorAll('.live').length }));
+  check('screensaver page: live=1 is ignored (no mark, no live card)', !t.errors.length && n.marks === 0 && n.live === 0, JSON.stringify(n) + t.errors.join('; '));
+  await t.ctx.close();
+}
+{   // the task rows and the title are untouched by the mark (same text with and without)
+  const on = await homeCards('prayerrow,tasks,hourly', 1920, { extra: LIVE_EXTRA + '&live=1' }), off = await homeCards('prayerrow,tasks,hourly', 1920, { extra: LIVE_EXTRA });
+  const text = p => p.evaluate(() => CARDS[1].el.innerText.replace(/\s+/g, ' ').trim());
+  check('home card «المهام»: the same words with and without the mark', (await text(on.p)) === (await text(off.p)) && (await text(on.p)).includes('اتصل بالسباك'), await text(on.p));
+  await on.ctx.close(); await off.ctx.close();
+}
+
+// ---- the slim year strip under the clock (#yearstrip=1): 7 rows of 53, day N lit up to N-1, today's dot, no words, no wider than the clock,
+// the clock never moves for it, clear of the card and the bottom row; hidden when the room under the clock is too small
+const STRIP_BOX = p => p.evaluate(() => {
+  const r = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
+  const s = document.getElementById('ystrip'), dots = s ? [...s.querySelectorAll('circle')] : [];
+  const rows = new Set([...s.querySelectorAll('svg > circle:not(.halo)')].map(c => c.getAttribute('cy'))).size;
+  return { hidden: !s || s.hidden || getComputedStyle(s).display === 'none', clock: r(document.querySelector('.clock')),
+    strip: s ? r(s) : null, week: r(document.querySelector('.week')), bottom: r(document.querySelector('.bottom')),
+    on: s.querySelectorAll('.on').length, now: s.querySelectorAll('.now').length, off: s.querySelectorAll('.off').length, rows,
+    cx: [...s.querySelectorAll('svg > circle')].filter(c => !c.classList.contains('halo')).map(c => +c.getAttribute('cx')),
+    cy: [...s.querySelectorAll('svg > circle')].filter(c => !c.classList.contains('halo')).map(c => +c.getAttribute('cy')),
+    text: s.innerText.trim(), lines: s.querySelectorAll('.yt').length, dotPx: s.querySelector('svg').getBoundingClientRect().width / 53 * 4 / 6,
+    nowCx: +(s.querySelector('.now') || { getAttribute: () => -1 }).getAttribute('cx') };
+});
+const overlap = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+for (const [w, h] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  for (const [name, iso, hm] of [['8:00', '2026-10-23T05:00:00Z', 1], ['10:08 (four digits)', '2026-10-23T07:08:00Z', 2], ['12:59 (four digits)', '2026-10-23T09:59:00Z', 2]]) {
+    const on = await open('tv.html', 'yearstrip=1&panel=year', { width: w, height: h, now: iso });
+    const off = await open('tv.html', 'panel=year', { width: w, height: h, now: iso });
+    for (const x of [on, off]) await x.p.addStyleTag({ content: '.stage{transition:none!important}' });   // the pixel shift glides for 3 s: measure after it
+    await on.p.waitForTimeout(100);
+    const a = await STRIP_BOX(on.p), clock0 = await off.p.evaluate(() => { const b = document.querySelector('.clock').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
+    const tag = `yearstrip ${w}x${h} ${name}`;
+    check(`${tag}: shown, 296 days of 365: 7 rows of 53, ${295} lit, today once, ${365 - 296} to come`,
+      !on.errors.length && !a.hidden && a.rows === 7 && a.on === 295 && a.now === 1 && a.off === 69 && a.on + a.now + a.off === 365, JSON.stringify(a) + on.errors.join('; '));
+    check(`${tag}: from the right, top row first (day 1 at the top right, day 296 in row 6, 31st from the right, day 365 in row 7)`,
+      a.cx[0] === 52 * 6 + 3 && a.cy[0] === 3 && a.nowCx === (52 - 30) * 6 + 3 && a.cy[295] === 5 * 6 + 3 && a.cy[364] === 6 * 6 + 3, JSON.stringify([a.cx[0], a.cy[0], a.nowCx, a.cy[295], a.cy[364]]));
+    check(`${tag}: no words under the strip (the dots say the day; the year card keeps its line)`, a.text === '' && a.lines === 0, a.text);
+    check(`${tag}: no wider than the clock, centred under it, dots ${Math.round(4 * w / 960)} px wide (±)`,
+      a.strip.w <= a.clock.w + 1 && Math.abs((a.strip.l + a.strip.r) / 2 - (a.clock.l + a.clock.r) / 2) < 3 && Math.abs(a.dotPx - 4 * w / 960) < 1.2, JSON.stringify([a.strip, a.clock, a.dotPx]));
+    check(`${tag}: under the clock, clear of the card and of the bottom row`,
+      a.strip.t >= a.clock.b && !overlap(a.strip, a.week) && !overlap(a.strip, a.bottom) && a.strip.b <= a.bottom.t, JSON.stringify([a.strip, a.week, a.bottom]));
+    check(`${tag}: the clock stays where it is without the strip`,
+      Math.abs(a.clock.l - clock0[0]) < 1 && Math.abs(a.clock.t - clock0[1]) < 1 && Math.abs(a.clock.w - clock0[2]) < 1 && Math.abs(a.clock.h - clock0[3]) < 1, JSON.stringify([a.clock, clock0]));
+    const hid = await off.p.evaluate(() => { const s = document.getElementById('ystrip'); return s.hidden || s.children.length === 0; });
+    check(`${tag}: off by default (nothing drawn, nothing shown)`, hid);
+    await on.ctx.close(); await off.ctx.close();
+  }
+}
+{   // leap year, Latin digits, the day turning over, a room too small for it, the widget
+  const o = await open('tv.html', 'yearstrip=1&digits=latin', { now: '2028-12-31T09:00:00Z' });
+  const a = await STRIP_BOX(o.p);
+  check('yearstrip: a leap year has 366 dots in 7 rows (365 lit, today last), no words, with digits=latin',
+    a.on + a.now + a.off === 366 && a.on === 365 && a.now === 1 && a.text === '' && a.rows === 7, JSON.stringify([a.on, a.now, a.off, a.text]));
+  await o.ctx.close();
+}
+{
+  const o = await open('tv.html', 'yearstrip=1', { width: 960, height: 330, now: '2026-10-23T09:00:00Z' });
+  const a = await STRIP_BOX(o.p);
+  check('yearstrip: hidden, not overlapping, when the room under the clock is too small (960x330)', a.hidden && !o.errors.length, JSON.stringify([a.hidden, a.clock, a.bottom]));
+  await o.ctx.close();
+}
+{
+  const o = await open('tv.html', 'yearstrip=1&widget=1&home_panel=year', { width: 1200, height: 500 });
+  const n = await o.p.evaluate(() => { const s = document.getElementById('ystrip'); return { shown: s && getComputedStyle(s).display !== 'none' && s.children.length > 0 }; });
+  check('yearstrip: never on the home screen\'s widget page', !o.errors.length && !n.shown, JSON.stringify(n) + o.errors.join('; '));
+  await o.ctx.close();
+}
+{   // the day turns over at midnight (Riyadh): the dots are drawn again with today moved on
+  const o = await open('tv.html', 'yearstrip=1', { now: '2026-10-23T20:59:50Z' });
+  const before = await STRIP_BOX(o.p);
+  await o.p.clock.setFixedTime('2026-10-23T21:00:30Z'); await o.p.evaluate(() => { tickClock.last = null; tickClock(); });
+  const after = await STRIP_BOX(o.p);
+  check('yearstrip: after Riyadh midnight today moves on to day 297 (296 lit now, 295 before)', before.on === 295 && before.now === 1 && after.on === 296 && after.now === 1, JSON.stringify([before.on, after.on]));
+  await o.ctx.close();
+}
+
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

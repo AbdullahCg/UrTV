@@ -6,7 +6,10 @@ import android.content.Intent;
 
 /**
  * ADB control for agents and optimize/music.sh: GET_PLAYER state, play, pause, next, sleep, and the
- * adhan (play now, switch it on or off, pick the voice, set its volume).
+ * adhan (play now, switch it on or off, pick the voice, the person's own recording, set its volume).
+ *
+ *   ADHAN_OWN --es op info | add --ei size BYTES [--es path /data/local/tmp/urtv-own/in.m4a] | clear
+ *   VOICE --ei voice 1..21 (a recording of ours) or 0 (the person's own, when there is one)
  */
 public class MusicReceiver extends BroadcastReceiver {
 
@@ -21,9 +24,12 @@ public class MusicReceiver extends BroadcastReceiver {
 
         Prefs prefs = new Prefs(context);
         switch (action) {
-            case "sa.urtv.home.ADHAN":
-                MusicService.adhan(context, intent.getIntExtra(MusicService.EXTRA_VOICE, prefs.voice()), null, 0);
+            case "sa.urtv.home.ADHAN": {
+                int voice = intent.getIntExtra(MusicService.EXTRA_VOICE, prefs.playVoice(context));
+                if (voice == Prefs.OWN && !OwnAdhan.exists(context)) return;   // nothing of theirs to play
+                MusicService.adhan(context, voice, null, 0);
                 return;
+            }
             case "sa.urtv.home.ADHAN_ON":
             case "sa.urtv.home.ADHAN_OFF":
                 prefs.setAdhanOn("sa.urtv.home.ADHAN_ON".equals(action));
@@ -37,10 +43,22 @@ public class MusicReceiver extends BroadcastReceiver {
             }
             case "sa.urtv.home.VOICE": {
                 int voice = intent.getIntExtra(MusicService.EXTRA_VOICE, prefs.voice());
-                if (voice < 1 || voice > Adhan.VOICES) return;
-                prefs.setVoice(voice);
+                if (voice == Prefs.OWN) {
+                    if (!OwnAdhan.exists(context)) { setResultData("error: no recording of your own yet (optimize/music.sh adhan add FILE)"); return; }
+                    prefs.setOwnChosen(true);
+                } else if (voice < 1 || voice > Adhan.VOICES) {
+                    setResultData("error: the voice is 1-" + Adhan.VOICES + " or 0 for your own recording");
+                    return;
+                } else {
+                    prefs.setVoice(voice);
+                    prefs.setOwnChosen(false);
+                }
+                setResultData("saved\n" + ownListing(context, prefs));
                 return;
             }
+            case "sa.urtv.home.ADHAN_OWN":
+                setResultData(own(context, prefs, intent));
+                return;
             default:
                 break;
         }
@@ -70,6 +88,44 @@ public class MusicReceiver extends BroadcastReceiver {
                 break;
         }
         MusicService.start(context, service);
+    }
+
+    /** «أذان من ملفي», for optimize/music.sh: info, add (the shell has just written the file, or it is in /data/local/tmp/urtv-own/), clear. */
+    private static String own(Context context, Prefs prefs, Intent intent) {
+        String op = String.valueOf(intent.getStringExtra("op"));
+        switch (op) {
+            case "info":
+                return ownListing(context, prefs);
+            case "add": {
+                String path = intent.getStringExtra("path");
+                java.io.File src = OwnAdhan.incoming(context);
+                if (path != null) {
+                    if (!path.matches("/data/local/tmp/urtv-own/[A-Za-z0-9_.-]+") || path.contains(".."))
+                        return "error: path must be a file in /data/local/tmp/urtv-own/";
+                    src = new java.io.File(path);
+                }
+                int size = intent.getIntExtra("size", -1);   // what the shell sent: a short or stale file is refused
+                String why = size >= 0 && src.length() != size
+                        ? "the file is not the one sent (" + src.length() + " of " + size + " bytes)"
+                        : OwnAdhan.keep(context, src);
+                if (why != null && src.equals(OwnAdhan.incoming(context))) src.delete();
+                if (why != null) return "error: " + why;
+                prefs.setOwnChosen(true);   // a recording just added is the one the person wants
+                return "saved\n" + ownListing(context, prefs);
+            }
+            case "clear":
+                OwnAdhan.clear(context);
+                prefs.setOwnChosen(false);
+                return "saved\n" + ownListing(context, prefs);
+            default:
+                return "error: op is one of info add clear";
+        }
+    }
+
+    private static String ownListing(Context context, Prefs prefs) {
+        return OwnAdhan.exists(context)
+                ? "own: " + OwnAdhanText.size(OwnAdhan.bytes(context)) + " (" + (prefs.playVoice(context) == Prefs.OWN ? "in use" : "kept, not in use") + ")"
+                : "own: none";
     }
 
     private String status(Context context) {
@@ -116,9 +172,10 @@ public class MusicReceiver extends BroadcastReceiver {
                 + "|dur=" + duration
                 + "|sleep=" + sleepLeft
                 + "|adhan=" + (prefs.adhanOn() ? "on" : "off")
-                + "|voice=" + prefs.voice()
+                + "|voice=" + (prefs.playVoice(context) == Prefs.OWN ? "own" : String.valueOf(prefs.voice()))
                 + "|adhan_volume=" + prefs.adhanVolume()
                 + "|adhan_exact=" + (AdhanScheduler.exactAllowed(context) ? 1 : 0)
+                + "|own_bytes=" + (OwnAdhan.exists(context) ? OwnAdhan.bytes(context) : 0)
                 + "|adhan_next=" + (next == null ? 0 : next.at)
                 + "|adhan_next_name=" + (next == null ? "" : next.name())
                 + "|adhan_next_clock=" + (next == null ? "" : next.clock)

@@ -45,6 +45,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import sa.urtv.home.tilawah.NowPlaying;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -105,7 +106,8 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
-    private TextView greeting, weatherLine, clock, ampm, date, zoneLine, title, wifiPill, appsLabel;
+    private TextView greeting, weatherLine, clock, ampm, date, zoneLine, title, appsLabel;
+    private Pill wifiPill;   // the network's name shows while it has the focus
     private Greeting greetingLine;
     private int glowColor = 0xFF3A3A3A;
     private ValueAnimator glowAnim;
@@ -114,7 +116,8 @@ public class MainActivity extends Activity {
     private int packageSeq;
     private PopupWindow inputsPopup;
     private HomeCard homeCard;
-    private TextView sleepPill;   // «مؤقت النوم», with the minutes left while it runs
+    private NowCard nowCard;   // «يُتلى الآن»: at the right end of the pills row while a surah or a station is on
+    private Pill sleepPill;   // «مؤقت النوم», with the minutes left while it runs (shown while it has the focus)
     private TextView adhanBar;   // «الأذان بعد ٨ دقائق», over the top edge
     private View clockBlock, bottomBlock;   // the greeting, clock and date; the app title and the dock under it
 
@@ -122,7 +125,12 @@ public class MainActivity extends Activity {
         @Override public void onReceive(Context c, Intent i) {
             updateClock();
             updateWifi();
+            updateNowPlaying();   // the minutes left of its sleep timer
         }
+    };
+    // «تلاوة» started, paused, changed or stopped a surah or a station (MusicService says so; nothing polls): the «يُتلى الآن» card follows
+    private final BroadcastReceiver nowPlayingChanged = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) { updateNowPlaying(); }
     };
     // the sleep timer started, ended or was cancelled (here, or from the computer): the pill follows at once
     private final BroadcastReceiver sleepChanged = new BroadcastReceiver() {
@@ -159,6 +167,7 @@ public class MainActivity extends Activity {
         registerReceiver(packages, pf);
         registerReceiver(dockChanged, new IntentFilter(Dock.CHANGED));
         registerReceiver(sleepChanged, new IntentFilter(SleepTimer.CHANGED));
+        registerReceiver(nowPlayingChanged, new IntentFilter(NowPlaying.CHANGED));
     }
 
     @Override
@@ -171,7 +180,9 @@ public class MainActivity extends Activity {
         registerReceiver(tick, tf);
         updateClock();
         updateWifi();
+        updateNowPlaying();
         homeCard.refresh();
+        wireFocus();   // the «المهام» card may have come or gone with the settings
         View last = lastFocusedId == View.NO_ID ? null : findViewById(lastFocusedId);
         if (last == null && !dockCards.isEmpty()) last = dockCards.get(0);
         if (last != null) last.requestFocus();
@@ -200,6 +211,7 @@ public class MainActivity extends Activity {
         unregisterReceiver(packages);
         unregisterReceiver(dockChanged);
         unregisterReceiver(sleepChanged);
+        unregisterReceiver(nowPlayingChanged);
         homeCard.destroy();
         super.onDestroy();
     }
@@ -277,7 +289,14 @@ public class MainActivity extends Activity {
 
         hero.addView(buildHeader(), lp(-1, -2, Gravity.TOP, dp(48), dp(36), dp(48), 0));
         // optional card under the pills, same size as beside the screensaver's clock
-        homeCard = new HomeCard(this, hero, lp(dp(461), dp(250), Gravity.LEFT | Gravity.TOP, dp(48), dp(84), 0, 0), this::homeCardBox);
+        homeCard = new HomeCard(this, hero, lp(dp(461), dp(250), Gravity.LEFT | Gravity.TOP, dp(48), dp(84), 0, 0), this::homeCardBox, new HomeCard.Live() {
+            @Override public void focus(View target, boolean has) {   // «المهام» on the card takes the focus like a pill
+                if (has) { lastFocusedId = target.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f); }
+            }
+            @Override public void open() {   // OK: the list, with the focus on «🎤 تكلّم» so one more OK starts the voice adding
+                launch(new Intent(MainActivity.this, TasksActivity.class).putExtra(TasksActivity.EXTRA_MIC, true));
+            }
+        });
         hero.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> homeCard.fit());
 
         LinearLayout bottom = new LinearLayout(this);
@@ -382,57 +401,69 @@ public class MainActivity extends Activity {
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
         right.setClipChildren(false);
-        TextView saver = pill("شاشة التوقف", R.drawable.ic_screensaver);
+        Pill saver = pill("شاشة التوقف", R.drawable.ic_screensaver);
         saver.setOnClickListener(v -> openPackage(SAVER_PKG));
-        TextView inputs = pill("المصادر", R.drawable.ic_input);
+        Pill inputs = pill("المصادر", R.drawable.ic_input);
         inputs.setOnClickListener(v -> showInputs(v));
         wifiPill = pill("واي فاي", R.drawable.ic_wifi);
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
-        TextView tasks = pill("المهام", R.drawable.ic_mic);   // the list lives in the screensaver app
+        Pill tasks = pill("المهام", R.drawable.ic_mic);   // the list lives in the screensaver app
         tasks.setOnClickListener(v -> launch(new Intent(this, TasksActivity.class)));
-        TextView settings = pill("الإعدادات", R.drawable.ic_settings);
+        Pill settings = pill("الإعدادات", R.drawable.ic_settings);
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
-        // the «تلاوة» pill: the Quran and the radio are part of this app, so it opens them right here
-        TextView tilawah = pill("تلاوة", R.drawable.ic_listen);
+        // the «تلاوة وأذان» pill: the Quran, the radio and the adhan are part of this app, so it opens them right here
+        Pill tilawah = pill("تلاوة وأذان", R.drawable.ic_listen);
         tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
         sleepPill = pill("مؤقت النوم", R.drawable.ic_sleep);
         sleepPill.setOnClickListener(v -> showSleep(v));
-        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings, sleepPill));
+        List<Pill> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings, sleepPill));
         if (isInstalled(SAVER_PKG)) { row.add(tasks); row.add(saver); }
         if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
-        for (TextView p : row) {
+        for (Pill p : row) {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
             pills.add(p);
         }
+        // «يُتلى الآن»: the first child of the row, so it sits at its right end and the pills keep their places when it comes
+        nowCard = new NowCard(this, font("medium"), font("regular"), getDrawable(R.drawable.ic_play), getDrawable(R.drawable.ic_pause));
+        nowCard.setId(View.generateViewId());
+        nowCard.setVisibility(View.GONE);
+        nowCard.setOnClickListener(v -> NowPlaying.toggle(this));   // OK: pause or play
+        nowCard.setOnLongClickListener(v -> { startActivity(NowPlaying.player(this)); return true; });   // a long OK: the player
+        nowCard.setOnFocusChangeListener((v, has) -> {
+            v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f)
+                    .setInterpolator(new OvershootInterpolator(2f)).setDuration(220).start();
+            if (has) { lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f); }
+        });
+        right.addView(nowCard, 0, llp(-2, dp(30), dp(10), 0, 0, 0));
         header.addView(right, new FrameLayout.LayoutParams(-2, -2, Gravity.LEFT | Gravity.TOP));
         return header;
     }
 
-    /** Pill button: label with a Material icon on its right (Arabic reading order), tinted with the text. */
-    private TextView pill(String label, int icon) {
-        TextView p = text(12, "sans-serif-medium", 0xE6FFFFFF);
-        p.setText(label);
-        p.setGravity(Gravity.CENTER);
-        android.graphics.drawable.Drawable ic = getDrawable(icon).mutate();
-        ic.setBounds(0, 0, dp(16), dp(16));
-        ic.setTint(0xE6FFFFFF);
-        p.setCompoundDrawables(null, null, ic, null);
-        p.setCompoundDrawablePadding(dp(8));
-        p.setPadding(dp(14), 0, dp(14), 0);
-        p.setFocusable(true);
+    /** Shows or hides the «يُتلى الآن» card by what «تلاوة» is doing: a surah or a station (playing or paused), else nothing. */
+    private void updateNowPlaying() {
+        if (nowCard == null) return;
+        NowPlaying.State s = NowPlaying.read(this);
+        if (!s.show) {
+            if (nowCard.getVisibility() == View.VISIBLE && nowCard.hasFocus() && !pills.isEmpty()) pills.get(0).requestFocus();   // it went with the playback
+            nowCard.setVisibility(View.GONE);
+            return;
+        }
+        nowCard.bind(s);
+        nowCard.setVisibility(View.VISIBLE);
+    }
+
+    /** Pill button: its icon only; the one with the focus widens to show its name (see Pill). */
+    private Pill pill(String label, int icon) {
+        Pill p = new Pill(this, label, icon, font("sans-serif-medium"));
         p.setId(View.generateViewId());
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(15));
-        bg.setColor(0x66000000);
-        bg.setStroke(dp(1), 0x33FFFFFF);
-        p.setBackground(bg);
         p.setOnFocusChangeListener((v, has) -> {
-            bg.setColor(has ? 0xF2FFFFFF : 0x66000000);
-            ((TextView) v).setTextColor(has ? 0xFF111111 : 0xE6FFFFFF);
-            ic.setTint(has ? 0xFF111111 : 0xE6FFFFFF);
             v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f)
                     .setInterpolator(new OvershootInterpolator(2f)).setDuration(220).start();
-            if (has) { lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f); }
+            if (has) {
+                lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f);
+                View card = homeCard == null ? null : homeCard.live();
+                if (card != null) card.setNextFocusUpId(v.getId());   // up from the «المهام» card goes back to the pill it came from
+            }
         });
         return p;
     }
@@ -606,14 +637,29 @@ public class MainActivity extends Activity {
     /** Explicit D-pad targets: one row per press, ends of rows and of the top bar don't wrap. */
     private void wireFocus() {
         int d = dockCards.size(), g = gridCards.size();
+        // the «المهام» card, when it is among the home cards, is a stop between the pills and the dock
+        View card = homeCard == null ? null : homeCard.live();
+        int dockId = d > 0 ? dockCards.get(Math.min(d - 1, d / 2)).getId() : View.NO_ID;
         for (int i = 0; i < pills.size(); i++) {
             View p = pills.get(i);
             p.setNextFocusLeftId(i == 0 ? p.getId() : pills.get(i - 1).getId());
             p.setNextFocusRightId(i == pills.size() - 1 ? p.getId() : pills.get(i + 1).getId());
             p.setNextFocusUpId(p.getId());
-            p.setNextFocusDownId(d > 0 ? dockCards.get(Math.min(d - 1, d / 2)).getId() : p.getId());
+            p.setNextFocusDownId(card != null ? card.getId() : dockId != View.NO_ID ? dockId : p.getId());
         }
-        int topId = pills.get(0).getId();
+        int topId = card != null ? card.getId() : pills.get(0).getId();
+        if (nowCard != null) {   // the «يُتلى الآن» card: down to the cards or the dock, left and up to the pills (right: the end of the row)
+            nowCard.setNextFocusLeftId(pills.get(0).getId());
+            nowCard.setNextFocusUpId(pills.get(0).getId());
+            nowCard.setNextFocusRightId(nowCard.getId());
+            nowCard.setNextFocusDownId(card != null ? card.getId() : dockId != View.NO_ID ? dockId : nowCard.getId());
+        }
+        if (card != null) {
+            card.setNextFocusLeftId(card.getId());   // nothing beside it to move to: stay on it
+            card.setNextFocusRightId(card.getId());
+            card.setNextFocusUpId(pills.get(0).getId());   // a pill's own focus moves this to that pill, see pill()
+            card.setNextFocusDownId(dockId != View.NO_ID ? dockId : card.getId());
+        }
         for (int i = 0; i < d; i++) {
             View c = dockCards.get(i);
             c.setNextFocusUpId(topId);
@@ -824,7 +870,8 @@ public class MainActivity extends Activity {
     private void updateSleepPill() {
         if (sleepPill == null) return;
         int left = SleepTimer.minutesLeft(this);
-        sleepPill.setText(left == 0 ? "مؤقت النوم" : "مؤقت النوم " + arabicDigits(String.valueOf(left)) + " د");
+        sleepPill.setLabel(PillText.sleep(left));
+        sleepPill.setAccent(left > 0);   // gold while it runs: the minutes show when the pill has the focus
     }
 
     private String inputLabel(TvInputInfo t) {
@@ -903,29 +950,24 @@ public class MainActivity extends Activity {
         if (words != null) adhanBar.setText(words);
     }
 
-    private static String arabicDigits(String s) {
-        StringBuilder b = new StringBuilder(s.length());
-        for (char c : s.toCharArray()) b.append(c >= '0' && c <= '9' ? (char) ('٠' + (c - '0')) : c);
-        return b.toString();
-    }
+    private static String arabicDigits(String s) { return PillText.digits(s); }
 
     /** Connected or not comes from ConnectivityManager: WifiManager hides the network (id -1, "<unknown ssid>")
      *  from apps without location access, which looked like "not connected". The name only when readable. */
     private void updateWifi() {
-        String name = "غير متصل";
+        boolean wired = false, wifi = false;
+        String ssid = null;
         try {
             android.net.ConnectivityManager cm = getSystemService(android.net.ConnectivityManager.class);
             android.net.NetworkCapabilities nc = cm == null ? null : cm.getNetworkCapabilities(cm.getActiveNetwork());
-            if (nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) {
-                name = "شبكة سلكية";
-            } else if (nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
-                name = "واي فاي";
+            wired = nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET);
+            wifi = nc != null && !wired && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI);
+            if (wifi) {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-                String s = wm == null || wm.getConnectionInfo() == null ? null : wm.getConnectionInfo().getSSID();
-                if (s != null && !s.contains("unknown ssid") && !s.replace("\"", "").isEmpty()) name = s.replace("\"", "");
+                ssid = wm == null || wm.getConnectionInfo() == null ? null : wm.getConnectionInfo().getSSID();
             }
         } catch (SecurityException ignored) { }
-        wifiPill.setText(name);
+        wifiPill.setLabel(PillText.network(wired, wifi, ssid));   // shown only while the pill has the focus
     }
 
     // ---------------------------------------------------------------- glow
@@ -1344,6 +1386,17 @@ public class MainActivity extends Activity {
         if (e.getKeyCode() == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_UP && !pills.isEmpty()) {
             showInputs(pills.get(0));
             return true;
+        }
+        // On the «يُتلى الآن» card ◀ is the previous surah and ▶ the next (a station has none: ◀ goes back to the pills as on any pill)
+        if (e.getAction() == KeyEvent.ACTION_DOWN && nowCard != null && getCurrentFocus() == nowCard
+                && (e.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT || e.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            NowPlaying.State s = NowPlaying.read(this);
+            if (s.show && !s.radio) {
+                if (e.getRepeatCount() == 0) {
+                    if (e.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT) NowPlaying.prev(this); else NowPlaying.next(this);
+                }
+                return true;
+            }
         }
         // In a right to left layout Android looks for the focus the other way round, so the rows are
         // walked by hand here: «right» always moves the highlight to the right.

@@ -23,6 +23,7 @@ jobs:
       - name: Private fonts
         run: |
           cp .fonts-private/web/*.woff2 assets/fonts/
+          mkdir -p android/launcher/src/main/assets/fonts
           cp .fonts-private/android/*.otf android/launcher/src/main/assets/fonts/
           rm -rf .fonts-private
       - uses: actions/setup-node@v4

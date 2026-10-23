@@ -123,6 +123,13 @@
   .week li .ep{flex:0 0 auto;color:#9FB8A8;font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .rt{flex:0 0 auto;color:var(--gold-3);font-size:.74em;font-variant-numeric:tabular-nums}
   .week li .mwhen{display:block;font-style:normal;margin-top:.15em;font-size:.68em;font-weight:300;color:#A79C85;overflow:hidden;text-overflow:ellipsis}
+  /* the launcher's matches card: the date shares the first line, between the clubs and «بعد ٧ ساعات», when it all fits (rowFits());
+     else it drops under the clubs, as it always did (and as the screensaver's card keeps it) */
+  html.widget .week li.mg{flex-wrap:wrap}
+  html.widget .week li.mg .mwhen{order:3;flex:0 0 100%;margin-top:.15em}
+  html.widget .week li.mg.inl{flex-wrap:nowrap}
+  html.widget .week li.mg.inl > span:first-child{max-width:none}
+  html.widget .week li.mg.inl .mwhen{order:0;flex:1 1 auto;min-width:0;margin:0;text-align:center;white-space:nowrap}
   .week li .dt{flex:1 1 auto;color:#9C9279;font-size:.72em;min-width:3.2em;text-align:left}
   .week li .tm .cr{width:1.25em;height:1.25em;object-fit:contain;vertical-align:middle;margin-block:-.25em;margin-inline-end:.3em}
   .week li .tm .cr:not([src]){visibility:hidden}   /* a restored row waits for its picture: the same room */
@@ -297,7 +304,30 @@
 
   /* the card keeps its width on the left; the clock is centred in the space between it and the right edge */
   .mid{display:grid;grid-template-columns:1fr minmax(0,auto);align-items:center;gap:4.5vw}   /* the clock keeps its width; the card takes what is left */
-  .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:center}
+  .clockwrap{display:flex;flex-direction:column;align-items:center;justify-self:center;position:relative}
+  /* the slim year strip hangs under the clock's own block, out of the layout: the clock never moves for it (it hides when
+     the room under the clock is too small, see fitYearStrip()). 4 px dots with 2 px gaps at 960 wide, 8 and 4 at 1920. No words
+     under it: the dots say the day; the big year card keeps its «اليوم ٢٩٦ من ٣٦٥» line */
+  .ystrip{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:1.3vh;
+    display:flex;flex-direction:column;align-items:center;--yp:calc(100vw/160)}
+  .ystrip[hidden]{display:none}
+  .ystrip svg{display:block;width:calc(53*var(--yp));height:calc(7*var(--yp));overflow:visible}
+  .ystrip .on{fill:rgb(var(--gold-rgb))}
+  .ystrip .off{fill:rgb(var(--gold-rgb));fill-opacity:.16}
+  .ystrip .halo{fill:#FFFDF6}
+  .ystrip .now{fill:#FFFDF6;filter:drop-shadow(0 0 3px rgba(255,236,190,.9))}
+  html.widget .ystrip{display:none}
+  /* the launcher's «المهام» card is live (OK opens the list, the mic ready): a small mic mark in its corner, and a ring while it has the
+     focus. The ring is inside the card: the WebView's box would cut an outline off at its edge. Nothing here changes the card's size. */
+  html.widget .week.live{position:relative}
+  html.widget .week .micmark{display:none}
+  html.widget .week.live .micmark{display:flex;align-items:center;justify-content:center;position:absolute;left:calc(12px*var(--z,1));top:calc(8px*var(--z,1));
+    width:calc(24px*var(--z,1));height:calc(24px*var(--z,1));border-radius:50%;background:rgba(var(--gold-rgb),.2);border:1px solid rgba(var(--gold-rgb),.7)}
+  html.widget .week .micmark svg{width:62%;height:62%;fill:var(--gold-hi)}
+  html.widget .week.live .hd{padding-left:calc(32px*var(--z,1))}
+  html.widget .week.live.lf{box-shadow:inset 0 0 0 3px var(--gold-hi),inset 0 0 22px rgba(255,233,184,.22)!important;border-color:var(--gold-hi)!important}
+  html.widget .week.live.lf .micmark{background:var(--gold-hi)}
+  html.widget .week.live.lf .micmark svg{fill:#1A1409}
   .clock{
     display:flex;align-items:baseline;justify-content:center;direction:ltr;
     font-family:'ThmanyahDisplay','Thmanyah',serif;
@@ -473,6 +503,7 @@
         <span class="ampm" id="ck-ap">—</span><span class="d" id="ck-h">--</span><span class="sep">:</span><span class="d" id="ck-m">--</span>
       </div>
       <div class="subline"><span class="dot"></span><span id="clock-sub">بتوقيت الرياض</span></div>
+      <div class="ystrip" id="ystrip" hidden></div>
     </div>
 
     <div class="week">
@@ -589,6 +620,11 @@ const CONFIG = {
   tafsir: _Q.get('tafsir') === '1',
   // the slim bar before the adhan: #adhanbar=0 turns it off (anything else = on)
   adhanBar: _Q.get('adhanbar') !== '0',
+  // the slim year strip under the clock: #yearstrip=1 turns it on (anything else = off); the screensaver only, never the widget
+  yearStrip: _Q.get('yearstrip') === '1',
+  // #live=1 (the launcher): the «المهام» card is a button there (OK opens the list with the mic ready), so it carries a mic mark and
+  // a ring while it has the focus. Only on the launcher's page; the screensaver never has it.
+  live: _Q.get('live') === '1',
   // #widget=1: only the cards, on a transparent page (the launcher's home screen shows them)
   widget: _Q.get('widget') === '1',
 };
@@ -664,6 +700,7 @@ function tickClock(){
   document.getElementById('ck-h').innerHTML = digits(ar(h12));
   document.getElementById('ck-m').innerHTML = digits(ar(pad(p.mi)));
   setText(document.getElementById('ck-ap'), p.h < 12 ? 'ص' : 'م');
+  if(CONFIG.yearStrip) renderYearStrip();   // the day may have turned; the clock's width may have changed
 }
 
 // National Day (23 September, shown 21-25) and Founding Day (22 February, shown 20-24), by the Riyadh date.
@@ -1496,12 +1533,22 @@ function fitMatches(row){
   size(FIT_STEPS[FIT_STEPS.length - 1]);
   return false;   // the caller may show these games apart
 }
+// the launcher's rows put the date in the empty middle of the first line when everything fits there
+const rowFits = li => li.scrollWidth <= li.clientWidth + .5 && [...li.children].every(fits);
+function inlineDate(li){
+  li.classList.add('inl');
+  if(rowFits(li)) return true;
+  li.classList.remove('inl');
+  return false;
+}
 // the card beside the clock has room for a whole game; only a row that would end in «…» takes the short names
 // with crests (the launcher's card) the next step is the short names, then no crests: the names alone, as before
 // still too long (a narrow card: beside a wide clock, or in the TV's own font when ours didn't load): a little smaller, never «…»
 function shortenRows(ul){
-  ul.querySelectorAll('li > span:first-child').forEach(sp => {
-    if(fits(sp)) return;
+  ul.querySelectorAll('li').forEach(li => {
+    if(li.classList.contains('mg') && inlineDate(li)) return;   // one line: the names keep their whole form
+    const sp = li.firstElementChild;
+    if(!sp || !sp.matches('span') || fits(sp)) return;
     shorten(sp);
     if(!fits(sp)) sp.querySelectorAll('img.cr').forEach(i => i.remove());
     if(!fits(sp)) FIT_STEPS.slice(1).find(k => { sp.style.fontSize = k + 'em'; return fits(sp); });
@@ -1959,6 +2006,25 @@ function buildCards(){
   });
   mid.classList.add('n' + CARDS.length);
   if(CARDS.length === 3) CARDS[2].el.classList.add('w3');
+  markLive();
+}
+
+// The launcher's «المهام» card is a button (#live=1): the page draws its mic mark and its ring; Android owns the focus and OK.
+// setLiveFocus(true|false) is called by the launcher when the card gets or loses the focus; liveRect() says where the card is
+// ("left,top,width,height" in CSS px, '' when no card is live) so the launcher can put its focus target over it.
+const MIC_MARK = '<span class="micmark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg></span>';
+const liveCards = () => CONFIG.widget && CONFIG.live ? CARDS.filter(c => c.kind === 'tasks') : [];
+function markLive(){
+  liveCards().forEach(c => { c.el.classList.add('live'); c.el.insertAdjacentHTML('beforeend', MIC_MARK); });
+}
+function setLiveFocus(on){
+  CARDS.forEach(c => c.el.classList.toggle('lf', !!on && c.el.classList.contains('live')));
+}
+function liveRect(){
+  const c = liveCards()[0];
+  if(!c) return '';
+  const b = c.el.getBoundingClientRect();
+  return [b.left, b.top, b.width, b.height].map(v => v.toFixed(1)).join(',');
 }
 
 let FORECAST = [];
@@ -2156,6 +2222,7 @@ function shrinkCard(c, tooWide){   // false when there is no step left
   const cap = list && c.ri ? c.base - c.ri : 0, maxLen = quote && c.ri ? Math.max(20, Math.floor(c.len0 * Math.pow(.8, c.ri))) : 0;
   c.z = Z_STEPS[c.zi];
   c.el.style.setProperty('--z', c.z);
+  if(c.eff === 'matches') c.ul.querySelectorAll('li.mg:not(.inl)').forEach(inlineDate);   // smaller text: a date may fit beside the clubs now
   if(cap !== c.cap || maxLen !== c.maxLen){ c.cap = cap; c.maxLen = maxLen; renderCard(c, false, true); }
   return true;
 }
@@ -2172,11 +2239,18 @@ function fitCards(){
   }
 }
 
-// ---- «السنة»: a dot for every day of this Gregorian year (Riyadh time). Drawn again only when the day changes.
-function yearCard(card){
+// the year's numbers, shared by the card and the strip: the Gregorian year in Riyadh time, its days, today's number
+function yearFacts(){
   const p = riyadhParts(new Date(Date.now())), y = p.y;
   const total = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
   const day = Math.round((Date.UTC(y, p.mo - 1, p.d) - Date.UTC(y, 0, 1)) / 864e5) + 1;
+  const pct = Math.round(100 * day / total);
+  return {y, total, day, pct, text: `اليوم <b>${ar(day)}</b> من ${ar(total)} · ${ar(pct)}${LATIN ? '%' : '٪'}`};
+}
+
+// ---- «السنة»: a dot for every day of this Gregorian year (Riyadh time). Drawn again only when the day changes.
+function yearCard(card){
+  const {y, total, day, pct, text} = yearFacts();
   const COLS = 36, ROWS = Math.ceil(total / COLS), PITCH = 10, R = 3.2;
   const rows = [];
   for(let r = 0; r < ROWS; r++){
@@ -2191,11 +2265,45 @@ function yearCard(card){
     }
     rows.push(`<g class="r" style="--i:${r}">${g}</g>`);
   }
-  const pct = Math.round(100 * day / total), anim = !card.yearShown;
+  const anim = !card.yearShown;
   card.yearShown = true;
   const svg = `<svg viewBox="-10 -10 ${COLS * PITCH + 20} ${ROWS * PITCH + 20}" role="img" aria-label="${ar(day)} / ${ar(total)}">${rows.join('')}</svg>`;
   return `<li class="yr${anim ? ' fill' : ''}"><div class="yn">${ar(y)}</div>${svg}`
-       + `<div class="yt">اليوم <b>${ar(day)}</b> من ${ar(total)} · ${ar(pct)}${LATIN ? '%' : '٪'}</div></li>`;
+       + `<div class="yt">${text}</div></li>`;
+}
+
+// ---- the slim year strip under the clock (#yearstrip=1): 365/366 dots in 7 rows of 53, from the right, top row first;
+// the passed days light up toward gold, today glows, the rest stay faint. No text line. Drawn again only when the day changes;
+// fitYearStrip() runs after every clock redraw: no wider than the clock, hidden when the room under it is too small.
+function renderYearStrip(){
+  const el = document.getElementById('ystrip');
+  if(!el || !CONFIG.yearStrip || CONFIG.widget) return;
+  const {y, total, day} = yearFacts(), key = y + ':' + day + ':' + LATIN;
+  if(el.dataset.key !== key){
+    el.dataset.key = key;
+    const COLS = 53, ROWS = 7, PITCH = 6, R = 2;   // the viewBox is 4 px dots and 2 px gaps; CSS scales it with the screen
+    let g = '';
+    for(let n = 1; n <= total; n++){
+      const c = (n - 1) % COLS, r = Math.floor((n - 1) / COLS);
+      const cx = (COLS - 1 - c) * PITCH + PITCH / 2, cy = r * PITCH + PITCH / 2;
+      if(n < day) g += `<circle class="on" cx="${cx}" cy="${cy}" r="${R}" fill-opacity="${(.3 + .7 * n / day).toFixed(2)}"/>`;
+      else if(n === day) g += `<circle class="halo" cx="${cx}" cy="${cy}" r="${R * 1.9}" fill-opacity=".25"/><circle class="now" cx="${cx}" cy="${cy}" r="${R * 1.1}"/>`;
+      else g += `<circle class="off" cx="${cx}" cy="${cy}" r="${R}"/>`;
+    }
+    el.innerHTML = `<svg viewBox="0 0 ${COLS * PITCH} ${ROWS * PITCH}" role="img" aria-label="${ar(day)} / ${ar(total)}">${g}</svg>`;
+  }
+  fitYearStrip();
+}
+function fitYearStrip(){
+  const el = document.getElementById('ystrip');
+  if(!el || !CONFIG.yearStrip || CONFIG.widget) return;
+  el.hidden = false; el.style.removeProperty('--yp');
+  const clock = document.querySelector('.clock').getBoundingClientRect(), wrap = document.querySelector('.clockwrap').getBoundingClientRect();
+  const bottom = document.querySelector('.bottom').getBoundingClientRect();
+  let pitch = el.querySelector('svg').getBoundingClientRect().width / 53;   // 6 px at 960 wide
+  if(pitch * 53 > clock.width) { pitch = clock.width / 53; el.style.setProperty('--yp', pitch + 'px'); }
+  const h = el.getBoundingClientRect().height, room = bottom.top - wrap.bottom - 4;
+  if(pitch < 3 || h + parseFloat(getComputedStyle(el).marginTop) > room) el.hidden = true;
 }
 
 function prayerRows(){
@@ -2397,7 +2505,8 @@ function matchRows(card){
         : 'بعد ' + shortRemaining(t - now).split(' و ')[0];   // one unit: the date line says the rest
       // an upcoming game has its date and time under the teams, as in the bottom row
       const dateLine = upcoming || pending ? `<i class="mwhen">${matchWhen(d)}</i>` : '';
-      return {t, r, html: `<li><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${dateLine}</span><span class="dt">${when}</span></li>`};
+      const wide = CONFIG.widget && dateLine;   // the launcher's card: the date is the row's own item, beside the clubs or under them
+      return {t, r, html: `<li${wide ? ' class="mg"' : ''}><span><span class="tm">${crestImg(ev, 'Home')}${esc(teamAr(ev.strHomeTeam, ev.idHomeTeam))}</span>${mid}<span class="tm">${crestImg(ev, 'Away')}${esc(teamAr(ev.strAwayTeam, ev.idAwayTeam))}</span>${wide ? '' : dateLine}</span>${wide ? dateLine : ''}<span class="dt">${when}</span></li>`};
     }), ...others.map(o => ({...o, r: o.t <= now ? 1 : 2}))].sort(byRank).map(x => x.html);
 }
 
@@ -2918,6 +3027,7 @@ function boot(){
   if(CONFIG.widget){ bootWidget(); return; }
   buildCards();
   if(document.fonts) document.fonts.ready.then(() => {   // widths change once the fonts are in
+    fitYearStrip();
     fitMatches(document.getElementById('match-row'));
     if(MATCHES_LOADED) CARDS.forEach(c => { if(c.eff === 'matches') c.ul.__h = null; });   // whole names again where they now fit
     renderPanel(false, 'matches');

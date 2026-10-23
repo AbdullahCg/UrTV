@@ -34,6 +34,13 @@ final class Prefs {
     int adhanVolume() { int v = sp.getInt("adhan_volume", 30); return v < 10 || v > 100 ? 30 : v; }
     void setAdhanVolume(int percent) { sp.edit().putInt("adhan_volume", percent).apply(); }
 
+    /** The voice number that stands for the person's own recording (OwnAdhan); the numbered ones are 1..21. */
+    static final int OWN = 0;
+    boolean ownChosen() { return sp.getBoolean("adhan_own", false); }
+    void setOwnChosen(boolean on) { sp.edit().putBoolean("adhan_own", on).apply(); }
+    /** What plays: OWN when the recording is chosen and still on the TV, else the numbered voice. */
+    int playVoice(Context c) { return ownChosen() && OwnAdhan.exists(c) ? OWN : voice(); }
+
     int voice() { int v = sp.getInt("adhan_voice", 1); return v < 1 || v > Adhan.VOICES ? 1 : v; }
     void setVoice(int voice) { sp.edit().putInt("adhan_voice", voice).apply(); }
 

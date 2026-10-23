@@ -112,6 +112,13 @@ right and the left arrow to the left.
   — the chosen one first, fetched when the alarm is set (not only when the screen opens), the rest lazily, a failed one
   skipped, at most one round a day — so an adhan plays from the saved copy, with the connection down. A file is kept only if
   its length is the server's Content-Length. A stream that drops falls back to the saved copy.
+- **«أذان من ملفي»** is the person's own recording (`OwnAdhan.java`), for a muezzin whose recordings are not
+  free to redistribute, so none is ever bundled: `optimize/music.sh adhan add FILE` makes a mono AAC of about
+  48 kbps, at most 5 minutes, on the computer (ffmpeg), uploads it through `OwnAdhanProvider` (`content write`,
+  shell only, write-only) and `MusicReceiver ADHAN_OWN` checks and keeps it as `files/adhan-own.m4a`: one file, a new
+  one replaces it. It stays in the app's private folder, is never read out or sent, and plays straight from
+  there (no download, no retry from the network). When it exists the adhan screen's first row is «أذان من ملفي»
+  (voice number 0); `adhan voice 1-21` goes back to ours and `adhan own-clear` removes it.
 - The switch, the muezzin and the volume live in the app's preferences (`tilawah`); the alarm needs
   `SCHEDULE_EXACT_ALARM` and the volume needs `MODIFY_AUDIO_SETTINGS` (both are ordinary permissions;
   the app falls back to an inexact alarm if exact alarms are refused).
@@ -135,6 +142,7 @@ optimize/music.sh adhan now 3              # play voice 3 right now
 optimize/music.sh adhan off | on
 optimize/music.sh adhan voice 7            # the recording used at the prayer times
 optimize/music.sh adhan volume 60          # its own volume, 10-100
+optimize/music.sh adhan add my-adhan.mp3   # the person's own recording (ffmpeg here makes it small); `adhan voice own`, `adhan own-clear`
 ```
 
 `status` prints one line:

@@ -185,8 +185,17 @@
                 <action android:name="sa.urtv.home.ADHAN_ON" />
                 <action android:name="sa.urtv.home.ADHAN_OFF" />
                 <action android:name="sa.urtv.home.VOICE" />
+                <action android:name="sa.urtv.home.ADHAN_OWN" />
             </intent-filter>
         </receiver>
+
+        <!-- «أذان من ملفي»: the shell hands over the person's own adhan recording here (`content write`, optimize/music.sh
+             adhan add); DUMP = only the shell. It only writes; nothing can be read back. -->
+        <provider
+            android:name=".tilawah.OwnAdhanProvider"
+            android:authorities="sa.urtv.home.adhan"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
 
         <!-- the adhan: at the prayer time (the alarm names this receiver itself, action ADHAN_ALARM; «sa.urtv.home.ADHAN» is the shell's
              «adhan now» and belongs to MusicReceiver alone), and again after a reboot or a clock change; DUMP = only the shell can send it -->
