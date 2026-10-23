@@ -204,11 +204,13 @@ check("java: no table looped over as single strings", not bad, bad)
 # the TV's font size setting scales WebView text; our pages size their own, so every WebView pins it at 100
 loose = [f.name for f, src in java.items() if "getSettings()" in src and "setTextZoom(100)" not in src]
 check("java: every WebView ignores the TV's font size (setTextZoom(100))", not loose, loose)
-# the preview must open fresh: an open one comes back with the settings it opened with (a TV test read that as the
-# settings not working)
-starts = [l.strip() for f in ("start-saver.sh", "shot.sh") for l in (ROOT / "optimize" / f).read_text(encoding="utf-8").splitlines()
-          if "sa.urtv.screensaver/.MainActivity" in l and "am start" in l and "--activity-clear-task" not in l]
-check("optimize: the screensaver preview always opens fresh (--activity-clear-task)", not starts, starts)
+# the preview and the settings must open fresh: an open one comes back with the settings it opened with, or in front of
+# the one asked for (a TV test read the preview as the settings screen, and as the settings not working)
+starts = [f"{f.name}: {l.strip()}" for f in sorted((ROOT / "optimize").glob("*.sh"))
+          for l in f.read_text(encoding="utf-8").splitlines()
+          if re.search(r"sa\.urtv\.screensaver/\.(MainActivity|SettingsActivity)", l) and "am start" in l
+          and "--activity-clear-task" not in l]
+check("optimize: the screensaver preview and settings always open fresh (--activity-clear-task)", not starts, starts)
 
 # ---- docs/SETTINGS.md lists every setting, so agents use it instead of building one
 settings_md = (ROOT / "docs/SETTINGS.md").read_text(encoding="utf-8")

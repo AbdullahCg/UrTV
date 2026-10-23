@@ -17,7 +17,7 @@ case "${1:-}" in
   home)        tv "input keyevent KEYCODE_HOME"; sleep 8; name=home ;;
   screensaver) how=$(optimize/start-saver.sh --preview); echo "screensaver: $how"; sleep 34; name=screensaver ;;
   favourites)  tv "am start -n sa.urtv.home/.DockActivity"; sleep 4; name=favourites ;;
-  settings)    tv "am start -n sa.urtv.screensaver/.SettingsActivity"; sleep 4; name=settings ;;
+  settings)    tv "am start --activity-clear-task -n sa.urtv.screensaver/.SettingsActivity"; sleep 4; name=settings ;;
   now)         name="${2:?usage: optimize/shot.sh now NAME}" ;;
   *) sed -n '2,10p' "$0"; exit 1 ;;
 esac

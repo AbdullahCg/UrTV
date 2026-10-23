@@ -147,7 +147,7 @@ if [ "$what" = saver ] || [ "$what" = all ]; then
     "settings put secure screensaver_enabled 1" \
     "settings put secure screensaver_components sa.urtv.screensaver/.ScreenDream" \
     "settings put secure screensaver_default_component sa.urtv.screensaver/.ScreenDream" \
-    "am start -n sa.urtv.screensaver/.SettingsActivity" \
+    "am start --activity-clear-task -n sa.urtv.screensaver/.SettingsActivity" \
     | "$PY" -I optimize/tv.py --batch
   echo "Screensaver installed and selected. Its settings screen is open on the TV."
 fi
