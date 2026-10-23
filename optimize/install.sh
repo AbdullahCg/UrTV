@@ -2,17 +2,19 @@
 # Download the latest APKs from GitHub and install them on the TV.
 #   optimize/install.sh saver      شاشة تلفزيونك: install + make it the screensaver
 #   optimize/install.sh launcher   the home screen: install + make it the default Home
-#   optimize/install.sh all        both
+#                                  (it carries the «تلاوة» screens: the Quran recitations and the radio)
 #   optimize/install.sh extras     two free apps from their own GitHub releases: TV Bro (a TV web browser,
 #                                  github.com/truefedex/tv-bro) and SmartTube (YouTube without ads,
 #                                  github.com/yuliskov/SmartTube), the build that fits the TV's processor
+#   optimize/install.sh all        both (saver, launcher)
 # The first install of the screensaver replaces an APK signed with another key: uninstall the old one first
 # (pm uninstall sa.urtv.screensaver) — this script does that only if a plain install fails.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${PY:-optimize/venv/bin/python}"
 REL=https://github.com/tshi-dev/UrTV/releases/download/${APK_TAG:-apk-latest}   # APK_TAG=v3.N: that numbered build
-what="${1:?usage: optimize/install.sh saver|launcher|all|extras}"
+what="${1:?usage: optimize/install.sh saver|launcher|extras|all}"
+case "$what" in saver|launcher|extras|all) ;; *) echo "usage: optimize/install.sh saver|launcher|extras|all" >&2; exit 2;; esac
 failed=0   # an extra that did not install: the rest are still tried, then run.sh must not count the step as done
 
 # curl with up to 3 tries. A Windows curl (Schannel) that can't reach the certificate revocation server fails every
@@ -142,6 +144,8 @@ if [ "$what" = launcher ] || [ "$what" = all ]; then
   # 1. The new home must be installed and working BEFORE anything is disabled.
   push_install urtv-home.apk sa.urtv.home
   "$PY" -I optimize/tv.py "pm grant sa.urtv.home android.permission.ACCESS_FINE_LOCATION" || true
+  # exact alarms for the adhan (Android 12 and newer; older TVs need nothing)
+  "$PY" -I optimize/tv.py "appops set sa.urtv.home SCHEDULE_EXACT_ALARM allow" || true
 
   # Steps 2-4 as one function, so an ADB drop in the middle (TCL G08: Wi-Fi fell during the batch) can be retried.
   # "verify" as $1: only step 4 (the switch is armed already and the batch may have run).

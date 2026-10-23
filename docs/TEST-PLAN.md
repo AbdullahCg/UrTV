@@ -134,9 +134,12 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 
 | ID | Action | Expected |
 |---|---|---|
-| L1 | Fresh install of both apps, press Home | No card on the home screen (off by default) |
+| L1 | Fresh install of both apps, press Home | No card on the home screen (the screensaver's card choice is «لا شيء» by default) |
 | L2 | Screensaver settings → «بطاقة على الشاشة الرئيسية» → مواقيت الصلاة, then Home | Card under the pills on the left: today's prayers, next one gold. D-pad never lands on it |
 | L3 | Repeat L2 with each option, then «لا شيء» | Card follows the choice; «لا شيء» removes it |
+| L4 | On the home screen, look at the top bar and the app rows, then press ▶ and ◀ on the pills and on the favourites | Everything reads from the right (المصادر، واي فاي، الإعدادات، شاشة التوقف، تلاوة; the first app of a row on the right); the right arrow always moves the highlight to the right and the left arrow to the left |
+| L6 | Look at the clock in the top corner | The time on the right and the «ص» / «م» on its left (١٢:٣٣ ص) |
+| L7 | Build the launcher with another key (a test build) and press Home | The card on the home screen falls back to «مواقيت اليوم» for the default city, because the screensaver's settings cannot be read |
 | L8 | Long-press OK on any app → «ترتيب المفضلة…» (also: screensaver settings → «ترتيب التطبيقات المفضلة») | List of favourites, numbered, first one focused |
 | L9 | OK on the 3rd app, ▲ twice, OK; then Back | It turns gold, moves to the top, drops; home row shows it first |
 | L10 | «إزالة» beside an app (▶/◀ to reach it); then «+» on an app under «إضافة تطبيق» | Removed / added at the end; never below 5 or above 10 (a message says so) |
@@ -172,6 +175,32 @@ Use the TV's clock or wait for the real moment; take a screenshot at each.
 | T17 | `optimize/saver.sh tasks add 'اختبار'`, `tasks list`, `tasks done 1`, `tasks del 1`, `tasks del 9`, `tasks clear` | `saved` and the numbered list; `1. [done] اختبار`; `no tasks`; then `error: no task number 9 …` |
 | T18 | `optimize/saver.sh slot fasting`, then `optimize/saver.sh show`; then `optimize/saver.sh slot tennis` | `saved`, `show` lists `slot: fasting`; the second prints `error: slot is one of matches weather fasting countdown none` and changes nothing; put it back with `slot matches` |
 | T19 | `optimize/saver.sh countdown 2026-12-01 'رحلة الصيف'`, then `optimize/saver.sh show`; then `countdown 2026-02-30`, then `countdown clear` | `show` lists `countdown: 2026-12-01 رحلة الصيف`; the second prints `error: countdown is a date like 2026-12-01, or clear` and changes nothing; `clear` gives `countdown: none`. With `slot countdown` the settings row «العدّ التنازلي» shows the date and name and offers «مسح» |
+
+## 11. The «تلاوة» screen — the Quran, the radio and the adhan (inside the home app)
+
+Install: `optimize/install.sh launcher` (or `all`). «تلاوة» is the leftmost pill in the home screen's
+top bar (the row reads from the right: المصادر، واي فاي، الإعدادات، شاشة التوقف، تلاوة); it is not
+in «كل التطبيقات». Full reference: [TILAWAH.md](TILAWAH.md).
+
+| ID | Action | Expected |
+|---|---|---|
+| W1 | Press «تلاوة» in the top bar | The «تلاوة» screen opens with a tab bar read from the right — «القرّاء» (active, on the right), «الإذاعات», «الأذان» (on the left); the title is on the right; the first reciter is focused, not the top row |
+| W2 | Compare the five times with the screensaver's prayer panel | Same times (within a minute); Isha = Maghrib + 90 min (120 in Ramadan) |
+| W3 | Left/Right from the list, then Up from the first row, then Down | The section changes and its list starts at the top; the right arrow always moves the highlight to the right and the left arrow to the left; Up reaches the tab bar (solid gold on the active tab), Down returns to the first row; the selected row always has a solid dark card, thick gold frame and gold chevron |
+| W4 | OK on a reciter, then OK on الفاتحة | 114-surah grid in reading order; the player shows the surah and reciter; audio plays; Back returns |
+| W5 | Play, press Home, wait for the screensaver | Audio continues; the media play/pause key controls it; «تلاوة» shows «متابعة التلاوة» again |
+| W6 | OK on «إذاعة القرآن الكريم - السعودية» | Live player, long title fits, audio plays, no error (this also proves the scoped radiojar cleartext redirect) |
+| W7 | OK on a prayer row (e.g. المغرب) | That adhan plays now through the player screen («الأذان» + the muezzin's name); the previous/next buttons are gone and Left/Right do nothing; Back leaves it playing |
+| W8 | The «الأذان» tab, untouched after a fresh install | «الأذان التلقائي» reads «متوقف» (off by default); OK switches it to «مفعّل» and back, and the state survives a reboot |
+| W9 | OK on «المؤذن» | 21 recordings by name (الحرم المكي، المسجد الأقصى، عبدالملك الملا…), the chosen one in gold with its city; OK picks one and plays 12 seconds of it; the list scrolls and the selected row keeps its gold frame at the bottom |
+| W10 | Play a surah, then `optimize/music.sh adhan now 3` | The surah pauses, the adhan plays, then the surah resumes at the same position (status: `source=adhan` during it, `adhan_last` updated) |
+| W11 | `optimize/music.sh adhan voice 7` then `adhan now` | Voice 7 plays; `optimize/music.sh status` shows `voice=7` |
+| W12 | Set the TV clock a few minutes before a prayer time, wait for the alarm; then reboot the TV and check `optimize/music.sh status` | The adhan plays by itself at the exact minute with no app on screen; after the reboot `adhan_next` is a future timestamp (the alarm was put back) |
+| W13 | Note the TV's volume, play a prayer adhan manually, then end it (OK on the player) | The adhan plays clearly at 30% whatever the TV was on; the TV's volume is back to what it was afterwards (check with the TV's volume bar) |
+| W14 | OK on «صوت الأذان» a few times, then `optimize/music.sh adhan now` | The value cycles ٣٠٪ → ٤٠٪ … → ١٠٠٪ → ١٠٪ and the adhan plays at the chosen level; put it back to ٣٠٪ afterwards |
+| W15 | Put the TV in standby (power key) a minute before a prayer time, leave it off through the prayer, then wake it | Nothing plays at the prayer time and nothing plays when the TV wakes: no catch-up of a missed adhan |
+| W16 | Start an adhan manually, then press the power key (screen off) | The adhan stops (a paused surah resumes only if it was playing before); nothing keeps playing to a dark screen |
+| W17 | `optimize/music.sh status`, `surah sudais 1`, `pause`, `radio 0`, `sleep 1`, `stop` | Status line has `playing`, `source`, names, `pos`, `dur`, `sleep`, `adhan`, `voice`, `adhan_next`, `error`; each command acts on the TV |
 
 ---
 

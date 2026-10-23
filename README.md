@@ -91,14 +91,36 @@ screen: [docs/RECREATE-PROMPT.md](docs/RECREATE-PROMPT.md).
 | | | |
 |---|---|---|
 | **شاشة تلفزيونك** · screensaver | Clock, Hijri date, prayer times and iqama, Ramadan, your teams' matches, weather, markets, and beside the clock your choice of new episodes, today's prayers, the 5-day forecast, all your teams' games, a stock watchlist, or a verse/hadith of the day, over Saudi landscapes | `urtv-screensaver.apk` |
-| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; «المهام» (tasks, by voice too), optional card from the screensaver (off by default) | `urtv-home.apk` |
+| **تلفزيونك** · home screen | Clean Arabic launcher: favourites row (5–10 apps) arranged in «ترتيب المفضلة», all apps, inputs, Wi-Fi, settings; «المهام» (tasks, by voice too), optional card from the screensaver (off by default). The «تلاوة» pill opens the Quran and the radio, with the adhan at Umm al-Qura times | `urtv-home.apk` |
 | **Two free apps** | [TV Bro](https://github.com/truefedex/tv-bro), a web browser for the TV, and [SmartTube](https://github.com/yuliskov/SmartTube), YouTube without ads, from their own releases (skip with `SKIP_EXTRAS=1`) | `optimize/install.sh extras` |
 | **Speed-up** | Telemetry, ads and demos off (reversibly), closed apps frozen, Play Store kept from running in the background, faster animations | `optimize/` |
 
 **Download the apps yourself:** [releases/apk-latest](https://github.com/tshi-dev/UrTV/releases/tag/apk-latest)
 (install with `adb install`; the agent route above also sets everything up).
-Every build is also kept as a numbered release (`v3.N`, the apps' version), to go back to one:
-`APK_TAG=v3.N optimize/install.sh all`.
+Every build is also kept as a numbered release (`v3.N`, the screensaver and home version), to go back
+to one: `APK_TAG=v3.N optimize/install.sh all`.
+
+The home screen carries «تلاوة»: forty reciters (114 surahs each), live Quran radio, and the five daily
+adhans at Umm al-Qura times with a choice of 21 recordings.
+Nothing to install apart from the home app; [docs/TILAWAH.md](docs/TILAWAH.md) has the screens, the
+remote keys and the ADB controls.
+
+### The «تلاوة» screen on the TV
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/02-tilawah-reciters.jpg" alt="The تلاوة screen: three tabs, the forty reciters" width="100%"><br><b>The «القرّاء · الإذاعات · الأذان» tabs</b><br>Three tabs, read from the right. The selected row has a thick gold frame and a gold chevron.</td>
+<td width="50%"><img src="docs/screenshots/03-adhan-times.jpg" alt="Today's prayer times at Umm al-Qura" width="100%"><br><b>The «مواقيت أم القرى» times</b><br>Today's five times, the next one in gold with the time left.</td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/05-muezzins.jpg" alt="The 21 adhan recordings by name" width="100%"><br><b>The «٢١ أذانًا»</b><br>Twenty-one recordings — muezzins and mosques; the chosen one in gold with its city.</td>
+<td width="50%"><img src="docs/screenshots/07-surah-grid.jpg" alt="The 114 surahs, right to left" width="100%"><br><b>The «١١٤ سورة» grid</b><br>The surahs of a reciter, six columns, right to left.</td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/08-player.jpg" alt="The player" width="100%"><br><b>The «المشغّل»</b><br>Title, reciter, progress and the transport row; during an adhan it shows the muezzin and hides the skip buttons.</td>
+<td width="50%"><img src="docs/screenshots/06-adhan-player.jpg" alt="The player during an adhan" width="100%"><br><b>During the adhan</b><br>The muezzin's name, and no skip or seek: the surah waits and comes back.</td>
+</tr>
+</table>
 
 ## For agents and scripts
 
@@ -110,6 +132,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 | `optimize/run.sh` | the whole setup; run again after any failure to continue · `status` · `again` after a TV system update (redo all, settings kept) |
 | `optimize/saver.sh` | screensaver settings: `show`, `cities`, `city`, `find-team`, `teams`, `card`, `home-card`, `genres`, `langs`, `minrating`, `photos`, `idle`, `digits`, `cardstyle`, `markets`, `mkstyle`, `stocks`, `slot`, `countdown`, `tasks`, `update` |
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
+| `optimize/music.sh` | «تلاوة» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
 | `optimize/keep.sh` | turn back on anything protected (AirPlay, casting, voice, updates…) that something turned off |
 | `docs/TVS.md` | what was seen on each TV model (ADB port, home switch, what to watch out for) |
@@ -127,13 +150,13 @@ src/build.py          builds the two pages in dist/
 dist/urtv.html        stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline
 dist/tv.html          light page the Android app loads (0.3 MB); the app serves fonts and photos from disk
 android/app           the screensaver app (sa.urtv.screensaver): DreamService, settings, auto-update
-android/launcher      the home screen (sa.urtv.home)
+android/launcher      the home screen (sa.urtv.home); sa.urtv.home.tilawah is «تلاوة»: catalog, player, adhan
 assets/               fonts, bundled photos, Arabic team names, verse and hadith texts
 photos/               the hosted photo set (5 shown per 4 days, rotating every 30 min)
 optimize/             TV tools (Python ADB client, no adb binary needed); lists/ says what may be turned off
 docs/                 the agent prompts (setup, recreate), what we learned on real TVs, test plan, photo credits
 .github/              CI: APK builds, checks, data tools (verses, hadith, clubs, photos), README images
-tests/run.sh          every check: build, data, fonts, scripts, private data, flaky-ADB upload, the screen in a browser
+tests/run.sh          every check: build, data, fonts, scripts, private data, «تلاوة» and the adhan, flaky-ADB upload, the screen in a browser
 ```
 
 A push to `master` builds both APKs in GitHub Actions and publishes them to `apk-latest` and a numbered `v3.N`
@@ -188,5 +211,9 @@ the windows (morning: Fajr to Dhuhr, evening: Asr to Maghrib).
 
 Photos: Unsplash photographers, listed in [docs/PHOTO-CREDITS.md](docs/PHOTO-CREDITS.md). Fonts: Thmanyah, and
 Noto Naskh Arabic for ﷺ ﴿﴾ (OFL, `assets/fonts/`).
+Quran recitations and live streams: [mp3quran.net](https://mp3quran.net) and [qurango.net](https://qurango.net);
+the Saudi Quran Radio stream is via [radiojar](https://www.radiojar.com/). Adhan recordings: the
+[Azaan of World Mosques](https://archive.org/details/azaan-of-world-mosques_202608) collection on Archive.org
+(Public Domain Mark 1.0).
 Home screen adapted from [mihirgupta0900/tv-home](https://github.com/mihirgupta0900/tv-home) (MIT,
 `android/launcher/LICENSE-tv-home`). Package ratings from [UAD-ng](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation).

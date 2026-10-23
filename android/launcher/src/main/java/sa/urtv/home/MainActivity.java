@@ -113,7 +113,10 @@ public class MainActivity extends Activity {
     private HomeCard homeCard;
 
     private final BroadcastReceiver tick = new BroadcastReceiver() {
-        @Override public void onReceive(Context c, Intent i) { updateClock(); updateWifi(); }
+        @Override public void onReceive(Context c, Intent i) {
+            updateClock();
+            updateWifi();
+        }
     };
     private final BroadcastReceiver packages = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { buildApps(); }
@@ -206,6 +209,9 @@ public class MainActivity extends Activity {
     private View buildUi() {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
+        // The home is built in code, so it inherits no direction from the window: set it here and
+        // the pills, the favourites and the app rows all read from right to left.
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
         // Wallpaper: two stacked layers so a new photo can crossfade in over the old one.
         wallBack = wallpaperLayer();
@@ -306,8 +312,9 @@ public class MainActivity extends Activity {
         clock = text(58, "display", 0xFFFFFDF6);
         clock.setIncludeFontPadding(false);
         ampm = text(16, "medium", GOLD);
-        clockRow.addView(ampm, llp(-2, -2, 0, dp(6), dp(8), 0));
+        // the row reads from the right: the time first, then the ص or the م on its left
         clockRow.addView(clock);
+        clockRow.addView(ampm, llp(-2, -2, 0, dp(6), dp(8), 0));
         left.addView(clockRow, llp(-2, -2, 0, dp(-2), 0, 0));
 
         date = text(14, "regular", 0xFFC6BBA4);
@@ -331,8 +338,13 @@ public class MainActivity extends Activity {
         tasks.setOnClickListener(v -> launch(new Intent(this, TasksActivity.class)));
         TextView settings = pill("الإعدادات", R.drawable.ic_settings);
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
-        for (TextView p : isInstalled(SAVER_PKG) ? new TextView[]{inputs, wifiPill, settings, tasks, saver}
-                                                  : new TextView[]{inputs, wifiPill, settings}) {
+        // the «تلاوة» pill: the Quran and the radio are part of this app, so it opens them right here
+        TextView tilawah = pill("تلاوة", R.drawable.ic_listen);
+        tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
+        List<TextView> row = new ArrayList<>(Arrays.asList(inputs, wifiPill, settings));
+        if (isInstalled(SAVER_PKG)) { row.add(tasks); row.add(saver); }
+        if (getResources().getBoolean(R.bool.show_listening)) row.add(tilawah);
+        for (TextView p : row) {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
             pills.add(p);
         }
@@ -1114,7 +1126,58 @@ public class MainActivity extends Activity {
             showInputs(pills.get(0));
             return true;
         }
+        // In a right to left layout Android looks for the focus the other way round, so the rows are
+        // walked by hand here: «right» always moves the highlight to the right.
+        if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+            if (e.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT && moveFocusSideways(false)) return true;
+            if (e.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT && moveFocusSideways(true)) return true;
+        }
         return super.dispatchKeyEvent(e);
+    }
+
+    /** Moves the focus to the next item of the row, on the right (true) or on the left (false). */
+    private boolean moveFocusSideways(boolean right) {
+        View focused = getCurrentFocus();
+        if (focused == null) return false;
+        ViewGroup parent = focused.getParent() instanceof ViewGroup ? (ViewGroup) focused.getParent() : null;
+        if (parent == null) return false;
+
+        ViewGroup row = null;
+        View item = null;
+        if (parent instanceof LinearLayout && ((LinearLayout) parent).getOrientation() == LinearLayout.HORIZONTAL) {
+            // the focus is on an item of the row itself (a pill)
+            row = parent;
+            item = focused;
+        } else {
+            // the app tiles: the focus is on the card inside its box, the row is above the box
+            ViewGroup above = parent.getParent() instanceof ViewGroup ? (ViewGroup) parent.getParent() : null;
+            if (above instanceof LinearLayout && ((LinearLayout) above).getOrientation() == LinearLayout.HORIZONTAL) {
+                row = above;
+                item = parent;
+            }
+        }
+        if (row == null) return false;
+        int index = row.indexOfChild(item);
+        if (index < 0) return false;
+        // the row reads from the right, so the item before the focused one is the one on the right
+        int next = right ? index - 1 : index + 1;
+        if (next < 0 || next >= row.getChildCount()) return true;   // the edge of the row: stay put
+        View target = row.getChildAt(next);
+        if (target == null || target.getVisibility() != View.VISIBLE) return true;
+        View toFocus = target;
+        if (target instanceof ViewGroup) {
+            ViewGroup box = (ViewGroup) target;
+            for (int i = 0; i < box.getChildCount(); i++) {
+                View child = box.getChildAt(i);
+                if (child.isFocusable() && child.getVisibility() == View.VISIBLE) {
+                    toFocus = child;
+                    break;
+                }
+            }
+        }
+        if (!toFocus.isFocusable() || toFocus.getVisibility() != View.VISIBLE) return true;
+        toFocus.requestFocus();
+        return true;
     }
 
     /** 16:9 container. */
