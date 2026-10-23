@@ -8,6 +8,7 @@ python3 tests/tilawah_test.py
 python3 tests/upload_test.py
 python3 tests/share_test.py
 python3 tests/install_retry_test.py
+python3 tests/run_lock_test.py
 python3 tests/reboot_test.py
 python3 tests/find_tv_test.py
 python3 tests/find_team_test.py
