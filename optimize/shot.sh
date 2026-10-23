@@ -3,7 +3,7 @@
 # each a <NAME>-small.png, 960 px wide: the full ones are too large for some agents to attach (needs Pillow,
 # which setup.sh installs; without it the small copy is skipped).
 #   optimize/shot.sh home [NAME]          the home screen (after Home, 8 s)
-#   optimize/shot.sh screensaver [NAME]   the screensaver (started now, 40 s for its data), then Back; where
+#   optimize/shot.sh screensaver [NAME]   the screensaver (started now, 34 s for its data; SHOT_WAIT=N changes that), then Back; where
 #                                         Android won't start it over ADB, our app's preview of the same page
 #   optimize/shot.sh favourites [NAME]    «ترتيب المفضلة»
 #   optimize/shot.sh settings [NAME]      شاشة تلفزيونك's settings
@@ -15,7 +15,7 @@ mkdir -p optimize/run/shots
 tv() { "$PY" -I optimize/tv.py "$@" > /dev/null; }
 case "${1:-}" in
   home)        tv "input keyevent KEYCODE_HOME"; sleep 8; name=home ;;
-  screensaver) how=$(optimize/start-saver.sh --preview); echo "screensaver: $how"; sleep 34; name=screensaver ;;
+  screensaver) how=$(optimize/start-saver.sh --preview); echo "screensaver: $how"; sleep "${SHOT_WAIT:-34}"; name=screensaver ;;
   favourites)  tv "am start -n sa.urtv.home/.DockActivity"; sleep 4; name=favourites ;;
   settings)    tv "am start --activity-clear-task -n sa.urtv.screensaver/.SettingsActivity"; sleep 4; name=settings ;;
   now)         name="${2:?usage: optimize/shot.sh now NAME}" ;;

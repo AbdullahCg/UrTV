@@ -6,7 +6,8 @@
 #   optimize/photos.sh del N             remove photo N (N from 'list'); the ones after it move up
 #   optimize/photos.sh clear             remove them all: the TV is as before
 #   optimize/photos.sh mode mix|only     mix = they join our Saudi photos (default); only = they are the only ones
-#   optimize/photos.sh show              screenshot the screensaver showing them (optimize/run/shots/own-photo.png)
+#   optimize/photos.sh show              screenshot the screensaver showing them (optimize/run/shots/own-photo.png);
+#                                        it waits 70 s for the page to settle on one of them, so it takes about 80 s
 # Both the screensaver and the home screen's wallpaper use them; the owner can change the mode or remove them all in the app's
 # settings («صوري»), and adds them only here. Needs Pillow on this computer (optimize/setup.sh installs it).
 set -euo pipefail
@@ -87,6 +88,6 @@ case "${1:-}" in
       trap 'send "--es op mode --es mode ${was:-mix}" > /dev/null || true; cleanup' EXIT
       send "--es op mode --es mode only" > /dev/null
     fi
-    optimize/shot.sh screensaver own-photo ;;
-  *) echo "usage:"; sed -n '3,12p' "$0"; exit 1 ;;
+    SHOT_WAIT=70 optimize/shot.sh screensaver own-photo ;;
+  *) echo "usage:"; sed -n '3,13p' "$0"; exit 1 ;;
 esac
