@@ -150,7 +150,8 @@ What we learned on real TCL sets, and what must stay on: [docs/OPTIMIZE.md](docs
 ```
 src/template.html     the screen (HTML/CSS/JS, no framework); edit this, then run src/build.py
 src/build.py          builds the two pages in dist/
-dist/urtv.html        stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline
+dist/urtv.html        stand-alone page, fonts and photos inlined: open in any browser (F = full screen), works offline.
+                      Not committed: run python3 src/build.py; without the private Thmanyah files it uses the system's Arabic font
 dist/tv.html          light page the Android app loads (0.3 MB); the app serves fonts and photos from disk
 android/app           the screensaver app (sa.urtv.screensaver): DreamService, settings, auto-update
 android/launcher      the home screen (sa.urtv.home); sa.urtv.home.tilawah is «تلاوة»: catalog, player, adhan

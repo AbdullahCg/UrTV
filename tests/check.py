@@ -33,7 +33,12 @@ def tracked(*globs):
 
 
 # ---- build
-before = {n: (ROOT / "dist" / n).read_bytes() for n in ("urtv.html", "tv.html") if (ROOT / "dist" / n).is_file()}
+# Thmanyah's licence allows its files only inside a built product: never in this public repository (CI puts them in place)
+leaked = [str(f.relative_to(ROOT)) for f in tracked("*Thmanyah*") + tracked("dist/urtv.html")]
+check("Thmanyah's files and the page that inlines them are not committed", not leaked, leaked)
+missing_fonts = [f for f in ("Thmanyah-Regular.woff2", "ThmanyahDisplay-Bold.woff2") if not (ROOT / "assets/fonts" / f).is_file()]
+check("Thmanyah is in place for the build (CI: the private urtv-fonts checkout; locally: your own copy)", not missing_fonts, missing_fonts)
+before = {n: (ROOT / "dist" / n).read_bytes() for n in ("tv.html",) if (ROOT / "dist" / n).is_file()}
 r = subprocess.run([sys.executable, "src/build.py"], cwd=ROOT, capture_output=True, text=True)
 check("src/build.py runs", r.returncode == 0, r.stderr[-400:])
 for page, limit in (("urtv.html", 4_000_000), ("tv.html", 650_000)):   # tv.html: about 1000 verses and hadith
@@ -42,7 +47,7 @@ for page, limit in (("urtv.html", 4_000_000), ("tv.html", 650_000)):   # tv.html
     check(f"{page}: every build token replaced", not left, left)
     check(f"{page}: size under {limit // 1000} KB", len(html.encode()) < limit, len(html.encode()))
 stale = [n for n, b in before.items() if (ROOT / "dist" / n).read_bytes() != b]
-check("dist/ matched a fresh build (run src/build.py after editing src/)", len(before) == 2 and not stale, stale)
+check("dist/ matched a fresh build (run src/build.py after editing src/)", len(before) == 1 and not stale, stale)
 
 # ---- data files
 for f in tracked("*.json"):
