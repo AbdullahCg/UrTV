@@ -1591,6 +1591,69 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- the real league file at the TV's time (Friday 2026-10-23 13:00 in Riyadh): every game once across the pages of the card
+// and of the bottom slot, no page repeating part of another, and after the last page the first again
+const TV_NOW = new Date('2026-10-23T10:00:00Z');
+const SAUDI_FILE = JSON.parse(readFileSync(path.join(ROOT, 'tests/fixtures/saudi-pro-league.json'), 'utf8'));
+const tvMock = (extra = () => false) => r => {
+  const u = new URL(r.request().url()), hdr = { 'Access-Control-Allow-Origin': '*' }, id = u.searchParams.get('id');
+  const at = h => new Date(TV_NOW.getTime() + h * 36e5).toISOString().slice(0, 19);
+  if (extra(r, u)) return true;
+  if (u.host === 'raw.githubusercontent.com' && u.pathname.endsWith('/data-leagues/leagues/saudi-arabian-pro-league.json'))
+    { r.fulfill({ json: SAUDI_FILE, headers: hdr }); return true; }
+  if (!/thesportsdb/.test(u.host)) return false;
+  const F1 = [['Saudi Arabian Grand Prix Practice 1', 30]]
+    .map(([n, h], i) => ({ idEvent: 'r' + i, strEvent: n, strCountry: 'Saudi Arabia', strTimestamp: at(h), strStatus: 'NS' }));
+  const UFC = [{ idEvent: 'u1', strEvent: 'UFC 333 Volkanovski vs Evloev', strCountry: 'United Arab Emirates', strTime: '16:00:00', strTimestamp: at(60), strStatus: 'NS' }];
+  const BOX = [{ idEvent: 'b1', strEvent: 'Dalton Smith vs Alberto Puello', strCountry: 'United Kingdom', strTime: '00:00:00',
+                strTimestamp: at(40).slice(0, 10) + 'T00:00:00', dateEvent: at(40).slice(0, 10), strStatus: 'NS' }];
+  const body = j => { r.fulfill({ json: j, headers: hdr }); return true; };
+  if (u.pathname.endsWith('eventsnext.php')) return body({ events: id === '136013' ? [SAUDI_FILE.events.find(e => e.idEvent === '2573394')] : null });
+  if (u.pathname.endsWith('eventsnextleague.php')) return body({ events: { E1: F1, E2: UFC, E3: BOX }[id] || null });
+  return body({ results: null });
+};
+for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&leagues=' + encodeURIComponent('Saudi-Arabian Pro League') + '&events=f1,ufc,boxing&panel=matches',
+    { width, height, now: TV_NOW, net: tvMock() });
+  await p.evaluate(() => { EVENT_LEAGUES.f1 = [{ id: 'E1', name: 'Formula 1' }]; EVENT_LEAGUES.ufc = [{ id: 'E2', name: 'UFC' }];
+                           EVENT_LEAGUES.boxing = [{ id: 'E3', name: 'Boxing' }]; });
+  await p.evaluate(() => loadMatches());
+  await p.waitForTimeout(800);
+  const r = await p.evaluate(() => {
+    const txt = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent.replace(/\s+/g, ' ').trim(); };
+    const all = matchRows().map(txt), card = CARDS[0], lap = [], pageRows = [];
+    const read = () => [...document.querySelectorAll('#week-list li')].map(li => li.textContent.replace(/\s+/g, ' ').trim());
+    // the card turns the way its timer does (page++), three laps of it
+    const pages = Math.ceil(all.length / MATCH_ROWS);
+    card.page = 0; renderCard(card, false);
+    for (let k = 0; k < pages * 3 + 1; k++) { pageRows.push(read()); card.page++; renderCard(card, false); }
+    // the bottom slot: a lap to learn the pairs that do not fit side by side, then three laps
+    const row = document.getElementById('match-row'), slotPages = [];
+    for (let k = 0; k < 40; k++) renderMatches(true);
+    MATCH_PAGE = -1;
+    renderMatches(true);
+    const n = MATCH_PAGES;
+    for (let k = 0; k < n * 3; k++) {
+      slotPages.push([...row.querySelectorAll('.mblock .big')].map(b => b.innerText.replace(/\s+/g, ' ').trim()));
+      renderMatches(true);
+    }
+    return { all, pages, pageRows, n, slotPages };
+  });
+  const tag = `league file at the TV's time, ${width}x${height}`;
+  const lap1 = r.pageRows.slice(0, r.pages), flat = lap1.flat(), strip = s => s.replace(/\s+/g, '');
+  check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+  check(`${tag}: the card has ${r.all.length} rows in ${r.pages} fixed pages`, r.all.length % 4 !== 0 && r.all.length >= 12 && r.pages === Math.ceil(r.all.length / 4), r.all.length);
+  check(`${tag}: the card shows every game exactly once over its pages, in order, no page repeating part of another`,
+    flat.length === r.all.length && flat.every((t, i) => strip(t) === strip(r.all[i])), JSON.stringify({ flat, all: r.all }));
+  check(`${tag}: after the last page of the card the first again, three laps alike`,
+    r.pageRows.every((pg, i) => JSON.stringify(pg) === JSON.stringify(r.pageRows[i % r.pages])), r.pageRows.map(x => x.length).join());
+  const slotLap = r.slotPages.slice(0, r.n), slotFlat = slotLap.flat();
+  check(`${tag}: the bottom slot shows every game once per lap of ${r.n} pages`, new Set(slotFlat).size === slotFlat.length && slotFlat.length >= 10, slotFlat.join(' | '));
+  check(`${tag}: the bottom slot's laps are alike`, r.slotPages.every((pg, i) => JSON.stringify(pg) === JSON.stringify(r.slotPages[i % r.n])), JSON.stringify(r.slotPages));
+  // SHOT item1-card-last-${width} | CARDS[0].page = 3; renderCard(CARDS[0], false);
+  await ctx.close();
+}
+
 // ---- the two longest games of every league side by side: each fits its line (or the pair goes one to a page), at three sizes
 for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const clubs = JSON.parse(readFileSync(path.join(ROOT, 'assets/shared/teams.json'), 'utf8'));

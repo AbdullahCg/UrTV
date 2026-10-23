@@ -1889,8 +1889,13 @@ function renderCard(card, animate, keepSize){
   }
   const per = card.cap || (P === 'matches' ? MATCH_ROWS : WEEK_ROWS);
   if((P === 'matches' || P === 'stocks' || P === 'tasks') && rows.length > per){        // page through, like the shows
-    const start = (card.page * per) % rows.length;
-    rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
+    if(P === 'matches'){   // fixed pages, each game once a lap; the last holds what is left
+      const pages = Math.ceil(rows.length / per), start = (card.page % pages) * per;
+      rows = rows.slice(start, start + per);
+    }else{
+      const start = (card.page * per) % rows.length;
+      rows = Array.from({length: per}, (_, i) => rows[(start + i) % rows.length]);
+    }
   }
   const wrote = setHTML(ul, rows.join(''), animate);
   if(!keepSize){ card.base = rows.length; card.len0 = card.len || 0; }   // what full size holds: the rows of a page, the length of the text
