@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * Hands the launcher (same signing key, see READ_CONFIG in the manifest) what its home-screen card needs:
- * the page settings as a URL fragment and which card to show ("none" = off).
+ * the page settings as a URL fragment, which card to show ("none" = off) and whether the greeting is on ("1"/"0").
  *
  * «المهام»: content://sa.urtv.screensaver.config/tasks lists the tasks (i from 1, t, done, at). The launcher
  * may also change them, which needs WRITE_TASKS (signature, same key as READ_CONFIG):
@@ -33,8 +33,8 @@ public class ConfigProvider extends ContentProvider {
             }
             return t;
         }
-        MatrixCursor c = new MatrixCursor(new String[] {"fragment", "home_panel"});
-        c.addRow(new Object[] {p.fragment(), p.homePanel()});
+        MatrixCursor c = new MatrixCursor(new String[] {"fragment", "home_panel", "greeting"});
+        c.addRow(new Object[] {p.fragment(), p.homePanel(), p.greeting() ? "1" : "0"});
         return c;
     }
 

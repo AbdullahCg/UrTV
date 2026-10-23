@@ -125,6 +125,8 @@ public class SettingsActivity extends Activity {
         header("الشاشة الرئيسية (تلفزيونك)");
         row("بطاقة على الشاشة الرئيسية", Prefs.panelLabel(prefs.homePanel()), R.drawable.ic_eye,
             new Runnable() { public void run() { pickPanel(true); } });
+        row("التحية والطقس", prefs.greeting() ? "تعمل" : "متوقفة", R.drawable.ic_eye,
+            new Runnable() { public void run() { prefs.setGreeting(!prefs.greeting()); render(); } });
         row("ترتيب التطبيقات المفضلة", "قائمة ترتّب فيها المفضلة بالأسهم", R.drawable.ic_star,
             new Runnable() { public void run() { openDockSettings(); } });
 

@@ -1,0 +1,21 @@
+# kind, inputs..., expected, note. part: now fajr dhuhr asr isha (minutes of the day); weather: code city temp digits; sun: label hh:mm digits
+part	120	290	700	900	1155	تصبح على خير	before Fajr: still the night
+part	290	290	700	900	1155	صباح الخير	Fajr itself
+part	600	290	700	900	1155	صباح الخير	mid-morning
+part	700	290	700	900	1155	طاب يومك	Dhuhr itself
+part	899	290	700	900	1155	طاب يومك	a minute before Asr
+part	900	290	700	900	1155	مساء الخير	Asr itself
+part	1154	290	700	900	1155	مساء الخير	a minute before Isha
+part	1155	290	700	900	1155	تصبح على خير	Isha itself
+part	1400	290	700	900	1155	تصبح على خير	late night
+weather	0	الرياض	31	hindi	سماء صافية في الرياض · ٣١°	clear
+weather	0	Riyadh	30.6	latin	سماء صافية في Riyadh · 31°	latin digits, rounded
+weather	2	جدة	28.4	hindi	غائم جزئيًا في جدة · ٢٨°	partly cloudy
+weather	3	أبها	18	hindi	سماء غائمة في أبها · ١٨°	cloudy
+weather	63	الرياض	22	hindi	أمطار في الرياض · ٢٢°	rain
+weather	95	الدمام	25	hindi	عواصف رعدية في الدمام · ٢٥°	storm
+weather	42	الرياض	31	hindi	الرياض · ٣١°	a code with no word: the city alone
+sun	الغروب	17:57	hindi	الغروب ٥:٥٧ م	sunset
+sun	الشروق	05:48	hindi	الشروق ٥:٤٨ ص	sunrise
+sun	الغروب	00:05	latin	الغروب 12:05 ص	midnight in Latin digits
+sun	الغروب	12:00	hindi	الغروب ١٢:٠٠ م	noon
