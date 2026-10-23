@@ -2023,21 +2023,30 @@ function forecastRows(){
 // ---- club crests on the launcher's matches card: TheSportsDB's badge, which the events already carry
 // (strHomeTeamBadge / strAwayTeamBadge, with idHomeTeam / idAwayTeam). No request of its own except the picture,
 // once per club: kept as a 48 px copy in localStorage and fetched again only when the badge's address changes.
+// The launcher's page is a file:// document and the badge host may send no Access-Control-Allow-Origin: fetch() is then refused (or
+// the answer is no picture). The club keeps its address alone and the row shows a plain <img> of it, which needs no CORS.
 const CRESTS_ON = CONFIG.widget && USES('matches');
-const CREST_PX = 48, CREST_KEEP = 60, CREST_PER_ROUND = 10, CREST_RETRY_MS = 6 * 3600000;
-let CRESTS = {};   // team id -> {u: badge address, d: data: URI of the small copy}
+const CREST_PX = 48, CREST_KEEP = 60, CREST_PER_ROUND = 10;
+let CRESTS = {};   // team id -> {u: badge address, d: data: URI of the small copy, none when only the address could be kept}
 try{ CRESTS = JSON.parse(localStorage.getItem('crests') || '{}') || {}; }catch(e){}
-const CREST_TRIED = {};   // team id -> when a fetch last failed
 function crestOf(ev, side){
   const u = String(ev['str' + side + 'TeamBadge'] || ''), id = String(ev['id' + side + 'Team'] || '');
   return /^https:\/\/[a-z0-9.-]+\.thesportsdb\.com\/\S+$/i.test(u) && /^\d+$/.test(id) ? {id, u} : null;
 }
 const crestImg = (ev, side) => {
   const c = CRESTS_ON && crestOf(ev, side);
-  return c && CRESTS[c.id] && CRESTS[c.id].d ? `<img class="cr" data-t="${c.id}" alt="">` : '';   // no crest: the name alone
+  const k = c && CRESTS[c.id];
+  if(!k) return '';   // no crest: the name alone
+  return k.d ? `<img class="cr" data-t="${c.id}" alt="">`
+    : `<img class="cr" data-t="${c.id}" src="${esc(k.u)}" width="${CREST_PX}" height="${CREST_PX}" loading="lazy" alt="">`;
 };
 function fillCrests(root){   // the rows carry the club's id only; the picture is put in here (a saved row has none)
-  root.querySelectorAll('img.cr').forEach(i => { const c = CRESTS[i.dataset.t]; if(c && c.d && i.getAttribute('src') !== c.d) i.src = c.d; });
+  root.querySelectorAll('img.cr').forEach(i => {
+    const c = CRESTS[i.dataset.t], src = c && (c.d || c.u);
+    if(!src) return;
+    if(!c.d) i.onerror = () => i.remove();   // an address that shows nothing (gone, or no picture): the name alone
+    if(i.getAttribute('src') !== src) i.src = src;
+  });
 }
 function crestShrink(blob){   // -> a data: URI no larger than CREST_PX, '' when it is not a picture
   return new Promise(done => {
@@ -2071,16 +2080,15 @@ async function loadCrests(){
   if(!CRESTS_ON || CREST_BUSY) return;
   CREST_BUSY = true;
   try{
-    const want = {}, now = Date.now();
+    const want = {};
     for(const ev of matchEvents()) for(const side of ['Home', 'Away']){
       const c = crestOf(ev, side);
-      if(c && !(CRESTS[c.id] && CRESTS[c.id].u === c.u) && now - (CREST_TRIED[c.id] || 0) > CREST_RETRY_MS) want[c.id] = c.u;
+      if(c && !(CRESTS[c.id] && CRESTS[c.id].u === c.u)) want[c.id] = c.u;
     }
     let got = 0;
     for(const [id, u] of Object.entries(want).slice(0, CREST_PER_ROUND)){
       const d = await crestFetch(u);
-      if(!d){ CREST_TRIED[id] = now; continue; }
-      delete CRESTS[id]; CRESTS[id] = {u, d}; got++;
+      delete CRESTS[id]; CRESTS[id] = d ? {u, d} : {u}; got++;   // no copy: the address alone, asked for once
     }
     if(!got) return;
     Object.keys(CRESTS).slice(0, Math.max(0, Object.keys(CRESTS).length - CREST_KEEP)).forEach(k => delete CRESTS[k]);

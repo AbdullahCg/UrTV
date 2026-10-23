@@ -1230,6 +1230,94 @@ for (const [width, height] of [[461, 250], [1920, 1080], [1280, 720], [960, 540]
   }
 }
 
+// ---- the same crests where the badge host sends no Access-Control-Allow-Origin (the launcher's WebView page is a file:// document):
+// fetch() cannot read the picture, so the plain <img> shows it from its address, and only the address is kept
+const crestNetNoCors = seen => r => {
+  const u = r.request().url();
+  if (!/thesportsdb\.com\/images\//.test(u)) return false;
+  seen.push(u + (r.request().resourceType() === 'image' ? ' [img]' : ' [fetch]'));
+  // no CORS header: an <img> shows it, a fetch() from the file:// page is refused (Playwright adds the header to a fulfilled answer, so refuse here)
+  if (r.request().resourceType() !== 'image') r.abort('failed');
+  else r.fulfill({ contentType: 'image/png', body: badgePng });
+  return true;
+};
+const crestNetNotAPicture = seen => r => {
+  const u = r.request().url();
+  if (!/thesportsdb\.com\/images\//.test(u)) return false;
+  seen.push(u);
+  r.fulfill({ contentType: 'text/html', headers: { 'Access-Control-Allow-Origin': '*' }, body: '<html>not a badge</html>' });
+  return true;
+};
+for (const [width, height] of [[461, 250], [1920, 1080], [960, 540]]) {
+  const tag = `launcher matches card ${width}x${height}, badge host without CORS`;
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width, height, net: crestNetNoCors(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false);');
+  await p.evaluate(() => loadCrests());
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => {
+    const imgs = [...document.querySelectorAll('#week-list img.cr')], rows = [...document.querySelectorAll('#week-list li > span:first-child')];
+    const kept = JSON.parse(localStorage.getItem('crests') || '{}');
+    return { n: imgs.length, plain: imgs.every(i => /^https:\/\/r2\.thesportsdb\.com\/images\/media\/team\/badge\/club10[0-9]\.png$/.test(i.getAttribute('src'))
+        && i.getAttribute('width') === '48' && i.getAttribute('height') === '48' && i.getAttribute('loading') === 'lazy'),
+      loaded: imgs.every(i => i.complete && i.naturalWidth > 0 && i.getBoundingClientRect().width > 8),
+      kept: Object.keys(kept).sort().join(), onlyUrls: Object.values(kept).every(e => e.u && !e.d), bytes: (localStorage.getItem('crests') || '').length,
+      noCrestHasName: rows[1].querySelectorAll('.tm')[1].querySelector('img') === null && rows[1].querySelectorAll('.tm')[1].textContent.trim().length > 2,
+      oneLine: rows.every(sp => fits(sp) && [...sp.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1)),
+      cut: document.getElementById('week-list').textContent.includes('…') };
+  });
+  check(`${tag}: no script errors`, !errors.length, errors.join('; '));
+  check(`${tag}: the crests still show, as plain 48 px images from the badge address`, r.n === 3 && r.plain && r.loaded && r.noCrestHasName, JSON.stringify(r));
+  check(`${tag}: only the address is kept (no picture), ${r.bytes} bytes for 3`, r.kept === '100,101,102' && r.onlyUrls && r.bytes < 600, JSON.stringify(r));
+  check(`${tag}: each game on one line, nothing cut`, r.oneLine && !r.cut, JSON.stringify(r));
+  const first = seen.length;
+  await p.evaluate(() => loadCrests()); await p.waitForTimeout(300);
+  check(`${tag}: the same crests asked for again: no new request`, first >= 3 && seen.length === first && seen.filter(u => u.endsWith('[img]')).length === 3, JSON.stringify(seen));
+  const before = seen.length;
+  await p.evaluate(() => saveSnap());
+  await restart(p);
+  await p.waitForTimeout(600);
+  const back = await p.evaluate(() => [...document.querySelectorAll('#week-list img.cr')].filter(i => i.getAttribute('src').startsWith('https://') && i.complete && i.naturalWidth > 0).length);
+  check(`${tag}: after a restart the crests are back, and the fetch is not tried again`, back === 3 && seen.slice(before).every(u => u.endsWith('[img]')), back + ' ' + seen.slice(before).join());
+  // SHOT item3-nocors-${width} | 0
+  await ctx.close();
+}
+for (const [width, height] of [[461, 250], [1920, 1080], [960, 540]]) {   // long names beside plain images: still one line, never «…»
+  const tag = `launcher matches card ${width}x${height}, long names, badge host without CORS`;
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { width, height, net: crestNetNoCors(seen) });
+  await p.evaluate(CREST_GAMES(LONG_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => {
+    const rows = [...document.querySelectorAll('#week-list li > span:first-child')];
+    return { n: rows.length, imgs: document.querySelectorAll('#week-list img.cr').length, text: document.getElementById('week-list').innerText.replace(/\s+/g, ' '),
+      oneLine: rows.every(sp => [...sp.querySelectorAll('.tm')].every(x => x.getClientRects().length === 1) && fits(sp)) };
+  });
+  check(`${tag}: each game on one line, never «…»`, !errors.length && r.n >= 2 && r.oneLine && !r.text.includes('…'), JSON.stringify(r) + errors.join('; '));
+  await ctx.close();
+}
+{   // the answer is not a picture: nothing broken stays on the card, only the address is kept, the name shows
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { net: crestNetNotAPicture(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => ({ imgs: document.querySelectorAll('#week-list img.cr').length, kept: Object.values(JSON.parse(localStorage.getItem('crests') || '{}')).every(e => e.u && !e.d),
+    names: document.getElementById('week-list').textContent.includes('الهلال') || document.getElementById('week-list').textContent.includes('Al-Hilal') }));
+  check('a badge that is not a picture: no script errors, no broken image left on the card, the names show', !errors.length && r.imgs === 0 && r.names, JSON.stringify(r) + errors.join('; '));
+  check('a badge that is not a picture: only its address is kept', r.kept, JSON.stringify(r));
+  await ctx.close();
+}
+{   // with the header: the shrunk copy, as before (one run, the launcher's size)
+  const seen = [];
+  const { p, ctx, errors } = await open('tv.html', 'teams=136013&panel=matches&widget=1', { net: crestNet(seen) });
+  await p.evaluate(CREST_GAMES(SHORT_GAMES) + ' renderPanel(false); loadCrests();');
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => ({ srcs: [...document.querySelectorAll('#week-list img.cr')].map(i => i.src.slice(0, 15)),
+    kept: Object.values(JSON.parse(localStorage.getItem('crests') || '{}')).every(e => e.u && e.d && e.d.startsWith('data:image/png')) }));
+  check('a badge host with CORS: the shrunk copy (data: URI) is shown and kept, as before', !errors.length && r.srcs.length === 3 && r.srcs.every(s => s === 'data:image/png;') && r.kept, JSON.stringify(r));
+  await ctx.close();
+}
+
 // ---- «طقس الساعات القادمة»: the next six hours beside the clock and on the launcher's card, one request with the forecast
 {
   const hourlyAnswer = () => {   // Open-Meteo's answer for Riyadh (UTC+3): 48 hours from this hour, mixed weather, a sunset at 18:00
