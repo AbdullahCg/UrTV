@@ -34,7 +34,9 @@ Package `sa.urtv.home` · classes `sa.urtv.home.tilawah` · label «تلاوة»
   paused, then the forty reciters; «الإذاعات» holds the eleven live stations (and the resume row when
   a station was playing); «الأذان» holds today's five times (the next one in gold with the time left,
   OK plays that adhan now), «الأذان التلقائي» (OK switches it on or off), «المؤذن» (OK opens the 21
-  recordings) and «صوت الأذان» (OK sets it, 10 % to 100 %, thirty by default). The selected row has a
+  recordings) and «صوت الأذان» (Left/Right set it in steps of 10, 10 % to 100 %, thirty by default, with a bar
+  and two seconds of the adhan at the new level; OK does nothing). When exact alarms are not allowed (Android 12+) a row
+  «قد يتأخر الأذان دقائق: فعّل المنبّهات الدقيقة» appears under the switch; OK opens the system screen for it. The selected row has a
   solid dark card, a thick gold frame and a gold chevron at the end, so it is visible from the couch.
 - **Surah grid**: the 114 surahs in reading order, right to left; OK opens the player.
 - **Player**: title, reciter/station, progress, and a transport row. The transport controls stay
@@ -58,7 +60,9 @@ Package `sa.urtv.home` · classes `sa.urtv.home.tilawah` · label «تلاوة»
 During an adhan, seek and next/previous are ignored, and the hint line says so.
 
 The sleep timer fades the volume out at the end and shows the remaining minutes in gold on the
-player. On Android 13+ the app asks for the notification permission on first launch; playback
+player. Cancelling it during the fade stops the fade and the sound comes back. Paused (or with another app holding the
+sound) for 30 minutes, the player stops by itself; the Wi-Fi lock and the position tick are held only while something plays,
+and the place in the surah is saved when it pauses or stops, not every few seconds. On Android 13+ the app asks for the notification permission on first launch; playback
 works without it but the media notification is hidden.
 
 ## Right to left, and the arrows
@@ -79,20 +83,25 @@ right and the left arrow to the left.
 
 - **The times** are Umm al-Qura, computed on the TV with no network: Fajr at 18.5°, Maghrib at
   sunset, Asr at shadow factor 1, Isha 90 minutes after Maghrib (120 in Ramadan, from the
-  Umm al-Qura calendar). This is the same arithmetic as the screensaver's page and the same method
-  Aladhan calls `method=4`. Once a day the times are quietly replaced by Aladhan's, and Isha is
-  always recomputed from Maghrib so Ramadan stays right.
+  Umm al-Qura calendar) — an absolute moment, so a Maghrib near midnight at a high latitude gives an Isha after midnight,
+  never an hour that has already gone. This is the same arithmetic as the screensaver's page and the same method
+  Aladhan calls `method=4`. Once a day the times are quietly replaced by Aladhan's (asked for the city's own date, kept under a key that names the
+  city, so a city change the same day asks again; a time written «5:12 (+03)» is read as 5:12), the alarm is set again for
+  them, and Isha is always recomputed from Maghrib so Ramadan stays right.
 - **The city** is the one picked in the screensaver (its `ConfigProvider`: `lat`, `lon`, `tz`);
   without the screensaver, `config.xml`'s `latitude`, `longitude` and `timezone` are used.
 - **The switch is off by default.** «الأذان التلقائي» turns it on; the choice is remembered.
-- **The alarm** is one exact `AlarmManager` alarm for the next of the five prayers. It is put back
-  when the adhan has played, after a reboot, after a clock or timezone change, and after an update.
-  The same adhan never plays twice.
+- **The alarm** is one `AlarmManager` alarm for the next of the five prayers (action `ADHAN_ALARM`, naming the receiver; the
+  shell's `sa.urtv.home.ADHAN` is «adhan now» and reaches `MusicReceiver` only). It is exact when Android allows it; from
+  Android 12 without the exact-alarm permission the system may deliver it minutes late, and the adhan tab says so. It is put
+  back when the adhan has played, after a reboot, after a clock or timezone change, after an update and when Aladhan's times
+  arrive. The same prayer's adhan never plays twice (judged by the prayer's own time, so a preview of a muezzin five
+  minutes before does not silence the real one); a preview that is playing gives way to the real adhan.
 - **Only while the TV is on.** An alarm that arrives in standby is skipped, not played late: there is
   no catch-up after a reboot or a missed prayer, and an adhan that is playing stops when the screen
   goes off.
-- **Its own volume.** The adhan plays at 30% of the TV's maximum (`صوت الأذان` in the adhan tab cycles
-  10–100%), and the volume the TV had comes back when the adhan ends.
+- **Its own volume.** The adhan plays at 30% of the TV's maximum (`صوت الأذان` in the adhan tab: Left/Right, 10–100% in
+  steps of 10; `optimize/music.sh adhan volume 60`), and the volume the TV had comes back when the adhan ends.
 - **During an adhan** a playing surah (or station) pauses, the adhan plays, and the surah resumes
   where it stopped. «متابعة التلاوة» keeps pointing at the surah, never at the adhan.
 - **The recordings** are twenty-one adhans (muezzins and mosques) from the «Azaan of World Mosques»
@@ -100,8 +109,9 @@ right and the left arrow to the left.
   (<https://archive.org/details/azaan-of-world-mosques_202608>) — free to redistribute, no attribution
   required; the source is credited in the app's adhan screen and here. The table of names and URLs is
   in `Adhan.java`. Each one is kept in `getCacheDir()/adhan/adhan-N.mp3` the first time it is needed
-  — the chosen one first, the rest in the background while the screen opens — so an adhan plays with
-  the connection down. A stream that drops falls back to the saved copy.
+  — the chosen one first, fetched when the alarm is set (not only when the screen opens), the rest lazily, a failed one
+  skipped, at most one round a day — so an adhan plays from the saved copy, with the connection down. A file is kept only if
+  its length is the server's Content-Length. A stream that drops falls back to the saved copy.
 - **«أذان من ملفي»** is the person's own recording (`OwnAdhan.java`), for a muezzin whose recordings are not
   free to redistribute, so none is ever bundled: `optimize/music.sh adhan add FILE` makes a mono AAC of about
   48 kbps, at most 5 minutes, on the computer (ffmpeg), uploads it through `OwnAdhanProvider` (`content write`,
@@ -131,13 +141,14 @@ optimize/music.sh adhan                    # on/off, voice, next time, last play
 optimize/music.sh adhan now 3              # play voice 3 right now
 optimize/music.sh adhan off | on
 optimize/music.sh adhan voice 7            # the recording used at the prayer times
+optimize/music.sh adhan volume 60          # its own volume, 10-100
 optimize/music.sh adhan add my-adhan.mp3   # the person's own recording (ffmpeg here makes it small); `adhan voice own`, `adhan own-clear`
 ```
 
 `status` prints one line:
 
 ```
-playing=1|source=surah|reciter=sudais|reciter_name=عبدالرحمن السديس|surah=1|surah_name=الفاتحة|station=-1|station_name=|pos=12400|dur=36075|sleep=0|adhan=on|voice=1|adhan_next=1761000000000|adhan_next_name=المغرب|adhan_next_clock=17:42|adhan_last=0|error=
+playing=1|source=surah|reciter=sudais|reciter_name=عبدالرحمن السديس|surah=1|surah_name=الفاتحة|station=-1|station_name=|pos=12400|dur=36075|sleep=0|adhan=on|voice=1|adhan_volume=30|adhan_exact=1|adhan_next=1761000000000|adhan_next_name=المغرب|adhan_next_clock=17:42|adhan_last=0|error=
 ```
 
 The raw broadcasts are the same actions:

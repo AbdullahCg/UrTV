@@ -1,0 +1,48 @@
+"""optimize/saver.sh: an apostrophe in any value stops the command and sends nothing (it used to send an empty value), and a
+good value is sent quoted (no TV needed).
+
+    python3 tests/saver_quote_test.py
+
+PY is a stand-in for optimize/tv.py that writes the shell command it was given to a file.
+"""
+import os, subprocess, sys, tempfile
+
+here = os.path.dirname(os.path.abspath(__file__))
+saver = os.path.join(here, "..", "optimize", "saver.sh")
+tmp = tempfile.mkdtemp()
+log = os.path.join(tmp, "sent.txt")
+fake = os.path.join(tmp, "fakepy")
+with open(fake, "w") as f:
+    f.write('#!/usr/bin/env bash\nprintf "%s\\n" "$3" >> "$SENT"\necho \'Broadcast completed: result=0, data="saved"\'\n')
+os.chmod(fake, 0o755)
+
+failed = 0
+def run(*args):
+    open(log, "w").close()
+    r = subprocess.run(["bash", saver, *args], capture_output=True, text=True, env={**os.environ, "PY": fake, "SENT": log})
+    return r.returncode, r.stdout + r.stderr, open(log, encoding="utf-8").read().strip()
+
+def check(name, ok, detail=""):
+    global failed
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else "  -> " + detail))
+    failed += not ok
+
+A = "am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.SET "
+bad = "it's"
+for words in (["city", bad], ["city", "x", bad, "46.7"], ["city", "x", "24.7", bad], ["city", "x", "24.7", "46.7", bad], ["teams", bad], ["card", bad],
+              ["home-card", bad], ["greeting", bad], ["adhanbar", bad], ["genres", bad], ["leagues", bad], ["events", bad], ["langs", bad],
+              ["minrating", bad], ["photos", bad], ["cardstyle", bad], ["markets", bad], ["mkstyle", bad], ["stocks", bad], ["slot", bad],
+              ["countdown", "2026-12-01", bad], ["countdown", bad, "name"], ["national", bad], ["digits", bad], ["idle", bad]):
+    rc, out, sent = run(*words)
+    check(f"{' '.join(words[:2])}…: an apostrophe stops the command, nothing is sent", rc != 0 and not sent and "apostrophes" in out, f"rc={rc} sent={sent!r} {out}")
+rc, out, sent = run("city", "الرس", "25.86", "43.49", "Asia/Riyadh")
+check("city with a zone: every value quoted", rc == 0 and sent == A + "--es city 'الرس' --es lat '25.86' --es lon '43.49' --es tz 'Asia/Riyadh'", sent)
+rc, out, sent = run("card", "prayers")
+check("card: quoted", rc == 0 and sent == A + "--es panel 'prayers'", sent)
+rc, out, sent = run("teams", "1:A", "2:B")
+check("teams: joined and quoted", rc == 0 and sent == A + "--es teams '1:A,2:B'", sent)
+rc, out, sent = run("countdown", "2026-12-01", "a trip")
+check("countdown: both quoted", rc == 0 and sent == A + "--es countdown '2026-12-01' --es cdname 'a trip'", sent)
+rc, out, sent = run("leagues", "")
+check("leagues '' (none): an empty value, quoted", rc == 0 and sent == A + "--es leagues ''", sent)
+sys.exit(1 if failed else 0)

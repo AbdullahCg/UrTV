@@ -410,13 +410,20 @@ final class Prefs {
     }
 
     /** All tasks, oldest first (a JSON array of {t, done, at}); the number a person sees is the position + 1. */
-    List<Task> tasks() {
+    List<Task> tasks() { return parseTasks(sp.getString("tasks", "[]")); }
+
+    /** The tasks of the saved JSON; an entry that is not a task is skipped, not the whole list lost. */
+    static List<Task> parseTasks(String json) {
         List<Task> out = new ArrayList<>();
         try {
-            JSONArray a = new JSONArray(sp.getString("tasks", "[]"));
+            JSONArray a = new JSONArray(json);
             for (int k = 0; k < a.length(); k++) {
-                JSONObject o = a.getJSONObject(k);
-                out.add(new Task(o.getString("t"), o.optBoolean("done"), o.optLong("at")));
+                try {
+                    JSONObject o = a.getJSONObject(k);
+                    out.add(new Task(o.getString("t"), o.optBoolean("done"), o.optLong("at")));
+                } catch (JSONException bad) {
+                    // one entry that is not a task is skipped; the others are kept (the list is saved back whole)
+                }
             }
         } catch (JSONException e) {
             out.clear();

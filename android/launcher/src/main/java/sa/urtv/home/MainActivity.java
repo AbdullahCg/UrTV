@@ -901,47 +901,51 @@ public class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- status
 
-    /** {city, zone id} the screensaver saved (its ConfigProvider, same signing key); null when it is missing: the TV's own zone then. */
-    private String[] cityZone() {
-        try (android.database.Cursor cur = getContentResolver().query(
-                android.net.Uri.parse("content://sa.urtv.screensaver.config"), null, null, null, null)) {
-            if (cur != null && cur.moveToFirst() && cur.getString(0) != null) return ClockZone.parse(cur.getString(0));
-        } catch (RuntimeException ignored) { }
-        return null;
-    }
+    // The two date formats are made once and given the city's zone when it changes: the tick runs every minute.
+    private android.icu.text.SimpleDateFormat hijriFormat;
+    private SimpleDateFormat gregFormat;
+    private String formatZone = "";
 
     private void updateClock() {
         long ms = System.currentTimeMillis();
         String tvTz = java.util.TimeZone.getDefault().getID();
-        String[] zone = cityZone();
+        // one read of the screensaver's settings (its ConfigProvider, same signing key) for the whole tick; null zone = it is missing: the TV's own
+        ConfigSnapshot cfg = ConfigSnapshot.read(this);
+        String[] zone = cfg.cityZone();
         String tz = zone == null ? tvTz : zone[1];
         Calendar now = ClockZone.at(ms, tz);   // the city's time, like the prayer times beside it
         int h = now.get(Calendar.HOUR_OF_DAY);
-        greetingLine.update(h);
+        greetingLine.update(h, cfg);
         int hh = h % 12 == 0 ? 12 : h % 12;   // always 12-hour
         clock.setText(arabicDigits(hh + ":" + String.format(Locale.ROOT, "%02d", now.get(Calendar.MINUTE))));
         ampm.setText(h < 12 ? "ص" : "م");
         boolean other = zone != null && ClockZone.differs(tvTz, tz, ms);
         zoneLine.setVisibility(other ? View.VISIBLE : View.GONE);
         if (other) zoneLine.setText(ClockZone.label(zone[0]));
+        if (gregFormat == null) {
+            gregFormat = new SimpleDateFormat("d MMMM", new Locale("ar"));
+            try {
+                hijriFormat = new android.icu.text.SimpleDateFormat("EEEE، d MMMM y", new android.icu.util.ULocale("ar_SA@calendar=islamic-umalqura"));
+            } catch (Exception ignored) { }
+        }
+        if (!tz.equals(formatZone)) {
+            gregFormat.setTimeZone(java.util.TimeZone.getTimeZone(tz));
+            if (hijriFormat != null) hijriFormat.setTimeZone(android.icu.util.TimeZone.getTimeZone(tz));
+            formatZone = tz;
+        }
         String hijri = "";
         try {
-            android.icu.text.SimpleDateFormat f = new android.icu.text.SimpleDateFormat(
-                    "EEEE، d MMMM y", new android.icu.util.ULocale("ar_SA@calendar=islamic-umalqura"));
-            f.setTimeZone(android.icu.util.TimeZone.getTimeZone(tz));
-            hijri = f.format(now.getTime()).replaceAll("\\s*هـ\\s*$", "") + " هـ";
+            if (hijriFormat != null) hijri = hijriFormat.format(now.getTime()).replaceAll("\\s*هـ\\s*$", "") + " هـ";
         } catch (Exception ignored) { }
-        SimpleDateFormat gf = new SimpleDateFormat("d MMMM", new Locale("ar"));
-        gf.setTimeZone(java.util.TimeZone.getTimeZone(tz));
-        String greg = gf.format(now.getTime());
+        String greg = gregFormat.format(now.getTime());
         date.setText(arabicDigits(hijri.isEmpty() ? greg : hijri + "  –  " + greg));
-        updateAdhanBar();
+        updateAdhanBar(cfg);
         updateSleepPill();
     }
 
     /** Once a minute with the clock: the bar before the adhan shows in the last 10 minutes, and until the iqama. */
-    private void updateAdhanBar() {
-        String words = AdhanBar.text(this);
+    private void updateAdhanBar(ConfigSnapshot cfg) {
+        String words = AdhanBar.text(this, cfg);
         adhanBar.setVisibility(words == null ? View.GONE : View.VISIBLE);
         if (words != null) adhanBar.setText(words);
     }
@@ -1035,9 +1039,19 @@ public class MainActivity extends Activity {
         for (java.io.File f : files) if (!k.contains(f.getName())) f.delete();
     }
 
-    /** Off the main thread: refresh the hosted photo list once a day. */
+    /** a photo or the index that failed is not asked for again for this long: not at every rotation of the wallpaper */
+    static final long RETRY_MS = 60 * 60 * 1000L;
+    private final Map<String, Long> photoFailed = new HashMap<>();
+
+    private boolean failedRecently(String what) {
+        Long at = photoFailed.get(what);
+        return at != null && System.currentTimeMillis() - at < RETRY_MS;
+    }
+
+    /** Off the main thread: refresh the hosted photo list once a day (after a failure, again in an hour). */
     private void refreshPhotoIndex() {
         if (System.currentTimeMillis() - prefs().getLong("photoIndexAt", 0) < INDEX_MAX_AGE_MS) return;
+        if (failedRecently("index.json")) return;
         try {
             org.json.JSONArray a = new org.json.JSONArray(new String(download(PHOTO_BASE + "index.json"), "UTF-8"));
             List<String> names = new ArrayList<>();
@@ -1048,7 +1062,9 @@ public class MainActivity extends Activity {
             if (!names.isEmpty()) prefs().edit()
                     .putString("photoIndex", android.text.TextUtils.join(",", names))
                     .putLong("photoIndexAt", System.currentTimeMillis()).apply();
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) {
+            photoFailed.put("index.json", System.currentTimeMillis());
+        }
     }
 
     private static byte[] download(String url) throws java.io.IOException {
@@ -1066,10 +1082,25 @@ public class MainActivity extends Activity {
         }
     }
 
-    private static Bitmap decode(java.io.InputStream in) {
+    /** Opens the same photo again: the first pass reads only its size. */
+    private interface Source { java.io.InputStream open() throws java.io.IOException; }
+
+    /** A photo at about the screen's width: a 4000 px original is not held in memory to be shown on 1920 px. */
+    private Bitmap decode(Source source) throws java.io.IOException {
         BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inJustDecodeBounds = true;
+        try (java.io.InputStream in = source.open()) {
+            if (in == null) return null;
+            BitmapFactory.decodeStream(in, null, o);
+        }
+        int want = Math.max(1, getResources().getDisplayMetrics().widthPixels), sample = 1;
+        while (o.outWidth / (sample * 2) >= want) sample *= 2;
+        o.inJustDecodeBounds = false;
+        o.inSampleSize = sample;
         o.inPreferredConfig = Bitmap.Config.RGB_565;
-        return BitmapFactory.decodeStream(in, null, o);
+        try (java.io.InputStream in = source.open()) {
+            return in == null ? null : BitmapFactory.decodeStream(in, null, o);
+        }
     }
 
     // The owner's own photos («صوري»), read from the screensaver app's ConfigProvider (READ_CONFIG, read only).
@@ -1116,15 +1147,18 @@ public class MainActivity extends Activity {
             }
             Bitmap bm = null;
             if (idx >= base) {
-                try (java.io.InputStream in = getContentResolver().openInputStream(
-                        OWN.buildUpon().appendPath(String.valueOf(idx - base + 1)).build())) {
-                    if (in != null) bm = decode(in);
+                final Uri photo = OWN.buildUpon().appendPath(String.valueOf(idx - base + 1)).build();
+                try {
+                    bm = decode(() -> getContentResolver().openInputStream(photo));
                 } catch (java.io.IOException | RuntimeException ignored) { }
             } else if (idx >= wallpapers.length) {
                 java.io.File f = new java.io.File(getFilesDir(), "photos/" + remote[idx - wallpapers.length]);
                 try {
+                    if (!f.isFile() && failedRecently(f.getName())) throw new java.io.IOException("failed lately");   // the bundled one meanwhile
                     if (!f.isFile()) {
-                        byte[] data = download(PHOTO_BASE + f.getName());
+                        byte[] data;
+                        try { data = download(PHOTO_BASE + f.getName()); }
+                        catch (java.io.IOException e) { photoFailed.put(f.getName(), System.currentTimeMillis()); throw e; }
                         java.io.File dir = f.getParentFile();
                         if (dir.isDirectory() || dir.mkdirs()) {
                             java.io.File tmp = new java.io.File(dir, f.getName() + ".tmp");
@@ -1132,11 +1166,11 @@ public class MainActivity extends Activity {
                             if (!tmp.renameTo(f)) tmp.delete();
                         }
                     }
-                    try (java.io.InputStream in = new java.io.FileInputStream(f)) { bm = decode(in); }
+                    bm = decode(() -> new java.io.FileInputStream(f));
                 } catch (java.io.IOException ignored) { }
             }
             if (bm == null) {
-                try (java.io.InputStream in = getAssets().open(fallback)) { bm = decode(in); }
+                try { bm = decode(() -> getAssets().open(fallback)); }
                 catch (java.io.IOException ignored) { }
             }
             Bitmap result = bm;
@@ -1148,7 +1182,7 @@ public class MainActivity extends Activity {
     private void showWallpaper(Bitmap bm) {
         if (bm == null || isDestroyed()) return;
         // Swap roles: the old front becomes the back, the new photo fades in on top.
-        ImageView old = wallFront;
+        final ImageView old = wallFront;
         wallFront = wallBack;
         wallBack = old;
         ViewGroup root = (ViewGroup) wallFront.getParent();
@@ -1156,8 +1190,10 @@ public class MainActivity extends Activity {
         root.addView(wallFront, 1, new FrameLayout.LayoutParams(-1, -1));
         wallFront.setImageBitmap(bm);
         wallFront.setAlpha(0f);
-        wallFront.animate().alpha(1f).setDuration(firstWallpaper ? 600 : 2000).withEndAction(() -> {
-            wallBack.setImageDrawable(null); // release the previous photo
+        final ImageView shown = wallFront;
+        shown.animate().alpha(1f).setDuration(firstWallpaper ? 600 : 2000).withEndAction(() -> {
+            // release the previous photo: the view this fade was above, not whichever is behind by now (a newer photo may have swapped them)
+            if (old != wallFront && old != shown) old.setImageDrawable(null);
         }).start();
         firstWallpaper = false;
     }

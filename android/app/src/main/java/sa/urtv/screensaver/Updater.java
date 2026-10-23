@@ -122,15 +122,6 @@ final class Updater {
         }
     }
 
-    /** The minor number N of "3.N", or -1 when it does not parse. */
-    private static int minor(String v) {
-        try {
-            return v == null ? -1 : Integer.parseInt(v.substring(v.indexOf('.') + 1));
-        } catch (Exception e) {
-            return -1;
-        }
-    }
-
     private static String arabic(String v) {
         StringBuilder b = new StringBuilder();
         for (char ch : v.toCharArray()) {
@@ -145,8 +136,9 @@ final class Updater {
     static String[] versionLines(Context c) {
         String mine = BuildConfig.VERSION_NAME;
         String latest = new Prefs(c).raw().getString("latestVersion", null);
-        String available = latest == null || minor(latest) < 0 ? "لم يُفحص بعد"
-            : minor(latest) <= minor(mine) ? "لا يوجد أحدث" : arabic(latest);
+        Integer newer = Versions.compare(latest, mine);   // major first, then minor: 4.0 is newer than 3.12
+        String available = latest == null || Versions.parse(latest) == null ? "لم يُفحص بعد"
+            : newer == null || newer <= 0 ? "لا يوجد أحدث" : arabic(latest);
         return new String[] {
             "الإصدار الحالي: " + arabic(mine),
             "الإصدار المتاح: " + available,

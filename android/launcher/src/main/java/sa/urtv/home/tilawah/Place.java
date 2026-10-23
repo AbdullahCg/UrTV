@@ -28,6 +28,16 @@ final class Place {
         } catch (RuntimeException ignored) {
             // screensaver app missing or signed with another key: fall back to the bundled values
         }
+        return bundled(c);
+    }
+
+    /** From a settings fragment the caller has already read (one read for a whole tick); null = the screensaver gave none. */
+    static Place get(Context c, String fragment) {
+        Place p = fragment == null ? null : fromFragment(fragment);
+        return p != null ? p : bundled(c);
+    }
+
+    private static Place bundled(Context c) {
         return new Place(number(c.getString(R.string.latitude), 24.6877),
                 number(c.getString(R.string.longitude), 46.7219),
                 orDefault(c.getString(R.string.timezone), "Asia/Riyadh"));

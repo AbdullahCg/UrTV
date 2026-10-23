@@ -6,8 +6,9 @@
 #   optimize/saver.sh on                           ours again
 #   optimize/saver.sh cities                       built-in Saudi cities by region
 #   optimize/saver.sh city الرس                    a built-in city (Arabic name as listed, or a short form of it: مكة; says if it fits several)
-#   optimize/saver.sh city 'اسم' 25.86 43.49       any place: name, latitude, longitude; its time zone is the TV's own
-#   optimize/saver.sh city 'الكويت' 29.37 47.98 Asia/Kuwait   ... or the one you give (a built-in city is always Asia/Riyadh)
+#   optimize/saver.sh city 'اسم' 25.86 43.49 Asia/Riyadh   any place: name, latitude, longitude and its time zone (refused without the zone
+#                                                      unless the name is a built-in city; a built-in city is always Asia/Riyadh)
+#   optimize/saver.sh city 'الكويت' 29.37 47.98 Asia/Kuwait
 #   optimize/saver.sh find-team الهلال             a club's id (Arabic or English name): id:Name | league
 #   optimize/saver.sh teams 136013:Al-Hilal 150643:Al-Zulfi    followed teams in order (up to 20; more are left out and listed)
 #   optimize/saver.sh card prayers                 beside the clock: shows prayers forecast hourly prayerrow matches verse wisdom adhkar stocks tasks year smart today none
@@ -73,6 +74,13 @@ quote() {  # one shell-safe argument for the TV's shell
   case "$1" in *"'"*) echo "no apostrophes please: $1" >&2; exit 1 ;; esac
   printf "'%s'" "$1"
 }
+# One extra for a SET: the value quoted FIRST, so an apostrophe stops the command. (Inside "$(quote ...)" in the middle of a
+# word the failure was lost and an empty value was sent.)
+set1() {   # $1 the extra's name, $2 its value
+  local v
+  v=$(quote "$2") || exit 1
+  send SET "--es $1 $v"
+}
 case "${1:-}" in
   show)   rc=0; send GET || rc=$?; active; exit "$rc" ;;   # the version line stays first
   on)
@@ -105,9 +113,13 @@ case "${1:-}" in
   update) send UPDATE ;;
   city)
     [ $# -eq 2 ] || [ $# -eq 4 ] || [ $# -eq 5 ] || { echo "usage: optimize/saver.sh city NAME [LAT LON [TIMEZONE]]"; exit 1; }
-    extra="--es city $(quote "$2")"
-    [ $# -ge 4 ] && extra="$extra --es lat $(quote "$3") --es lon $(quote "$4")"
-    [ $# -eq 5 ] && extra="$extra --es tz $(quote "$5")"
+    v=$(quote "$2") || exit 1
+    extra="--es city $v"
+    if [ $# -ge 4 ]; then
+      v=$(quote "$3") || exit 1; w=$(quote "$4") || exit 1
+      extra="$extra --es lat $v --es lon $w"
+    fi
+    if [ $# -eq 5 ]; then v=$(quote "$5") || exit 1; extra="$extra --es tz $v"; fi
     send SET "$extra" ;;
   teams)
     shift
@@ -117,36 +129,38 @@ case "${1:-}" in
       echo "Left out (${#} given): ${*:11}"
       set -- "${@:1:20}"
     fi
-    send SET "--es teams $(quote "$(IFS=,; echo "$*")")" ;;
-  card)      send SET "--es panel $(quote "${2:?usage: optimize/saver.sh card prayers}")" ;;
-  home-card) send SET "--es home_panel $(quote "${2?usage: optimize/saver.sh home-card verse,hourly,year | none}")" ;;
-  greeting)  send SET "--es greeting $(quote "${2:?usage: optimize/saver.sh greeting on|off}")" ;;
-  adhanbar)  send SET "--es adhanbar $(quote "${2:?usage: optimize/saver.sh adhanbar on|off}")" ;;
-  yearstrip) send SET "--es yearstrip $(quote "${2:?usage: optimize/saver.sh yearstrip on|off}")" ;;
-  genres)    send SET "--es genres $(quote "${2-}")" ;;
-  leagues)   send SET "--es leagues $(quote "${2-}")" ;;
-  events)    send SET "--es events $(quote "${2-}")" ;;
-  langs)     send SET "--es langs $(quote "${2-}")" ;;
-  minrating) send SET "--es minrating $(quote "${2:?usage: optimize/saver.sh minrating 7}")" ;;
-  photos)    send SET "--es photos $(quote "${2:?usage: optimize/saver.sh photos 15}")" ;;
-  cardstyle) send SET "--es cardstyle $(quote "${2:?usage: optimize/saver.sh cardstyle glass1}")" ;;
-  markets)   send SET "--es markets $(quote "${2:?usage: optimize/saver.sh markets tasi,gold,btc}")" ;;
-  mkstyle)   send SET "--es mkstyle $(quote "${2:?usage: optimize/saver.sh mkstyle prices}")" ;;
+    set1 teams "$(IFS=,; echo "$*")" ;;
+  card)     set1 panel "${2:?usage: optimize/saver.sh card prayers}" ;;
+  home-card)set1 home_panel "${2?usage: optimize/saver.sh home-card verse,hourly,year | none}" ;;
+  greeting) set1 greeting "${2:?usage: optimize/saver.sh greeting on|off}" ;;
+  adhanbar) set1 adhanbar "${2:?usage: optimize/saver.sh adhanbar on|off}" ;;
+  yearstrip)set1 yearstrip "${2:?usage: optimize/saver.sh yearstrip on|off}" ;;
+  genres)   set1 genres "${2-}" ;;
+  leagues)  set1 leagues "${2-}" ;;
+  events)   set1 events "${2-}" ;;
+  langs)    set1 langs "${2-}" ;;
+  minrating)set1 minrating "${2:?usage: optimize/saver.sh minrating 7}" ;;
+  photos)   set1 photos "${2:?usage: optimize/saver.sh photos 15}" ;;
+  cardstyle)set1 cardstyle "${2:?usage: optimize/saver.sh cardstyle glass1}" ;;
+  markets)  set1 markets "${2:?usage: optimize/saver.sh markets tasi,gold,btc}" ;;
+  mkstyle)  set1 mkstyle "${2:?usage: optimize/saver.sh mkstyle prices}" ;;
   stocks)
     shift
     [ $# -gt 0 ] || { echo "usage: optimize/saver.sh stocks 2222 1120 AAPL"; exit 1; }
-    send SET "--es stocks $(quote "$(IFS=,; echo "$*")")" ;;
-  slot)      send SET "--es slot $(quote "${2:?usage: optimize/saver.sh slot fasting}")" ;;
+    set1 stocks "$(IFS=,; echo "$*")" ;;
+  slot)     set1 slot "${2:?usage: optimize/saver.sh slot fasting}" ;;
   countdown)
     [ $# -ge 2 ] && [ $# -le 3 ] || { echo "usage: optimize/saver.sh countdown 2026-12-01 'name' | clear"; exit 1; }
-    extra="--es countdown $(quote "$2")"
-    [ $# -eq 3 ] && extra="$extra --es cdname $(quote "$3")"
+    v=$(quote "$2") || exit 1
+    extra="--es countdown $v"
+    if [ $# -eq 3 ]; then v=$(quote "$3") || exit 1; extra="$extra --es cdname $v"; fi
     send SET "$extra" ;;
-  national)  send SET "--es national $(quote "${2:?usage: optimize/saver.sh national auto|off}")" ;;
-  digits)    send SET "--es digits $(quote "${2:?usage: optimize/saver.sh digits latin}")" ;;
+  national) set1 national "${2:?usage: optimize/saver.sh national auto|off}" ;;
+  digits)   set1 digits "${2:?usage: optimize/saver.sh digits latin}" ;;
   idle)
     # the app may change the TV's timer only if the owner allowed it; the shell always may
-    out=$(send SET "--es idle $(quote "${2:?usage: optimize/saver.sh idle 10}")") || true
+    v=$(quote "${2:?usage: optimize/saver.sh idle 10}") || exit 1
+    out=$(send SET "--es idle $v") || true
     case "$out" in
       "error: idle not allowed"*)
         case "$2" in 1|2|5|10|15|30) ;; *) echo "error: idle is one of 1 2 5 10 15 30"; exit 1 ;; esac

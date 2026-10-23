@@ -8,6 +8,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * The 21 adhan recordings, named after the muezzin or the mosque that recorded them. They come from
@@ -112,28 +117,65 @@ final class Adhan {
 
     private static int clamp(int voice) { return voice < 1 || voice > VOICES ? 1 : voice; }
 
+    /** a recording shorter than this is a failed or cut-off download, not an adhan */
+    private static final long MIN_BYTES = 100_000;
+    private static final long TRY_AGAIN_MS = 60 * 60_000L;
+    /** the voices being downloaded now, so a stream and a prefetch never fetch the same file twice */
+    private static final Set<Integer> LOADING = new HashSet<>();
+
+    static boolean isCached(Context c, int voice) { return cached(c, voice).length() > MIN_BYTES; }
+
     /**
-     * Downloads every voice that is not in the cache yet, one at a time, on its own thread. The
-     * chosen voice goes first; the rest follow while the screen is open. The numbered files of the
-     * old source are removed once.
+     * The chosen voice, on its own thread, unless it is on the TV already: asked for by the alarm scheduler and the
+     * receiver, so the adhan plays from the cache at its prayer time and the screen «تلاوة» need not have been opened.
+     * A failed try is not repeated for an hour.
+     */
+    static void prefetchChosen(final Context c) {
+        final Prefs prefs = new Prefs(c);
+        final int chosen = prefs.voice();
+        long now = System.currentTimeMillis();
+        if (isCached(c, chosen) || now - prefs.prefetchTried() < TRY_AGAIN_MS) return;
+        prefs.setPrefetchTried(now);
+        new Thread(() -> download(c, chosen), "adhan-chosen").start();
+    }
+
+    /**
+     * Downloads every voice that is not in the cache yet, one at a time, on its own thread: the chosen voice first,
+     * then the others, and a voice that fails is skipped, not the end of the round. At most one round a day. The
+     * numbered files of the old source are removed once.
      */
     static void prefetchAll(final Context c) {
-        final int chosen = new Prefs(c).voice();
+        final Prefs prefs = new Prefs(c);
+        final int chosen = prefs.voice();
+        final String today = new SimpleDateFormat("yyyyMMdd", Locale.US).format(new Date());
+        if (today.equals(prefs.prefetchDay())) return;
+        prefs.setPrefetchDay(today);
         new Thread(() -> {
             File dir = new File(c.getCacheDir(), "adhan");
             File[] old = dir.listFiles((d, n) -> n.startsWith("azan") && n.endsWith(".mp3"));
             if (old != null) for (File f : old) f.delete();
-            if (!download(c, chosen)) return;   // no network: try again next time
+            download(c, chosen);
             for (int voice = 1; voice <= VOICES; voice++) {
-                if (voice != chosen && !download(c, voice)) return;
+                if (voice == chosen) continue;
+                download(c, voice);   // a failure here is that voice's: the next one is still asked for
+                try { Thread.sleep(2000); } catch (InterruptedException e) { return; }   // gently: this is not urgent
             }
         }, "adhan-cache").start();
     }
 
-    /** Downloads one voice; false when the network is not there. */
+    /** Downloads one voice and keeps it only if it came whole; false when the network is not there or the file is short. */
     static boolean download(Context c, int voice) {
         File file = cached(c, voice);
-        if (file.length() > 100_000) return true;
+        if (file.length() > MIN_BYTES) return true;
+        synchronized (LOADING) { if (!LOADING.add(voice)) return false; }   // another thread is fetching it
+        try {
+            return fetch(c, voice, file);
+        } finally {
+            synchronized (LOADING) { LOADING.remove(voice); }
+        }
+    }
+
+    private static boolean fetch(Context c, int voice, File file) {
         File dir = file.getParentFile();
         if (dir != null && !dir.exists() && !dir.mkdirs()) return false;
         File tmp = new File(dir, file.getName() + ".part");
@@ -144,10 +186,15 @@ final class Adhan {
             con.setReadTimeout(20000);
             con.setRequestProperty("User-Agent", "urtv-home");
             if (con.getResponseCode() != HttpURLConnection.HTTP_OK) return false;
+            long expected = con.getContentLength();   // -1 when the server does not say
             try (InputStream in = con.getInputStream(); OutputStream out = new FileOutputStream(tmp)) {
                 byte[] buffer = new byte[16 * 1024];
                 int n;
                 while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+            }
+            if (tmp.length() <= MIN_BYTES || (expected > 0 && tmp.length() != expected)) {   // cut off: not kept as an adhan
+                tmp.delete();
+                return false;
             }
             return tmp.renameTo(file);
         } catch (Exception e) {

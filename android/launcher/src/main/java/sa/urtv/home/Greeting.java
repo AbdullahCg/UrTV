@@ -2,8 +2,6 @@ package sa.urtv.home;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.TextView;
@@ -30,7 +28,6 @@ import sa.urtv.home.tilawah.DayParts;
  * is offline shows the greeting alone. With the setting off the line is the plain good-morning it always was.
  */
 final class Greeting {
-    private static final Uri CONFIG = Uri.parse("content://sa.urtv.screensaver.config");
     static final long REFRESH_MS = 30 * 60 * 1000L;
     /** an answer older than this is not shown: «٣١°» from yesterday is worse than nothing */
     private static final long STALE_MS = 3 * 60 * 60 * 1000L;
@@ -47,15 +44,15 @@ final class Greeting {
     }
 
     /** Called with the clock (every minute, and on resume). hour: the TV's hour, for the plain greeting. */
-    void update(int hour) {
-        Config s = Config.read(context);
+    void update(int hour, ConfigSnapshot snap) {
+        Config s = Config.of(snap);
         if (!s.on) {
             greeting.setText(hour < 4 ? "تصبح على خير" : hour < 12 ? "صباح الخير" : "مساء الخير");
             weather.setVisibility(android.view.View.GONE);
             return;
         }
         DayParts d = null;
-        try { d = DayParts.now(context); } catch (RuntimeException ignored) { }
+        try { d = DayParts.now(context, snap.fragment); } catch (RuntimeException ignored) { }
         greeting.setText(d == null ? (hour < 4 ? "تصبح على خير" : hour < 12 ? "صباح الخير" : "مساء الخير")
                 : GreetingText.greeting(GreetingText.part(System.currentTimeMillis(), d.fajr, d.dhuhr, d.asr, d.isha)));
 
@@ -96,20 +93,28 @@ final class Greeting {
                     con.disconnect();
                 }
                 JSONObject cur = new JSONObject(body.toString()).getJSONObject("current");
+                SharedPreferences sp = prefs();
                 float dust = dust(s);
-                prefs().edit().putLong("at", System.currentTimeMillis())
+                long now = System.currentTimeMillis();
+                long dustAt = now;
+                if (dust < 0) {   // the air-quality request failed: the last good reading of this place stands, not a clear sky
+                    boolean sameCity = s.lat.equals(sp.getString("lat", "")) && s.lon.equals(sp.getString("lon", ""));
+                    dustAt = sp.getLong("dustAt", 0);
+                    dust = sameCity && now - dustAt < STALE_MS ? sp.getFloat("dust", 0) : 0;
+                }
+                prefs().edit().putLong("dustAt", dustAt).putLong("at", System.currentTimeMillis())
                         .putString("lat", s.lat).putString("lon", s.lon)
                         .putFloat("temp", (float) cur.getDouble("temperature_2m"))
                         .putFloat("dust", dust)
                         .putInt("code", cur.getInt("weather_code")).apply();
-                main.post(() -> { fetching = false; update(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)); });
+                main.post(() -> { fetching = false; update(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY), ConfigSnapshot.read(context)); });
             } catch (Exception e) {
                 main.post(() -> fetching = false);   // offline or Open-Meteo is down: the last answer, if fresh, stays
             }
         }, "greeting-weather").start();
     }
 
-    /** The larger of the air's pm10 and dust (µg/m³), as the page reads them to say «غبار»; 0 when the request fails. */
+    /** The larger of the air's pm10 and dust (µg/m³), as the page reads them to say «غبار»; -1 when the request fails. */
     private static float dust(Config s) {
         try {
             String url = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + s.lat + "&longitude=" + s.lon
@@ -128,7 +133,7 @@ final class Greeting {
             JSONObject cur = new JSONObject(body.toString()).getJSONObject("current");
             return (float) Math.max(cur.optDouble("pm10", 0), cur.optDouble("dust", 0));
         } catch (Exception e) {
-            return 0;   // no answer: the sky's own word
+            return -1;   // no answer: the caller keeps the last good reading
         }
     }
 
@@ -142,13 +147,11 @@ final class Greeting {
         String city = "الرياض", lat = "24.6877", lon = "46.7219", tz = "Asia/Riyadh";
         boolean latin;
 
-        static Config read(Context c) {
+        static Config of(ConfigSnapshot snap) {
             Config s = new Config();
-            try (Cursor cur = c.getContentResolver().query(CONFIG, null, null, null, null)) {
-                if (cur == null || !cur.moveToFirst()) return s;
-                int g = cur.getColumnIndex("greeting");
-                if (g >= 0 && "0".equals(cur.getString(g))) s.on = false;
-                String frag = cur.getString(0);
+            s.on = snap.greetingOn;
+            try {
+                String frag = snap.fragment;
                 if (frag == null) return s;
                 for (String part : frag.split("&")) {
                     int eq = part.indexOf('=');

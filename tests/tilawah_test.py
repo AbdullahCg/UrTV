@@ -163,7 +163,7 @@ check("the adhan receiver is shell-protected too",
 adhan_actions = {a.get(A + "name") for a in adhan_receiver.find("intent-filter").findall("action")}
 check("the adhan alarm is set again after a reboot",
       "android.intent.action.BOOT_COMPLETED" in adhan_actions, sorted(adhan_actions))
-check("the adhan alarm action is declared", "sa.urtv.home.ADHAN" in adhan_actions)
+check("the alarm names the receiver itself: its action is not in the filter", "sa.urtv.home.ADHAN" not in adhan_actions, sorted(adhan_actions))
 
 permissions = {p.get(A + "name") for p in manifest.findall("uses-permission")}
 for permission in ["android.permission.WAKE_LOCK", "android.permission.FOREGROUND_SERVICE",
@@ -193,7 +193,7 @@ check("no «استماع» left in the strings",
       "استماع" not in text(APP / "res/values/strings.xml"))
 
 # ---- the adhan
-prayers = text(TILAWAH / "PrayerTimes.java")
+prayers = text(TILAWAH / "PrayerTimes.java") + text(TILAWAH / "PrayerMath.java")
 check("Umm al-Qura: Fajr at 18.5°", "18.5" in prayers)
 check("Umm al-Qura: Isha 90 minutes after Maghrib", "90" in prayers and "120" in prayers)
 check("Ramadan uses the Umm al-Qura calendar", "islamic-umalqura" in prayers)
@@ -280,6 +280,60 @@ check("install still knows the two apps", "urtv-home.apk" in install and "urtv-s
 reset = text(ROOT / "optimize/reset.sh")
 check("reset still removes the old standalone app", "sa.urtv.listening" in reset)
 check("reset puts the adhan appop back", "SCHEDULE_EXACT_ALARM" in reset)
+
+# ---- the adhan, hardened: one receiver per action, the duplicate guard, the prefetch, the volume
+def filters(name):   # the actions of one receiver's intent filter
+    m = re.search(r'<receiver\s+android:name="\.tilawah\.' + name + r'".*?</receiver>', manifest, re.S)
+    return re.findall(r'<action android:name="([^"]+)"', m.group(0))
+check("sa.urtv.home.ADHAN reaches MusicReceiver alone (the shell's «adhan now»)",
+      "sa.urtv.home.ADHAN" in filters("MusicReceiver") and "sa.urtv.home.ADHAN" not in filters("AdhanReceiver"), filters("AdhanReceiver"))
+scheduler = text(TILAWAH / "AdhanScheduler.java")
+check("the alarm has its own action", 'ACTION = "sa.urtv.home.ADHAN_ALARM"' in scheduler)
+check("the alarm carries the prayer time it is for", "EXTRA_DUE" in scheduler and "putExtra(EXTRA_DUE" in scheduler)
+check("a restart cancels the old alarm of the old action", "LEGACY_ACTION" in scheduler and "cancelLegacy" in scheduler)
+check("the alarm says when exact alarms are refused", "exactAllowed" in scheduler and "canScheduleExactAlarms" in scheduler)
+check("no comment claims the adhan is never late", "never late" not in scheduler.lower() and "never be late" not in scheduler.lower())
+check("the chosen recording is fetched when the alarm is set", "Adhan.prefetchChosen" in scheduler)
+check("the duplicate guard is the alarm's prayer time, not when something last played",
+      "lastDue() == due" in adhan_receiver_src and "setLastDue(due)" in adhan_receiver_src and "lastAdhan()" not in adhan_receiver_src)
+check("a preview does not set the guard", "setLastDue" not in service_src and "setLastAlarmAt" not in service_src)
+check("Aladhan's times put the alarm back", "AdhanScheduler.schedule(c)" in prayers and "refreshNow" in prayers)
+check("the receiver asks Aladhan too, not only the screen", "PrayerTimes.refresh(context" in adhan_receiver_src)
+check("the key and the date are the city's", "PrayerMath.key(" in prayers and "PrayerMath.aladhanDate(" in prayers)
+check("an Aladhan time with a zone after it is read, not trusted by length", "PrayerMath.parseClock(" in prayers and "substring(0, 5)" not in prayers)
+check("Isha is an absolute moment", "at[MAGHRIB] + ishaDelayMillis" in text(TILAWAH / "PrayerMath.java"))
+check("a running adhan keeps the first one's «resume after»", "if (!wasAdhan) resumeAfterAdhan = comeBack" in service_src)
+check("a preview gives way to the real adhan, a real one to no second", "adhanPreview" in service_src)
+adhan_src = text(TILAWAH / "Adhan.java")
+check("a download is kept only when it is whole (Content-Length)", "getContentLength()" in adhan_src and "tmp.length() != expected" in adhan_src)
+check("the prefetch skips a failed voice and runs once a day", "prefetchDay" in adhan_src and "download(c, voice);   // a failure" in adhan_src)
+check("the volume row: left and right in steps of 10, OK does nothing",
+      "changeVolume(" in main and "KIND_VOLUME" in main and "prefs.setAdhanVolume(prefs.adhanVolume() >= 100" not in main)
+check("music.sh sets the adhan volume", "adhan volume" in music and "sa.urtv.home.ADHAN_VOLUME" in music and "adhan_volume=" in music)
+check("MusicReceiver takes the volume", "sa.urtv.home.ADHAN_VOLUME" in text(TILAWAH / "MusicReceiver.java") and "ADHAN_VOLUME" in manifest)
+check("the settings row warns when the alarm may be late", "KIND_EXACT" in main and "adhan_exact_title" in main
+      and "ACTION_REQUEST_SCHEDULE_EXACT_ALARM" in main and "قد يتأخر الأذان دقائق" in text(APP / "res/values/strings.xml"))
+
+# ---- power and the main thread
+check("the position tick runs only while something plays", "startTick()" in service_src and "stopTick()" in service_src
+      and "handler.post(tick);\n    }\n\n    @Override public int onStartCommand" not in service_src and "if (!ticking) return;" in service_src)
+check("the Wi-Fi lock is released when playing stops and taken again on play",
+      service_src.count("playbackPaused()") >= 5 and "private void playbackStarted()" in service_src
+      and "acquireWifi();\n        startTick();" in service_src and "releaseWifi();\n        handler.removeCallbacks(pausedStop);" in service_src)
+check("paused for 30 minutes stops the service", "PAUSED_STOP_MS = 30 * 60_000L" in service_src and "pausedStop" in service_src)
+check("the place is not saved every few seconds", "tickCount" not in service_src and "% 5 == 0" not in service_src)
+check("the place is saved when it pauses, stops or the service ends", service_src.count("save();") >= 4 and "if (playing) save();" in service_src)
+check("the sleep timer's fade is one Runnable that cancelling stops",
+      "private final Runnable fade" in service_src and "handler.removeCallbacks(fade)" in service_src and "this::fadeOut" not in service_src)
+home = text(JAVA / "MainActivity.java")
+update_clock = home[home.index("private void updateClock()"):home.index("private void updateAdhanBar(")]
+check("the minute tick reads the screensaver's settings once", update_clock.count("ConfigSnapshot.read(") == 1 and "cityZone()" in update_clock
+      and "getContentResolver" not in update_clock)
+check("the tick's date formats are made once", "new android.icu.text.SimpleDateFormat" in update_clock and "if (gregFormat == null)" in update_clock)
+check("the day's prayer times are kept in memory", "todayCopy" in prayers and "forgetToday()" in prayers)
+check("the wallpaper is decoded at the screen's width", "inSampleSize" in home and "widthPixels" in home[home.index("private Bitmap decode("):])
+check("the fade's end clears the view it was above", "old.setImageDrawable(null)" in home and "wallBack.setImageDrawable(null)" not in home)
+check("a failed index or photo is retried in an hour", "RETRY_MS = 60 * 60 * 1000L" in home and "failedRecently(" in home and home.count("photoFailed.put(") >= 2)
 
 if failures:
     print(f"\n{len(failures)} tilawah check(s) failed.")

@@ -23,8 +23,15 @@ public final class DayParts {
         this.sunLabel = sunLabel; this.sunClock = sunClock; this.friday = friday;
     }
 
-    public static DayParts now(Context c) {
-        PrayerTimes t = PrayerTimes.today(c);
+    public static DayParts now(Context c) { return now(c, Place.get(c)); }
+
+    /** From the screensaver's settings fragment the caller has read already (null: it is missing): one read per tick. */
+    public static DayParts now(Context c, String fragment) { return now(c, Place.get(c, fragment)); }
+
+    private static String sunriseKey, sunriseClock;   // tomorrow's sunrise, worked out once a day
+
+    private static DayParts now(Context c, Place place) {
+        PrayerTimes t = PrayerTimes.today(c, place);
         long now = System.currentTimeMillis();
         String label, clock;
         if (now < t.at[PrayerTimes.SUNRISE]) {            // before dawn: today's sunrise is next
@@ -32,12 +39,15 @@ public final class DayParts {
         } else if (now < t.at[PrayerTimes.MAGHRIB]) {
             label = "الغروب"; clock = t.clock[PrayerTimes.MAGHRIB];
         } else {                                          // after sunset: tomorrow's sunrise
-            Place place = Place.get(c);
             Calendar tomorrow = Calendar.getInstance(TimeZone.getTimeZone(place.tz), Locale.US);
             tomorrow.add(Calendar.DAY_OF_MONTH, 1);
-            label = "الشروق"; clock = PrayerTimes.of(tomorrow, place).clock[PrayerTimes.SUNRISE];
+            String key = PrayerTimes.dayKey(tomorrow, place);
+            synchronized (DayParts.class) {
+                if (!key.equals(sunriseKey)) { sunriseClock = PrayerTimes.of(tomorrow, place).clock[PrayerTimes.SUNRISE]; sunriseKey = key; }
+                label = "الشروق"; clock = sunriseClock;
+            }
         }
-        boolean friday = Calendar.getInstance(TimeZone.getTimeZone(Place.get(c).tz), Locale.US).get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY;
+        boolean friday = Calendar.getInstance(TimeZone.getTimeZone(place.tz), Locale.US).get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY;
         return new DayParts(t.at[PrayerTimes.FAJR], t.at[PrayerTimes.DHUHR], t.at[PrayerTimes.ASR],
                 t.at[PrayerTimes.MAGHRIB], t.at[PrayerTimes.ISHA], label, clock, friday);
     }

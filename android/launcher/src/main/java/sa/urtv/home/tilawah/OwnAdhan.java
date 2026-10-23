@@ -46,7 +46,7 @@ final class OwnAdhan {
         } catch (RuntimeException e) {
             ms = 0;
         } finally {
-            try { r.release(); } catch (RuntimeException ignored) { }
+            try { r.release(); } catch (Exception ignored) { }   // release() declares IOException from API 29
         }
         return OwnAdhanText.refuse(src.length(), ms);
     }

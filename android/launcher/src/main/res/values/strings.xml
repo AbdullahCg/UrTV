@@ -42,6 +42,8 @@
     <string name="adhan_voice">المؤذن</string>
     <string name="adhan_voices">اختر المؤذن</string>
     <string name="adhan_volume">صوت الأذان</string>
+    <string name="adhan_exact_title">قد يتأخر الأذان دقائق</string>
+    <string name="adhan_exact_detail">فعّل المنبّهات الدقيقة  •  OK يفتح الإعداد</string>
     <string name="adhan_chosen">%1$s  •  الصوت المختار</string>
     <string name="adhan_hint">&#8294;OK&#8297; يجرّب ١٢ ثانية ويحفظ الاختيار  •  التسجيلات: أرشيف الإنترنت، ملكية عامة  •  رجوع</string>
 </resources>

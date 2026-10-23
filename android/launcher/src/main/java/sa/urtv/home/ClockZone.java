@@ -18,8 +18,14 @@ final class ClockZone {
     static String valid(String id) {
         if (id == null) return DEFAULT;
         id = id.trim();
-        for (String known : TimeZone.getAvailableIDs()) if (known.equals(id)) return id;
-        return DEFAULT;
+        return ids().contains(id) ? id : DEFAULT;
+    }
+
+    private static java.util.Set<String> known;   // the platform's ids, listed once: valid() runs every minute
+
+    private static synchronized java.util.Set<String> ids() {
+        if (known == null) known = new java.util.HashSet<>(java.util.Arrays.asList(TimeZone.getAvailableIDs()));
+        return known;
     }
 
     /** {city, tz} from the screensaver's "city=..&tz=.." fragment; the city is "" when it names none. */

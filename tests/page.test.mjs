@@ -36,7 +36,7 @@ async function open(file, hash, { width = 1920, height = 1080, seed = true, net 
   const errors = [];
   p.on('pageerror', e => errors.push(e.message));
   if (now) await p.clock.setFixedTime(now);   // the page's Date is this moment; timers run as usual
-  await p.goto(page(file) + '#' + hash);
+  await p.goto(page(file) + '#' + hash + '&gap=0');   // no pause between the requests of one loader: the tests do not wait for it
   await p.waitForFunction(() => document.documentElement.classList.contains('ready'), null, { timeout: 4000 })
     .catch(() => errors.push('never revealed'));
   await p.waitForTimeout(300);
@@ -47,13 +47,13 @@ async function open(file, hash, { width = 1920, height = 1080, seed = true, net 
 // the write and, now and then (about one run in ten, on the branch before these tests were added too), starts the reloaded page
 // before that: it finds nothing. What the browser keeps is not what is tested, so the keys are carried over by hand, as the TV's
 // WebView keeps them: put back at the start of the next load, where the page has none.
-const restart = async p => {
+const carry = async p => {   // what the page has kept is put back at the start of the next load
   const kept = await p.evaluate(() => JSON.stringify(Object.assign({}, localStorage)));
   await p.context().addInitScript(kv => {
     try { const o = JSON.parse(kv); for (const k in o) if (localStorage.getItem(k) === null) localStorage.setItem(k, o[k]); } catch (e) {}
   }, kept);
-  await p.reload();
 };
+const restart = async p => { await carry(p); await p.reload(); };
 
 // ---- both pages, three screen sizes: no errors, shown, clock right, nothing off screen, Arabic digits
 for (const file of ['urtv.html', 'tv.html']) {
@@ -85,7 +85,7 @@ for (const file of ['urtv.html', 'tv.html']) {
 
 // ---- every card beside the clock, with sample data where the card needs the network
 const SAMPLE = {
-  forecast: () => { FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: new Date(Date.now() + i * 864e5).toISOString().slice(0, 10), code: 2, hi: 37 - i, lo: 24 - i })); },
+  forecast: () => { FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: cityToday(Date.now() + i * 864e5), code: 2, hi: 37 - i, lo: 24 - i })); },
   matches: () => {
     const ev = (id, h, a, hrs) => ({ idEvent: id, strHomeTeam: h, strAwayTeam: a, strTimestamp: new Date(Date.now() + hrs * 36e5).toISOString() });
     NEXT_LIST = { '136013': [ev('a', 'Al-Hilal', 'Al-Nassr', 3), ev('b', 'Al-Ahli', 'Al-Hilal', 80)] };
@@ -513,7 +513,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   await ctx.route(/^https?:/, r => r.abort());
   const p = await ctx.newPage();
-  await p.goto(page('tv.html') + '#panel=shows');
+  await p.goto(page('tv.html') + '#gap=0&panel=shows');
   await p.waitForTimeout(800);
   await p.evaluate(() => { document.getElementById('week-list').innerHTML = '<li>SAVED</li>'; saveSnap(); });
   await restart(p);
@@ -527,7 +527,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   await ctx.route(/^https?:/, r => r.abort());
   const p = await ctx.newPage();
-  await p.goto(page('tv.html') + '#teams=136013');
+  await p.goto(page('tv.html') + '#gap=0&teams=136013');
   await p.waitForTimeout(800);
   await p.evaluate(() => {
     document.getElementById('wx-temp').textContent = '٣٨°';
@@ -535,6 +535,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
     document.getElementById('wx-desc').classList.add('dust');
     paintDir(TICKERS[0], true);
     document.getElementById('match-row').innerHTML = '<div class="saved-match">SAVED</div>';
+    WX.at = Date.now(); saveWx();   // (a reading fetched a moment ago: older than 3 hours it would not be shown)
     saveSnap();
   });
   await restart(p);
@@ -553,7 +554,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   await ctx.route(/^https?:/, r => r.abort());
   const p = await ctx.newPage();
-  await p.goto(page('tv.html') + '#teams=136013&panel=matches');
+  await p.goto(page('tv.html') + '#gap=0&teams=136013&panel=matches');
   await p.waitForTimeout(800);
   const slot = () => p.evaluate(() => document.getElementById('match-row').innerText.replace(/\s+/g, ' ').trim());
   const game = (id, hoursAgo, score, status) => `({idEvent:'${id}', strHomeTeam:'Al-Hilal', strAwayTeam:'Al-Nassr',
@@ -586,7 +587,7 @@ for (const panel of ['prayers', 'verse', 'shows']) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   await ctx.route(/^https?:/, r => r.abort());
   const p = await ctx.newPage();
-  await p.goto(page('tv.html') + '#teams=136013&panel=matches');
+  await p.goto(page('tv.html') + '#gap=0&teams=136013&panel=matches');
   await p.waitForTimeout(800);
   // 2026-10-24 18:16 UTC = Saturday 9:16 pm in Riyadh
   const r = await p.evaluate(() => {
@@ -658,7 +659,7 @@ const mk = p => p.evaluate(() => [...document.querySelectorAll('.mk .m')].map(m 
   check('markets prices: the day\'s change with the arrow, coloured', r[0].ch === '▲ ٠٫٤٤٪' && r[0].up && r[2].ch === '▲ ٠٫٥٠٪' && r[3].ch === '▼ ١٫٢٣٪' && !r[3].up, JSON.stringify(r));
   check('markets prices: «آخر تحديث» with the time', /^آخر تحديث [٠-٩]{1,2}:[٠-٩]{2} [صم]$/.test(up), up);
   state.off = true;                       // offline: what is shown stays
-  await p.evaluate(() => TICKERS.forEach(loadTicker));
+  await p.evaluate(() => loadMarkets());
   await p.waitForTimeout(500);
   check('markets prices: offline keeps the last values', JSON.stringify(await mk(p)) === JSON.stringify(r));
   await ctx.close();
@@ -743,11 +744,12 @@ const stkRows = p => p.evaluate(() => ({ hd: document.getElementById('week-hd').
   await p.evaluate('renderPanel(false)');
   r = await stkRows(p);
   check('stocks: US open, Tadawul rows marked closed', r.hd === 'الأسهم' && r.rows[0].closed && !r.rows[2].closed, JSON.stringify(r));
-  const before = await p.evaluate(() => document.getElementById('week-list').innerHTML);
-  state.off = true;                                      // offline: the last values stay
+  const prices = () => p.evaluate(() => [...document.querySelectorAll('#week-list li.stk')].map(li => li.querySelector('.nm').textContent + li.querySelector('.px').textContent).join('|'));
+  const before = await prices();
+  state.off = true;                                      // offline: the last values stay, marked (below)
   await p.evaluate('loadStocks()');
   await p.waitForTimeout(600);
-  check('stocks: offline keeps the last values on screen', await p.evaluate(() => document.getElementById('week-list').innerHTML) === before);
+  check('stocks: offline keeps the last values on screen', before.length > 10 && await prices() === before);
   check('stocks: no Latin digits in the card', !/[0-9]/.test(await p.evaluate(() => document.getElementById('week-list').textContent)));
   await ctx.close();
 }
@@ -1099,7 +1101,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const p = await ctx.newPage();
     const errors = [];
     p.on('pageerror', e => errors.push(e.message));
-    await p.goto(page('tv.html') + '#teams=900001,900003&events=f1,ufc,boxing&panel=matches');
+    await p.goto(page('tv.html') + '#gap=0&teams=900001,900003&events=f1,ufc,boxing&panel=matches');
     await p.evaluate(() => { EVENT_LEAGUES.f1 = [{ id: 'E1', name: 'Formula 1' }]; EVENT_LEAGUES.ufc = [{ id: 'E2', name: 'UFC' }];
                              EVENT_LEAGUES.boxing = [{ id: 'E3', name: 'Boxing' }]; });
     await p.evaluate(() => loadMatches());
@@ -1593,7 +1595,7 @@ for (const [name, iso, y, total, day, pct] of [
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: reduce ? 'reduce' : 'no-preference' });
     await ctx.route(/^https?:/, r => r.abort());
     const p = await ctx.newPage();
-    await p.goto(page('tv.html') + '#panel=year');
+    await p.goto(page('tv.html') + '#gap=0&panel=year');
     await p.waitForFunction(() => document.querySelector('#week-list li.yr'), null, { timeout: 4000 });
     const a = await p.evaluate(() => getComputedStyle(document.querySelector('li.yr .r')).animationName);
     await p.evaluate('renderPanel(false)');
@@ -1676,7 +1678,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const errors = [];
     p.on('pageerror', e => errors.push(e.message));
     seen.length = 0;
-    await p.goto(page('tv.html') + '#teams=136013&leagues=' + encodeURIComponent('Saudi-Arabian Pro League') + '&panel=matches');
+    await p.goto(page('tv.html') + '#gap=0&teams=136013&leagues=' + encodeURIComponent('Saudi-Arabian Pro League') + '&panel=matches');
     await p.waitForTimeout(1200);
     const tag = `league round at ${width}x${height}`;
     const asked = seen.filter(u => /thesportsdb|data-leagues/.test(u));
@@ -1900,7 +1902,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   await ctx.route(/^https?:/, r => r.abort());
   const p = await ctx.newPage();
-  await p.goto(page('tv.html') + '#teams=&leagues=' + encodeURIComponent('Saudi-Arabian Pro League'));
+  await p.goto(page('tv.html') + '#gap=0&teams=&leagues=' + encodeURIComponent('Saudi-Arabian Pro League'));
   const r = await p.evaluate(() => {
     const t = h => new Date(Date.now() + h * 36e5).toISOString();
     LEAGUE_DATA['Saudi-Arabian Pro League'] = { updated: t(-1), events: Array.from({ length: 9 }, (_, i) => ({ idEvent: 'q' + i,
@@ -1922,7 +1924,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   await ctx.route(/^https?:/, r => { seen.push(r.request().url()); return r.abort(); });
   const p = await ctx.newPage();
-  await p.goto(page('tv.html') + '#teams=136013&panel=matches');
+  await p.goto(page('tv.html') + '#gap=0&teams=136013&panel=matches');
   await p.waitForTimeout(800);
   const t = await p.evaluate(() => ({ leagues: CONFIG.leagues, hd: document.getElementById('week-hd').textContent }));
   check('no league followed: #leagues empty, no league file asked for, the card keeps «مباريات فرقك»',
@@ -2026,7 +2028,7 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
     const p = await ctx.newPage(), errors = [];
     p.on('pageerror', e => errors.push(e.message));
     if (now) await p.clock.setFixedTime(now);
-    await p.goto(page('tv.html') + '#' + hash);
+    await p.goto(page('tv.html') + '#gap=0&' + hash);
     return { p, ctx, errors, log: ms => p.waitForTimeout(ms).then(() => p.evaluate(() => window.__bg)) };
   };
   const isOwn = u => u.startsWith(OWNU), ours = log => log.filter(u => !isOwn(u));
@@ -2070,7 +2072,7 @@ const homeBox = (cards, W, tight = false) => cards <= 1 ? [461, 250] : [Math.rou
 // what the cards need, put in by hand: the app asks the network for these (here cut)
 const HOME_SEED = ({ isha = '19:15' } = {}) => `
   buildPrayers({ Fajr: '04:50', Sunrise: '06:05', Dhuhr: '11:40', Asr: '15:00', Maghrib: '17:45', Isha: '${isha}' });
-  FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: new Date(Date.now() + i * 864e5).toISOString().slice(0, 10), code: 2, hi: 37 - i, lo: 24 - i }));
+  FORECAST = [0, 1, 2, 3, 4].map(i => ({ date: cityToday(Date.now() + i * 864e5), code: 2, hi: 37 - i, lo: 24 - i }));
   HOURLY = [1, 2, 3, 4, 5, 6].map(i => ({ t: '2026-10-22T' + String(i + 16).padStart(2, '0') + ':00', code: [0, 2, 3, 61, 3, 0][i - 1], temp: 34 - i }));
   STOCKS = { '2222': { p: 28.5, v: 28, c: [1, 2, 3, 2, 4] }, '1120': { p: 90, v: 91, c: [3, 2, 1, 2] }, AAPL: { p: 230, v: 229, c: [1, 2, 3] } };
 `;
@@ -2191,12 +2193,12 @@ for (const [list, want, mid] of [['verse', 'verse', 'n1'], ['prayers,hourly', 'p
   const ctx = await browser.newContext({ viewport: { width: 561, height: 250 } });
   await ctx.route(/^https?:/, r => r.abort());
   const p = await ctx.newPage();
-  await p.goto(page('tv.html') + '#home_panel=shows,tasks&widget=1');
+  await p.goto(page('tv.html') + '#gap=0&home_panel=shows,tasks&widget=1');
   await p.waitForTimeout(800);
   await p.evaluate(() => { CARDS[0].ul.innerHTML = '<li>SAVED A</li>'; CARDS[1].ul.innerHTML = '<li>SAVED B</li>'; saveSnap(); });
-  await p.goto(page('tv.html') + '#home_panel=shows,tasks&widget=1'); await restart(p);
+  await p.goto(page('tv.html') + '#gap=0&home_panel=shows,tasks&widget=1'); await restart(p);
   const same = await p.evaluate(() => CARDS.map(c => c.ul.textContent).join('|'));
-  await p.goto(page('tv.html') + '#home_panel=tasks,shows&widget=1'); await restart(p);
+  await p.goto(page('tv.html') + '#gap=0&home_panel=tasks,shows&widget=1'); await restart(p);
   const swapped = await p.evaluate(() => CARDS.map(c => c.ul.textContent).join('|'));
   check('home cards: the last drawn cards come back at once, each its own', same === 'SAVED A|لا مهام اليوم' || same === 'SAVED A|SAVED B', same);
   check('home cards: a card in another place does not take another kind\'s saved copy', !swapped.includes('SAVED'), swapped);
@@ -2482,6 +2484,403 @@ for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'mat
     await o.ctx.close();
   }
 }
+
+// ---- matches are asked one at a time, and loading, failed and empty read differently
+{
+  const hdr = { 'Access-Control-Allow-Origin': '*' };
+  const session = async (hash, handler) => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const seen = [];
+    await ctx.route(/^https?:/, r => { const u = new URL(r.request().url()); seen.push({ t: Date.now(), u: u.host + u.pathname + u.search }); return handler(r, u, seen); });
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(page('tv.html') + '#' + hash + '&gap=0');
+    return { p, ctx, seen, errors };
+  };
+  const ok = (r, body) => r.fulfill({ json: body, headers: hdr });
+  const slot = p => p.evaluate(() => document.getElementById('match-row').innerText.trim());
+  const card = p => p.evaluate(() => document.getElementById('week-list').innerText.trim());
+
+  // one request at a time, a pause between, whatever the number of teams
+  {
+    let live = 0, most = 0;
+    const o = await session('teams=136013,136137,133604&gap=150&panel=matches', async (r, u) => {
+      if (!/thesportsdb/.test(u.host)) return r.abort();
+      live++; most = Math.max(most, live);
+      await new Promise(res => setTimeout(res, 60));
+      live--;
+      return ok(r, u.pathname.endsWith('eventslast.php') ? { results: null } : { events: null });
+    });
+    await o.p.waitForTimeout(1800);
+    const asked = o.seen.filter(x => /eventsnext|eventslast/.test(x.u)).map(x => x.t);
+    const gaps = asked.slice(1).map((t, i) => t - asked[i]);
+    check('matches: six requests for three teams, one at a time, at least ~150 ms apart', asked.length === 6 && most === 1 && Math.min(...gaps) >= 120,
+      `n=${asked.length} most=${most} gaps=${gaps}`);
+    // a run that is going is not started again
+    const n0 = o.seen.length;
+    await o.p.evaluate(() => { BUSY.matches = true; });
+    await o.p.evaluate(() => loadMatches());
+    check('matches: a new run does not start while one is going', o.seen.length === n0, String(o.seen.length - n0));
+    await o.ctx.close();
+  }
+  // loading: the request has not come back yet
+  {
+    const o = await session('teams=136013&panel=matches', (r, u) => /thesportsdb/.test(u.host) ? new Promise(() => {}) : r.abort());
+    await o.p.waitForTimeout(700);
+    check('matches: before the first answer the slot and the card say «جارٍ التحميل…»', (await slot(o.p)) === 'جارٍ التحميل…' && (await card(o.p)) === 'جارٍ التحميل…',
+      (await slot(o.p)) + ' | ' + (await card(o.p)));
+    await o.ctx.close();
+  }
+  // failed: the server answers 429 — not «no games»; later it answers, and the first load is retried after the short wait
+  {
+    let down = true;
+    const o = await session('teams=136013&panel=matches&gap=0&retry=1500', (r, u) => {
+      if (!/thesportsdb/.test(u.host)) return r.abort();
+      if (down) return r.fulfill({ status: 429, body: 'slow down', headers: hdr });
+      return ok(r, u.pathname.endsWith('eventslast.php') ? { results: null }
+        : { events: [{ idEvent: 'x1', strHomeTeam: 'Al-Hilal', idHomeTeam: '136013', strAwayTeam: 'Al-Nassr', idAwayTeam: '136137', strSport: 'Soccer', strStatus: 'NS',
+            strTimestamp: new Date(Date.now() + 3 * 36e5).toISOString() }] });
+    });
+    await o.p.waitForTimeout(700);
+    const s1 = await slot(o.p), c1 = await card(o.p);
+    check('matches: requests that failed with nothing saved say «تعذّر التحديث», in the slot and the card', s1 === 'تعذّر التحديث' && c1 === 'تعذّر التحديث', s1 + ' | ' + c1);
+    down = false;
+    await o.p.waitForTimeout(1800);
+    const s2 = await slot(o.p);
+    check('matches: a first load that failed is retried by itself and then shows the game', /الهلال/.test(s2) && !/تعذّر/.test(s2), s2);
+    // a refresh that fails later keeps the games and says since when
+    down = true;
+    await o.p.evaluate(() => { BUSY.matches = false; return loadMatches(); });
+    await o.p.waitForTimeout(300);
+    const s3 = await slot(o.p), label = await o.p.evaluate(() => document.getElementById('slot-label').textContent), hd = await o.p.evaluate(() => document.getElementById('week-hd').textContent);
+    check('matches: a failed refresh keeps the games and the label says «آخر تحديث …»', /الهلال/.test(s3) && /آخر تحديث/.test(label) && /آخر تحديث/.test(hd), s3 + ' | ' + label + ' | ' + hd);
+    await o.ctx.close();
+  }
+  // empty: the server answered, there is just nothing
+  {
+    const o = await session('teams=136013&panel=matches&gap=0', (r, u) => /thesportsdb/.test(u.host)
+      ? ok(r, u.pathname.endsWith('eventslast.php') ? { results: null } : { events: null }) : r.abort());
+    await o.p.waitForTimeout(700);
+    const s = await slot(o.p), c = await card(o.p);
+    check('matches: an answer with no games says «لا مباريات هذا الأسبوع»', s === 'لا مباريات هذا الأسبوع' && c === 'لا مباريات هذا الأسبوع', s + ' | ' + c);
+    await o.ctx.close();
+  }
+  // the offset of this TV: 0-29 minutes, drawn once and kept
+  {
+    const o = await session('teams=', (r) => r.abort());
+    await o.p.waitForTimeout(300);
+    const a = await o.p.evaluate(() => ({ j: localStorage.getItem('jitter'), ms: JITTER_MS }));
+    await o.p.reload(); await o.p.waitForTimeout(300);
+    const b = await o.p.evaluate(() => ({ j: localStorage.getItem('jitter'), ms: JITTER_MS }));
+    check('jitter: a whole number of minutes from 0 to 29, kept across a restart', /^\d+$/.test(a.j) && +a.j >= 0 && +a.j < 30 && a.ms === a.j * 60000 && b.j === a.j, JSON.stringify([a, b]));
+    const t = await o.p.evaluate(() => { localStorage.setItem('jitter', '7'); return null; });
+    await o.p.reload(); await o.p.waitForTimeout(300);
+    const c = await o.p.evaluate(() => JITTER_MS);
+    check('jitter: the stored offset is the one used', c === 7 * 60000, String(c));
+    await o.ctx.close();
+  }
+  // Wikidata: a lookup that failed is not repeated for an hour
+  {
+    const o = await session('teams=', (r, u) => r.abort());
+    await o.p.waitForTimeout(300);
+    await o.p.evaluate(() => { arName('Zzyzx Rovers', 'team'); });
+    await o.p.waitForTimeout(500);
+    const n1 = o.seen.filter(x => /wikidata/.test(x.u)).length;
+    await o.p.evaluate(() => { arName('Zzyzx Rovers', 'team'); renderMatches(); });
+    await o.p.waitForTimeout(500);
+    const n2 = o.seen.filter(x => /wikidata/.test(x.u)).length;
+    const kept = await o.p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('arFail') || '{}')));
+    check('Wikidata: one failed lookup is remembered with its time and not asked again within the hour', n1 === 1 && n2 === 1 && kept.join() === 'team:Zzyzx Rovers', `${n1} ${n2} ${kept}`);
+    await o.p.evaluate(() => { const f = JSON.parse(localStorage.getItem('arFail')); AR_FAIL['team:Zzyzx Rovers'] = Date.now() - 3700000; arName('Zzyzx Rovers', 'team'); });
+    await o.p.waitForTimeout(500);
+    const n3 = o.seen.filter(x => /wikidata/.test(x.u)).length;
+    check('Wikidata: after an hour it is asked again', n3 === 2, String(n3));
+    await o.ctx.close();
+  }
+  // TVmaze: the list is replaced only when every day answered
+  {
+    const ep = (name, n, date) => ({ id: n, number: n, season: 1, airdate: date, show: { name, type: 'Scripted', genres: ['Drama'], language: 'English', rating: { average: 8 } } });
+    const today = new Date().toISOString().slice(0, 10);
+    let phase = 'good', daysSeen = 0;
+    const o = await session('teams=&panel=shows&gap=0&retry=60000', (r, u) => {
+      if (!/tvmaze/.test(u.host)) return r.abort();
+      if (phase === 'down') return r.fulfill({ status: 503, body: '', headers: hdr });
+      if (phase === 'part') return ++daysSeen % 3 === 0 ? r.fulfill({ status: 503, body: '', headers: hdr }) : ok(r, [ep('Other Show', 2, today)]);
+      return ok(r, [ep('Good Show', 1, today)]);
+    });
+    await o.p.waitForTimeout(1000);
+    const t1 = await card(o.p);
+    check('shows: every day answered, the list is shown', /Good Show/.test(t1), t1);
+    phase = 'part';
+    await o.p.evaluate(() => loadWeek()); await o.p.waitForTimeout(800);
+    const t2 = await card(o.p), hd2 = await o.p.evaluate(() => document.getElementById('week-hd').textContent);
+    check('shows: a day that did not answer keeps the old list, marked with since when', /Good Show/.test(t2) && !/Other Show/.test(t2) && /آخر تحديث/.test(hd2), t2 + ' | ' + hd2);
+    await o.ctx.close();
+    phase = 'down';
+    const q = await session('teams=&panel=shows&gap=0&retry=60000', (r, u) => /tvmaze/.test(u.host) ? r.fulfill({ status: 503, body: '', headers: hdr }) : r.abort());
+    await q.p.waitForTimeout(1000);
+    const t3 = await card(q.p);
+    check('shows: a total failure says «تعذّر التحديث», not «لا جديد»', t3 === 'تعذّر التحديث', t3);
+    await q.ctx.close();
+  }
+}
+
+// ---- prices keep their time: a failed refresh leaves the last price, dimmed and marked; Yahoo is asked once, and politely
+{
+  const hdr = { 'Access-Control-Allow-Origin': '*' };
+  const yahoo = (p, price = 26.3, prev = 26) => JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: price, chartPreviousClose: prev }, indicators: { quote: [{ close: [26, 26.1, price] }] } }] } });
+  const session = async (hash, handler) => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const seen = [];
+    await ctx.route(/^https?:/, r => { const u = new URL(r.request().url()); seen.push(u.host + u.pathname + u.search); return handler(r, u); });
+    const p = await ctx.newPage();
+    const errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(page('tv.html') + '#' + hash + '&gap=0');
+    await p.waitForTimeout(900);
+    return { p, ctx, seen, errors };
+  };
+  const sym = u => decodeURIComponent((u.pathname.match(/chart\/(.+)$/) || [])[1] || '');
+
+  // the card: a refresh that fails
+  {
+    let mode = 'ok';
+    const o = await session('panel=stocks&stocks=2222,AAPL', (r, u) => {
+      if (!/finance\.yahoo/.test(u.host)) return r.abort();
+      if (mode !== 'ok') return r.fulfill({ status: 429, body: 'x', headers: hdr });
+      return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, sym(u) === 'AAPL' ? 230 : 26.3) });
+    });
+    const rows = () => o.p.evaluate(() => ({ old: document.querySelectorAll('#week-list li.stk.old').length, n: document.querySelectorAll('#week-list li.stk').length,
+      hd: document.getElementById('week-hd').textContent, px: [...document.querySelectorAll('#week-list li.stk .px')].map(e => e.textContent).join() }));
+    let r = await rows();
+    check('stocks: a fresh price carries no mark', r.n === 2 && r.old === 0 && !/آخر تحديث|غير محدّث/.test(r.hd), JSON.stringify(r));
+    mode = 'down';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    const r2 = await rows();
+    check('stocks: a refresh that failed keeps the prices, dims the rows and says «آخر تحديث ٣:١٥ م»', r2.n === 2 && r2.old === 2 && r2.px === r.px && /آخر تحديث [٠-٩]{1,2}:[٠-٩]{2} [صم]/.test(r2.hd), JSON.stringify(r2));
+    await o.p.evaluate(() => { STOCKS['2222'].at = Date.now() - 25 * 36e5; STOCKS['AAPL'].at = Date.now() - 26 * 36e5; renderPanel(false, 'stocks'); });
+    const r3 = await rows();
+    check('stocks: older than 24 hours it says «غير محدّث» instead of a time', /غير محدّث/.test(r3.hd) && !/آخر تحديث/.test(r3.hd), r3.hd);
+    mode = 'ok';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    const r4 = await rows();
+    check('stocks: the next good answer clears the mark', r4.old === 0 && !/آخر تحديث|غير محدّث/.test(r4.hd), JSON.stringify(r4));
+    await o.ctx.close();
+  }
+  // the markets line
+  {
+    let mode = 'ok';
+    const o = await session('markets=tasi,aramco,gold&mkstyle=prices', (r, u) => {
+      if (!/finance\.yahoo/.test(u.host)) return r.abort();
+      if (mode !== 'ok') return r.fulfill({ status: 429, body: 'x', headers: hdr });
+      return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, 100, 99) });
+    });
+    const st = () => o.p.evaluate(() => ({ old: document.querySelectorAll('.mk .m.old').length, up: document.getElementById('mk-up').textContent, cls: document.getElementById('mk-up').className,
+      px: [...document.querySelectorAll('.mk .px')].map(e => e.textContent).join() }));
+    const a = await st();
+    check('markets line: current prices, the time of the fetch, nothing dimmed', a.old === 0 && /^آخر تحديث/.test(a.up) && !/old/.test(a.cls), JSON.stringify(a));
+    mode = 'down';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    const b = await st();
+    check('markets line: a failed refresh keeps the prices, dims them and keeps «آخر تحديث» with the time of the last good fetch', b.old === 3 && b.px === a.px && /^آخر تحديث/.test(b.up) && /old/.test(b.cls) && b.up === a.up, JSON.stringify([a, b]));
+    await o.p.evaluate(() => { TICKERS.forEach(t => { MK_LAST[t.key].at = Date.now() - 30 * 36e5; }); saveMarkets(); paintMkUp(); });
+    const c = await st();
+    check('markets line: older than 24 hours says «غير محدّث»', c.up === 'غير محدّث' && c.old === 3, JSON.stringify(c));
+    await o.p.reload(); await o.p.waitForTimeout(500);
+    const d = await st();
+    check('markets line: the time is kept across a restart', d.old === 3 && d.up === 'غير محدّث', JSON.stringify(d));
+    await o.ctx.close();
+  }
+  // Yahoo: the proxies only for a network error; 404 once a day; one request for a symbol on the line and in the card
+  {
+    let mode = '429';
+    const o = await session('markets=aramco&panel=stocks&stocks=2222,ZZZZ', (r, u) => {
+      if (/allorigins|corsproxy/.test(u.host)) return r.abort();
+      if (!/finance\.yahoo/.test(u.host)) return r.abort();
+      if (sym(u) === 'ZZZZ') return r.fulfill({ status: 404, body: '{}', headers: hdr });
+      if (mode === '429') return r.fulfill({ status: 429, body: 'x', headers: hdr });
+      if (mode === 'net') return r.abort();
+      return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, 26.3) });
+    });
+    const asked = re => o.seen.filter(u => re.test(u)).length;
+    check('Yahoo: an HTTP refusal (429 or 404) is not sent through the public proxies', asked(/allorigins|corsproxy/) === 0, o.seen.join('\\n'));
+    check('Yahoo: 2222.SR is on the line and in the card and is asked once', asked(/chart\/2222\.SR/) === 1, String(asked(/chart\/2222\.SR/)));
+    check('Yahoo: the symbol that answered 404 is remembered', await o.p.evaluate(() => Object.keys(YH_404).join()) === 'ZZZZ');
+    const n = asked(/chart\/ZZZZ/);
+    mode = 'ok';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    check('Yahoo: a symbol that answered 404 is not asked again for a day', asked(/chart\/ZZZZ/) === n, `${n} -> ${asked(/chart\/ZZZZ/)}`);
+    await o.p.evaluate(() => { YH_404.ZZZZ = Date.now() - 25 * 36e5; BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(400);
+    check('Yahoo: ... and asked again after it', asked(/chart\/ZZZZ/) === n + 1, String(asked(/chart\/ZZZZ/)));
+    mode = 'net';
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(500);
+    check('Yahoo: a network error does go on to the proxies', asked(/allorigins/) > 0, o.seen.slice(-6).join('\\n'));
+    await o.ctx.close();
+  }
+  // the file CI keeps: read first; only a symbol not in it is asked of Yahoo
+  {
+    const t = new Date().toISOString();
+    const FILE = { updated: t, quotes: { '2222.SR': { p: 27.5, v: 27, c: [27, 27.2, 27.5], t }, 'AAPL': { p: 231, v: 230, c: [230, 231], t }, '^TASI.SR': { p: 11600, v: 11500, c: [], t } } };
+    const o = await session('markets=tasi&mkstyle=prices&panel=stocks&stocks=2222,AAPL,1120', (r, u) => {
+      if (u.host === 'raw.githubusercontent.com' && u.pathname.endsWith('/data-markets/markets/markets.json')) return r.fulfill({ json: FILE, headers: hdr });
+      if (/finance\.yahoo/.test(u.host)) return r.fulfill({ contentType: 'application/json', headers: hdr, body: yahoo(null, 90, 91) });
+      return r.abort();
+    });
+    const yh = o.seen.filter(u => /finance\.yahoo/.test(u));
+    check('markets file: the symbols it holds are not asked of Yahoo, the one it lacks (1120) is', yh.length === 1 && /1120\.SR/.test(yh[0]), yh.join('\\n'));
+    const r = await o.p.evaluate(() => ({ px: [...document.querySelectorAll('#week-list li.stk .px')].map(e => e.textContent).join(), tasi: document.querySelector('.mk .px').textContent }));
+    check('markets file: its prices are the ones shown', r.px.startsWith('٢٧٫٥٠,٢٣١٫٠٠') && r.tasi === '١١٬٦٠٠', JSON.stringify(r));
+    FILE.updated = new Date(Date.now() - 4 * 36e5).toISOString();   // CI stopped four hours ago
+    Object.values(FILE.quotes).forEach(q => { q.t = FILE.updated; });
+    await o.p.evaluate(() => { BUSY.markets = false; return loadMarkets(); });
+    await o.p.waitForTimeout(500);
+    const yh2 = o.seen.filter(u => /finance\.yahoo/.test(u)).length - yh.length;
+    check('markets file: one older than 3 hours is not trusted, every symbol is asked of Yahoo itself', yh2 === 4, String(yh2));
+    await o.ctx.close();
+  }
+  // New York's own clock: the US open is 09:30 there, the hour does not move with summer time
+  {
+    const o = await session('teams=', (r) => r.abort());
+    const open = await o.p.evaluate(() => [
+      ['2026-10-23T13:45:00Z', true], ['2026-10-23T13:15:00Z', false],   // Friday, summer time: 9:45 and 9:15 in New York
+      ['2026-12-15T14:45:00Z', true], ['2026-12-15T14:15:00Z', false],   // winter time: 9:45 and 9:15
+      ['2026-12-15T20:45:00Z', true], ['2026-12-15T21:15:00Z', false],   // 15:45 and 16:15
+      ['2026-10-24T15:00:00Z', false], ['2026-10-25T15:00:00Z', false],  // Saturday, Sunday
+      ['2026-10-25T08:00:00Z', null],                                    // (Tadawul below)
+    ].filter(x => x[1] !== null).map(([iso, want]) => [iso, marketOpen(false, Date.parse(iso)) === want]));
+    check('marketOpen: the US window is New York time in summer and in winter', open.every(x => x[1]), JSON.stringify(open.filter(x => !x[1])));
+    const sa = await o.p.evaluate(() => [marketOpen(true, Date.parse('2026-10-25T07:30:00Z')), marketOpen(true, Date.parse('2026-10-25T12:30:00Z')), marketOpen(true, Date.parse('2026-10-23T08:00:00Z'))]);
+    check('marketOpen: Tadawul Sunday 10:30 open, 15:30 closed, Friday closed', sa.join() === 'true,false,false', sa.join());
+    await o.ctx.close();
+  }
+}
+
+// ---- the forecast is of today on: rows by date, a stale one is not dressed as today; the reading has an age; dust is remembered
+{
+  const NOW = new Date('2026-10-22T09:00:00Z');   // Thursday noon in Riyadh
+  const day = (d, hi = 38) => ({ date: d, code: 2, hi, lo: 24 });
+  const rows = p => p.evaluate(() => [...document.querySelectorAll('#week-list li')].map(li => (li.querySelector('span') || li).textContent + ':' + li.textContent.replace(/\s+/g, ' ').trim().slice(-9)));
+  {
+    const { p, ctx } = await open('tv.html', 'panel=forecast&teams=', { now: NOW });
+    await p.evaluate(d => { FORECAST = d; renderPanel(false); }, [day('2026-10-21'), day('2026-10-22', 37), day('2026-10-23', 36), day('2026-10-24', 35), day('2026-10-25', 34), day('2026-10-26', 33)]);
+    const r = await rows(p);
+    check('forecast card: yesterday is dropped; today is «اليوم» and tomorrow «غداً» by their dates', r.length === 5 && r[0].startsWith('اليوم:') && r[1].startsWith('غداً:') && r[0].includes('٣٧°') && !r.join().includes('٣٨°'), r.join(' | '));
+    await p.evaluate(d => { FORECAST = d; renderPanel(false); }, [day('2026-10-20'), day('2026-10-21'), day('2026-10-23', 36), day('2026-10-24', 35)]);
+    const r2 = await rows(p);
+    check('forecast card: a saved forecast with no today is not shown (nothing called «اليوم»)', r2.length === 1 && r2[0].includes('لا تتوفر بيانات') && !r2.join().includes('اليوم'), r2.join(' | '));
+    await p.evaluate(d => { FORECAST = d; renderPanel(false); }, [day('2026-10-22', 37), day('2026-10-24', 35)]);
+    const r3 = await rows(p);
+    check('forecast card: a gap in the dates is not hidden by the order: after today comes the next date, named by its weekday', r3.length === 2 && r3[0].startsWith('اليوم') && !r3[1].startsWith('غداً'), r3.join(' | '));
+    await ctx.close();
+  }
+  {   // a reading older than 3 hours is not shown as the weather now; a fresh one stays
+    const { p, ctx } = await open('tv.html', 'teams=', { now: NOW });
+    const st = await p.evaluate(() => {
+      const out = [];
+      setText(document.getElementById('wx-temp'), '٣١°'); setText(document.getElementById('wx-desc'), 'صافي'); setText(document.getElementById('wx-range'), '٣٨° / ٢٤°');
+      WX.at = Date.now() - 4 * 36e5; wxExpire(); out.push(document.getElementById('wx-temp').textContent + '|' + document.getElementById('wx-desc').textContent + '|' + document.getElementById('wx-range').textContent);
+      setText(document.getElementById('wx-temp'), '٣١°');
+      WX.at = Date.now() - 2 * 36e5; wxExpire(); out.push(document.getElementById('wx-temp').textContent);
+      return out;
+    });
+    check('weather: a reading older than 3 hours is not shown as current, a 2-hour-old one is', st[0] === '||' && st[1] === '٣١°', st.join(' ; '));
+    await ctx.close();
+  }
+  {   // the air-quality request fails on the second round: «غبار» stays
+    let round = 1;
+    const hdr = { 'Access-Control-Allow-Origin': '*' };
+    const { p, ctx } = await open('tv.html', 'panel=forecast&teams=', { now: NOW, net: r => {
+      const u = r.request().url();
+      if (/air-quality-api/.test(u)) { round === 1 ? r.fulfill({ json: { current: { pm10: 220, dust: 180 } }, headers: hdr }) : r.fulfill({ status: 500, body: '', headers: hdr }); return true; }
+      if (/api\.open-meteo\.com\/v1\/forecast/.test(u)) { r.fulfill({ json: { current: { temperature_2m: 33.2, weather_code: 0 }, daily: { time: ['2026-10-22', '2026-10-23'], weather_code: [0, 0], temperature_2m_max: [38, 37], temperature_2m_min: [24, 23] } }, headers: hdr }); return true; }
+      return false;
+    } });
+    await p.waitForTimeout(500);
+    const first = await p.evaluate(() => document.getElementById('wx-desc').textContent);
+    round = 2;
+    await p.evaluate(() => loadWeather());
+    await p.waitForTimeout(500);
+    const second = await p.evaluate(() => ({ t: document.getElementById('wx-desc').textContent, dust: document.getElementById('wx-desc').classList.contains('dust') }));
+    check('weather: the last good dust reading stands when the air-quality request fails', first === 'غبار' && second.t === 'غبار' && second.dust, first + ' / ' + JSON.stringify(second));
+    await ctx.close();
+  }
+}
+
+// ---- Isha is Maghrib plus its delay, an absolute time: after midnight it reads 24:xx, not an hour that is already gone
+{
+  const { p, ctx, errors } = await open('tv.html', 'city=Oslo&lat=59.91&lon=10.75&tz=Europe%2FOslo&teams=&panel=prayers', { now: new Date('2026-06-21T10:00:00Z') });
+  const r = await p.evaluate(() => {
+    const t = computePrayers(), [mh, mm] = t.Maghrib.split(':').map(Number), [ih, im] = t.Isha.split(':').map(Number);
+    buildPrayers(t); renderPanel(false);
+    return { t, gap: (ih * 60 + im) - (mh * 60 + mm), rows: [...document.querySelectorAll('#week-list li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()),
+             f: [fmt12(24, 14), fmt12(12, 0), fmt12(0, 5), fmt12(23, 59)] };
+  });
+  check('computePrayers: Isha is 90 minutes after Maghrib even past midnight (Oslo, midsummer)', r.gap === 90 && +r.t.Isha.slice(0, 2) >= 24, JSON.stringify(r.t));
+  check('prayer times card: an Isha after midnight reads ١٢:١٤ ص', r.rows[5] && r.rows[5].includes('ص') && r.rows[5].startsWith('العشاء'), r.rows.join(' | '));
+  check('fmt12: 24:14 is 12:14 ص, noon م, 0:05 ص, 23:59 م', r.f.join() === '١٢:١٤ ص,١٢:٠٠ م,١٢:٠٥ ص,١١:٥٩ م', r.f.join());
+  check('computePrayers: no script errors', !errors.length, errors.join('; '));
+  await ctx.close();
+}
+
+// ---- what the page keeps in localStorage is keyed by what it is for, and the old link-keyed copies are pruned at boot
+{
+  const seed = { 'forecast:#city=old&lat=1': '[]', 'hourly:#x': '{}', 'stocks:#y': '{}', 'mk:#z': '{}', 'wx:#w': '{}',
+                 'forecast:20.000,30.000': '[{"date":"2026-10-22","code":1,"hi":30,"lo":20}]', 'snap6:#old1': '[]', 'snap6:#old2': '[]',
+                 'someone-elses-key': 'keep me', 'matchesOk': '5' };
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  await ctx.route(/^https?:/, r => r.abort());
+  await ctx.addInitScript(kv => { try { const o = JSON.parse(kv); for (const k in o) if (localStorage.getItem(k) === null) localStorage.setItem(k, o[k]); } catch (e) {} }, JSON.stringify(seed));
+  const p = await ctx.newPage();
+  await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=forecast&teams=');
+  await p.waitForTimeout(600);
+  const keys = await p.evaluate(() => Object.keys(localStorage).sort());
+  check('storage: the copies keyed by a whole link are gone at boot', !keys.some(k => /^(forecast|hourly|stocks|mk|wx):#/.test(k)) && !keys.includes('matchesOk'), keys.join(' '));
+  check('storage: a key that is not one of the page\'s families is left alone', keys.includes('someone-elses-key'), keys.join(' '));
+  check('storage: another city\'s forecast stays (idle less than two weeks)', keys.includes('forecast:20.000,30.000'));
+  await p.evaluate(() => { FORECAST = [{ date: cityToday(), code: 1, hi: 33, lo: 22 }]; localStorage.setItem(LS.forecast, JSON.stringify(FORECAST)); });
+  check('storage: the forecast key names the city, not the link', await p.evaluate(() => LS.forecast) === 'forecast:21.543,39.173' && !(await p.evaluate(() => Object.keys(localStorage))).some(k => k.startsWith('forecast:#')));
+  await carry(p); await p.goto('about:blank'); await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');   // (a new page: a changed #hash alone is no reload)   // another link, the same city
+  await p.waitForTimeout(500);
+  check('storage: another link for the same city finds the saved forecast', await p.evaluate(() => FORECAST.length && FORECAST[0].hi) === 33);
+  // the link-keyed snapshots: the newest six stay
+  await p.evaluate(() => { const now = Date.now(), seen = {}; for (let i = 0; i < 9; i++) { localStorage.setItem('snap6:#n' + i, '[]'); seen['snap6:#n' + i] = now - (i + 1) * 36e5; }
+    localStorage.setItem('lsSeen', JSON.stringify(seen)); localStorage.setItem('forecast:5.000,6.000', '[]'); const s2 = JSON.parse(localStorage.getItem('lsSeen')); s2['forecast:5.000,6.000'] = now - 15 * 864e5; localStorage.setItem('lsSeen', JSON.stringify(s2)); });
+  await carry(p); await p.goto('about:blank'); await p.goto(page('tv.html') + '#gap=0&lat=21.5433&lon=39.1728&panel=hourly&cardstyle=dark1&teams=');   // (a new page: a changed #hash alone is no reload)
+  await p.waitForTimeout(500);
+  const after = await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snap6:')).length);
+  const gone = await p.evaluate(() => localStorage.getItem('forecast:5.000,6.000'));
+  check('storage: the link-keyed snapshots are kept to the newest six (this page\'s own included)', after <= 6, String(after));
+  check('storage: a copy for another city unused for two weeks is dropped', gone === null);
+  await ctx.close();
+}
+
+// ---- the formatters of the clock and of the games are made once
+{
+  const { p, ctx } = await open('tv.html', 'teams=136013&panel=matches', { now: new Date('2026-10-22T13:40:00Z') });
+  const r = await p.evaluate(() => {
+    const R = Intl.DateTimeFormat; let made = 0;
+    Intl.DateTimeFormat = function (...a) { made++; return new R(...a); };
+    Intl.DateTimeFormat.prototype = R.prototype;
+    const ev = { idEvent: 'q1', strHomeTeam: 'Al-Hilal', idHomeTeam: '136013', strAwayTeam: 'Al-Nassr', idAwayTeam: '136137', strSport: 'Soccer', strStatus: 'NS',
+                 strTimestamp: new Date(Date.now() + 5 * 36e5).toISOString() };
+    NEXT_LIST['136013'] = [ev]; MATCHES['136013'] = ev;
+    for (let i = 0; i < 40; i++) { riyadhParts(); matchWhen(new Date(ev.strTimestamp)); gameBlock(ev, Date.now()); cityToday(); hmParts(new Date()); }
+    renderMatches(); renderPanel(false, 'matches');
+    Intl.DateTimeFormat = R;
+    return { made, when: matchWhen(new Date(ev.strTimestamp)), p: riyadhParts() };
+  });
+  check('formatters: riyadhParts, matchWhen, gameBlock and the date builders make no new Intl.DateTimeFormat per call', r.made === 0, `${r.made} made`);
+  check('formatters: and they still give the right answer (Thursday 13:40Z is 16:40 in Riyadh)', r.p.h === 16 && r.p.mi === 40 && /٩:٤٠|9:40/.test(r.when), JSON.stringify(r));
+  await ctx.close();
+}
+
 
 // ---- the launcher's matches card: «القادسية × الهلال … الجمعة ٢٣ أكتوبر · ٩:٠٠ م … بعد ٧ ساعات» on one line when it all fits (fits()),
 // the date under the clubs when the names need the line. The screensaver's card keeps its two lines.

@@ -19,7 +19,7 @@ import java.util.Locale;
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.GET
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.CITIES
  *   am broadcast -n sa.urtv.screensaver/.SaverReceiver -a sa.urtv.screensaver.SET
- *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49 [--es tz Asia/Kuwait]] [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
+ *       [--es city 'الرس'] [--es lat 25.86 --es lon 43.49 --es tz Asia/Kuwait]   (tz is needed for a place that is not in the list) [--es teams '136013:Al-Hilal,150643:Al-Zulfi']
  *       [--es panel prayers] [--es home_panel prayers,hourly,verse|none] [--es greeting on|off] [--es adhanbar on|off] [--es yearstrip on|off] [--es minrating 7] [--es genres Drama,Comedy] [--es langs English]
  *       [--es photos 30] [--es idle 10] [--es digits hindi|latin]
  *       [--es cardstyle current|dark1|glass1|dark3|glass3] [--es national auto|off]
@@ -95,6 +95,12 @@ public class SaverReceiver extends BroadcastReceiver {
         }
     }
 
+    /** The name is a built-in city, in full or as the short form that fits only one. */
+    private static boolean inList(String name) {
+        for (Cities.Region r : Cities.REGIONS) for (String[] x : r.cities) if (x[0].equals(name)) return true;
+        return CityMatch.find(name).size() == 1;
+    }
+
     private static String set(Context c, Prefs p, Intent i) {
         // check everything first, then save: a typo never leaves half the settings changed
         String[] city = null;
@@ -108,6 +114,9 @@ public class SaverReceiver extends BroadcastReceiver {
             if (lat != null && lon != null) {
                 if (!lat.matches("-?\\d{1,2}(\\.\\d+)?") || !lon.matches("-?\\d{1,3}(\\.\\d+)?"))
                     return "error: lat/lon must be numbers like 25.86 / 43.49";
+                // a place of your own has its own time zone, and a missing one would be guessed (the TV's, Riyadh's): ask for it
+                if (tz == null && !inList(name))
+                    return "error: add the time zone for a place that is not in the list, e.g. --es tz Asia/Riyadh or Asia/Kuwait";
                 city = new String[] {name, lat, lon};
             } else {
                 for (Cities.Region r : Cities.REGIONS) for (String[] x : r.cities) if (x[0].equals(name)) city = x;

@@ -6,7 +6,7 @@ import android.content.Intent;
 
 /**
  * ADB control for agents and optimize/music.sh: GET_PLAYER state, play, pause, next, sleep, and the
- * adhan (play now, switch it on or off, pick the voice, the person's own recording).
+ * adhan (play now, switch it on or off, pick the voice, the person's own recording, set its volume).
  *
  *   ADHAN_OWN --es op info | add --ei size BYTES [--es path /data/local/tmp/urtv-own/in.m4a] | clear
  *   VOICE --ei voice 1..21 (a recording of ours) or 0 (the person's own, when there is one)
@@ -35,6 +35,12 @@ public class MusicReceiver extends BroadcastReceiver {
                 prefs.setAdhanOn("sa.urtv.home.ADHAN_ON".equals(action));
                 AdhanScheduler.schedule(context);
                 return;
+            case "sa.urtv.home.ADHAN_VOLUME": {   // optimize/music.sh adhan volume 60
+                int percent = intent.getIntExtra("percent", -1);
+                if (percent < 10 || percent > 100) return;
+                prefs.setAdhanVolume(percent);
+                return;
+            }
             case "sa.urtv.home.VOICE": {
                 int voice = intent.getIntExtra(MusicService.EXTRA_VOICE, prefs.voice());
                 if (voice == Prefs.OWN) {
@@ -167,6 +173,8 @@ public class MusicReceiver extends BroadcastReceiver {
                 + "|sleep=" + sleepLeft
                 + "|adhan=" + (prefs.adhanOn() ? "on" : "off")
                 + "|voice=" + (prefs.playVoice(context) == Prefs.OWN ? "own" : String.valueOf(prefs.voice()))
+                + "|adhan_volume=" + prefs.adhanVolume()
+                + "|adhan_exact=" + (AdhanScheduler.exactAllowed(context) ? 1 : 0)
                 + "|own_bytes=" + (OwnAdhan.exists(context) ? OwnAdhan.bytes(context) : 0)
                 + "|adhan_next=" + (next == null ? 0 : next.at)
                 + "|adhan_next_name=" + (next == null ? "" : next.name())
