@@ -218,6 +218,15 @@ for key in ("panel", "slot"):
     m = re.search(rf"  {key}: \(\w+ => \[([^\]]+)\]", tpl_src)
     missing += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", m.group(1) if m else "") if v not in settings_md]
 check("docs/SETTINGS.md: every saver.sh / dock.sh / music.sh / photos.sh command and every card and slot choice", not missing, missing)
+# docs/FEATURES.md explains each feature to people: every saver.sh / photos.sh command and every card and slot choice
+features_md = (ROOT / "docs/FEATURES.md").read_text(encoding="utf-8")
+unexplained = sorted(f"{sc} {c}" for sc in ("saver.sh", "photos.sh") if (ROOT / "optimize" / sc).exists() for c in commands(sc)
+                     if c not in ("help", "-h", "--help")
+                     and not re.search(rf"{re.escape(sc)} {re.escape(c)}\b|`{re.escape(c)}\b|، {re.escape(c)}\b", features_md))
+for key in ("panel", "slot"):
+    mm = re.search(rf"  {key}: \(\w+ => \[([^\]]+)\]", tpl_src)
+    unexplained += [f"{key}={v}" for v in re.findall(r"'([a-z]+)'", mm.group(1) if mm else "") if v not in features_md]
+check("docs/FEATURES.md: every saver.sh / photos.sh command and every card and slot choice is explained", not unexplained, unexplained)
 
 # ---- launcher config
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()
