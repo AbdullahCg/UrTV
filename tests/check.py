@@ -138,8 +138,10 @@ check("clubs: the known ids are the clubs the app uses",
 prefs_leagues = re.findall(r'\{"([^"]+)", "[^"]+"\}', (ROOT / "android/app/src/main/java/sa/urtv/screensaver/Prefs.java")
                            .read_text(encoding="utf-8").split("LEAGUES = {")[1].split("};")[0])
 count = {l: sum(l in c["leagues"] for c in clubs) for l in prefs_leagues}
+PENDING = {"NBA", "NFL"}   # added to Prefs.LEAGUES before their first CI run: empty until its teams.json is applied
 check("clubs: every league of the app has at least its minimum", all(count[l] >= LEAGUES.get(l, {}).get("min", 1)
-      for l in prefs_leagues), {l: (n, LEAGUES.get(l, {}).get("min")) for l, n in count.items() if n < LEAGUES.get(l, {}).get("min", 1)})
+      for l in prefs_leagues if l not in PENDING or count[l]), {l: (n, LEAGUES.get(l, {}).get("min")) for l, n in count.items()
+                                                         if n < LEAGUES.get(l, {}).get("min", 1) and (l not in PENDING or n)})
 national = [c for c in clubs if NATIONAL_LEAGUE in c["leagues"]]
 check(f"clubs: all {len(NATIONAL)} national teams", len(national) == len(NATIONAL), len(national))
 ours = [c for c in clubs if NATIONAL_LEAGUE in c["leagues"] or any(LEAGUES.get(l, {}).get("country") == "Saudi Arabia"
