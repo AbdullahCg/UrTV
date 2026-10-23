@@ -142,6 +142,8 @@ report() {
       echo "- pkg $state: $pkg ($l)"
     done
   done
+  echo "Turned off by the setup (name | package | list). One the person wants back: optimize/keep.sh restore <package>"
+  optimize/keep.sh off 2> /dev/null | sed 's/^/- off-name: /' || true
   echo "Left off the home screen:"
   optimize/dock.sh hidden 2> /dev/null | sed 's/^/- home hides: /' || true
   echo "Undo everything: optimize/reset.sh"

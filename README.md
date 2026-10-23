@@ -138,7 +138,7 @@ Everything is scriptable over ADB, made for slow Wi-Fi (retries, resumable uploa
 | `optimize/dock.sh` | favourites row: `show`, `apps`, `set`, `reset`; `hidden`, `hide PKG`, `show PKG` for apps left off the home screen |
 | `optimize/music.sh` | «تلاوة وأذان» over ADB: `status`, `reciters`, `stations`, `surah`, `radio`, `pause`, `resume`, `seek`, `sleep`, `adhan` (`now`, `on`/`off`, `voice N`) |
 | `optimize/measure.sh` · `shot.sh` | memory before/after (restart + settle) · screenshots without navigating |
-| `optimize/keep.sh` | turn back on anything protected (AirPlay, casting, voice, updates…) that something turned off |
+| `optimize/keep.sh` | turn back on anything protected (AirPlay, casting, voice, updates…) that something turned off · `off`: what the setup turned off, by name · `restore <pkg>`: an app the person wants back, remembered so `run.sh again` leaves it on |
 | `docs/TVS.md` | what was seen on each TV model (ADB port, home switch, what to watch out for) |
 | `optimize/reset.sh` | back to stock: lists re-enabled, stock home and screensaver back, our apps removed |
 | `optimize/share.sh` | if the owner wants: `--preview` writes how the setup went and prints exactly what would be sent, `--send` sends it: TV model, time per step, what failed, memory before/after, nothing personal; anonymous to the author (from their phone by a QR code if this computer is offline) |

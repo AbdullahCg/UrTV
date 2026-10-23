@@ -376,6 +376,13 @@ optimize/run.sh status                            # every step ✓, and «report
   back; ours stays installed) and read `optimize/saver.sh show` back to me. If I say no, leave it; `optimize/saver.sh on`
   turns ours on any time. Don't turn it off on your own, and don't hide the line.
 - What was disabled, my settings, and anything that looked wrong or slow.
+- **What was turned off, by name, and a chance to keep one (once; it must not hold anything up).** Run
+  `optimize/keep.sh off` (or read `report.md`, «Turned off by the setup») and show me the apps by their usual names,
+  in Arabic («تنبيهات TCL»، «حساب TCL»، «عروض الشركاء»…), in a short list. Then ask once, after the summary:
+  «هذي التطبيقات اللي أطفيتها. إذا تبي واحد منها ارجعه قلّي «أبي هذا» واسمه.» Most people say nothing: then go straight on
+  to the next point and never ask again. If I name one (or several), find its package in that list and run
+  `optimize/keep.sh restore <package> …`; it turns it on and remembers it, so a later `optimize/run.sh again` leaves it
+  on. (`optimize/keep.sh unkeep <package>` if I change my mind.) Never turn an app on by hand with your own `pm` commands.
 - When I'm at the TV, to try voice from the remote and casting (AirPlay or Cast) from a phone once, and to tell
   you if either doesn't work (`optimize/keep.sh` turns them back on).
 - In one line, what I can still ask you to change any time: the favourites, the card on the home screen, the

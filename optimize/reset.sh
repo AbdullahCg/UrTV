@@ -69,5 +69,6 @@ echo "4/4 Tweaks back to Android's defaults…"
 optimize/tweaks.sh restore > /dev/null
 [ -d optimize/run ] && mv optimize/run "optimize/run-$(date +%Y%m%d-%H%M%S)"   # keep the old results apart
 
+"$PY" -I optimize/offlist.py clear 2> /dev/null || true   # the apps kept on by request: a reset starts like new
 echo "Done. Still disabled on this TV (made so by the manufacturer, or by something else):"
 tv "pm list packages -d" | sed 's/^package:/   /'
