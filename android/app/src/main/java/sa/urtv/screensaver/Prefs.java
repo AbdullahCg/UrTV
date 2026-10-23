@@ -196,6 +196,37 @@ final class Prefs {
     String panel() { return sp.getString("panel", sp.getBoolean("showWeek", true) ? "verse" : "none"); }
     void setPanel(String v) { sp.edit().putString("panel", v).apply(); }
 
+    // One plain line about each card, in the words of docs/FEATURES.md (tests/check.py compares them): the pickers show it under the name
+    static final String[][] PANEL_ABOUT = {
+        {"shows", "حلقات هذا الأسبوع"},
+        {"prayers", "الست أوقات، والجاية مميّزة"},
+        {"forecast", "خمسة أيام"},
+        {"hourly", "الست ساعات الجاية بالساعة والأيقونة والحرارة، وقمر بعد الغروب"},
+        {"prayerrow", "الخمس صلوات في صف واحد، والجاية مضيئة"},
+        {"matches", "مباريات الأسبوع ونتائج آخر يوم لفرقك، وكل مباراة بسطر واحد"},
+        {"verse", "آية يوم، وحديث صحيح من الكتب الستة اليوم اللي بعده، ومعه مصدره"},
+        {"wisdom", "مثل أو قول عربي معروف مع مصدره"},
+        {"adhkar", "من الفجر للظهر أذكار الصباح، ومن العصر للمغرب أذكار المساء"},
+        {"stocks", "أسهمك بالسعر والتغيّر"},
+        {"tasks", "قائمة مهامك"},
+        {"year", "٣٦٥ نقطة، الأيام اللي راحت تولّع من الغامق للذهبي"},
+        {"smart", "تختار لك البطاقة المناسبة للوقت"},
+        {"today", "الصلاة القادمة ووقتها، والمباراة القادمة لفرقك، وأول مهمة مفتوحة، والمناسبة القادمة وكم يوم باقي"},
+        {"none", "بدون بطاقة"},
+    };
+    static final String[][] CARD_STYLE_ABOUT = {
+        {"current", "البطاقة كما كانت، بخلفية داكنة شفافة"},
+        {"dark1", "داكنة بزوايا مدوّرة وخط ذهبي على جهة الساعة"},
+        {"glass1", "زجاجية ضبابية فوق الصورة"},
+        {"dark3", "داكنة بإطار ذهبي داخلي ومعيّن على الحافتين"},
+        {"glass3", "زجاجية بإطار ذهبي داخلي ومعيّن على الحافتين"},
+    };
+
+    static String about(String[][] table, String v) {
+        for (String[] r : table) if (r[0].equals(v)) return r[1];
+        return "";
+    }
+
     static String panelLabel(String v) {
         for (String[] p : PANELS) if (p[0].equals(v)) return p[1];
         return PANELS[0][1];
@@ -295,16 +326,27 @@ final class Prefs {
     SharedPreferences raw() { return sp; }
 
     /** The page reads its settings from the fragment; a ?query fails on file:// in WebView. */
-    String dashboardUrl(Context c) {
+    String dashboardUrl(Context c) { return pageBase(c) + "#" + fragment(); }
+
+    /**
+     * The page for a preview in the settings: the card alone (#widget=1) with the current settings, but this card in this style.
+     * panel= and cardstyle= are taken out of the fragment first: the page reads the first one it finds.
+     */
+    String previewUrl(Context c, String panel, String cardStyle) {
+        String frag = fragment().replaceAll("(^|&)(panel|week|cardstyle|home_panel)=[^&]*", "");
+        return pageBase(c) + "#" + frag + "&panel=" + panel + "&cardstyle=" + cardStyle + "&widget=1";
+    }
+
+    /** The page without its settings: the downloaded copy when it is newer than the app, else the one the app carries. */
+    private String pageBase(Context c) {
         File remote = Updater.pageFile(c);
         // A downloaded page older than the installed app is stale: the APK carries a newer copy.
         long installed = 0;
         try { installed = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).lastUpdateTime; }
         catch (Exception ignored) { }
-        String base = autoUpdate() && remote.isFile() && remote.lastModified() > installed
+        return autoUpdate() && remote.isFile() && remote.lastModified() > installed
             ? Uri.fromFile(remote).toString()
             : "file:///android_asset/tv.html";
-        return base + "#" + fragment();
     }
 
     /** Everything the page needs, as "city=..&lat=..&..."; also read by the launcher (ConfigProvider). */

@@ -2071,6 +2071,24 @@ for (const [width, height] of [[1920, 1080], [1280, 720], [960, 540]]) {
   }
 }
 
+// ---- the settings' pickers draw the focused card live: the page itself, card only (#panel=<choice>&cardstyle=<style>&widget=1) with the
+// current settings, in a box of 400 x 260 (SettingsActivity.pickWithPreview). Every choice and every style: no errors, drawn, inside the box.
+const PREVIEW = [400, 260];
+for (const panel of ['shows', 'prayers', 'forecast', 'hourly', 'prayerrow', 'matches', 'verse', 'wisdom', 'adhkar', 'stocks', 'tasks', 'year', 'smart', 'today']) {
+  for (const style of ['current', 'dark1', 'glass1', 'dark3', 'glass3']) {
+    if (style !== 'current' && !['verse', 'matches', 'prayerrow', 'hourly', 'today', 'adhkar'].includes(panel)) continue;
+    const o = await open('tv.html', `city=%D8%AC%D8%AF%D8%A9&lat=21.5433&lon=39.1728&teams=136013&stocks=2222,1120,AAPL&tasks=${encodeURIComponent('اتصل بالسباك\nشراء حليب')}&panel=${panel}&cardstyle=${style}&widget=1`,
+      { width: PREVIEW[0], height: PREVIEW[1], now: HOME_NOW });
+    await o.p.evaluate(HOME_SEED() + ' renderPanel(false);');
+    const r = await o.p.evaluate(() => { const c = CARDS[0].el.getBoundingClientRect(), t = document.getElementById('week-list').innerText;
+      return { kinds: CARDS.map(x => x.kind).join(), cs: document.documentElement.className.match(/cs-\S+/)?.[0] || '', inside: c.left >= -.5 && c.right <= innerWidth + .5 && c.bottom <= innerHeight + .5, h: Math.round(c.height),
+        text: t.length, dots: t.includes('…'), bg: getComputedStyle(document.body).backgroundColor }; });
+    check(`preview ${panel} / ${style}: the card alone on a transparent page, in its style, inside the ${PREVIEW.join('x')} box, no script errors`,
+      !o.errors.length && r.kinds === panel && r.cs === (style === 'current' ? '' : 'cs-' + style) && r.inside && r.text > 0 && !r.dots && r.bg === 'rgba(0, 0, 0, 0)', JSON.stringify(r) + o.errors.join('; '));
+    await o.ctx.close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall page tests passed');
 process.exit(failed ? 1 : 0);

@@ -236,6 +236,19 @@ app_panels = re.findall(r'\{"([a-z]+)", "[^"]+"\}', re.search(r"PANELS = \{(.*?)
 check("cards: Prefs.PANELS and the page's #panel= list name the same cards", sorted(page_panels) == sorted(app_panels),
       f"page only {sorted(set(page_panels) - set(app_panels))}, app only {sorted(set(app_panels) - set(page_panels))}")
 
+# the settings' pickers say in one plain line what each card and each card style is, in the words of docs/FEATURES.md
+prefs_src = (ROOT / "android/app/src/main/java/sa/urtv/screensaver/Prefs.java").read_text(encoding="utf-8")
+def table(name):
+    body = re.search(rf"{name} = \{{(.*?)\}};", prefs_src, re.S).group(1)
+    return dict(re.findall(r'\{"([a-z0-9]+)", "([^"]+)"\}', body))
+flat = " ".join(features_md.split())
+for tbl, src in (("PANEL_ABOUT", "PANELS"), ("CARD_STYLE_ABOUT", "CARD_STYLES")):
+    about = table(tbl)
+    names = [k for k, _ in re.findall(r'\{"([a-z0-9]+)", "([^"]+)"', re.search(rf"{src} = \{{(.*?)\}};", prefs_src, re.S).group(1))]
+    check(f"settings: every entry of Prefs.{src} has its one line in Prefs.{tbl}", sorted(about) == sorted(names), sorted(set(names) ^ set(about)))
+    check(f"settings: each line of Prefs.{tbl} is in the words of docs/FEATURES.md", all(" ".join(v.split()) in flat for v in about.values()),
+          [k for k, v in about.items() if " ".join(v.split()) not in flat])
+
 # ---- launcher config
 cfg = ET.parse(ROOT / "android/launcher/src/main/res/values/config.xml").getroot()
 arr = {a.get("name"): [i.text for i in a] for a in cfg.findall("string-array")}
