@@ -56,12 +56,14 @@ public class AppLockSettingsActivity extends Activity {
         LinearLayout accessCopy=new LinearLayout(this);accessCopy.setOrientation(LinearLayout.VERTICAL);
         access.addView(accessCopy,new LinearLayout.LayoutParams(0,-2,1f));
         accessCopy.addView(PinUi.text(this,"حماية الفتح الصوتي",18,PinUi.TEXT),new LinearLayout.LayoutParams(-1,-2));
-        String gateState=AppLockAccessibilityService.enabled(this)?"مفعّلة · تحمي الفتح من الصوت والتطبيقات الأخرى":"غير مفعّلة · تسمح بفتح التطبيقات المحمية بالصوت";
+        String gateState=AppLockAccessibilityService.enabled(this)?"مفعّلة · تحمي الفتح من الصوت والتطبيقات الأخرى":"غير مفعّلة · إعدادات التلفزيون ← تفضيلات الجهاز ← إمكانية الوصول";
         TextView accessStatus=PinUi.text(this,gateState,14,PinUi.MUTED);accessStatus.setPadding(0,PinUi.dp(this,4),0,0);accessCopy.addView(accessStatus,new LinearLayout.LayoutParams(-1,-2));
-        Button accessButton=PinUi.button(this,"إعداد");accessButton.setTextSize(16);access.addView(accessButton,new LinearLayout.LayoutParams(PinUi.dp(this,150),PinUi.dp(this,52)));
+        Button accessButton=PinUi.button(this,"إعدادات التلفزيون");accessButton.setTextSize(14);access.addView(accessButton,new LinearLayout.LayoutParams(PinUi.dp(this,180),PinUi.dp(this,52)));
         accessButton.setOnClickListener(v->{
             openedAccessibilitySettings=true;
-            try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
+            // Sony Android TV 9 resolves ACTION_ACCESSIBILITY_SETTINGS to a stub that only shows
+            // "This action isn't possible for any app". Open Sony's real settings hub instead.
+            try { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
             catch (RuntimeException e) { openedAccessibilitySettings=false; AppLocks.toast(this,"تعذّر فتح إعدادات إمكانية الوصول"); }
         });
         LinearLayout actions=new LinearLayout(this);actions.setClipChildren(false);col.addView(actions,new LinearLayout.LayoutParams(-1,PinUi.dp(this,54)));
