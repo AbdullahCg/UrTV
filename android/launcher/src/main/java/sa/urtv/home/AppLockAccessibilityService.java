@@ -51,6 +51,16 @@ public final class AppLockAccessibilityService extends AccessibilityService {
         String pkg = event.getPackageName().toString();
         if (pkg.equals(getPackageName())) return;
 
+        // A pending PIN is not a one-time bypass. Voice search can launch the same app again
+        // while the first gate is being ignored, so put the gate back in front on every retry.
+        if (pendingPackage != null) {
+            int type = event.getEventType();
+            boolean appBecameVisible = type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                    || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED;
+            if (appBecameVisible && AppLocks.locked(this, pkg)) showGate(pkg);
+            return;
+        }
+
         // A PIN grants entry to YouTube and one video choice. Each later thumbnail choice is gated
         // again; otherwise the app's own recommendations bypass the app-launch lock entirely.
         if (isYoutube(pkg) && isVideoSelection(event)) {
@@ -63,14 +73,12 @@ public final class AppLockAccessibilityService extends AccessibilityService {
             if (authorizedPackage.equals(pkg)) return;
             authorizedPackage = null;
         }
-        if (pendingPackage != null) return;
         if (!AppLocks.locked(this, pkg)) return;
 
         showGate(pkg);
     }
 
     private void showGate(String pkg) {
-        if (pendingPackage != null) return;
         pendingPackage = pkg;
         authorizedPackage = null;
         String name;
