@@ -1,0 +1,77 @@
+package sa.urtv.home;
+
+import android.accessibilityservice.AccessibilityService;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
+import android.view.accessibility.AccessibilityEvent;
+
+/** Intercepts launches outside UrTV (voice search, deep links, other apps) when the user enables it. */
+public final class AppLockAccessibilityService extends AccessibilityService {
+    private static volatile AppLockAccessibilityService instance;
+    private String pendingPackage;
+    private String authorizedPackage;
+
+    static boolean enabled(android.content.Context c) {
+        if (Settings.Secure.getInt(c.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 0) != 1) return false;
+        String enabled = Settings.Secure.getString(c.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (enabled == null) return false;
+        String expected = new ComponentName(c, AppLockAccessibilityService.class).flattenToString();
+        for (String item : enabled.split(":")) {
+            ComponentName parsed = ComponentName.unflattenFromString(item);
+            if (parsed != null && expected.equals(parsed.flattenToString())) return true;
+        }
+        return false;
+    }
+
+    static void allowOnce(String pkg) {
+        AppLockAccessibilityService s = instance;
+        if (s != null) { s.authorizedPackage = pkg; s.pendingPackage = null; }
+    }
+
+    static void cancelGate(String pkg) {
+        AppLockAccessibilityService s = instance;
+        if (s != null && pkg.equals(s.pendingPackage)) s.pendingPackage = null;
+    }
+
+    @Override public void onServiceConnected() { super.onServiceConnected(); instance = this; }
+
+    @Override public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (event == null || event.getPackageName() == null) return;
+        String pkg = event.getPackageName().toString();
+        if (pkg.equals(getPackageName())) return;
+
+        if (authorizedPackage != null) {
+            if (authorizedPackage.equals(pkg)) return;
+            authorizedPackage = null;
+        }
+        if (pendingPackage != null) return;
+        if (!AppLocks.locked(this, pkg)) return;
+
+        pendingPackage = pkg;
+        String name;
+        try { name = getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg, 0)).toString(); }
+        catch (Exception e) { name = pkg; }
+        Intent gate = new Intent(this, AppLockGateActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                .putExtra(AppLockGateActivity.EXTRA_PACKAGE, pkg)
+                .putExtra(AppLockGateActivity.EXTRA_NAME, name);
+
+        // Hide the protected app first, including apps opened by voice search.
+        performGlobalAction(GLOBAL_ACTION_HOME);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (!pkg.equals(pendingPackage)) return;
+            try { startActivity(gate); }
+            catch (RuntimeException e) { pendingPackage = null; }
+        }, 180);
+    }
+
+    @Override public void onInterrupt() { }
+
+    @Override public void onDestroy() {
+        if (instance == this) instance = null;
+        super.onDestroy();
+    }
+}

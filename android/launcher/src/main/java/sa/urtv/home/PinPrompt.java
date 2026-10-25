@@ -22,6 +22,9 @@ final class PinPrompt {
     static Dialog visibleFor(Activity a){Dialog d=visible.get();return d!=null&&d.isShowing()&&d.getOwnerActivity()==a?d:null;}
     static void dismiss(Activity a){Dialog d=visibleFor(a);if(d!=null)d.dismiss();}
     static Dialog ask(Activity a,String title,String hint,Consumer<String> done) {
+        return ask(a,title,hint,done,() -> {});
+    }
+    static Dialog ask(Activity a,String title,String hint,Consumer<String> done,Runnable cancelled) {
         Dialog dialog=new Dialog(a,android.R.style.Theme_Material_NoActionBar);
         dialog.setOwnerActivity(a);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -68,7 +71,7 @@ final class PinPrompt {
         }
         Button cancel=PinUi.button(a,"إلغاء");
         LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,dp(a,48));ap.topMargin=dp(a,20);keypad.addView(cancel,ap);
-        cancel.setOnClickListener(v -> dialog.dismiss());
+        cancel.setOnClickListener(v -> dialog.cancel());
         for(int i=0;i<12;i++) {
             Button b=keys.get(i);int row=i/3,col=i%3;
             b.setNextFocusLeftId(keys.get(col==0?i:i-1).getId());b.setNextFocusRightId(keys.get(col==2?i:i+1).getId());
@@ -92,6 +95,8 @@ final class PinPrompt {
             return false;
         });
         dialog.setOnDismissListener(d -> {pin.setLength(0);if(visible.get()==dialog)visible.clear();});
+        dialog.setOnCancelListener(d -> cancelled.run());
+        dialog.setCanceledOnTouchOutside(false);
         dialog.show();visible=new java.lang.ref.WeakReference<>(dialog);Window w=dialog.getWindow();w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         w.addFlags(WindowManager.LayoutParams.FLAG_SECURE|WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setDimAmount(.72f);
         int width=Math.min(dp(a,760),Math.round(a.getResources().getDisplayMetrics().widthPixels*.9f));

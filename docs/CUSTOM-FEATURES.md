@@ -13,7 +13,7 @@ Notification endpoints are intended for a trusted home LAN, as in the source for
 
 Added locally:
 
-- [Independent app PINs and a master settings/recovery PIN](APP-LOCKS.md).
+- [Independent app PINs and a master settings/recovery PIN](APP-LOCKS.md), with an optional Accessibility gate for voice-search and other external app launches.
 - English digits (0–9) for the home clock/date, screensaver, market prices, prayer times and match scores, while retaining Arabic labels.
 - Numeric TASI and S&P 500 index levels and Bitcoin USD price with provider timestamps, refreshed every 15 minutes. These are latest available provider quotes, not a real-time exchange feed. Offline refresh retains the prior quote and its original timestamp.
 - Local APK installation (`LOCAL_APK_DIR=path optimize/install.sh all`) using the original launcher's safety switch.

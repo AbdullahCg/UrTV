@@ -7,7 +7,7 @@ import android.widget.Toast;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Launch-time gates only: Android voice/deep links and other launchers are outside this feature. */
+/** Per-app PIN verifiers and launch gates. */
 final class AppLocks {
     static final String MASTER = "@master";
     private static final ExecutorService WORK = Executors.newSingleThreadExecutor();
@@ -30,9 +30,12 @@ final class AppLocks {
         });
     }
     static void guard(Activity a, String pkg, String name, Runnable allowed) {
+        guard(a,pkg,name,allowed,() -> {});
+    }
+    static void guard(Activity a, String pkg, String name, Runnable allowed, Runnable cancelled) {
         if (!locked(a, pkg)) { allowed.run(); return; }
         long wait = prefs(a).getLong("until:global",0) - System.currentTimeMillis();
-        if (wait > 0) { toast(a, "محاولات كثيرة. انتظر " + ((wait+999)/1000) + " ثانية"); return; }
+        if (wait > 0) { toast(a, "محاولات كثيرة. انتظر " + ((wait+999)/1000) + " ثانية"); cancelled.run(); return; }
         PinPrompt.ask(a, "رمز " + name, "أدخل رمز التطبيق أو الرمز الرئيسي", pin -> {
             WORK.execute(() -> {
                 SharedPreferences p = prefs(a);
@@ -47,10 +50,10 @@ final class AppLocks {
                 final boolean accepted=ok;
                 a.runOnUiThread(() -> { if (!a.isFinishing()) {
                     if (accepted) allowed.run();
-                    else { toast(a,"الرمز غير صحيح"); guard(a,pkg,name,allowed); }
+                    else { toast(a,"الرمز غير صحيح"); guard(a,pkg,name,allowed,cancelled); }
                 }});
             });
-        });
+        }, cancelled);
     }
     static void choose(Activity a, String title, java.util.function.Consumer<String> save) {
         PinPrompt.ask(a,title,"اختر رمزاً من 4 أرقام",first ->
