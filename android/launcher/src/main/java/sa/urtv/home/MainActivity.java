@@ -1318,13 +1318,14 @@ public class MainActivity extends Activity {
             }
         }
         if (target != null && AppLocks.locked(this, target.getPackageName())) {
+            final String lockedPackage = target.getPackageName();
             Intent pending = new Intent(i);
-            String pkg = target.getPackageName();
+            String pkg = lockedPackage;
             String name;
             try { name = getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg, 0)).toString(); }
             catch (Exception e) { name = pkg; }
             AppLocks.guard(this, pkg, name, () -> {
-                AppLockAccessibilityService.allowOnce(pkg);
+                AppLockAccessibilityService.allowOnce(lockedPackage);
                 launchUnlocked(pending);
             });
             return true;
