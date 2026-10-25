@@ -34,6 +34,7 @@ final class PinPrompt {
         root.setGravity(Gravity.CENTER_VERTICAL); root.setPadding(dp(a,28),dp(a,28),dp(a,28),dp(a,28));
         root.setBackground(PinUi.panel(a,PinUi.BG,0x3DD6AF6B));
         LinearLayout keypad=new LinearLayout(a); keypad.setOrientation(LinearLayout.VERTICAL);keypad.setClipChildren(false);
+        keypad.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         root.addView(keypad,new LinearLayout.LayoutParams(0,-2,1.1f));
         LinearLayout info=new LinearLayout(a); info.setOrientation(LinearLayout.VERTICAL); info.setGravity(Gravity.RIGHT);
         LinearLayout.LayoutParams infoLp=new LinearLayout.LayoutParams(0,-2,1f); infoLp.leftMargin=dp(a,32); root.addView(info,infoLp);
@@ -60,6 +61,7 @@ final class PinPrompt {
         String[] labels={"1","2","3","4","5","6","7","8","9","مسح","0","حذف"};
         for(int r=0;r<4;r++) {
             LinearLayout row=new LinearLayout(a); row.setOrientation(LinearLayout.HORIZONTAL);row.setClipChildren(false);
+            row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
             LinearLayout.LayoutParams rowLp=new LinearLayout.LayoutParams(-1,dp(a,54)); if(r>0)rowLp.topMargin=dp(a,12); keypad.addView(row,rowLp);
             for(int c=0;c<3;c++) {
                 String key=labels[r*3+c]; Button b=PinUi.button(a,key);
