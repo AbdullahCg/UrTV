@@ -6,6 +6,7 @@
 Prints one line per check and exits non-zero if any failed. No network.
 """
 import json
+import os
 import py_compile
 import re
 import subprocess
@@ -27,6 +28,10 @@ def check(name, ok, detail=""):
         failures.append(name)
 
 
+def skip(name, reason):
+    print(f"SKIP {name} ({reason})")
+
+
 def tracked(*globs):
     out = subprocess.run(["git", "ls-files", *globs], cwd=ROOT, capture_output=True, text=True).stdout.split()
     return [ROOT / f for f in out]
@@ -36,8 +41,13 @@ def tracked(*globs):
 # Thmanyah's licence allows its files only inside a built product: never in this public repository (CI puts them in place)
 leaked = [str(f.relative_to(ROOT)) for f in tracked("*Thmanyah*") + tracked("dist/urtv.html")]
 check("Thmanyah's files and the page that inlines them are not committed", not leaked, leaked)
-missing_fonts = [f for f in ("Thmanyah-Regular.woff2", "ThmanyahDisplay-Bold.woff2") if not (ROOT / "assets/fonts" / f).is_file()]
-check("Thmanyah is in place for the build (CI: the private urtv-fonts checkout; locally: your own copy)", not missing_fonts, missing_fonts)
+private_font_files = ("Thmanyah-Regular.woff2", "ThmanyahDisplay-Bold.woff2", "NotoNaskhArabic-Marks.woff2")
+missing_fonts = [f for f in private_font_files if not (ROOT / "assets/fonts" / f).is_file()]
+skip_private_font_checks = bool(missing_fonts and os.environ.get("CI") and not os.environ.get("FONTS_TOKEN"))
+if skip_private_font_checks:
+    skip("Thmanyah is in place for the build", "private font checkout is unavailable to this fork")
+else:
+    check("Thmanyah is in place for the build (CI: the private urtv-fonts checkout; locally: your own copy)", not missing_fonts, missing_fonts)
 before = {n: (ROOT / "dist" / n).read_bytes() for n in ("tv.html",) if (ROOT / "dist" / n).is_file()}
 r = subprocess.run([sys.executable, "src/build.py"], cwd=ROOT, capture_output=True, text=True)
 check("src/build.py runs", r.returncode == 0, r.stderr[-400:])
@@ -140,13 +150,17 @@ check("every narration from the four Sunan carries the scholars' grades", all(h[
       [h["text"][:30] for h in sunan if not h["full"].get("grades")])
 check("every hadith on screen has the Prophet's words and fits the card",
       all(any(k == "q" for k, _ in h["parts"]) and sum(len(t.split()) for _, t in h["parts"]) <= HADITH_MAX_WORDS for h in hadith))
-font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
-marks = set(TTFont(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2").getBestCmap())
+if skip_private_font_checks:
+    font = marks = set()
+else:
+    font = set(TTFont(ROOT / "assets/fonts/Thmanyah-Regular.woff2").getBestCmap())
+    marks = set(TTFont(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2").getBestCmap())
 text = "".join(v["surah"] for v in verses) + "".join(t for h in hadith for _, t in h["parts"]) \
     + "".join(h["source"] for h in hadith) + "".join(w["text"] + w["source"] for w in wisdom) \
     + "".join(d["source"] + ("" if d.get("quran") else d["text"]) for d in adhkar)
 missing = sorted({c for c in text if not c.isspace() and ord(c) not in font and c not in "ﷺ﴿﴾"})   # those: NotoMarks
-check("verse/hadith text: every character in Thmanyah", not missing, missing)
+if skip_private_font_checks: skip("verse/hadith text: every character in Thmanyah", "private font unavailable")
+else: check("verse/hadith text: every character in Thmanyah", not missing, missing)
 # the Quran text (verses, Quranic adhkar) is the KFGQPC Uthmani text, drawn by its own font, whole and unmodified
 hafs = TTFont(ROOT / "assets/fonts/UthmanicHafs-v30.woff2")
 quran = "".join(v["text"] for v in verses) + "".join(d["text"] for d in adhkar if d.get("quran"))
@@ -160,11 +174,13 @@ check("Quran text: every verse has its KFGQPC Uthmani text and the page shows ex
       all(v.get("uthmani") for v in raw_verses) and [v["text"] for v in verses] == [" ".join(v["uthmani"].replace("\u06DE", "").split()) for v in raw_verses],
       [v["ref"] for v in raw_verses if not v.get("uthmani")])
 check("Quranic adhkar carry their Uthmani text", all(d.get("uthmani") for d in adhkar_raw if d.get("quran")))
-check("NotoMarks has ﷺ ﴿ ﴾", {0xFDFA, 0xFD3E, 0xFD3F} <= marks)
+if skip_private_font_checks: skip("NotoMarks has ﷺ ﴿ ﴾", "private font unavailable")
+else: check("NotoMarks has ﷺ ﴿ ﴾", {0xFDFA, 0xFD3E, 0xFD3F} <= marks)
 team_ar = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
 names = "".join(v for v in (team_ar.values() if isinstance(team_ar, dict) else []) if isinstance(v, str))
 missing = sorted({c for c in names if not c.isspace() and ord(c) not in font})
-check("Arabic team names: every character in Thmanyah", not missing, missing)
+if skip_private_font_checks: skip("Arabic team names: every character in Thmanyah", "private font unavailable")
+else: check("Arabic team names: every character in Thmanyah", not missing, missing)
 
 # ---- the clubs list (assets/shared/teams.json, built by .github/tools/team_ids.py in CI)
 from team_ids import ARAB, KNOWN, LEAGUES, NATIONAL, NATIONAL_LEAGUE, plain_ar, team_key   # noqa: E402
@@ -202,7 +218,8 @@ for c in clubs:
 check("clubs: no two teams share an Arabic name", all(len(v) == 1 for v in names.values()),
       {k: v for k, v in names.items() if len(v) > 1})
 missing = sorted({ch for c in clubs for ch in c.get("ar", "") if not ch.isspace() and ord(ch) not in font})
-check("clubs: every character of the Arabic names in Thmanyah", not missing, missing)
+if skip_private_font_checks: skip("clubs: every character of the Arabic names in Thmanyah", "private font unavailable")
+else: check("clubs: every character of the Arabic names in Thmanyah", not missing, missing)
 
 # ---- java: a loop over a table (String[][]) must take a row (String[]); the APK build broke on this twice
 java = {f: f.read_text(encoding="utf-8") for f in tracked("android/*.java")}
@@ -297,7 +314,8 @@ check("app names: every key is a valid package name", all(pkg_re.match(r[0]) for
 check("app names: every name has Arabic letters", all(len(r) == 2 and arabic_re.search(r[1]) for r in app_rows), [r[0] for r in app_rows if len(r) < 2 or not arabic_re.search(r[1])])
 check("app names: no package twice", len({r[0] for r in app_rows}) == len(app_rows))
 missing = sorted({c for r in app_rows for c in r[-1] if not c.isspace() and ord(c) not in font})
-check("app names: every character in Thmanyah", not missing, missing)
+if skip_private_font_checks: skip("app names: every character in Thmanyah", "private font unavailable")
+else: check("app names: every character in Thmanyah", not missing, missing)
 
 # the launcher Java compiles as far as it can without the Android SDK: errors about missing Android classes are ignored
 java_src = sorted((ROOT / "android/launcher/src/main/java").rglob("*.java"))
