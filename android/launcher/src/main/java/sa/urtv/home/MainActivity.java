@@ -1323,7 +1323,10 @@ public class MainActivity extends Activity {
             String name;
             try { name = getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg, 0)).toString(); }
             catch (Exception e) { name = pkg; }
-            AppLocks.guard(this, pkg, name, () -> launchUnlocked(pending));
+            AppLocks.guard(this, pkg, name, () -> {
+                AppLockAccessibilityService.allowOnce(pkg);
+                launchUnlocked(pending);
+            });
             return true;
         }
         return launchUnlocked(i);
