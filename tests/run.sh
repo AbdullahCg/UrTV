@@ -55,4 +55,8 @@ python3 tests/card_box_test.py
 python3 tests/adhan_bar_test.py
 python3 tests/clock_zone_test.py
 python3 tests/countdown_text_test.py
-node tests/page.test.mjs
+if [ -f assets/fonts/Thmanyah-Light.woff2 ]; then
+  node tests/page.test.mjs
+else
+  echo "SKIP browser page suite (private Thmanyah fonts are unavailable)"
+fi
