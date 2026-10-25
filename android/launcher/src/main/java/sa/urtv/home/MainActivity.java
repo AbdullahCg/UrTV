@@ -208,6 +208,12 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStop() {
+        PinPrompt.dismiss(this);
+        super.onStop();
+    }
+
+    @Override
     protected void onDestroy() {
         unregisterReceiver(packages);
         unregisterReceiver(dockChanged);
@@ -411,7 +417,7 @@ public class MainActivity extends Activity {
         Pill tasks = pill("المهام", R.drawable.ic_mic);   // the list lives in the screensaver app
         tasks.setOnClickListener(v -> launch(new Intent(this, TasksActivity.class)));
         Pill settings = pill("الإعدادات", R.drawable.ic_settings);
-        settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
+        settings.setOnClickListener(v -> showLauncherSettings(v));
         // the «تلاوة وأذان» pill: the Quran, the radio and the adhan are part of this app, so it opens them right here
         Pill tilawah = pill("تلاوة وأذان", R.drawable.ic_listen);
         tilawah.setOnClickListener(v -> launch(new Intent(this, sa.urtv.home.tilawah.MainActivity.class)));
@@ -1304,6 +1310,26 @@ public class MainActivity extends Activity {
     }
 
     private boolean launch(Intent i) {
+        ComponentName target = i.getComponent();
+        if (target == null) {
+            ResolveInfo resolved = getPackageManager().resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY);
+            if (resolved != null && resolved.activityInfo != null) {
+                target = new ComponentName(resolved.activityInfo.packageName, resolved.activityInfo.name);
+            }
+        }
+        if (target != null && AppLocks.locked(this, target.getPackageName())) {
+            Intent pending = new Intent(i);
+            String pkg = target.getPackageName();
+            String name;
+            try { name = getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg, 0)).toString(); }
+            catch (Exception e) { name = pkg; }
+            AppLocks.guard(this, pkg, name, () -> launchUnlocked(pending));
+            return true;
+        }
+        return launchUnlocked(i);
+    }
+
+    private boolean launchUnlocked(Intent i) {
         try {
             if (!i.hasCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(i);
@@ -1311,6 +1337,39 @@ public class MainActivity extends Activity {
         } catch (RuntimeException e) {
             return false;
         }
+    }
+
+    private void showLauncherSettings(View anchor) {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(8), dp(8), dp(8), dp(8));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(16)); bg.setColor(0xF02A2A2E); bg.setStroke(dp(1), 0x26FFFFFF);
+        list.setBackground(bg);
+        PopupWindow pw = new PopupWindow(list, dp(240), -2, true);
+        Runnable[] actions = {
+                () -> launch(new Intent(this, AppLockSettingsActivity.class)),
+                () -> launch(new Intent(Settings.ACTION_SETTINGS)),
+                () -> launch(new Intent(this, DockActivity.class))
+        };
+        String[] labels = {"قفل التطبيقات", "إعدادات التلفزيون", "ترتيب المفضلة"};
+        List<TextView> rows = new ArrayList<>();
+        for (int i = 0; i < labels.length; i++) {
+            final Runnable action = actions[i];
+            TextView row = inputRow(labels[i], () -> { });
+            row.setOnClickListener(v -> { pw.dismiss(); action.run(); });
+            rows.add(row); list.addView(row, new LinearLayout.LayoutParams(-1, dp(42)));
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            TextView row = rows.get(i);
+            row.setNextFocusUpId(rows.get(Math.max(0, i - 1)).getId());
+            row.setNextFocusDownId(rows.get(Math.min(rows.size() - 1, i + 1)).getId());
+            row.setNextFocusLeftId(row.getId()); row.setNextFocusRightId(row.getId());
+        }
+        pw.setOutsideTouchable(true); pw.setElevation(dp(16));
+        pw.setOnDismissListener(() -> anchor.requestFocus());
+        pw.showAsDropDown(anchor, 0, dp(8), Gravity.START);
+        rows.get(0).requestFocus();
     }
 
     private boolean isInstalled(String pkg) {

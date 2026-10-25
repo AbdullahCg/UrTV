@@ -46,4 +46,6 @@
     <string name="adhan_exact_detail">فعّل المنبّهات الدقيقة  •  اختيار يفتح الإعداد</string>
     <string name="adhan_chosen">%1$s  •  الصوت المختار</string>
     <string name="adhan_hint">اختيار يجرّب ١٢ ثانية ويحفظ الاختيار  •  التسجيلات: أرشيف الإنترنت، ملكية عامة  •  رجوع</string>
+    <string name="app_lock_accessibility_name">حماية فتح التطبيقات برمز</string>
+    <string name="app_lock_accessibility_description">يرصد فتح التطبيقات المحمية من البحث الصوتي أو من تطبيق آخر، ويقرأ وصف العنصر الذي تختاره داخل يوتيوب لطلب الرمز قبل فتح فيديو آخر. لا يحفظ البيانات ولا يرسلها.</string>
 </resources>
