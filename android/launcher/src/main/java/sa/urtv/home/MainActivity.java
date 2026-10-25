@@ -1333,11 +1333,15 @@ public class MainActivity extends Activity {
             if (resolved != null) target = new ComponentName(resolved.activityInfo.packageName, resolved.activityInfo.name);
         }
         if (target != null && AppLocks.locked(this, target.getPackageName())) {
+            final String lockedPackage = target.getPackageName();
             final Intent pending = new Intent(i);
-            String name = target.getPackageName();
+            String name = lockedPackage;
             try { name = getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(name, 0)).toString(); }
             catch (PackageManager.NameNotFoundException ignored) { }
-            AppLocks.guard(this, target.getPackageName(), name, () -> launchUnlocked(pending));
+            AppLocks.guard(this, target.getPackageName(), name, () -> {
+                AppLockAccessibilityService.allowOnce(lockedPackage);
+                launchUnlocked(pending);
+            });
             return true;
         }
         return launchUnlocked(i);
