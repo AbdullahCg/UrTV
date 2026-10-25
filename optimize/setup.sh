@@ -18,6 +18,12 @@ if ! venv/bin/python -m pip install -q --no-cache-dir -r requirements.txt; then
   echo "   error, allow this terminal network access (pypi.org), then run optimize/setup.sh again."
   exit 1
 fi
+# every `venv/bin/python -I` call verifies TLS with certifi (python.org's macOS Python ships no CA certificates)
+for sp in venv/lib/python3.*/site-packages venv/Lib/site-packages; do
+  [ -d "$sp" ] || continue
+  printf '%s\n' 'import os' 'try:' '    import certifi' '    os.environ.setdefault("SSL_CERT_FILE", certifi.where())' \
+    'except ImportError:' '    pass' > "$sp/sitecustomize.py"
+done
 # pip said yes: make sure tv.py will really start (keygen loads cryptography's DLL, which plain adb_shell doesn't)
 if ! err=$(venv/bin/python -c "import adb_shell.adb_device, adb_shell.auth.keygen, adb_shell.auth.sign_pythonrsa" 2>&1); then
   echo "$err" | tail -1
@@ -31,3 +37,16 @@ if ! err=$(venv/bin/python -c "import adb_shell.adb_device, adb_shell.auth.keyge
   exit 1
 fi
 echo "✓ Python ADB client in optimize/venv"
+# an HTTP error status still means the TLS handshake verified; only a certificate or network error fails
+if venv/bin/python -I -c 'import urllib.request as u, urllib.error as e
+try: u.urlopen("https://github.com", timeout=15)
+except e.HTTPError: pass' 2>/dev/null; then
+  echo "✓ TLS certificates"
+else
+  echo "!! This computer can't open https://github.com from optimize/venv (certificates or network). Check that it"
+  echo "   is online, delete the folder optimize/venv, then run optimize/setup.sh again."
+fi
+# the key the TV trusts lives in the home folder, outside this clone (tv.py makes it on the first connection, and moves an
+# older one here from optimize/adbkey): a new clone of UrTV is the same computer and the TV does not ask again
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) keydir='%USERPROFILE%\.urtv' ;; *) keydir='~/.urtv' ;; esac
+echo "✓ ADB key: $keydir (outside this folder; a new clone of UrTV uses the same one. If an older UrTV folder has optimize/adbkey, copy it there)"

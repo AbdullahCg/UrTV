@@ -20,6 +20,8 @@ final class PhotoCache {
     static final String REPO = "https://raw.githubusercontent.com/" + BuildConfig.REPO + "/" + BuildConfig.BRANCH + "/";
     private static final String BUNDLED = REPO + "assets/backgrounds/", HOSTED = REPO + "photos/",
         FONTS = REPO + "assets/fonts/";
+    /** the owner's own photos (Own): not a real address, the page asks for N.jpg here and only this app answers */
+    static final String OWN = "https://own.urtv.invalid/";
     private static final int KEEP = 12;   // the 5-photo set plus room for the next one
 
     private PhotoCache() {}
@@ -34,6 +36,12 @@ final class PhotoCache {
                 java.util.Map<String, String> h = new java.util.HashMap<>();
                 h.put("Access-Control-Allow-Origin", "*");
                 return new WebResourceResponse("font/woff2", null, 200, "OK", h, c.getAssets().open("fonts/" + name));
+            }
+            if (url.startsWith(OWN)) {
+                String name = url.substring(OWN.length());
+                if (!name.matches("([1-9]|10)\\.jpg")) return null;
+                File f = Own.file(c, Integer.parseInt(name.substring(0, name.indexOf('.'))));
+                return f.isFile() ? jpeg(new FileInputStream(f)) : null;
             }
             if (url.startsWith(BUNDLED)) {
                 String name = safeName(url.substring(BUNDLED.length()));
@@ -61,7 +69,10 @@ final class PhotoCache {
     private static synchronized File hosted(Context c, String url, String name) throws java.io.IOException {
         File dir = new File(c.getFilesDir(), "photos");
         File f = new File(dir, name);
-        if (f.isFile() && f.length() > 0) return f;
+        if (f.isFile() && f.length() > 0) {
+            f.setLastModified(System.currentTimeMillis());   // served now: the next prune keeps it (it keeps the newest, by this time)
+            return f;
+        }
         if (!dir.isDirectory() && !dir.mkdirs()) return null;
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
         con.setConnectTimeout(15000);

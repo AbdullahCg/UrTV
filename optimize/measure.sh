@@ -14,6 +14,13 @@ mkdir -p optimize/run
 out="optimize/run/ram-$label.txt"
 tv() { "$PY" -I optimize/tv.py "$@"; }
 
+# "before" is the baseline: a re-run (run.sh resumed after an interruption) keeps the first one
+case "$label" in before*)
+  if grep -q "^| $label |" optimize/run/summary.md 2> /dev/null; then
+    echo "$label was measured already: keeping the first reading."; exit 0
+  fi ;;
+esac
+
 if [ "$mode" = --screensaver ]; then
   tv "input keyevent KEYCODE_HOME" > /dev/null
   if ! optimize/start-saver.sh > /dev/null; then   # some Android 14 sets don't let ADB start it: nothing to measure
@@ -46,12 +53,13 @@ printf '%s\n' \
   "echo '== processes'; ps -A | wc -l" \
   "echo '== cpu'; top -b -n 1 | head -14" \
   "echo '== disabled packages'; pm list packages -d | wc -l" \
-  "echo '== on screen'; dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity'; dumpsys dreams | grep -m1 -iE 'dreaming|mCurrentDream'" \
+  "echo '== on screen'; dumpsys activity activities 2> /dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity'; dumpsys dreams 2> /dev/null | grep -m1 -iE 'dreaming|mCurrentDream'" \
   "echo '== biggest'; dumpsys meminfo | sed -n '/Total [PR]SS by process/,/^$/p' | head -16" \
+  "echo '== our apps'; for p in sa.urtv.screensaver sa.urtv.home; do echo \"\$p: \$(dumpsys meminfo \$p 2> /dev/null | grep -m1 -E '^ *TOTAL')\"; done" \
   | tv --batch > "$out"
 [ "$mode" = --screensaver ] && tv "input keyevent KEYCODE_HOME" > /dev/null
 
-kb() { local v; v=$(grep -m1 "^$1:" "$out" | tr -dc '0-9' || true); echo "${v:-0}"; }   # 0 if the TV has no such line
+kb() { local v; v=$(sed -n "s/^$1:[[:space:]]*\([0-9][0-9]*\).*/\1/p" "$out" | head -1); echo "${v:-0}"; }   # the first number on that exact line; 0 if the TV has none
 avail=$(( $(kb MemAvailable) / 1024 )); total=$(( $(kb MemTotal) / 1024 ))
 swap=$(( ($(kb SwapTotal) - $(kb SwapFree)) / 1024 ))
 procs=$(sed -n '/== processes/{n;n;p;}' "$out" | tr -dc '0-9')
@@ -59,5 +67,15 @@ cpus=$(grep -m1 -oE '[0-9]+%cpu' "$out" | tr -dc '0-9' || true)        # e.g. 40
 idle=$(grep -m1 -oE '[0-9]+%idle' "$out" | tr -dc '0-9' || true)       # summed over the cores
 [ -n "$cpus" ] && [ -n "$idle" ] && [ "$cpus" -gt 0 ] && idle=$(( idle * 100 / cpus ))
 disabled=$(sed -n '/== disabled packages/{n;n;p;}' "$out" | tr -dc '0-9')
-[ -f optimize/run/summary.md ] || printf '| state | free RAM (MB of %s) | swap used (MB) | processes | CPU idle | disabled packages |\n|---|---|---|---|---|---|\n' "$total" > optimize/run/summary.md
+if [ "$avail" -eq 0 ] || [ "$total" -eq 0 ] || [ "$avail" -gt "$total" ]; then   # a TV whose meminfo we misread (one said 292396 MB free of 1683)
+  avail="not measured (memory read failed)"; total=
+fi
+[ -f optimize/run/summary.md ] || printf '| state | free RAM (MB%s) | swap used (MB) | processes | CPU idle | disabled packages |\n|---|---|---|---|---|---|\n' "${total:+ of $total}" > optimize/run/summary.md
+if [ -f optimize/run/summary.md ] && grep -q "^| $label |" optimize/run/summary.md; then   # a repeated reading replaces its row
+  grep -v "^| $label |" optimize/run/summary.md > optimize/run/summary.md.tmp || true
+  mv optimize/run/summary.md.tmp optimize/run/summary.md
+fi
 printf '| %s | %s | %s | %s | %s | %s |\n' "$label" "$avail" "$swap" "$procs" "${idle:+$idle%}" "$disabled" | tee -a optimize/run/summary.md
+# our two apps' own memory (TOTAL PSS, MB), one line under the table; the table's columns stay as they are
+ours() { local v; v=$(sed -nE "s/^$1:[[:space:]]*TOTAL( PSS:)?[[:space:]]*([0-9]+).*/\2/p" "$out" | head -1); if [ -n "$v" ]; then echo "$(( v / 1024 )) MB"; else echo "not running"; fi; }
+echo "our apps (TOTAL PSS): screensaver $(ours sa.urtv.screensaver), home $(ours sa.urtv.home)"

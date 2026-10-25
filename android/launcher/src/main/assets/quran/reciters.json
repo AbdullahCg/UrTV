@@ -1,0 +1,244 @@
+{
+ "reciters": [
+  {
+   "id": "sudais",
+   "name": "عبدالرحمن السديس",
+   "server": "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "shuraim",
+   "name": "سعود الشريم",
+   "server": "https://cdn.mp3quran.net/audio/saud-shuraim/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "muaiqly",
+   "name": "ماهر المعيقلي",
+   "server": "https://cdn.mp3quran.net/audio/maher-muaiqly/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "afasy",
+   "name": "مشاري العفاسي",
+   "server": "https://cdn.mp3quran.net/audio/mishary-alafasy/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "ghamdi",
+   "name": "سعد الغامدي",
+   "server": "https://cdn.mp3quran.net/audio/saad-ghamdi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "dosari",
+   "name": "ياسر الدوسري",
+   "server": "https://cdn.mp3quran.net/audio/yasser-dosari/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "basit",
+   "name": "عبدالباسط عبدالصمد",
+   "server": "https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r3/",
+   "surahs": 114
+  },
+  {
+   "id": "minshawi",
+   "name": "محمد صديق المنشاوي",
+   "server": "https://cdn.mp3quran.net/audio/muhammad-minshawi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "ajmi",
+   "name": "أحمد بن علي العجمي",
+   "server": "https://cdn.mp3quran.net/audio/ahmad-ajmi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "hudhaifi",
+   "name": "علي بن عبدالرحمن الحذيفي",
+   "server": "https://cdn.mp3quran.net/audio/ali-hudhaifi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "husary",
+   "name": "محمود خليل الحصري",
+   "server": "https://cdn.mp3quran.net/audio/mahmoud-husary/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "matrood",
+   "name": "عبدالله المطرود",
+   "server": "https://cdn.mp3quran.net/audio/abdullah-matrood/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "basfar",
+   "name": "عبدالله بصفر",
+   "server": "https://cdn.mp3quran.net/audio/abdullah-basfar/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "baleela",
+   "name": "بندر بليله",
+   "server": "https://cdn.mp3quran.net/audio/bandar-baleela/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "bukhatir",
+   "name": "صلاح بو خاطر",
+   "server": "https://cdn.mp3quran.net/audio/salah-bukhatir/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "alijaber",
+   "name": "علي جابر",
+   "server": "https://cdn.mp3quran.net/audio/ali-jaber/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "farsabbad",
+   "name": "فارس عباد",
+   "server": "https://cdn.mp3quran.net/audio/fares-abbad/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "duraiwiz",
+   "name": "عمر الدريويز",
+   "server": "https://cdn.mp3quran.net/audio/omar-duraiwiz/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "hanirifai",
+   "name": "هاني الرفاعي",
+   "server": "https://cdn.mp3quran.net/audio/hani-rifai/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "hinaify",
+   "name": "عبدالودود حنيف",
+   "server": "https://cdn.mp3quran.net/audio/abdulwadood-haneef/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "aligaga",
+   "name": "علي حجاج السويسي",
+   "server": "https://cdn.mp3quran.net/audio/ali-souissi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "khamiri",
+   "name": "فؤاد الخامري",
+   "server": "https://cdn.mp3quran.net/audio/fouad-khamiri/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "ghailan",
+   "name": "عبدالبديع غيلان",
+   "server": "https://cdn.mp3quran.net/audio/abdulbadi-ghailan/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "hazmi",
+   "name": "عبدالكريم الحازمي",
+   "server": "https://cdn.mp3quran.net/audio/abdulkareem-hazmi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "qahtani",
+   "name": "خالد القحطاني",
+   "server": "https://cdn.mp3quran.net/audio/khalid-qahtani/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "jaleel",
+   "name": "خالد الجليل",
+   "server": "https://cdn.mp3quran.net/audio/khalid-jalil/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "deeban",
+   "name": "أحمد ديبان",
+   "server": "https://cdn.mp3quran.net/audio/ahmad-deeban/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "emadi",
+   "name": "أنس العمادي",
+   "server": "https://cdn.mp3quran.net/audio/anas-emadi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "jibreel",
+   "name": "محمد جبريل",
+   "server": "https://cdn.mp3quran.net/audio/muhammad-jibreel/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "faqih",
+   "name": "محمد الفقيه",
+   "server": "https://cdn.mp3quran.net/audio/muhammad-faqih/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "daghistani",
+   "name": "زكي داغستاني",
+   "server": "https://cdn.mp3quran.net/audio/zaki-daghistani/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "abdulhakim",
+   "name": "محمود عبدالحكم",
+   "server": "https://cdn.mp3quran.net/audio/mahmoud-abdulhakam/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "oosi",
+   "name": "عبدالرحمن العوسي",
+   "server": "https://cdn.mp3quran.net/audio/abdulrahman-oosi/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "kandari",
+   "name": "عبدالله الكندري",
+   "server": "https://cdn.mp3quran.net/audio/abdullah-kandari/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "zahrani",
+   "name": "عبدالعزيز الزهراني",
+   "server": "https://cdn.mp3quran.net/audio/abdulaziz-zahrani/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "sahood",
+   "name": "صالح الصاهود",
+   "server": "https://cdn.mp3quran.net/audio/saleh-sahood/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "saltani",
+   "name": "مفتاح السلطني",
+   "server": "https://cdn.mp3quran.net/audio/muftah-saltani/r3/",
+   "surahs": 114
+  },
+  {
+   "id": "shouei",
+   "name": "يوسف الشويعي",
+   "server": "https://cdn.mp3quran.net/audio/yousef-shoaey/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "salama",
+   "name": "ياسر سلامة",
+   "server": "https://cdn.mp3quran.net/audio/yasser-salama/r1/",
+   "surahs": 114
+  },
+  {
+   "id": "yamani",
+   "name": "وديع اليمني",
+   "server": "https://cdn.mp3quran.net/audio/wadee-yamani/r1/",
+   "surahs": 114
+  }
+ ]
+}

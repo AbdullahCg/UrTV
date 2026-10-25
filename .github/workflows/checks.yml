@@ -11,15 +11,33 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      FONTS_TOKEN: ${{ secrets.FONTS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      # Thmanyah's licence allows its files only inside a built product: they live in the private
+      # tshi-dev/urtv-fonts and are put in place here, never committed to this repository
+      - uses: actions/checkout@v4
+        with:
+          repository: tshi-dev/urtv-fonts
+          token: ${{ env.FONTS_TOKEN }}
+          path: .fonts-private
+        if: env.FONTS_TOKEN != ''
+      - name: Private fonts
+        if: env.FONTS_TOKEN != ''
+        run: |
+          cp .fonts-private/web/*.woff2 assets/fonts/
+          mkdir -p android/launcher/src/main/assets/fonts
+          cp .fonts-private/android/*.otf android/launcher/src/main/assets/fonts/
+          rm -rf .fonts-private
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: actions/setup-java@v4
+      # a Python of its own: pip then installs into its site-packages, which python -I still sees (optimize/ runs its
+      # scripts with -I, like the venv does on people's computers); the runner's system pip went to the user's folder
+      - uses: actions/setup-python@v5
         with:
-          distribution: temurin
-          java-version: '17'
+          python-version: '3.12'
       - run: pip install fonttools brotli pillow
       - run: npm install --no-save playwright@1.56.1 && npx playwright install --with-deps chromium
       - run: tests/run.sh

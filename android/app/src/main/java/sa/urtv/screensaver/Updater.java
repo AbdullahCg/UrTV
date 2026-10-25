@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +27,39 @@ final class Updater {
     private Updater() {}
 
     static File pageFile(Context c) { return new File(c.getFilesDir(), "web/tv.html"); }
+
+    /** the build stamp of the page the app carries ("" if it cannot be read) */
+    static String assetStamp(Context c) {
+        try { return PageStamp.read(c.getAssets().open("tv.html")); } catch (Exception e) { return ""; }
+    }
+
+    /** the build stamp of a downloaded page file */
+    static String fileStamp(File f) {
+        try { return PageStamp.read(new java.io.FileInputStream(f)); } catch (Exception e) { return ""; }
+    }
+
+    private static final AtomicBoolean DUE_RUNNING = new AtomicBoolean();
+
+    /**
+     * Called when the screensaver starts: if auto-update is on and the last check is 6 hours old or more, checks on a
+     * background thread (one at a time). Does nothing otherwise, so the TV asks the network only when it is used.
+     */
+    static void checkIfDue(Context c) {
+        final Context app = c.getApplicationContext();
+        Prefs prefs = new Prefs(app);
+        if (!prefs.autoUpdate()) return;
+        if (System.currentTimeMillis() - prefs.raw().getLong("lastCheck", 0) < INTERVAL_MS) return;
+        if (!DUE_RUNNING.compareAndSet(false, true)) return;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    check(app, false);
+                } finally {
+                    DUE_RUNNING.set(false);
+                }
+            }
+        }).start();
+    }
 
     /** Blocking; call off the main thread. Returns an Arabic status line for the settings screen. */
     static synchronized String check(Context c, boolean force) {
@@ -60,6 +94,8 @@ final class Updater {
             String tail = new String(body, Math.max(0, body.length - 4096), Math.min(body.length, 4096), "UTF-8");
             // never swap in a truncated or wrong file
             if (body.length < 30_000 || !head.contains("<html") || !tail.contains("</html>")) return "ملف التحديث غير صالح";
+            // a copy older than the page the app carries (a CDN serves old ones for minutes) is not kept, whatever its file time will be
+            if (PageStamp.newer(assetStamp(c), PageStamp.of(head))) return "الصفحة المرفقة أحدث من المنزّلة";
 
             File dir = out.getParentFile();
             if (!dir.isDirectory() && !dir.mkdirs()) return "تعذر الحفظ";
@@ -98,34 +134,28 @@ final class Updater {
         }
     }
 
-    /** The minor number N of "3.N", or -1 when it does not parse. */
-    private static int minor(String v) {
-        try {
-            return v == null ? -1 : Integer.parseInt(v.substring(v.indexOf('.') + 1));
-        } catch (Exception e) {
-            return -1;
-        }
-    }
-
     private static String arabic(String v) {
         StringBuilder b = new StringBuilder();
         for (char ch : v.toCharArray()) {
-            if (ch >= '0' && ch <= '9') b.append((char) ('٠' + (ch - '0')));
+            if (ch >= '0' && ch <= '9') b.append(DigitsText.convert(String.valueOf(ch), false));
             else if (ch == '.') b.append('٫');
             else b.append(ch);
         }
         return b.toString();
     }
 
-    /** Arabic line for the settings row: this app's version and whether a newer release exists. */
-    static String versionNote(Context c) {
+    /** The three lines under the settings: this app's version, the newest release, and how to update. */
+    static String[] versionLines(Context c) {
         String mine = BuildConfig.VERSION_NAME;
         String latest = new Prefs(c).raw().getString("latestVersion", null);
-        String head = "الإصدار " + arabic(mine);
-        if (latest == null || minor(latest) < 0) return head + ".";
-        if (minor(latest) <= minor(mine)) return head + "، وهو الأحدث.";
-        return head + ". يوجد إصدار جديد " + arabic(latest)
-            + ": اطلب من مساعدك «حدّث تلفزيوني»، وإعداداتك تبقى.";
+        Integer newer = Versions.compare(latest, mine);   // major first, then minor: 4.0 is newer than 3.12
+        String available = latest == null || Versions.parse(latest) == null ? "لم يُفحص بعد"
+            : newer == null || newer <= 0 ? "لا يوجد أحدث" : arabic(latest);
+        return new String[] {
+            "الإصدار الحالي: " + arabic(mine),
+            "الإصدار المتاح: " + available,
+            "طريقة التحديث: اطلب من مساعد الذكاء الاصطناعي «حدّث تلفزيوني»، وإعداداتك كلها تبقى.",
+        };
     }
 
     private static byte[] readAll(InputStream in) throws java.io.IOException {

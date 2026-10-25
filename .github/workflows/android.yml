@@ -12,8 +12,25 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    env:
+      FONTS_TOKEN: ${{ secrets.FONTS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      # Thmanyah's licence allows its files only inside a built product: they live in the private
+      # tshi-dev/urtv-fonts and are put in place here, never committed to this repository
+      - uses: actions/checkout@v4
+        with:
+          repository: tshi-dev/urtv-fonts
+          token: ${{ env.FONTS_TOKEN }}
+          path: .fonts-private
+        if: env.FONTS_TOKEN != ''
+      - name: Private fonts
+        if: env.FONTS_TOKEN != ''
+        run: |
+          cp .fonts-private/web/*.woff2 assets/fonts/
+          mkdir -p android/launcher/src/main/assets/fonts
+          cp .fonts-private/android/*.otf android/launcher/src/main/assets/fonts/
+          rm -rf .fonts-private
 
       - name: Build the page
         run: python3 src/build.py

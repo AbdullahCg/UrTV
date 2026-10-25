@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """src/template.html -> two pages in dist/:
 
-urtv.html           stand-alone: fonts and the bundled photos inlined, works offline from a double-click.
+urtv.html           stand-alone: fonts and the bundled photos inlined, works offline from a double-click. Not committed:
+                    it carries Thmanyah, whose licence allows the font only inside a built product.
 tv.html             for the Android app: same page, but fonts and bundled photos are URLs the app serves from
                     its own assets (PhotoCache.java). 2.2 MB less to parse, so the screensaver starts faster.
 """
@@ -17,36 +18,42 @@ FONTS = {
     "__F_REGULAR__": "Thmanyah-Regular.woff2",
     "__F_MEDIUM__": "Thmanyah-Medium.woff2",
     "__F_DISPLAY__": "ThmanyahDisplay-Bold.woff2",
+    "__F_HAFS__": "UthmanicHafs-v30.woff2",   # the whole font, unmodified: its licence forbids changing it (see UthmanicHafs-NOTICE.txt)
 }
 # tv.html points here for fonts and bundled photos; the app answers from its assets, a browser from GitHub.
 REPO = "https://raw.githubusercontent.com/tshi-dev/UrTV/master/"
 
 
-BASMALA = "بسم الله الرحمن الرحيم"   # compared without harakat: the API orders them its own way
+TAFSIR_MAX = 130   # characters kept of «التفسير الميسر»; the card shows at most three lines of it
 
 
-def plain(s):
-    return re.sub("[\u064B-\u065F\u0670]", "", s)
+def tafsir_for_screen(text):
+    """The tafsir cut at a word to TAFSIR_MAX characters, «…» after it if cut ('' when there is none)."""
+    t = " ".join((text or "").split())
+    if len(t) <= TAFSIR_MAX:
+        return t
+    return t[:TAFSIR_MAX].rsplit(" ", 1)[0].rstrip(" ،,:؛.") + "…"
 
 
 def verses_for_screen():
-    """assets/shared/verses.json as fetched from the Quran API (.github/tools/fetch_verses.py), made fit for the font:
-    the pause marks and ۞ are left out (Thmanyah has no glyph for them); letters and harakat stay as fetched.
-    The API puts the basmala in front of the first verse of a surah; it is not part of that verse, so it goes
-    (Al-Fatiha's first verse is the basmala itself). Surah names are shown plain, without harakat."""
+    """assets/shared/verses.json as fetched by .github/tools/fetch_verses.py. The text shown is the `uthmani` one, the
+    KFGQPC text the Uthmanic Hafs font is made for, kept exactly as fetched (waqf signs included, the font draws them;
+    its code points are not normalised or re-ordered) except the ۞ hizb sign the data puts in front of a word. A verse without it is left out: this font gets no other text.
+    The basmala is not part of that text. Surah names are shown plain, without harakat, in Thmanyah."""
     path = ROOT / "assets/shared/verses.json"
     if not path.is_file():
         return []
     out = []
     for v in json.loads(path.read_text(encoding="utf-8")):
-        text = " ".join(re.sub("[\u06D6-\u06DE\u06E9]", "", v["text"]).split())   # pause marks, ۞ and ۩
-        words = text.split()
-        if v["ayah"] == 1 and not v["ref"].startswith("1:") and plain(" ".join(words[:4])) == BASMALA:
-            text = " ".join(words[4:])
+        if not v.get("uthmani"):
+            continue
         # NFC first: the API writes آ as ا + madda, which stripping the harakat would turn into ا (ال عمران)
         name = re.sub("[\u064B-\u065F\u0670\u06D6-\u06ED]", "", unicodedata.normalize("NFC", v["surah"]))
         name = name.replace("\u0671", "ا")   # ٱ: no glyph in Thmanyah
-        out.append({"text": text, "surah": name, "ayah": v["ayah"]})
+        e = {"text": " ".join(v["uthmani"].replace("\u06DE", "").split()), "surah": name, "ayah": v["ayah"]}
+        if v.get("tafsir"):
+            e["tafsir"] = tafsir_for_screen(v["tafsir"])
+        out.append(e)
     return out
 
 
@@ -214,8 +221,74 @@ def js_json(value):
     return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
 
 
+ADHKAR_MAX_WORDS = 70   # a longer dhikr does not fit the card beside the clock
+
+
+def adhkar_for_screen():
+    """assets/shared/adhkar.json -> only the adhkar .github/tools/verify_adhkar.py found (and apply_adhkar_report.py marked
+    `checked`) in the six books or the Quran, in file order. A Quranic one is shown in the Uthmanic Hafs font with its `uthmani` text, as in verses_for_screen."""
+    path = ROOT / "assets/shared/adhkar.json"
+    out = []
+    for d in json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []:
+        if not d.get("checked") or d["when"] not in ("morning", "evening", "night", "both"):
+            continue
+        if d.get("quran"):
+            if not d.get("uthmani"):
+                continue
+            text = " ".join(d["uthmani"].split())
+        else:
+            text = " ".join(re.sub("[\u06D6-\u06DE\u06E9]", "", d["text"]).replace("\u0671", "\u0627").split())
+        if len(text.split()) > ADHKAR_MAX_WORDS:
+            continue
+        e = {"when": d["when"], "text": text, "count": d["count"], "source": d["source"]}
+        if d.get("quran"):
+            e["quran"] = True
+        if d.get("virtue"):   # the hadith's own words, shown as the source line
+            e["virtue"] = d["virtue"]
+        out.append(e)
+    return out
+
+
+# NBA and NFL teams are «city nickname»; two games side by side may need the nickname alone («ليكرز × ووريورز»).
+# The city takes as many Arabic words as English ones, but for the few written as one word.
+US_SPORTS = ("Basketball", "American Football")
+CITY_ONE_WORD = {"New York"}
+NICK_TWO_WORDS = {"Trail Blazers"}
+
+
+def us_short(clubs):
+    out = {}
+    for c in clubs:
+        ar, en = c.get("ar", ""), c.get("en", "").split()
+        if c.get("sport") not in US_SPORTS or not ar or "(" in ar or len(en) < 2:
+            continue
+        nick = 2 if " ".join(en[-2:]) in NICK_TWO_WORDS else 1
+        city = " ".join(en[:-nick])
+        drop = 1 if city in CITY_ONE_WORD else len(city.split())
+        words = ar.split()
+        if len(words) > drop:
+            out[ar] = " ".join(words[drop:])
+    return out
+
+
+def build_stamp():
+    """UTC YYYYMMDDHHMMSS of the newest commit that touched the page's sources (else of HEAD, else now): the same for every build of one
+    commit, never going back as commits are added. URTV_BUILD overrides it. The app compares these, so a page older than its own is never used."""
+    import os, subprocess, time
+    if os.environ.get("URTV_BUILD", "").isdigit():
+        return os.environ["URTV_BUILD"]
+    for args in (["--", "src", "assets"], []):
+        try:
+            t = subprocess.run(["git", "log", "-1", "--format=%ct"] + args, cwd=ROOT, capture_output=True, text=True, timeout=30).stdout.strip()
+        except Exception:
+            t = ""
+        if t.isdigit():
+            return time.strftime("%Y%m%d%H%M%S", time.gmtime(int(t)))
+    return time.strftime("%Y%m%d%H%M%S", time.gmtime())
+
+
 def main():
-    html = (ROOT / "src/template.html").read_text(encoding="utf-8")
+    html = (ROOT / "src/template.html").read_text(encoding="utf-8").replace("__BUILD__", build_stamp())
     # 2 KB, so inlined in both pages
     html = html.replace("__F_MARKS__", data_uri(ROOT / "assets/fonts/NotoNaskhArabic-Marks.woff2", "font/woff2"))
     teams = json.loads((ROOT / "assets/shared/teams-ar.json").read_text(encoding="utf-8"))
@@ -224,16 +297,24 @@ def main():
     clubs = json.loads((ROOT / "assets/shared/teams.json").read_text(encoding="utf-8"))
     by_id = {c["id"]: c["ar"] for c in clubs if c.get("id") and c.get("ar")}
     html = html.replace("__TEAMS_BY_ID__", js_json(by_id))
+    html = html.replace("__TEAMS_SHORT__", js_json(us_short(clubs)))
+    # leagues of Formula 1, UFC, boxing and tennis, found by CI (.github/tools/team_ids.py); {} until a run delivers them
+    html = html.replace("__EVENTS__", js_json(json.loads((ROOT / "assets/shared/events.json").read_text(encoding="utf-8"))))
     html = html.replace("__VERSES__", js_json(verses_for_screen()))
     html = html.replace("__HADITH__", js_json(hadith_for_screen()))   # checked by CI
+    html = html.replace("__ADHKAR__", js_json(adhkar_for_screen()))   # checked by CI
+    html = html.replace("__WISDOM__", js_json(json.loads((ROOT / "assets/shared/wisdom.json").read_text(encoding="utf-8"))))
 
     bg_dir = ROOT / "assets/backgrounds"
     bgs = json.loads((bg_dir / "backgrounds.json").read_text(encoding="utf-8"))
     for name, inline in (("urtv.html", True), ("tv.html", False)):
         page = html
         for token, font in FONTS.items():
-            page = page.replace(token, data_uri(ROOT / "assets/fonts" / font, "font/woff2") if inline
-                                else REPO + "assets/fonts/" + font)
+            path = ROOT / "assets/fonts" / font
+            if inline and not path.is_file():   # Thmanyah comes from the private urtv-fonts repo (CI, or a copy you have):
+                page = page.replace(token, "data:,")   # without it this page falls back to the system's Arabic font
+            else:
+                page = page.replace(token, data_uri(path, "font/woff2") if inline else REPO + "assets/fonts/" + font)
         entries = []
         for bg in bgs:
             u = data_uri(bg_dir / bg["file"], "image/jpeg") if inline else REPO + "assets/backgrounds/" + bg["file"]
