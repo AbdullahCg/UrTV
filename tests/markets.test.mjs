@@ -13,9 +13,12 @@ try {
   await page.waitForTimeout(100);
   const result = await page.evaluate(async () => {
     const stamp = Date.now();
-    window.fetch = async url => ({ok:true, json:async () => String(url).includes('coingecko')
-      ? {bitcoin:{usd:67890.12, usd_24h_change:1.2, last_updated_at:stamp}}
-        : {chart:{result:[{meta:{regularMarketPrice:12345.67,regularMarketTime:stamp},indicators:{quote:[{close:[12400,12345.67]}]}}]}});
+    window.fetch = async url => {
+      const data = String(url).includes('coingecko')
+        ? {bitcoin:{usd:67890.12, usd_24h_change:1.2, last_updated_at:stamp}}
+        : {chart:{result:[{meta:{regularMarketPrice:12345.67,regularMarketTime:stamp},indicators:{quote:[{close:[12400,12345.67]}]}}]}};
+      return {ok:true, json:async () => data};
+    };
     await loadMarkets();
     const initial = TICKERS.map(t => ({key:t.key, text:document.getElementById(t.px).textContent,
       hidden:document.getElementById(t.px).hidden, quote:MK_LAST[t.key]}));
