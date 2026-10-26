@@ -1,6 +1,7 @@
 package sa.urtv.screensaver;
 
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.Manifest;
@@ -102,6 +103,7 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onResume() {   // back in front (from the TV's settings, or opened again over itself): show what is set now
         super.onResume();
+        if (prefs != null && prefs.matchAlerts()) MatchReminderJob.schedule(this);
         render();
     }
 
@@ -109,8 +111,17 @@ public class SettingsActivity extends Activity {
         if (!prefs.matchAlerts()) return "متوقفة";
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             return "مفعّلة · اختر للسماح بالتنبيهات";
+        if (Build.VERSION.SDK_INT >= 31) {
+            AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+            if (am != null && !am.canScheduleExactAlarms()) return "مفعّلة · اختر للسماح بمنبهات دقيقة";
+        }
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         return nm != null && nm.areNotificationsEnabled() ? "مفعّلة · تذكير قبل المباراة بنصف ساعة" : "مفعّلة · التنبيهات محجوبة في إعدادات النظام";
+    }
+
+    private boolean canScheduleExactAlarms() {
+        AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+        return am != null && am.canScheduleExactAlarms();
     }
 
     private void toggleMatchAlerts() {
@@ -119,6 +130,9 @@ public class SettingsActivity extends Activity {
             MatchReminderJob.schedule(this);
         } else if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 73);
+        } else if (Build.VERSION.SDK_INT >= 31 && !canScheduleExactAlarms()) {
+            try { startActivity(new Intent("android.settings.REQUEST_SCHEDULE_EXACT_ALARM", Uri.parse("package:" + getPackageName()))); }
+            catch (Exception ignored) { }
         } else {
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (nm != null && !nm.areNotificationsEnabled()) {

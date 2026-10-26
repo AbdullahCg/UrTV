@@ -15,7 +15,7 @@ Added locally:
 
 - [Independent app PINs and a master settings/recovery PIN](APP-LOCKS.md), with an optional Accessibility gate for voice-search and other external app launches.
 - English digits (0–9) for the home clock/date, screensaver, market prices, prayer times and match scores, while retaining Arabic labels.
-- Important match reminders about 30 minutes before kickoff: all fixtures for followed teams, El Clásico, and semifinal/final matches in major European, international and Saudi cup competitions. The screensaver checks TheSportsDB in the background every six hours; reminders can be toggled in its settings under **المباريات → تنبيهات المباريات المهمة**. Android versions that request notification access need that permission enabled for reminders to appear.
+- Important match reminders about 30 minutes before kickoff: all fixtures for followed teams, El Clásico, and semifinal/final matches in major European, international and Saudi cup competitions. The screensaver checks TheSportsDB in the background every six hours; reminders can be toggled in its settings under **المباريات → تنبيهات المباريات المهمة**. Newer Android versions may also ask for notification and exact-alarm access.
 - Numeric TASI and S&P 500 index levels and Bitcoin USD price with provider timestamps, refreshed every 15 minutes. These are latest available provider quotes, not a real-time exchange feed. Offline refresh retains the prior quote and its original timestamp.
 - Local APK installation (`LOCAL_APK_DIR=path optimize/install.sh all`) using the original launcher's safety switch.
 - Local page auto-update off by default so upstream HTML cannot overwrite the custom ticker; the data refresh schedules continue to work.
