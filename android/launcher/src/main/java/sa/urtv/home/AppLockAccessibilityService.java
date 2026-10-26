@@ -3,9 +3,11 @@ package sa.urtv.home;
 import android.accessibilityservice.AccessibilityService;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
@@ -14,9 +16,14 @@ import java.util.Locale;
 /** Intercepts launches outside UrTV (voice search, deep links, other apps) when the user enables it. */
 public final class AppLockAccessibilityService extends AccessibilityService {
     private static volatile AppLockAccessibilityService instance;
+    private final Handler idleHandler = new Handler(Looper.getMainLooper());
+    private final Runnable idleCheck = this::showSaverIfIdle;
     private String pendingPackage;
     private String authorizedPackage;
+    private String foregroundPackage;
     private boolean videoSelectionArmed;
+    private boolean saverShowing;
+    private long lastUserActivity;
 
     static boolean enabled(android.content.Context c) {
         if (Settings.Secure.getInt(c.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 0) != 1) return false;
@@ -44,17 +51,27 @@ public final class AppLockAccessibilityService extends AccessibilityService {
         if (s != null && pkg.equals(s.pendingPackage)) s.pendingPackage = null;
     }
 
-    @Override public void onServiceConnected() { super.onServiceConnected(); instance = this; }
+    @Override public void onServiceConnected() {
+        super.onServiceConnected();
+        instance = this;
+        updateForegroundPackage();
+        resetIdleTimer();
+    }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null || event.getPackageName() == null) return;
         String pkg = event.getPackageName().toString();
+        int type = event.getEventType();
+        if (isUserInteraction(type)) resetIdleTimer();
+        if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            foregroundPackage = pkg;
+            saverShowing = "sa.urtv.screensaver".equals(pkg);
+        }
         if (pkg.equals(getPackageName())) return;
 
         // A pending PIN is not a one-time bypass. Voice search can launch the same app again
         // while the first gate is being ignored, so put the gate back in front on every retry.
         if (pendingPackage != null) {
-            int type = event.getEventType();
             boolean appBecameVisible = type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                     || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED;
             if (appBecameVisible && AppLocks.locked(this, pkg)) showGate(pkg);
@@ -76,6 +93,71 @@ public final class AppLockAccessibilityService extends AccessibilityService {
         if (!AppLocks.locked(this, pkg)) return;
 
         showGate(pkg);
+    }
+
+    /** The remote is filtered only to observe activity; returning false lets every key reach its app. */
+    @Override protected boolean onKeyEvent(KeyEvent event) {
+        if (event != null && event.getAction() == KeyEvent.ACTION_DOWN) {
+            saverShowing = false;
+            resetIdleTimer();
+        }
+        return false;
+    }
+
+    private static boolean isUserInteraction(int type) {
+        return type == AccessibilityEvent.TYPE_VIEW_CLICKED || type == AccessibilityEvent.TYPE_VIEW_FOCUSED
+                || type == AccessibilityEvent.TYPE_VIEW_SELECTED || type == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
+                || type == AccessibilityEvent.TYPE_VIEW_SCROLLED || type == AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED;
+    }
+
+    private void resetIdleTimer() {
+        lastUserActivity = android.os.SystemClock.uptimeMillis();
+        idleHandler.removeCallbacks(idleCheck);
+        idleHandler.postDelayed(idleCheck, idleTimeoutMs());
+    }
+
+    private long idleTimeoutMs() {
+        long configured = Settings.System.getLong(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, 300000L);
+        if (configured <= 0) configured = 300000L;
+        return Math.min(configured, 6 * 60 * 60 * 1000L) + 10000L;
+    }
+
+    private void updateForegroundPackage() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return;
+        CharSequence name = root.getPackageName();
+        if (name != null) foregroundPackage = name.toString();
+        root.recycle();
+    }
+
+    private void showSaverIfIdle() {
+        long idleFor = android.os.SystemClock.uptimeMillis() - lastUserActivity;
+        long wait = idleTimeoutMs() - idleFor;
+        if (wait > 0) { idleHandler.postDelayed(idleCheck, wait); return; }
+        updateForegroundPackage();
+        if (saverShowing || !isThirdPartyApp(foregroundPackage)) return;
+        AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+        // Let active films and music continue. When playback pauses or ends, the next check can cover the app.
+        if (audio != null && audio.isMusicActive()) {
+            idleHandler.postDelayed(idleCheck, 60000L);
+            return;
+        }
+        Intent saver = new Intent().setComponent(new ComponentName("sa.urtv.screensaver", "sa.urtv.screensaver.MainActivity"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                .putExtra("sleeping", true).putExtra("forcedIdle", true);
+        try {
+            startActivity(saver);
+            saverShowing = true;
+        } catch (RuntimeException ignored) {
+            idleHandler.postDelayed(idleCheck, 60000L);
+        }
+    }
+
+    private boolean isThirdPartyApp(String pkg) {
+        if (pkg == null || pkg.isEmpty() || "android".equals(pkg) || "com.android.systemui".equals(pkg)
+                || getPackageName().equals(pkg) || "sa.urtv.screensaver".equals(pkg)
+                || "com.google.android.tvlauncher".equals(pkg)) return false;
+        return true;
     }
 
     private void showGate(String pkg) {
@@ -140,6 +222,7 @@ public final class AppLockAccessibilityService extends AccessibilityService {
     @Override public void onInterrupt() { }
 
     @Override public void onDestroy() {
+        idleHandler.removeCallbacksAndMessages(null);
         if (instance == this) instance = null;
         super.onDestroy();
     }
