@@ -42,8 +42,9 @@ final class ImportantMatches {
         long now = System.currentTimeMillis();
         SharedPreferences settings = context.getSharedPreferences("settings", Context.MODE_PRIVATE);
         long last = settings.getLong("matchAlertLastRefresh", 0);
-        if (now - last < MIN_REFRESH_GAP) return;
-        settings.edit().putLong("matchAlertLastRefresh", now).apply();
+        boolean exactAlarmUpgrade = !settings.getBoolean("matchExactAlarmsV2", false);
+        if (!exactAlarmUpgrade && now - last < MIN_REFRESH_GAP) return;
+        settings.edit().putLong("matchAlertLastRefresh", now).putBoolean("matchExactAlarmsV2", true).apply();
         List<JSONObject> events = new ArrayList<>();
         Set<String> successfulSources = new HashSet<>();
         Set<String> followed = new HashSet<>();
@@ -157,7 +158,13 @@ final class ImportantMatches {
         PendingIntent pi = PendingIntent.getBroadcast(c, id.hashCode(), i,
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0));
         AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
-        if (am != null) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        if (am == null) return;
+        try {
+            if (Build.VERSION.SDK_INT >= 23) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+            else am.setExact(AlarmManager.RTC_WAKEUP, at, pi);
+        } catch (SecurityException exactNotAllowed) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        }
     }
 
     private static void removeStale(Context c, java.util.Map<String, String> current, Set<String> successfulSources) {
