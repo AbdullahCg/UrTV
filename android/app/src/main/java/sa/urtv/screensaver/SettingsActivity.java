@@ -2,6 +2,8 @@ package sa.urtv.screensaver;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -12,7 +14,9 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.provider.Settings;
+import android.content.pm.PackageManager;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -56,6 +60,7 @@ public class SettingsActivity extends Activity {
         super.onCreate(b);
         prefs = new Prefs(this);
         UpdateJob.schedule(this);
+        MatchReminderJob.schedule(this);
         // the same design as the «تلاوة وأذان» screens: the dark green, a dimmed photo of ours behind, glass rows, the hint at the bottom
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF040E09);
@@ -100,6 +105,42 @@ public class SettingsActivity extends Activity {
         render();
     }
 
+    private String matchAlertsLabel() {
+        if (!prefs.matchAlerts()) return "متوقفة";
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            return "مفعّلة · اختر للسماح بالتنبيهات";
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        return nm != null && nm.areNotificationsEnabled() ? "مفعّلة · تذكير قبل المباراة بنصف ساعة" : "مفعّلة · التنبيهات محجوبة في إعدادات النظام";
+    }
+
+    private void toggleMatchAlerts() {
+        if (!prefs.matchAlerts()) {
+            prefs.setMatchAlerts(true);
+            MatchReminderJob.schedule(this);
+        } else if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 73);
+        } else {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm != null && !nm.areNotificationsEnabled()) {
+                try { startActivity(new Intent("android.settings.APP_NOTIFICATION_SETTINGS").putExtra("android.provider.extra.APP_PACKAGE", getPackageName())); }
+                catch (Exception ignored) { }
+            } else {
+                prefs.setMatchAlerts(false);
+                ImportantMatches.cancelAll(this);
+            }
+        }
+        render();
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == 73) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) MatchReminderJob.schedule(this);
+            else Toast.makeText(this, "اسمح بتنبيهات شاشة التوقف لعرض تذكير المباراة", Toast.LENGTH_LONG).show();
+            render();
+        }
+    }
+
     private void render() {
         latinDigits = DigitsText.isLatin(prefs.digits());
         list.removeAllViews();
@@ -132,6 +173,9 @@ public class SettingsActivity extends Activity {
         header("المباريات");
         row("الفرق المتابعة (" + arabicNum(prefs.teams().size()) + "/" + arabicNum(Prefs.MAX_TEAMS) + ")", teamsLabel(),
             R.drawable.ic_trophy, new Runnable() { public void run() { manageTeams(); } });
+
+        row("تنبيهات المباريات المهمة", matchAlertsLabel(), R.drawable.ic_trophy,
+            new Runnable() { public void run() { toggleMatchAlerts(); } });
 
         row("الدوريات كاملة", leaguesLabel(), R.drawable.ic_trophy,
             new Runnable() { public void run() { pickLeagues(); } });

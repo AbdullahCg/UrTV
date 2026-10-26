@@ -253,6 +253,9 @@ final class Prefs {
     String digits() { return sp.getString("digits", "latin"); }
     void setDigits(String v) { sp.edit().putString("digits", v).apply(); }
 
+    boolean matchAlerts() { return sp.getBoolean("matchAlerts", true); }
+    void setMatchAlerts(boolean enabled) { sp.edit().putBoolean("matchAlerts", enabled).apply(); }
+
     static String digitsLabel(String v) {
         for (String[] d : DIGITS) if (d[0].equals(v)) return d[1];
         return DIGITS[0][1];
