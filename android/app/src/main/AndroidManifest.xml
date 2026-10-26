@@ -3,6 +3,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- only used if the owner allows it for the app: the idle delay row and SaverReceiver's idle -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
@@ -70,6 +71,13 @@
             android:name=".UpdateJob"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".MatchReminderJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <receiver android:name=".MatchReminderReceiver" android:exported="false" />
 
         <receiver
             android:name=".BootReceiver"
